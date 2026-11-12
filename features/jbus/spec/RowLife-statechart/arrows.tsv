@@ -1,0 +1,700 @@
+from	to	label	action	chart	steps in RowLife.cfg
+Approved, behind a row it depends on: done (a clean Result from a thread that ended)	Approved, behind a row it depends on: merged (its pull request merged)	the pull request of a done row merges on your accept	Pull	r1s0>r1s5	108
+Approved, behind a row it depends on: done (a clean Result from a thread that ended)	Approved: done (a clean Result from a thread that ended)	the rows it depends on are over	Ahead	r0s1>r0s0	144
+Approved, behind a row it depends on: done (a clean Result from a thread that ended)	Held, its go kept: done (a clean Result from a thread that ended)	you hold the row, keeping its go	Hold		144
+Approved, behind a row it depends on: done (a clean Result from a thread that ended)	Held: done (a clean Result from a thread that ended)	you hold the row	Hold		144
+Approved, behind a row it depends on: failed (the thread failed)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	a Result says done after the thread failed	Write	r1s1>r1s0	1
+Approved, behind a row it depends on: failed (the thread failed)	Approved, behind a row it depends on: gate (a question is open)	jbus opens a question	Ask		1
+Approved, behind a row it depends on: failed (the thread failed)	Approved, behind a row it depends on: launched (a launch whose thread is starting)	the thread starts	Thread		1
+Approved, behind a row it depends on: failed (the thread failed)	Approved, behind a row it depends on: left (the Result leaves work)	the failed thread leaves its work to its home	Write	r1s1>r1s4	1
+Approved, behind a row it depends on: failed (the thread failed)	Approved, behind a row it depends on: merged (its pull request merged)	the pull request merges	Pull		1
+Approved, behind a row it depends on: failed (the thread failed)	Approved, behind a row it depends on: pr (its pull request is open)	the pull request opens	Pull		1
+Approved, behind a row it depends on: failed (the thread failed)	Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	the failed thread works again	Pull	r1s1>r1s9	1
+Approved, behind a row it depends on: failed (the thread failed)	Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	the failed thread works again	Thread	r1s1>r1s9	1
+Approved, behind a row it depends on: failed (the thread failed)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread		1
+Approved, behind a row it depends on: failed (the thread failed)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code no longer lists the thread	Thread		1
+Approved, behind a row it depends on: failed (the thread failed)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code settles the thread	Thread		1
+Approved, behind a row it depends on: failed (the thread failed)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread ends	Thread		1
+Approved, behind a row it depends on: failed (the thread failed)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread		1
+Approved, behind a row it depends on: failed (the thread failed)	Approved, behind a row it depends on: waiting (the thread asks you)	the thread asks for an answer	Thread		1
+Approved, behind a row it depends on: failed (the thread failed)	Approved: failed (the thread failed)	the rows it depends on are over	Ahead	r0s1>r0s0	1
+Approved, behind a row it depends on: failed (the thread failed)	Held, its go kept: failed (the thread failed)	you hold the row, keeping its go	Hold		1
+Approved, behind a row it depends on: failed (the thread failed)	Held: failed (the thread failed)	you hold the row	Hold		1
+Approved, behind a row it depends on: gate (a question is open)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	the question closes, and the row's Result says done	Pull	r1s2>r1s0	4
+Approved, behind a row it depends on: gate (a question is open)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	the question closes, and the row's Result says done	Thread	r1s2>r1s0	20
+Approved, behind a row it depends on: gate (a question is open)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	the question closes, and the row's Result says done	Write	r1s2>r1s0	8
+Approved, behind a row it depends on: gate (a question is open)	Approved, behind a row it depends on: failed (the thread failed)	the question closes	Ask	r1s2>r1s1	1
+Approved, behind a row it depends on: gate (a question is open)	Approved, behind a row it depends on: launched (a launch whose thread is starting)	the question closes, and the row's launch has no thread yet	Ask	r1s2>r1s3	3
+Approved, behind a row it depends on: gate (a question is open)	Approved, behind a row it depends on: left (the Result leaves work)	the question closes	Ask	r1s2>r1s4	26
+Approved, behind a row it depends on: gate (a question is open)	Approved, behind a row it depends on: merged (its pull request merged)	the question closes, and the row's pull request merged	Pull	r1s2>r1s5	50
+Approved, behind a row it depends on: gate (a question is open)	Approved, behind a row it depends on: pr (its pull request is open)	the question closes, and the row's pull request is open	Pull	r1s2>r1s6	77
+Approved, behind a row it depends on: gate (a question is open)	Approved, behind a row it depends on: queued (no thread yet)	the question closes, and the row's launch has no record	Ask	r1s2>r1s7	1
+Approved, behind a row it depends on: gate (a question is open)	Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	the question closes	Ask	r1s2>r1s9	23
+Approved, behind a row it depends on: gate (a question is open)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the question closes	Ask	r1s2>r1s10	15
+Approved, behind a row it depends on: gate (a question is open)	Approved, behind a row it depends on: waiting (the thread asks you)	the question closes	Ask	r1s2>r1s11	9
+Approved, behind a row it depends on: gate (a question is open)	Approved: gate (a question is open)	the rows it depends on are over	Ahead	r0s1>r0s0	78
+Approved, behind a row it depends on: gate (a question is open)	Held, its go kept: gate (a question is open)	you hold the row, keeping its go	Hold		78
+Approved, behind a row it depends on: gate (a question is open)	Held: gate (a question is open)	you hold the row	Hold		78
+Approved, behind a row it depends on: gate (a question is open)	No go: gate (a question is open)	its go no longer holds, and it waits for yours	Void		78
+Approved, behind a row it depends on: launched (a launch whose thread is starting)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	the thread ends with a clean Result before a pass sees it at work	Thread	r1s3>r1s0	4
+Approved, behind a row it depends on: launched (a launch whose thread is starting)	Approved, behind a row it depends on: failed (the thread failed)	the thread fails before a pass sees it at work	Thread	r1s3>r1s1	1
+Approved, behind a row it depends on: launched (a launch whose thread is starting)	Approved, behind a row it depends on: gate (a question is open)	jbus opens a question	Ask	r1s3>r1s2	3
+Approved, behind a row it depends on: launched (a launch whose thread is starting)	Approved, behind a row it depends on: left (the Result leaves work)	the thread ends with work left before a pass sees it at work	Thread	r1s3>r1s4	5
+Approved, behind a row it depends on: launched (a launch whose thread is starting)	Approved, behind a row it depends on: merged (its pull request merged)	the pull request merges	Pull	r1s3>r1s5	3
+Approved, behind a row it depends on: launched (a launch whose thread is starting)	Approved, behind a row it depends on: pr (its pull request is open)	the pull request opens	Pull	r1s3>r1s6	3
+Approved, behind a row it depends on: launched (a launch whose thread is starting)	Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	T3 Code lists the thread at work	Pull	r1s3>r1s9	3
+Approved, behind a row it depends on: launched (a launch whose thread is starting)	Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	T3 Code lists the thread at work	Thread	r1s3>r1s9	2
+Approved, behind a row it depends on: launched (a launch whose thread is starting)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread	r1s3>r1s10	3
+Approved, behind a row it depends on: launched (a launch whose thread is starting)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code no longer lists the thread	Thread	r1s3>r1s10	1
+Approved, behind a row it depends on: launched (a launch whose thread is starting)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code settles the thread	Thread	r1s3>r1s10	1
+Approved, behind a row it depends on: launched (a launch whose thread is starting)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread ends	Thread	r1s3>r1s10	1
+Approved, behind a row it depends on: launched (a launch whose thread is starting)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread	r1s3>r1s10	3
+Approved, behind a row it depends on: launched (a launch whose thread is starting)	Approved, behind a row it depends on: waiting (the thread asks you)	the thread asks for an answer	Thread	r1s3>r1s11	3
+Approved, behind a row it depends on: launched (a launch whose thread is starting)	Approved: launched (a launch whose thread is starting)	the rows it depends on are over	Ahead	r0s1>r0s0	3
+Approved, behind a row it depends on: launched (a launch whose thread is starting)	Held, its go kept: launched (a launch whose thread is starting)	you hold the row, keeping its go	Hold		3
+Approved, behind a row it depends on: launched (a launch whose thread is starting)	Held: launched (a launch whose thread is starting)	you hold the row	Hold		3
+Approved, behind a row it depends on: left (the Result leaves work)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	a follow-up Result says done	Write	r1s4>r1s0	4
+Approved, behind a row it depends on: left (the Result leaves work)	Approved, behind a row it depends on: gate (a question is open)	jbus opens a question	Ask		26
+Approved, behind a row it depends on: left (the Result leaves work)	Approved, behind a row it depends on: launched (a launch whose thread is starting)	jbus launches the row again for what was left	Thread	r1s4>r1s3	5
+Approved, behind a row it depends on: left (the Result leaves work)	Approved, behind a row it depends on: merged (its pull request merged)	the pull request merges	Pull		5
+Approved, behind a row it depends on: left (the Result leaves work)	Approved, behind a row it depends on: pr (its pull request is open)	a pull request opens for what was left	Pull	r1s4>r1s6	26
+Approved, behind a row it depends on: left (the Result leaves work)	Approved, behind a row it depends on: removed (queue.py `remove`, no pass sets it)	you remove the row from left	Remove	r1s4>r1s8	26
+Approved, behind a row it depends on: left (the Result leaves work)	Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	the thread works again on what was left	Pull	r1s4>r1s9	5
+Approved, behind a row it depends on: left (the Result leaves work)	Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	the thread works again on what was left	Write	r1s4>r1s9	1
+Approved, behind a row it depends on: left (the Result leaves work)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread		5
+Approved, behind a row it depends on: left (the Result leaves work)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread		26
+Approved, behind a row it depends on: left (the Result leaves work)	Approved, behind a row it depends on: waiting (the thread asks you)	the thread asks for an answer again	Thread	r1s4>r1s11	26
+Approved, behind a row it depends on: left (the Result leaves work)	Approved: left (the Result leaves work)	the rows it depends on are over	Ahead	r0s1>r0s0	26
+Approved, behind a row it depends on: left (the Result leaves work)	Held, its go kept: left (the Result leaves work)	you hold the row, keeping its go	Hold		26
+Approved, behind a row it depends on: left (the Result leaves work)	Held: left (the Result leaves work)	you hold the row	Hold		26
+Approved, behind a row it depends on: merged (its pull request merged)	Approved: merged (its pull request merged)	the rows it depends on are over	Ahead	r0s1>r0s0	54
+Approved, behind a row it depends on: merged (its pull request merged)	Held, its go kept: merged (its pull request merged)	you hold the row, keeping its go	Hold		54
+Approved, behind a row it depends on: merged (its pull request merged)	Held: merged (its pull request merged)	you hold the row	Hold		54
+Approved, behind a row it depends on: pr (its pull request is open)	Approved, behind a row it depends on: gate (a question is open)	jbus opens a question on the row with its pull request open	Pull	r1s6>r1s2	27
+Approved, behind a row it depends on: pr (its pull request is open)	Approved, behind a row it depends on: left (the Result leaves work)	the pull request closes unmerged	Pull	r1s6>r1s4	21
+Approved, behind a row it depends on: pr (its pull request is open)	Approved, behind a row it depends on: merged (its pull request merged)	the pull request merges	Pull		54
+Approved, behind a row it depends on: pr (its pull request is open)	Approved, behind a row it depends on: removed (queue.py `remove`, no pass sets it)	you remove the row from pr	Remove	r1s6>r1s8	54
+Approved, behind a row it depends on: pr (its pull request is open)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the pull request closes unmerged	Pull		3
+Approved, behind a row it depends on: pr (its pull request is open)	Approved, behind a row it depends on: waiting (the thread asks you)	the pull request closes unmerged	Pull		3
+Approved, behind a row it depends on: pr (its pull request is open)	Approved: pr (its pull request is open)	the rows it depends on are over	Ahead	r0s1>r0s0	54
+Approved, behind a row it depends on: pr (its pull request is open)	Held, its go kept: pr (its pull request is open)	you hold the row, keeping its go	Hold		54
+Approved, behind a row it depends on: pr (its pull request is open)	Held: pr (its pull request is open)	you hold the row	Hold		54
+Approved, behind a row it depends on: queued (no thread yet)	Approved, behind a row it depends on: gate (a question is open)	jbus opens a question on the row	Ask	r1s7>r1s2	1
+Approved, behind a row it depends on: queued (no thread yet)	Approved, behind a row it depends on: launched (a launch whose thread is starting)	a launch record names a thread for the row	Launch	r1s7>r1s3	1
+Approved, behind a row it depends on: queued (no thread yet)	Approved, behind a row it depends on: removed (queue.py `remove`, no pass sets it)	you remove the row from queued	Remove	r1s7>r1s8	1
+Approved, behind a row it depends on: queued (no thread yet)	Approved: queued (no thread yet)	the rows it depends on are over	Ahead	r0s1>r0s0	1
+Approved, behind a row it depends on: queued (no thread yet)	Held, its go kept: queued (no thread yet)	you hold the row, keeping its go	Hold		1
+Approved, behind a row it depends on: queued (no thread yet)	Held: queued (no thread yet)	you hold the row	Hold		1
+Approved, behind a row it depends on: queued (no thread yet)	No go: queued (no thread yet)	its go no longer holds, and it waits for yours	Void		1
+Approved, behind a row it depends on: removed (queue.py `remove`, no pass sets it)	Approved: removed (queue.py `remove`, no pass sets it)	the rows it depends on are over	Ahead	r0s1>r0s0	81
+Approved, behind a row it depends on: removed (queue.py `remove`, no pass sets it)	Held, its go kept: removed (queue.py `remove`, no pass sets it)	you hold the row, keeping its go	Hold		81
+Approved, behind a row it depends on: removed (queue.py `remove`, no pass sets it)	Held: removed (queue.py `remove`, no pass sets it)	you hold the row	Hold		81
+Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	the thread ends with a clean Result and no pull request	Pull	r1s9>r1s0	4
+Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	the thread ends with a clean Result and no pull request	Thread	r1s9>r1s0	4
+Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: failed (the thread failed)	the thread fails	Pull		1
+Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: failed (the thread failed)	the thread fails	Thread		1
+Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: gate (a question is open)	jbus opens a question	Ask		23
+Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: launched (a launch whose thread is starting)	the crew opens nothing after its review	Pull	r1s9>r1s3	3
+Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: launched (a launch whose thread is starting)	the thread starts	Thread		2
+Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: left (the Result leaves work)	the Result leaves work, or the pull request closes	Pull	r1s9>r1s4	5
+Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: left (the Result leaves work)	the Result leaves work, or the pull request closes	Write	r1s9>r1s4	2
+Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: merged (its pull request merged)	the pull request opens and merges between two passes	Pull	r1s9>r1s5	23
+Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: pr (its pull request is open)	a pull request opens	Pull	r1s9>r1s6	23
+Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the turn hangs, or the thread ends or is settled with nothing written	Pull	r1s9>r1s10	6
+Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the turn hangs, or the thread ends or is settled with nothing written	Thread	r1s9>r1s10	28
+Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: waiting (the thread asks you)	the thread asks for an answer to its request	Thread	r1s9>r1s11	23
+Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Approved: running (the thread at work, a Result or not, or its pull request opening)	the rows it depends on are over	Ahead	r0s1>r0s0	23
+Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	you hold the row, keeping its go	Hold		23
+Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	Held: running (the thread at work, a Result or not, or its pull request opening)	you hold the row	Hold		23
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	T3 Code no longer lists the thread	Thread		2
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	T3 Code settles the thread	Thread		2
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	the crew writes a clean Result	Write	r1s10>r1s0	3
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	the thread ends	Thread		2
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	the thread fails	Thread		2
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: failed (the thread failed)	the thread fails	Thread	r1s10>r1s1	5
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: gate (a question is open)	jbus opens a question	Ask		15
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: launched (a launch whose thread is starting)	the thread starts	Thread	r1s10>r1s3	9
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: left (the Result leaves work)	the thread stays quiet with nothing written, or writes a leftover	Thread	r1s10>r1s4	31
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: left (the Result leaves work)	the thread stays quiet with nothing written, or writes a leftover	Write	r1s10>r1s4	3
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: merged (its pull request merged)	the pull request merges	Pull		12
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: pr (its pull request is open)	the pull request opens	Pull		15
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	the thread works again	Pull	r1s10>r1s9	6
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	the thread works again	Thread	r1s10>r1s9	28
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: waiting (the thread asks you)	the thread asks for an answer	Thread		15
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the rows it depends on are over	Ahead	r0s1>r0s0	15
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	you hold the row, keeping its go	Hold		15
+Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	you hold the row	Hold		15
+Approved, behind a row it depends on: waiting (the thread asks you)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	T3 Code no longer lists the thread	Thread		1
+Approved, behind a row it depends on: waiting (the thread asks you)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	T3 Code settles the thread	Thread		1
+Approved, behind a row it depends on: waiting (the thread asks you)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	the thread ends	Thread		1
+Approved, behind a row it depends on: waiting (the thread asks you)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	the thread fails	Thread		1
+Approved, behind a row it depends on: waiting (the thread asks you)	Approved, behind a row it depends on: failed (the thread failed)	the thread fails while it waits	Thread	r1s11>r1s1	1
+Approved, behind a row it depends on: waiting (the thread asks you)	Approved, behind a row it depends on: gate (a question is open)	jbus opens a question	Ask		9
+Approved, behind a row it depends on: waiting (the thread asks you)	Approved, behind a row it depends on: launched (a launch whose thread is starting)	the thread starts	Thread		3
+Approved, behind a row it depends on: waiting (the thread asks you)	Approved, behind a row it depends on: left (the Result leaves work)	the thread ends after its request with work left	Thread	r1s11>r1s4	26
+Approved, behind a row it depends on: waiting (the thread asks you)	Approved, behind a row it depends on: merged (its pull request merged)	the pull request merges	Pull		6
+Approved, behind a row it depends on: waiting (the thread asks you)	Approved, behind a row it depends on: pr (its pull request is open)	the pull request opens	Pull		9
+Approved, behind a row it depends on: waiting (the thread asks you)	Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	the request is answered and the thread works again	Thread	r1s11>r1s9	23
+Approved, behind a row it depends on: waiting (the thread asks you)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread		3
+Approved, behind a row it depends on: waiting (the thread asks you)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code no longer lists the thread	Thread		1
+Approved, behind a row it depends on: waiting (the thread asks you)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code settles the thread	Thread		1
+Approved, behind a row it depends on: waiting (the thread asks you)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread ends	Thread		1
+Approved, behind a row it depends on: waiting (the thread asks you)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread		9
+Approved, behind a row it depends on: waiting (the thread asks you)	Approved: waiting (the thread asks you)	the rows it depends on are over	Ahead	r0s1>r0s0	9
+Approved, behind a row it depends on: waiting (the thread asks you)	Held, its go kept: waiting (the thread asks you)	you hold the row, keeping its go	Hold		9
+Approved, behind a row it depends on: waiting (the thread asks you)	Held: waiting (the thread asks you)	you hold the row	Hold		9
+Approved: done (a clean Result from a thread that ended)	Approved: merged (its pull request merged)	the pull request of a done row merges on your accept	Pull	r1s0>r1s5	108
+Approved: done (a clean Result from a thread that ended)	Held, its go kept: done (a clean Result from a thread that ended)	you hold the row, keeping its go	Hold	r0s0>r0s3	144
+Approved: done (a clean Result from a thread that ended)	Held: done (a clean Result from a thread that ended)	you hold the approved row	Hold	r0s0>r0s2	144
+Approved: failed (the thread failed)	Approved: done (a clean Result from a thread that ended)	a Result says done after the thread failed	Write	r1s1>r1s0	1
+Approved: failed (the thread failed)	Approved: gate (a question is open)	jbus opens a question	Ask		1
+Approved: failed (the thread failed)	Approved: launched (a launch whose thread is starting)	the thread starts	Thread		1
+Approved: failed (the thread failed)	Approved: left (the Result leaves work)	the failed thread leaves its work to its home	Write	r1s1>r1s4	1
+Approved: failed (the thread failed)	Approved: merged (its pull request merged)	the pull request merges	Pull		1
+Approved: failed (the thread failed)	Approved: pr (its pull request is open)	the pull request opens	Pull		1
+Approved: failed (the thread failed)	Approved: running (the thread at work, a Result or not, or its pull request opening)	the failed thread works again	Pull	r1s1>r1s9	1
+Approved: failed (the thread failed)	Approved: running (the thread at work, a Result or not, or its pull request opening)	the failed thread works again	Thread	r1s1>r1s9	1
+Approved: failed (the thread failed)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread		1
+Approved: failed (the thread failed)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code no longer lists the thread	Thread		1
+Approved: failed (the thread failed)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code settles the thread	Thread		1
+Approved: failed (the thread failed)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread ends	Thread		1
+Approved: failed (the thread failed)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread		1
+Approved: failed (the thread failed)	Approved: waiting (the thread asks you)	the thread asks for an answer	Thread		1
+Approved: failed (the thread failed)	Held, its go kept: failed (the thread failed)	you hold the row, keeping its go	Hold	r0s0>r0s3	1
+Approved: failed (the thread failed)	Held: failed (the thread failed)	you hold the approved row	Hold	r0s0>r0s2	1
+Approved: gate (a question is open)	Approved: done (a clean Result from a thread that ended)	the question closes, and the row's Result says done	Pull	r1s2>r1s0	4
+Approved: gate (a question is open)	Approved: done (a clean Result from a thread that ended)	the question closes, and the row's Result says done	Thread	r1s2>r1s0	20
+Approved: gate (a question is open)	Approved: done (a clean Result from a thread that ended)	the question closes, and the row's Result says done	Write	r1s2>r1s0	8
+Approved: gate (a question is open)	Approved: failed (the thread failed)	the question closes	Ask	r1s2>r1s1	1
+Approved: gate (a question is open)	Approved: launched (a launch whose thread is starting)	the question closes, and the row's launch has no thread yet	Ask	r1s2>r1s3	3
+Approved: gate (a question is open)	Approved: left (the Result leaves work)	the question closes	Ask	r1s2>r1s4	26
+Approved: gate (a question is open)	Approved: merged (its pull request merged)	the question closes, and the row's pull request merged	Pull	r1s2>r1s5	50
+Approved: gate (a question is open)	Approved: pr (its pull request is open)	the question closes, and the row's pull request is open	Pull	r1s2>r1s6	77
+Approved: gate (a question is open)	Approved: queued (no thread yet)	the question closes, and the row's launch has no record	Ask	r1s2>r1s7	1
+Approved: gate (a question is open)	Approved: running (the thread at work, a Result or not, or its pull request opening)	the question closes	Ask	r1s2>r1s9	23
+Approved: gate (a question is open)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the question closes	Ask	r1s2>r1s10	15
+Approved: gate (a question is open)	Approved: waiting (the thread asks you)	the question closes	Ask	r1s2>r1s11	9
+Approved: gate (a question is open)	Held, its go kept: gate (a question is open)	you hold the row, keeping its go	Hold	r0s0>r0s3	78
+Approved: gate (a question is open)	Held: gate (a question is open)	you hold the approved row	Hold	r0s0>r0s2	78
+Approved: gate (a question is open)	No go: gate (a question is open)	its go no longer holds, and it waits for yours	Void	r0s0>r0s4	78
+Approved: launched (a launch whose thread is starting)	Approved: done (a clean Result from a thread that ended)	the thread ends with a clean Result before a pass sees it at work	Thread	r1s3>r1s0	4
+Approved: launched (a launch whose thread is starting)	Approved: failed (the thread failed)	the thread fails before a pass sees it at work	Thread	r1s3>r1s1	1
+Approved: launched (a launch whose thread is starting)	Approved: gate (a question is open)	jbus opens a question	Ask	r1s3>r1s2	3
+Approved: launched (a launch whose thread is starting)	Approved: left (the Result leaves work)	the thread ends with work left before a pass sees it at work	Thread	r1s3>r1s4	5
+Approved: launched (a launch whose thread is starting)	Approved: merged (its pull request merged)	the pull request merges	Pull	r1s3>r1s5	3
+Approved: launched (a launch whose thread is starting)	Approved: pr (its pull request is open)	the pull request opens	Pull	r1s3>r1s6	3
+Approved: launched (a launch whose thread is starting)	Approved: running (the thread at work, a Result or not, or its pull request opening)	T3 Code lists the thread at work	Pull	r1s3>r1s9	3
+Approved: launched (a launch whose thread is starting)	Approved: running (the thread at work, a Result or not, or its pull request opening)	T3 Code lists the thread at work	Thread	r1s3>r1s9	2
+Approved: launched (a launch whose thread is starting)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread	r1s3>r1s10	3
+Approved: launched (a launch whose thread is starting)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code no longer lists the thread	Thread	r1s3>r1s10	1
+Approved: launched (a launch whose thread is starting)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code settles the thread	Thread	r1s3>r1s10	1
+Approved: launched (a launch whose thread is starting)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread ends	Thread	r1s3>r1s10	1
+Approved: launched (a launch whose thread is starting)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread	r1s3>r1s10	3
+Approved: launched (a launch whose thread is starting)	Approved: waiting (the thread asks you)	the thread asks for an answer	Thread	r1s3>r1s11	3
+Approved: launched (a launch whose thread is starting)	Held, its go kept: launched (a launch whose thread is starting)	you hold the row, keeping its go	Hold	r0s0>r0s3	3
+Approved: launched (a launch whose thread is starting)	Held: launched (a launch whose thread is starting)	you hold the approved row	Hold	r0s0>r0s2	3
+Approved: left (the Result leaves work)	Approved: done (a clean Result from a thread that ended)	a follow-up Result says done	Write	r1s4>r1s0	4
+Approved: left (the Result leaves work)	Approved: gate (a question is open)	jbus opens a question	Ask		26
+Approved: left (the Result leaves work)	Approved: launched (a launch whose thread is starting)	jbus launches the row again for what was left	Thread	r1s4>r1s3	5
+Approved: left (the Result leaves work)	Approved: merged (its pull request merged)	the pull request merges	Pull		5
+Approved: left (the Result leaves work)	Approved: pr (its pull request is open)	a pull request opens for what was left	Pull	r1s4>r1s6	26
+Approved: left (the Result leaves work)	Approved: removed (queue.py `remove`, no pass sets it)	you remove the row from left	Remove	r1s4>r1s8	26
+Approved: left (the Result leaves work)	Approved: running (the thread at work, a Result or not, or its pull request opening)	the thread works again on what was left	Pull	r1s4>r1s9	5
+Approved: left (the Result leaves work)	Approved: running (the thread at work, a Result or not, or its pull request opening)	the thread works again on what was left	Write	r1s4>r1s9	1
+Approved: left (the Result leaves work)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread		5
+Approved: left (the Result leaves work)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread		26
+Approved: left (the Result leaves work)	Approved: waiting (the thread asks you)	the thread asks for an answer again	Thread	r1s4>r1s11	26
+Approved: left (the Result leaves work)	Held, its go kept: left (the Result leaves work)	you hold the row, keeping its go	Hold	r0s0>r0s3	26
+Approved: left (the Result leaves work)	Held: left (the Result leaves work)	you hold the approved row	Hold	r0s0>r0s2	26
+Approved: merged (its pull request merged)	Held, its go kept: merged (its pull request merged)	you hold the row, keeping its go	Hold	r0s0>r0s3	54
+Approved: merged (its pull request merged)	Held: merged (its pull request merged)	you hold the approved row	Hold	r0s0>r0s2	54
+Approved: pr (its pull request is open)	Approved: gate (a question is open)	jbus opens a question on the row with its pull request open	Pull	r1s6>r1s2	27
+Approved: pr (its pull request is open)	Approved: left (the Result leaves work)	the pull request closes unmerged	Pull	r1s6>r1s4	21
+Approved: pr (its pull request is open)	Approved: merged (its pull request merged)	the pull request merges	Pull		54
+Approved: pr (its pull request is open)	Approved: removed (queue.py `remove`, no pass sets it)	you remove the row from pr	Remove	r1s6>r1s8	54
+Approved: pr (its pull request is open)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the pull request closes unmerged	Pull		3
+Approved: pr (its pull request is open)	Approved: waiting (the thread asks you)	the pull request closes unmerged	Pull		3
+Approved: pr (its pull request is open)	Held, its go kept: pr (its pull request is open)	you hold the row, keeping its go	Hold	r0s0>r0s3	54
+Approved: pr (its pull request is open)	Held: pr (its pull request is open)	you hold the approved row	Hold	r0s0>r0s2	54
+Approved: queued (no thread yet)	Approved: gate (a question is open)	jbus opens a question on the row	Ask	r1s7>r1s2	1
+Approved: queued (no thread yet)	Approved: launched (a launch whose thread is starting)	a launch record names a thread for the row	Launch	r1s7>r1s3	1
+Approved: queued (no thread yet)	Approved: removed (queue.py `remove`, no pass sets it)	you remove the row from queued	Remove	r1s7>r1s8	1
+Approved: queued (no thread yet)	Held, its go kept: queued (no thread yet)	you hold the row, keeping its go	Hold	r0s0>r0s3	1
+Approved: queued (no thread yet)	Held: queued (no thread yet)	you hold the approved row	Hold	r0s0>r0s2	1
+Approved: queued (no thread yet)	No go: queued (no thread yet)	its go no longer holds, and it waits for yours	Void	r0s0>r0s4	1
+Approved: removed (queue.py `remove`, no pass sets it)	Held, its go kept: removed (queue.py `remove`, no pass sets it)	you hold the row, keeping its go	Hold	r0s0>r0s3	81
+Approved: removed (queue.py `remove`, no pass sets it)	Held: removed (queue.py `remove`, no pass sets it)	you hold the approved row	Hold	r0s0>r0s2	81
+Approved: running (the thread at work, a Result or not, or its pull request opening)	Approved: done (a clean Result from a thread that ended)	the thread ends with a clean Result and no pull request	Pull	r1s9>r1s0	4
+Approved: running (the thread at work, a Result or not, or its pull request opening)	Approved: done (a clean Result from a thread that ended)	the thread ends with a clean Result and no pull request	Thread	r1s9>r1s0	4
+Approved: running (the thread at work, a Result or not, or its pull request opening)	Approved: failed (the thread failed)	the thread fails	Pull		1
+Approved: running (the thread at work, a Result or not, or its pull request opening)	Approved: failed (the thread failed)	the thread fails	Thread		1
+Approved: running (the thread at work, a Result or not, or its pull request opening)	Approved: gate (a question is open)	jbus opens a question	Ask		23
+Approved: running (the thread at work, a Result or not, or its pull request opening)	Approved: launched (a launch whose thread is starting)	the crew opens nothing after its review	Pull	r1s9>r1s3	3
+Approved: running (the thread at work, a Result or not, or its pull request opening)	Approved: launched (a launch whose thread is starting)	the thread starts	Thread		2
+Approved: running (the thread at work, a Result or not, or its pull request opening)	Approved: left (the Result leaves work)	the Result leaves work, or the pull request closes	Pull	r1s9>r1s4	5
+Approved: running (the thread at work, a Result or not, or its pull request opening)	Approved: left (the Result leaves work)	the Result leaves work, or the pull request closes	Write	r1s9>r1s4	2
+Approved: running (the thread at work, a Result or not, or its pull request opening)	Approved: merged (its pull request merged)	the pull request opens and merges between two passes	Pull	r1s9>r1s5	23
+Approved: running (the thread at work, a Result or not, or its pull request opening)	Approved: pr (its pull request is open)	a pull request opens	Pull	r1s9>r1s6	23
+Approved: running (the thread at work, a Result or not, or its pull request opening)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the turn hangs, or the thread ends or is settled with nothing written	Pull	r1s9>r1s10	6
+Approved: running (the thread at work, a Result or not, or its pull request opening)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the turn hangs, or the thread ends or is settled with nothing written	Thread	r1s9>r1s10	28
+Approved: running (the thread at work, a Result or not, or its pull request opening)	Approved: waiting (the thread asks you)	the thread asks for an answer to its request	Thread	r1s9>r1s11	23
+Approved: running (the thread at work, a Result or not, or its pull request opening)	Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	you hold the row, keeping its go	Hold	r0s0>r0s3	23
+Approved: running (the thread at work, a Result or not, or its pull request opening)	Held: running (the thread at work, a Result or not, or its pull request opening)	you hold the approved row	Hold	r0s0>r0s2	23
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: done (a clean Result from a thread that ended)	T3 Code no longer lists the thread	Thread		2
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: done (a clean Result from a thread that ended)	T3 Code settles the thread	Thread		2
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: done (a clean Result from a thread that ended)	the crew writes a clean Result	Write	r1s10>r1s0	3
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: done (a clean Result from a thread that ended)	the thread ends	Thread		2
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: done (a clean Result from a thread that ended)	the thread fails	Thread		2
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: failed (the thread failed)	the thread fails	Thread	r1s10>r1s1	5
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: gate (a question is open)	jbus opens a question	Ask		15
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: launched (a launch whose thread is starting)	the thread starts	Thread	r1s10>r1s3	9
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: left (the Result leaves work)	the thread stays quiet with nothing written, or writes a leftover	Thread	r1s10>r1s4	31
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: left (the Result leaves work)	the thread stays quiet with nothing written, or writes a leftover	Write	r1s10>r1s4	3
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: merged (its pull request merged)	the pull request merges	Pull		12
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: pr (its pull request is open)	the pull request opens	Pull		15
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: running (the thread at work, a Result or not, or its pull request opening)	the thread works again	Pull	r1s10>r1s9	6
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: running (the thread at work, a Result or not, or its pull request opening)	the thread works again	Thread	r1s10>r1s9	28
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: waiting (the thread asks you)	the thread asks for an answer	Thread		15
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	you hold the row, keeping its go	Hold	r0s0>r0s3	15
+Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	you hold the approved row	Hold	r0s0>r0s2	15
+Approved: waiting (the thread asks you)	Approved: done (a clean Result from a thread that ended)	T3 Code no longer lists the thread	Thread		1
+Approved: waiting (the thread asks you)	Approved: done (a clean Result from a thread that ended)	T3 Code settles the thread	Thread		1
+Approved: waiting (the thread asks you)	Approved: done (a clean Result from a thread that ended)	the thread ends	Thread		1
+Approved: waiting (the thread asks you)	Approved: done (a clean Result from a thread that ended)	the thread fails	Thread		1
+Approved: waiting (the thread asks you)	Approved: failed (the thread failed)	the thread fails while it waits	Thread	r1s11>r1s1	1
+Approved: waiting (the thread asks you)	Approved: gate (a question is open)	jbus opens a question	Ask		9
+Approved: waiting (the thread asks you)	Approved: launched (a launch whose thread is starting)	the thread starts	Thread		3
+Approved: waiting (the thread asks you)	Approved: left (the Result leaves work)	the thread ends after its request with work left	Thread	r1s11>r1s4	26
+Approved: waiting (the thread asks you)	Approved: merged (its pull request merged)	the pull request merges	Pull		6
+Approved: waiting (the thread asks you)	Approved: pr (its pull request is open)	the pull request opens	Pull		9
+Approved: waiting (the thread asks you)	Approved: running (the thread at work, a Result or not, or its pull request opening)	the request is answered and the thread works again	Thread	r1s11>r1s9	23
+Approved: waiting (the thread asks you)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread		3
+Approved: waiting (the thread asks you)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code no longer lists the thread	Thread		1
+Approved: waiting (the thread asks you)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code settles the thread	Thread		1
+Approved: waiting (the thread asks you)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread ends	Thread		1
+Approved: waiting (the thread asks you)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread		9
+Approved: waiting (the thread asks you)	Held, its go kept: waiting (the thread asks you)	you hold the row, keeping its go	Hold	r0s0>r0s3	9
+Approved: waiting (the thread asks you)	Held: waiting (the thread asks you)	you hold the approved row	Hold	r0s0>r0s2	9
+Held, its go kept: done (a clean Result from a thread that ended)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	you approve the row, behind a row it depends on	Grant		144
+Held, its go kept: done (a clean Result from a thread that ended)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	you lift the hold, and its go comes back	Lift		144
+Held, its go kept: done (a clean Result from a thread that ended)	Approved: done (a clean Result from a thread that ended)	you approve the row over the hold that kept its go	Grant	r0s3>r0s0	144
+Held, its go kept: done (a clean Result from a thread that ended)	Approved: done (a clean Result from a thread that ended)	you lift the hold, and its go comes back	Lift	r0s3>r0s0	144
+Held, its go kept: done (a clean Result from a thread that ended)	Held, its go kept: merged (its pull request merged)	the pull request of a done row merges on your accept	Pull	r1s0>r1s5	108
+Held, its go kept: failed (the thread failed)	Approved, behind a row it depends on: failed (the thread failed)	you approve the row, behind a row it depends on	Grant		1
+Held, its go kept: failed (the thread failed)	Approved, behind a row it depends on: failed (the thread failed)	you lift the hold, and its go comes back	Lift		1
+Held, its go kept: failed (the thread failed)	Approved: failed (the thread failed)	you approve the row over the hold that kept its go	Grant	r0s3>r0s0	1
+Held, its go kept: failed (the thread failed)	Approved: failed (the thread failed)	you lift the hold, and its go comes back	Lift	r0s3>r0s0	1
+Held, its go kept: failed (the thread failed)	Held, its go kept: done (a clean Result from a thread that ended)	a Result says done after the thread failed	Write	r1s1>r1s0	1
+Held, its go kept: failed (the thread failed)	Held, its go kept: gate (a question is open)	jbus opens a question	Ask		1
+Held, its go kept: failed (the thread failed)	Held, its go kept: launched (a launch whose thread is starting)	the thread starts	Thread		1
+Held, its go kept: failed (the thread failed)	Held, its go kept: left (the Result leaves work)	the failed thread leaves its work to its home	Write	r1s1>r1s4	1
+Held, its go kept: failed (the thread failed)	Held, its go kept: merged (its pull request merged)	the pull request merges	Pull		1
+Held, its go kept: failed (the thread failed)	Held, its go kept: pr (its pull request is open)	the pull request opens	Pull		1
+Held, its go kept: failed (the thread failed)	Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	the failed thread works again	Pull	r1s1>r1s9	1
+Held, its go kept: failed (the thread failed)	Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	the failed thread works again	Thread	r1s1>r1s9	1
+Held, its go kept: failed (the thread failed)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread		1
+Held, its go kept: failed (the thread failed)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code no longer lists the thread	Thread		1
+Held, its go kept: failed (the thread failed)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code settles the thread	Thread		1
+Held, its go kept: failed (the thread failed)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread ends	Thread		1
+Held, its go kept: failed (the thread failed)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread		1
+Held, its go kept: failed (the thread failed)	Held, its go kept: waiting (the thread asks you)	the thread asks for an answer	Thread		1
+Held, its go kept: gate (a question is open)	Approved, behind a row it depends on: gate (a question is open)	you approve the row, behind a row it depends on	Grant		78
+Held, its go kept: gate (a question is open)	Approved, behind a row it depends on: gate (a question is open)	you lift the hold, and its go comes back	Lift		78
+Held, its go kept: gate (a question is open)	Approved: gate (a question is open)	you approve the row over the hold that kept its go	Grant	r0s3>r0s0	78
+Held, its go kept: gate (a question is open)	Approved: gate (a question is open)	you lift the hold, and its go comes back	Lift	r0s3>r0s0	78
+Held, its go kept: gate (a question is open)	Held, its go kept: done (a clean Result from a thread that ended)	the question closes, and the row's Result says done	Pull	r1s2>r1s0	4
+Held, its go kept: gate (a question is open)	Held, its go kept: done (a clean Result from a thread that ended)	the question closes, and the row's Result says done	Thread	r1s2>r1s0	20
+Held, its go kept: gate (a question is open)	Held, its go kept: done (a clean Result from a thread that ended)	the question closes, and the row's Result says done	Write	r1s2>r1s0	8
+Held, its go kept: gate (a question is open)	Held, its go kept: failed (the thread failed)	the question closes	Ask	r1s2>r1s1	1
+Held, its go kept: gate (a question is open)	Held, its go kept: launched (a launch whose thread is starting)	the question closes, and the row's launch has no thread yet	Ask	r1s2>r1s3	3
+Held, its go kept: gate (a question is open)	Held, its go kept: left (the Result leaves work)	the question closes	Ask	r1s2>r1s4	26
+Held, its go kept: gate (a question is open)	Held, its go kept: merged (its pull request merged)	the question closes, and the row's pull request merged	Pull	r1s2>r1s5	50
+Held, its go kept: gate (a question is open)	Held, its go kept: pr (its pull request is open)	the question closes, and the row's pull request is open	Pull	r1s2>r1s6	77
+Held, its go kept: gate (a question is open)	Held, its go kept: queued (no thread yet)	the question closes, and the row's launch has no record	Ask	r1s2>r1s7	1
+Held, its go kept: gate (a question is open)	Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	the question closes	Ask	r1s2>r1s9	23
+Held, its go kept: gate (a question is open)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the question closes	Ask	r1s2>r1s10	15
+Held, its go kept: gate (a question is open)	Held, its go kept: waiting (the thread asks you)	the question closes	Ask	r1s2>r1s11	9
+Held, its go kept: launched (a launch whose thread is starting)	Approved, behind a row it depends on: launched (a launch whose thread is starting)	you approve the row, behind a row it depends on	Grant		3
+Held, its go kept: launched (a launch whose thread is starting)	Approved, behind a row it depends on: launched (a launch whose thread is starting)	you lift the hold, and its go comes back	Lift		3
+Held, its go kept: launched (a launch whose thread is starting)	Approved: launched (a launch whose thread is starting)	you approve the row over the hold that kept its go	Grant	r0s3>r0s0	3
+Held, its go kept: launched (a launch whose thread is starting)	Approved: launched (a launch whose thread is starting)	you lift the hold, and its go comes back	Lift	r0s3>r0s0	3
+Held, its go kept: launched (a launch whose thread is starting)	Held, its go kept: done (a clean Result from a thread that ended)	the thread ends with a clean Result before a pass sees it at work	Thread	r1s3>r1s0	4
+Held, its go kept: launched (a launch whose thread is starting)	Held, its go kept: failed (the thread failed)	the thread fails before a pass sees it at work	Thread	r1s3>r1s1	1
+Held, its go kept: launched (a launch whose thread is starting)	Held, its go kept: gate (a question is open)	jbus opens a question	Ask	r1s3>r1s2	3
+Held, its go kept: launched (a launch whose thread is starting)	Held, its go kept: left (the Result leaves work)	the thread ends with work left before a pass sees it at work	Thread	r1s3>r1s4	5
+Held, its go kept: launched (a launch whose thread is starting)	Held, its go kept: merged (its pull request merged)	the pull request merges	Pull	r1s3>r1s5	3
+Held, its go kept: launched (a launch whose thread is starting)	Held, its go kept: pr (its pull request is open)	the pull request opens	Pull	r1s3>r1s6	3
+Held, its go kept: launched (a launch whose thread is starting)	Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	T3 Code lists the thread at work	Pull	r1s3>r1s9	3
+Held, its go kept: launched (a launch whose thread is starting)	Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	T3 Code lists the thread at work	Thread	r1s3>r1s9	2
+Held, its go kept: launched (a launch whose thread is starting)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread	r1s3>r1s10	3
+Held, its go kept: launched (a launch whose thread is starting)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code no longer lists the thread	Thread	r1s3>r1s10	1
+Held, its go kept: launched (a launch whose thread is starting)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code settles the thread	Thread	r1s3>r1s10	1
+Held, its go kept: launched (a launch whose thread is starting)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread ends	Thread	r1s3>r1s10	1
+Held, its go kept: launched (a launch whose thread is starting)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread	r1s3>r1s10	3
+Held, its go kept: launched (a launch whose thread is starting)	Held, its go kept: waiting (the thread asks you)	the thread asks for an answer	Thread	r1s3>r1s11	3
+Held, its go kept: left (the Result leaves work)	Approved, behind a row it depends on: left (the Result leaves work)	you approve the row, behind a row it depends on	Grant		26
+Held, its go kept: left (the Result leaves work)	Approved, behind a row it depends on: left (the Result leaves work)	you lift the hold, and its go comes back	Lift		26
+Held, its go kept: left (the Result leaves work)	Approved: left (the Result leaves work)	you approve the row over the hold that kept its go	Grant	r0s3>r0s0	26
+Held, its go kept: left (the Result leaves work)	Approved: left (the Result leaves work)	you lift the hold, and its go comes back	Lift	r0s3>r0s0	26
+Held, its go kept: left (the Result leaves work)	Held, its go kept: done (a clean Result from a thread that ended)	a follow-up Result says done	Write	r1s4>r1s0	4
+Held, its go kept: left (the Result leaves work)	Held, its go kept: gate (a question is open)	jbus opens a question	Ask		26
+Held, its go kept: left (the Result leaves work)	Held, its go kept: launched (a launch whose thread is starting)	jbus launches the row again for what was left	Thread	r1s4>r1s3	5
+Held, its go kept: left (the Result leaves work)	Held, its go kept: merged (its pull request merged)	the pull request merges	Pull		5
+Held, its go kept: left (the Result leaves work)	Held, its go kept: pr (its pull request is open)	a pull request opens for what was left	Pull	r1s4>r1s6	26
+Held, its go kept: left (the Result leaves work)	Held, its go kept: removed (queue.py `remove`, no pass sets it)	you remove the row from left	Remove	r1s4>r1s8	26
+Held, its go kept: left (the Result leaves work)	Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	the thread works again on what was left	Pull	r1s4>r1s9	5
+Held, its go kept: left (the Result leaves work)	Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	the thread works again on what was left	Write	r1s4>r1s9	1
+Held, its go kept: left (the Result leaves work)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread		5
+Held, its go kept: left (the Result leaves work)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread		26
+Held, its go kept: left (the Result leaves work)	Held, its go kept: waiting (the thread asks you)	the thread asks for an answer again	Thread	r1s4>r1s11	26
+Held, its go kept: merged (its pull request merged)	Approved, behind a row it depends on: merged (its pull request merged)	you approve the row, behind a row it depends on	Grant		54
+Held, its go kept: merged (its pull request merged)	Approved, behind a row it depends on: merged (its pull request merged)	you lift the hold, and its go comes back	Lift		54
+Held, its go kept: merged (its pull request merged)	Approved: merged (its pull request merged)	you approve the row over the hold that kept its go	Grant	r0s3>r0s0	54
+Held, its go kept: merged (its pull request merged)	Approved: merged (its pull request merged)	you lift the hold, and its go comes back	Lift	r0s3>r0s0	54
+Held, its go kept: pr (its pull request is open)	Approved, behind a row it depends on: pr (its pull request is open)	you approve the row, behind a row it depends on	Grant		54
+Held, its go kept: pr (its pull request is open)	Approved, behind a row it depends on: pr (its pull request is open)	you lift the hold, and its go comes back	Lift		54
+Held, its go kept: pr (its pull request is open)	Approved: pr (its pull request is open)	you approve the row over the hold that kept its go	Grant	r0s3>r0s0	54
+Held, its go kept: pr (its pull request is open)	Approved: pr (its pull request is open)	you lift the hold, and its go comes back	Lift	r0s3>r0s0	54
+Held, its go kept: pr (its pull request is open)	Held, its go kept: gate (a question is open)	jbus opens a question on the row with its pull request open	Pull	r1s6>r1s2	27
+Held, its go kept: pr (its pull request is open)	Held, its go kept: left (the Result leaves work)	the pull request closes unmerged	Pull	r1s6>r1s4	21
+Held, its go kept: pr (its pull request is open)	Held, its go kept: merged (its pull request merged)	the pull request merges	Pull		54
+Held, its go kept: pr (its pull request is open)	Held, its go kept: removed (queue.py `remove`, no pass sets it)	you remove the row from pr	Remove	r1s6>r1s8	54
+Held, its go kept: pr (its pull request is open)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the pull request closes unmerged	Pull		3
+Held, its go kept: pr (its pull request is open)	Held, its go kept: waiting (the thread asks you)	the pull request closes unmerged	Pull		3
+Held, its go kept: queued (no thread yet)	Approved, behind a row it depends on: queued (no thread yet)	you approve the row, behind a row it depends on	Grant		1
+Held, its go kept: queued (no thread yet)	Approved, behind a row it depends on: queued (no thread yet)	you lift the hold, and its go comes back	Lift		1
+Held, its go kept: queued (no thread yet)	Approved: queued (no thread yet)	you approve the row over the hold that kept its go	Grant	r0s3>r0s0	1
+Held, its go kept: queued (no thread yet)	Approved: queued (no thread yet)	you lift the hold, and its go comes back	Lift	r0s3>r0s0	1
+Held, its go kept: queued (no thread yet)	Held, its go kept: gate (a question is open)	jbus opens a question on the row	Ask	r1s7>r1s2	1
+Held, its go kept: queued (no thread yet)	Held, its go kept: removed (queue.py `remove`, no pass sets it)	you remove the row from queued	Remove	r1s7>r1s8	1
+Held, its go kept: removed (queue.py `remove`, no pass sets it)	Approved, behind a row it depends on: removed (queue.py `remove`, no pass sets it)	you approve the row, behind a row it depends on	Grant		81
+Held, its go kept: removed (queue.py `remove`, no pass sets it)	Approved, behind a row it depends on: removed (queue.py `remove`, no pass sets it)	you lift the hold, and its go comes back	Lift		81
+Held, its go kept: removed (queue.py `remove`, no pass sets it)	Approved: removed (queue.py `remove`, no pass sets it)	you approve the row over the hold that kept its go	Grant	r0s3>r0s0	81
+Held, its go kept: removed (queue.py `remove`, no pass sets it)	Approved: removed (queue.py `remove`, no pass sets it)	you lift the hold, and its go comes back	Lift	r0s3>r0s0	81
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	you approve the row, behind a row it depends on	Grant		23
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	you lift the hold, and its go comes back	Lift		23
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Approved: running (the thread at work, a Result or not, or its pull request opening)	you approve the row over the hold that kept its go	Grant	r0s3>r0s0	23
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Approved: running (the thread at work, a Result or not, or its pull request opening)	you lift the hold, and its go comes back	Lift	r0s3>r0s0	23
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Held, its go kept: done (a clean Result from a thread that ended)	the thread ends with a clean Result and no pull request	Pull	r1s9>r1s0	4
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Held, its go kept: done (a clean Result from a thread that ended)	the thread ends with a clean Result and no pull request	Thread	r1s9>r1s0	4
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Held, its go kept: failed (the thread failed)	the thread fails	Pull		1
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Held, its go kept: failed (the thread failed)	the thread fails	Thread		1
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Held, its go kept: gate (a question is open)	jbus opens a question	Ask		23
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Held, its go kept: launched (a launch whose thread is starting)	the crew opens nothing after its review	Pull	r1s9>r1s3	3
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Held, its go kept: launched (a launch whose thread is starting)	the thread starts	Thread		2
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Held, its go kept: left (the Result leaves work)	the Result leaves work, or the pull request closes	Pull	r1s9>r1s4	5
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Held, its go kept: left (the Result leaves work)	the Result leaves work, or the pull request closes	Write	r1s9>r1s4	2
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Held, its go kept: merged (its pull request merged)	the pull request opens and merges between two passes	Pull	r1s9>r1s5	23
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Held, its go kept: pr (its pull request is open)	a pull request opens	Pull	r1s9>r1s6	23
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the turn hangs, or the thread ends or is settled with nothing written	Pull	r1s9>r1s10	6
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the turn hangs, or the thread ends or is settled with nothing written	Thread	r1s9>r1s10	28
+Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	Held, its go kept: waiting (the thread asks you)	the thread asks for an answer to its request	Thread	r1s9>r1s11	23
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	you approve the row, behind a row it depends on	Grant		15
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	you lift the hold, and its go comes back	Lift		15
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	you approve the row over the hold that kept its go	Grant	r0s3>r0s0	15
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	you lift the hold, and its go comes back	Lift	r0s3>r0s0	15
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held, its go kept: done (a clean Result from a thread that ended)	T3 Code no longer lists the thread	Thread		2
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held, its go kept: done (a clean Result from a thread that ended)	T3 Code settles the thread	Thread		2
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held, its go kept: done (a clean Result from a thread that ended)	the crew writes a clean Result	Write	r1s10>r1s0	3
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held, its go kept: done (a clean Result from a thread that ended)	the thread ends	Thread		2
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held, its go kept: done (a clean Result from a thread that ended)	the thread fails	Thread		2
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held, its go kept: failed (the thread failed)	the thread fails	Thread	r1s10>r1s1	5
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held, its go kept: gate (a question is open)	jbus opens a question	Ask		15
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held, its go kept: launched (a launch whose thread is starting)	the thread starts	Thread	r1s10>r1s3	9
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held, its go kept: left (the Result leaves work)	the thread stays quiet with nothing written, or writes a leftover	Thread	r1s10>r1s4	31
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held, its go kept: left (the Result leaves work)	the thread stays quiet with nothing written, or writes a leftover	Write	r1s10>r1s4	3
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held, its go kept: merged (its pull request merged)	the pull request merges	Pull		12
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held, its go kept: pr (its pull request is open)	the pull request opens	Pull		15
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	the thread works again	Pull	r1s10>r1s9	6
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	the thread works again	Thread	r1s10>r1s9	28
+Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held, its go kept: waiting (the thread asks you)	the thread asks for an answer	Thread		15
+Held, its go kept: waiting (the thread asks you)	Approved, behind a row it depends on: waiting (the thread asks you)	you approve the row, behind a row it depends on	Grant		9
+Held, its go kept: waiting (the thread asks you)	Approved, behind a row it depends on: waiting (the thread asks you)	you lift the hold, and its go comes back	Lift		9
+Held, its go kept: waiting (the thread asks you)	Approved: waiting (the thread asks you)	you approve the row over the hold that kept its go	Grant	r0s3>r0s0	9
+Held, its go kept: waiting (the thread asks you)	Approved: waiting (the thread asks you)	you lift the hold, and its go comes back	Lift	r0s3>r0s0	9
+Held, its go kept: waiting (the thread asks you)	Held, its go kept: done (a clean Result from a thread that ended)	T3 Code no longer lists the thread	Thread		1
+Held, its go kept: waiting (the thread asks you)	Held, its go kept: done (a clean Result from a thread that ended)	T3 Code settles the thread	Thread		1
+Held, its go kept: waiting (the thread asks you)	Held, its go kept: done (a clean Result from a thread that ended)	the thread ends	Thread		1
+Held, its go kept: waiting (the thread asks you)	Held, its go kept: done (a clean Result from a thread that ended)	the thread fails	Thread		1
+Held, its go kept: waiting (the thread asks you)	Held, its go kept: failed (the thread failed)	the thread fails while it waits	Thread	r1s11>r1s1	1
+Held, its go kept: waiting (the thread asks you)	Held, its go kept: gate (a question is open)	jbus opens a question	Ask		9
+Held, its go kept: waiting (the thread asks you)	Held, its go kept: launched (a launch whose thread is starting)	the thread starts	Thread		3
+Held, its go kept: waiting (the thread asks you)	Held, its go kept: left (the Result leaves work)	the thread ends after its request with work left	Thread	r1s11>r1s4	26
+Held, its go kept: waiting (the thread asks you)	Held, its go kept: merged (its pull request merged)	the pull request merges	Pull		6
+Held, its go kept: waiting (the thread asks you)	Held, its go kept: pr (its pull request is open)	the pull request opens	Pull		9
+Held, its go kept: waiting (the thread asks you)	Held, its go kept: running (the thread at work, a Result or not, or its pull request opening)	the request is answered and the thread works again	Thread	r1s11>r1s9	23
+Held, its go kept: waiting (the thread asks you)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread		3
+Held, its go kept: waiting (the thread asks you)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code no longer lists the thread	Thread		1
+Held, its go kept: waiting (the thread asks you)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code settles the thread	Thread		1
+Held, its go kept: waiting (the thread asks you)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread ends	Thread		1
+Held, its go kept: waiting (the thread asks you)	Held, its go kept: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread		9
+Held: done (a clean Result from a thread that ended)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	you approve the row, behind a row it depends on	Grant		144
+Held: done (a clean Result from a thread that ended)	Approved: done (a clean Result from a thread that ended)	you approve the held row, and the hold ends	Grant	r0s2>r0s0	144
+Held: done (a clean Result from a thread that ended)	Held: merged (its pull request merged)	the pull request of a done row merges on your accept	Pull	r1s0>r1s5	108
+Held: failed (the thread failed)	Approved, behind a row it depends on: failed (the thread failed)	you approve the row, behind a row it depends on	Grant		1
+Held: failed (the thread failed)	Approved: failed (the thread failed)	you approve the held row, and the hold ends	Grant	r0s2>r0s0	1
+Held: failed (the thread failed)	Held: done (a clean Result from a thread that ended)	a Result says done after the thread failed	Write	r1s1>r1s0	1
+Held: failed (the thread failed)	Held: gate (a question is open)	jbus opens a question	Ask		1
+Held: failed (the thread failed)	Held: launched (a launch whose thread is starting)	the thread starts	Thread		1
+Held: failed (the thread failed)	Held: left (the Result leaves work)	the failed thread leaves its work to its home	Write	r1s1>r1s4	1
+Held: failed (the thread failed)	Held: merged (its pull request merged)	the pull request merges	Pull		1
+Held: failed (the thread failed)	Held: pr (its pull request is open)	the pull request opens	Pull		1
+Held: failed (the thread failed)	Held: running (the thread at work, a Result or not, or its pull request opening)	the failed thread works again	Pull	r1s1>r1s9	1
+Held: failed (the thread failed)	Held: running (the thread at work, a Result or not, or its pull request opening)	the failed thread works again	Thread	r1s1>r1s9	1
+Held: failed (the thread failed)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread		1
+Held: failed (the thread failed)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code no longer lists the thread	Thread		1
+Held: failed (the thread failed)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code settles the thread	Thread		1
+Held: failed (the thread failed)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread ends	Thread		1
+Held: failed (the thread failed)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread		1
+Held: failed (the thread failed)	Held: waiting (the thread asks you)	the thread asks for an answer	Thread		1
+Held: gate (a question is open)	Approved, behind a row it depends on: gate (a question is open)	you approve the row, behind a row it depends on	Grant		78
+Held: gate (a question is open)	Approved: gate (a question is open)	you approve the held row, and the hold ends	Grant	r0s2>r0s0	78
+Held: gate (a question is open)	Held: done (a clean Result from a thread that ended)	the question closes, and the row's Result says done	Pull	r1s2>r1s0	4
+Held: gate (a question is open)	Held: done (a clean Result from a thread that ended)	the question closes, and the row's Result says done	Thread	r1s2>r1s0	20
+Held: gate (a question is open)	Held: done (a clean Result from a thread that ended)	the question closes, and the row's Result says done	Write	r1s2>r1s0	8
+Held: gate (a question is open)	Held: failed (the thread failed)	the question closes	Ask	r1s2>r1s1	1
+Held: gate (a question is open)	Held: launched (a launch whose thread is starting)	the question closes, and the row's launch has no thread yet	Ask	r1s2>r1s3	3
+Held: gate (a question is open)	Held: left (the Result leaves work)	the question closes	Ask	r1s2>r1s4	26
+Held: gate (a question is open)	Held: merged (its pull request merged)	the question closes, and the row's pull request merged	Pull	r1s2>r1s5	50
+Held: gate (a question is open)	Held: pr (its pull request is open)	the question closes, and the row's pull request is open	Pull	r1s2>r1s6	77
+Held: gate (a question is open)	Held: queued (no thread yet)	the question closes, and the row's launch has no record	Ask	r1s2>r1s7	1
+Held: gate (a question is open)	Held: running (the thread at work, a Result or not, or its pull request opening)	the question closes	Ask	r1s2>r1s9	23
+Held: gate (a question is open)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the question closes	Ask	r1s2>r1s10	15
+Held: gate (a question is open)	Held: waiting (the thread asks you)	the question closes	Ask	r1s2>r1s11	9
+Held: launched (a launch whose thread is starting)	Approved, behind a row it depends on: launched (a launch whose thread is starting)	you approve the row, behind a row it depends on	Grant		3
+Held: launched (a launch whose thread is starting)	Approved: launched (a launch whose thread is starting)	you approve the held row, and the hold ends	Grant	r0s2>r0s0	3
+Held: launched (a launch whose thread is starting)	Held: done (a clean Result from a thread that ended)	the thread ends with a clean Result before a pass sees it at work	Thread	r1s3>r1s0	4
+Held: launched (a launch whose thread is starting)	Held: failed (the thread failed)	the thread fails before a pass sees it at work	Thread	r1s3>r1s1	1
+Held: launched (a launch whose thread is starting)	Held: gate (a question is open)	jbus opens a question	Ask	r1s3>r1s2	3
+Held: launched (a launch whose thread is starting)	Held: left (the Result leaves work)	the thread ends with work left before a pass sees it at work	Thread	r1s3>r1s4	5
+Held: launched (a launch whose thread is starting)	Held: merged (its pull request merged)	the pull request merges	Pull	r1s3>r1s5	3
+Held: launched (a launch whose thread is starting)	Held: pr (its pull request is open)	the pull request opens	Pull	r1s3>r1s6	3
+Held: launched (a launch whose thread is starting)	Held: running (the thread at work, a Result or not, or its pull request opening)	T3 Code lists the thread at work	Pull	r1s3>r1s9	3
+Held: launched (a launch whose thread is starting)	Held: running (the thread at work, a Result or not, or its pull request opening)	T3 Code lists the thread at work	Thread	r1s3>r1s9	2
+Held: launched (a launch whose thread is starting)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread	r1s3>r1s10	3
+Held: launched (a launch whose thread is starting)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code no longer lists the thread	Thread	r1s3>r1s10	1
+Held: launched (a launch whose thread is starting)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code settles the thread	Thread	r1s3>r1s10	1
+Held: launched (a launch whose thread is starting)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread ends	Thread	r1s3>r1s10	1
+Held: launched (a launch whose thread is starting)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread	r1s3>r1s10	3
+Held: launched (a launch whose thread is starting)	Held: waiting (the thread asks you)	the thread asks for an answer	Thread	r1s3>r1s11	3
+Held: left (the Result leaves work)	Approved, behind a row it depends on: left (the Result leaves work)	you approve the row, behind a row it depends on	Grant		26
+Held: left (the Result leaves work)	Approved: left (the Result leaves work)	you approve the held row, and the hold ends	Grant	r0s2>r0s0	26
+Held: left (the Result leaves work)	Held: done (a clean Result from a thread that ended)	a follow-up Result says done	Write	r1s4>r1s0	4
+Held: left (the Result leaves work)	Held: gate (a question is open)	jbus opens a question	Ask		26
+Held: left (the Result leaves work)	Held: launched (a launch whose thread is starting)	jbus launches the row again for what was left	Thread	r1s4>r1s3	5
+Held: left (the Result leaves work)	Held: merged (its pull request merged)	the pull request merges	Pull		5
+Held: left (the Result leaves work)	Held: pr (its pull request is open)	a pull request opens for what was left	Pull	r1s4>r1s6	26
+Held: left (the Result leaves work)	Held: removed (queue.py `remove`, no pass sets it)	you remove the row from left	Remove	r1s4>r1s8	26
+Held: left (the Result leaves work)	Held: running (the thread at work, a Result or not, or its pull request opening)	the thread works again on what was left	Pull	r1s4>r1s9	5
+Held: left (the Result leaves work)	Held: running (the thread at work, a Result or not, or its pull request opening)	the thread works again on what was left	Write	r1s4>r1s9	1
+Held: left (the Result leaves work)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread		5
+Held: left (the Result leaves work)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread		26
+Held: left (the Result leaves work)	Held: waiting (the thread asks you)	the thread asks for an answer again	Thread	r1s4>r1s11	26
+Held: merged (its pull request merged)	Approved, behind a row it depends on: merged (its pull request merged)	you approve the row, behind a row it depends on	Grant		54
+Held: merged (its pull request merged)	Approved: merged (its pull request merged)	you approve the held row, and the hold ends	Grant	r0s2>r0s0	54
+Held: pr (its pull request is open)	Approved, behind a row it depends on: pr (its pull request is open)	you approve the row, behind a row it depends on	Grant		54
+Held: pr (its pull request is open)	Approved: pr (its pull request is open)	you approve the held row, and the hold ends	Grant	r0s2>r0s0	54
+Held: pr (its pull request is open)	Held: gate (a question is open)	jbus opens a question on the row with its pull request open	Pull	r1s6>r1s2	27
+Held: pr (its pull request is open)	Held: left (the Result leaves work)	the pull request closes unmerged	Pull	r1s6>r1s4	21
+Held: pr (its pull request is open)	Held: merged (its pull request merged)	the pull request merges	Pull		54
+Held: pr (its pull request is open)	Held: removed (queue.py `remove`, no pass sets it)	you remove the row from pr	Remove	r1s6>r1s8	54
+Held: pr (its pull request is open)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the pull request closes unmerged	Pull		3
+Held: pr (its pull request is open)	Held: waiting (the thread asks you)	the pull request closes unmerged	Pull		3
+Held: queued (no thread yet)	Approved, behind a row it depends on: queued (no thread yet)	you approve the row, behind a row it depends on	Grant		1
+Held: queued (no thread yet)	Approved: queued (no thread yet)	you approve the held row, and the hold ends	Grant	r0s2>r0s0	1
+Held: queued (no thread yet)	Held: gate (a question is open)	jbus opens a question on the row	Ask	r1s7>r1s2	1
+Held: queued (no thread yet)	Held: removed (queue.py `remove`, no pass sets it)	you remove the row from queued	Remove	r1s7>r1s8	1
+Held: removed (queue.py `remove`, no pass sets it)	Approved, behind a row it depends on: removed (queue.py `remove`, no pass sets it)	you approve the row, behind a row it depends on	Grant		81
+Held: removed (queue.py `remove`, no pass sets it)	Approved: removed (queue.py `remove`, no pass sets it)	you approve the held row, and the hold ends	Grant	r0s2>r0s0	81
+Held: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	you approve the row, behind a row it depends on	Grant		23
+Held: running (the thread at work, a Result or not, or its pull request opening)	Approved: running (the thread at work, a Result or not, or its pull request opening)	you approve the held row, and the hold ends	Grant	r0s2>r0s0	23
+Held: running (the thread at work, a Result or not, or its pull request opening)	Held: done (a clean Result from a thread that ended)	the thread ends with a clean Result and no pull request	Pull	r1s9>r1s0	4
+Held: running (the thread at work, a Result or not, or its pull request opening)	Held: done (a clean Result from a thread that ended)	the thread ends with a clean Result and no pull request	Thread	r1s9>r1s0	4
+Held: running (the thread at work, a Result or not, or its pull request opening)	Held: failed (the thread failed)	the thread fails	Pull		1
+Held: running (the thread at work, a Result or not, or its pull request opening)	Held: failed (the thread failed)	the thread fails	Thread		1
+Held: running (the thread at work, a Result or not, or its pull request opening)	Held: gate (a question is open)	jbus opens a question	Ask		23
+Held: running (the thread at work, a Result or not, or its pull request opening)	Held: launched (a launch whose thread is starting)	the crew opens nothing after its review	Pull	r1s9>r1s3	3
+Held: running (the thread at work, a Result or not, or its pull request opening)	Held: launched (a launch whose thread is starting)	the thread starts	Thread		2
+Held: running (the thread at work, a Result or not, or its pull request opening)	Held: left (the Result leaves work)	the Result leaves work, or the pull request closes	Pull	r1s9>r1s4	5
+Held: running (the thread at work, a Result or not, or its pull request opening)	Held: left (the Result leaves work)	the Result leaves work, or the pull request closes	Write	r1s9>r1s4	2
+Held: running (the thread at work, a Result or not, or its pull request opening)	Held: merged (its pull request merged)	the pull request opens and merges between two passes	Pull	r1s9>r1s5	23
+Held: running (the thread at work, a Result or not, or its pull request opening)	Held: pr (its pull request is open)	a pull request opens	Pull	r1s9>r1s6	23
+Held: running (the thread at work, a Result or not, or its pull request opening)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the turn hangs, or the thread ends or is settled with nothing written	Pull	r1s9>r1s10	6
+Held: running (the thread at work, a Result or not, or its pull request opening)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the turn hangs, or the thread ends or is settled with nothing written	Thread	r1s9>r1s10	28
+Held: running (the thread at work, a Result or not, or its pull request opening)	Held: waiting (the thread asks you)	the thread asks for an answer to its request	Thread	r1s9>r1s11	23
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	you approve the row, behind a row it depends on	Grant		15
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	you approve the held row, and the hold ends	Grant	r0s2>r0s0	15
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: done (a clean Result from a thread that ended)	T3 Code no longer lists the thread	Thread		2
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: done (a clean Result from a thread that ended)	T3 Code settles the thread	Thread		2
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: done (a clean Result from a thread that ended)	the crew writes a clean Result	Write	r1s10>r1s0	3
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: done (a clean Result from a thread that ended)	the thread ends	Thread		2
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: done (a clean Result from a thread that ended)	the thread fails	Thread		2
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: failed (the thread failed)	the thread fails	Thread	r1s10>r1s1	5
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: gate (a question is open)	jbus opens a question	Ask		15
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: launched (a launch whose thread is starting)	the thread starts	Thread	r1s10>r1s3	9
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: left (the Result leaves work)	the thread stays quiet with nothing written, or writes a leftover	Thread	r1s10>r1s4	31
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: left (the Result leaves work)	the thread stays quiet with nothing written, or writes a leftover	Write	r1s10>r1s4	3
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: merged (its pull request merged)	the pull request merges	Pull		12
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: pr (its pull request is open)	the pull request opens	Pull		15
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: running (the thread at work, a Result or not, or its pull request opening)	the thread works again	Pull	r1s10>r1s9	6
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: running (the thread at work, a Result or not, or its pull request opening)	the thread works again	Thread	r1s10>r1s9	28
+Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: waiting (the thread asks you)	the thread asks for an answer	Thread		15
+Held: waiting (the thread asks you)	Approved, behind a row it depends on: waiting (the thread asks you)	you approve the row, behind a row it depends on	Grant		9
+Held: waiting (the thread asks you)	Approved: waiting (the thread asks you)	you approve the held row, and the hold ends	Grant	r0s2>r0s0	9
+Held: waiting (the thread asks you)	Held: done (a clean Result from a thread that ended)	T3 Code no longer lists the thread	Thread		1
+Held: waiting (the thread asks you)	Held: done (a clean Result from a thread that ended)	T3 Code settles the thread	Thread		1
+Held: waiting (the thread asks you)	Held: done (a clean Result from a thread that ended)	the thread ends	Thread		1
+Held: waiting (the thread asks you)	Held: done (a clean Result from a thread that ended)	the thread fails	Thread		1
+Held: waiting (the thread asks you)	Held: failed (the thread failed)	the thread fails while it waits	Thread	r1s11>r1s1	1
+Held: waiting (the thread asks you)	Held: gate (a question is open)	jbus opens a question	Ask		9
+Held: waiting (the thread asks you)	Held: launched (a launch whose thread is starting)	the thread starts	Thread		3
+Held: waiting (the thread asks you)	Held: left (the Result leaves work)	the thread ends after its request with work left	Thread	r1s11>r1s4	26
+Held: waiting (the thread asks you)	Held: merged (its pull request merged)	the pull request merges	Pull		6
+Held: waiting (the thread asks you)	Held: pr (its pull request is open)	the pull request opens	Pull		9
+Held: waiting (the thread asks you)	Held: running (the thread at work, a Result or not, or its pull request opening)	the request is answered and the thread works again	Thread	r1s11>r1s9	23
+Held: waiting (the thread asks you)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread		3
+Held: waiting (the thread asks you)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code no longer lists the thread	Thread		1
+Held: waiting (the thread asks you)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code settles the thread	Thread		1
+Held: waiting (the thread asks you)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread ends	Thread		1
+Held: waiting (the thread asks you)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread		9
+No go: done (a clean Result from a thread that ended)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	you approve the row, behind a row it depends on	Grant	r0s4>r0s1	144
+No go: done (a clean Result from a thread that ended)	Approved: done (a clean Result from a thread that ended)	you approve the row, or a rule gives its go	Grant	r0s4>r0s0	144
+No go: done (a clean Result from a thread that ended)	Held: done (a clean Result from a thread that ended)	you hold the row	Hold	r0s4>r0s2	144
+No go: done (a clean Result from a thread that ended)	No go: merged (its pull request merged)	the pull request of a done row merges on your accept	Pull	r1s0>r1s5	108
+No go: failed (the thread failed)	Approved, behind a row it depends on: failed (the thread failed)	you approve the row, behind a row it depends on	Grant	r0s4>r0s1	1
+No go: failed (the thread failed)	Approved: failed (the thread failed)	you approve the row, or a rule gives its go	Grant	r0s4>r0s0	1
+No go: failed (the thread failed)	Held: failed (the thread failed)	you hold the row	Hold	r0s4>r0s2	1
+No go: failed (the thread failed)	No go: done (a clean Result from a thread that ended)	a Result says done after the thread failed	Write	r1s1>r1s0	1
+No go: failed (the thread failed)	No go: gate (a question is open)	jbus opens a question	Ask		1
+No go: failed (the thread failed)	No go: launched (a launch whose thread is starting)	the thread starts	Thread		1
+No go: failed (the thread failed)	No go: left (the Result leaves work)	the failed thread leaves its work to its home	Write	r1s1>r1s4	1
+No go: failed (the thread failed)	No go: merged (its pull request merged)	the pull request merges	Pull		1
+No go: failed (the thread failed)	No go: pr (its pull request is open)	the pull request opens	Pull		1
+No go: failed (the thread failed)	No go: running (the thread at work, a Result or not, or its pull request opening)	the failed thread works again	Pull	r1s1>r1s9	1
+No go: failed (the thread failed)	No go: running (the thread at work, a Result or not, or its pull request opening)	the failed thread works again	Thread	r1s1>r1s9	1
+No go: failed (the thread failed)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread		1
+No go: failed (the thread failed)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code no longer lists the thread	Thread		1
+No go: failed (the thread failed)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code settles the thread	Thread		1
+No go: failed (the thread failed)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread ends	Thread		1
+No go: failed (the thread failed)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread		1
+No go: failed (the thread failed)	No go: waiting (the thread asks you)	the thread asks for an answer	Thread		1
+No go: gate (a question is open)	Approved, behind a row it depends on: gate (a question is open)	you approve the row, behind a row it depends on	Grant	r0s4>r0s1	78
+No go: gate (a question is open)	Approved: gate (a question is open)	you approve the row, or a rule gives its go	Grant	r0s4>r0s0	78
+No go: gate (a question is open)	Held: gate (a question is open)	you hold the row	Hold	r0s4>r0s2	78
+No go: gate (a question is open)	No go: done (a clean Result from a thread that ended)	the question closes, and the row's Result says done	Pull	r1s2>r1s0	4
+No go: gate (a question is open)	No go: done (a clean Result from a thread that ended)	the question closes, and the row's Result says done	Thread	r1s2>r1s0	20
+No go: gate (a question is open)	No go: done (a clean Result from a thread that ended)	the question closes, and the row's Result says done	Write	r1s2>r1s0	8
+No go: gate (a question is open)	No go: failed (the thread failed)	the question closes	Ask	r1s2>r1s1	1
+No go: gate (a question is open)	No go: launched (a launch whose thread is starting)	the question closes, and the row's launch has no thread yet	Ask	r1s2>r1s3	3
+No go: gate (a question is open)	No go: left (the Result leaves work)	the question closes	Ask	r1s2>r1s4	26
+No go: gate (a question is open)	No go: merged (its pull request merged)	the question closes, and the row's pull request merged	Pull	r1s2>r1s5	50
+No go: gate (a question is open)	No go: pr (its pull request is open)	the question closes, and the row's pull request is open	Pull	r1s2>r1s6	77
+No go: gate (a question is open)	No go: queued (no thread yet)	the question closes, and the row's launch has no record	Ask	r1s2>r1s7	1
+No go: gate (a question is open)	No go: running (the thread at work, a Result or not, or its pull request opening)	the question closes	Ask	r1s2>r1s9	23
+No go: gate (a question is open)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the question closes	Ask	r1s2>r1s10	15
+No go: gate (a question is open)	No go: waiting (the thread asks you)	the question closes	Ask	r1s2>r1s11	9
+No go: launched (a launch whose thread is starting)	Approved, behind a row it depends on: launched (a launch whose thread is starting)	you approve the row, behind a row it depends on	Grant	r0s4>r0s1	3
+No go: launched (a launch whose thread is starting)	Approved: launched (a launch whose thread is starting)	you approve the row, or a rule gives its go	Grant	r0s4>r0s0	3
+No go: launched (a launch whose thread is starting)	Held: launched (a launch whose thread is starting)	you hold the row	Hold	r0s4>r0s2	3
+No go: launched (a launch whose thread is starting)	No go: done (a clean Result from a thread that ended)	the thread ends with a clean Result before a pass sees it at work	Thread	r1s3>r1s0	4
+No go: launched (a launch whose thread is starting)	No go: failed (the thread failed)	the thread fails before a pass sees it at work	Thread	r1s3>r1s1	1
+No go: launched (a launch whose thread is starting)	No go: gate (a question is open)	jbus opens a question	Ask	r1s3>r1s2	3
+No go: launched (a launch whose thread is starting)	No go: left (the Result leaves work)	the thread ends with work left before a pass sees it at work	Thread	r1s3>r1s4	5
+No go: launched (a launch whose thread is starting)	No go: merged (its pull request merged)	the pull request merges	Pull	r1s3>r1s5	3
+No go: launched (a launch whose thread is starting)	No go: pr (its pull request is open)	the pull request opens	Pull	r1s3>r1s6	3
+No go: launched (a launch whose thread is starting)	No go: running (the thread at work, a Result or not, or its pull request opening)	T3 Code lists the thread at work	Pull	r1s3>r1s9	3
+No go: launched (a launch whose thread is starting)	No go: running (the thread at work, a Result or not, or its pull request opening)	T3 Code lists the thread at work	Thread	r1s3>r1s9	2
+No go: launched (a launch whose thread is starting)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread	r1s3>r1s10	3
+No go: launched (a launch whose thread is starting)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code no longer lists the thread	Thread	r1s3>r1s10	1
+No go: launched (a launch whose thread is starting)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code settles the thread	Thread	r1s3>r1s10	1
+No go: launched (a launch whose thread is starting)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread ends	Thread	r1s3>r1s10	1
+No go: launched (a launch whose thread is starting)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread	r1s3>r1s10	3
+No go: launched (a launch whose thread is starting)	No go: waiting (the thread asks you)	the thread asks for an answer	Thread	r1s3>r1s11	3
+No go: left (the Result leaves work)	Approved, behind a row it depends on: left (the Result leaves work)	you approve the row, behind a row it depends on	Grant	r0s4>r0s1	26
+No go: left (the Result leaves work)	Approved: left (the Result leaves work)	you approve the row, or a rule gives its go	Grant	r0s4>r0s0	26
+No go: left (the Result leaves work)	Held: left (the Result leaves work)	you hold the row	Hold	r0s4>r0s2	26
+No go: left (the Result leaves work)	No go: done (a clean Result from a thread that ended)	a follow-up Result says done	Write	r1s4>r1s0	4
+No go: left (the Result leaves work)	No go: gate (a question is open)	jbus opens a question	Ask		26
+No go: left (the Result leaves work)	No go: launched (a launch whose thread is starting)	jbus launches the row again for what was left	Thread	r1s4>r1s3	5
+No go: left (the Result leaves work)	No go: merged (its pull request merged)	the pull request merges	Pull		5
+No go: left (the Result leaves work)	No go: pr (its pull request is open)	a pull request opens for what was left	Pull	r1s4>r1s6	26
+No go: left (the Result leaves work)	No go: removed (queue.py `remove`, no pass sets it)	you remove the row from left	Remove	r1s4>r1s8	26
+No go: left (the Result leaves work)	No go: running (the thread at work, a Result or not, or its pull request opening)	the thread works again on what was left	Pull	r1s4>r1s9	5
+No go: left (the Result leaves work)	No go: running (the thread at work, a Result or not, or its pull request opening)	the thread works again on what was left	Write	r1s4>r1s9	1
+No go: left (the Result leaves work)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread		5
+No go: left (the Result leaves work)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread		26
+No go: left (the Result leaves work)	No go: waiting (the thread asks you)	the thread asks for an answer again	Thread	r1s4>r1s11	26
+No go: merged (its pull request merged)	Approved, behind a row it depends on: merged (its pull request merged)	you approve the row, behind a row it depends on	Grant	r0s4>r0s1	54
+No go: merged (its pull request merged)	Approved: merged (its pull request merged)	you approve the row, or a rule gives its go	Grant	r0s4>r0s0	54
+No go: merged (its pull request merged)	Held: merged (its pull request merged)	you hold the row	Hold	r0s4>r0s2	54
+No go: pr (its pull request is open)	Approved, behind a row it depends on: pr (its pull request is open)	you approve the row, behind a row it depends on	Grant	r0s4>r0s1	54
+No go: pr (its pull request is open)	Approved: pr (its pull request is open)	you approve the row, or a rule gives its go	Grant	r0s4>r0s0	54
+No go: pr (its pull request is open)	Held: pr (its pull request is open)	you hold the row	Hold	r0s4>r0s2	54
+No go: pr (its pull request is open)	No go: gate (a question is open)	jbus opens a question on the row with its pull request open	Pull	r1s6>r1s2	27
+No go: pr (its pull request is open)	No go: left (the Result leaves work)	the pull request closes unmerged	Pull	r1s6>r1s4	21
+No go: pr (its pull request is open)	No go: merged (its pull request merged)	the pull request merges	Pull		54
+No go: pr (its pull request is open)	No go: removed (queue.py `remove`, no pass sets it)	you remove the row from pr	Remove	r1s6>r1s8	54
+No go: pr (its pull request is open)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the pull request closes unmerged	Pull		3
+No go: pr (its pull request is open)	No go: waiting (the thread asks you)	the pull request closes unmerged	Pull		3
+No go: queued (no thread yet)	Approved, behind a row it depends on: queued (no thread yet)	you approve the row, behind a row it depends on	Grant	r0s4>r0s1	1
+No go: queued (no thread yet)	Approved: queued (no thread yet)	you approve the row, or a rule gives its go	Grant	r0s4>r0s0	1
+No go: queued (no thread yet)	Held: queued (no thread yet)	you hold the row	Hold	r0s4>r0s2	1
+No go: queued (no thread yet)	No go: gate (a question is open)	jbus opens a question on the row	Ask	r1s7>r1s2	1
+No go: queued (no thread yet)	No go: removed (queue.py `remove`, no pass sets it)	you remove the row from queued	Remove	r1s7>r1s8	1
+No go: removed (queue.py `remove`, no pass sets it)	Approved, behind a row it depends on: removed (queue.py `remove`, no pass sets it)	you approve the row, behind a row it depends on	Grant	r0s4>r0s1	81
+No go: removed (queue.py `remove`, no pass sets it)	Approved: removed (queue.py `remove`, no pass sets it)	you approve the row, or a rule gives its go	Grant	r0s4>r0s0	81
+No go: removed (queue.py `remove`, no pass sets it)	Held: removed (queue.py `remove`, no pass sets it)	you hold the row	Hold	r0s4>r0s2	81
+No go: running (the thread at work, a Result or not, or its pull request opening)	Approved, behind a row it depends on: running (the thread at work, a Result or not, or its pull request opening)	you approve the row, behind a row it depends on	Grant	r0s4>r0s1	23
+No go: running (the thread at work, a Result or not, or its pull request opening)	Approved: running (the thread at work, a Result or not, or its pull request opening)	you approve the row, or a rule gives its go	Grant	r0s4>r0s0	23
+No go: running (the thread at work, a Result or not, or its pull request opening)	Held: running (the thread at work, a Result or not, or its pull request opening)	you hold the row	Hold	r0s4>r0s2	23
+No go: running (the thread at work, a Result or not, or its pull request opening)	No go: done (a clean Result from a thread that ended)	the thread ends with a clean Result and no pull request	Pull	r1s9>r1s0	4
+No go: running (the thread at work, a Result or not, or its pull request opening)	No go: done (a clean Result from a thread that ended)	the thread ends with a clean Result and no pull request	Thread	r1s9>r1s0	4
+No go: running (the thread at work, a Result or not, or its pull request opening)	No go: failed (the thread failed)	the thread fails	Pull		1
+No go: running (the thread at work, a Result or not, or its pull request opening)	No go: failed (the thread failed)	the thread fails	Thread		1
+No go: running (the thread at work, a Result or not, or its pull request opening)	No go: gate (a question is open)	jbus opens a question	Ask		23
+No go: running (the thread at work, a Result or not, or its pull request opening)	No go: launched (a launch whose thread is starting)	the crew opens nothing after its review	Pull	r1s9>r1s3	3
+No go: running (the thread at work, a Result or not, or its pull request opening)	No go: launched (a launch whose thread is starting)	the thread starts	Thread		2
+No go: running (the thread at work, a Result or not, or its pull request opening)	No go: left (the Result leaves work)	the Result leaves work, or the pull request closes	Pull	r1s9>r1s4	5
+No go: running (the thread at work, a Result or not, or its pull request opening)	No go: left (the Result leaves work)	the Result leaves work, or the pull request closes	Write	r1s9>r1s4	2
+No go: running (the thread at work, a Result or not, or its pull request opening)	No go: merged (its pull request merged)	the pull request opens and merges between two passes	Pull	r1s9>r1s5	23
+No go: running (the thread at work, a Result or not, or its pull request opening)	No go: pr (its pull request is open)	a pull request opens	Pull	r1s9>r1s6	23
+No go: running (the thread at work, a Result or not, or its pull request opening)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the turn hangs, or the thread ends or is settled with nothing written	Pull	r1s9>r1s10	6
+No go: running (the thread at work, a Result or not, or its pull request opening)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the turn hangs, or the thread ends or is settled with nothing written	Thread	r1s9>r1s10	28
+No go: running (the thread at work, a Result or not, or its pull request opening)	No go: waiting (the thread asks you)	the thread asks for an answer to its request	Thread	r1s9>r1s11	23
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved, behind a row it depends on: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	you approve the row, behind a row it depends on	Grant	r0s4>r0s1	15
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Approved: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	you approve the row, or a rule gives its go	Grant	r0s4>r0s0	15
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	Held: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	you hold the row	Hold	r0s4>r0s2	15
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	No go: done (a clean Result from a thread that ended)	T3 Code no longer lists the thread	Thread		2
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	No go: done (a clean Result from a thread that ended)	T3 Code settles the thread	Thread		2
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	No go: done (a clean Result from a thread that ended)	the crew writes a clean Result	Write	r1s10>r1s0	3
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	No go: done (a clean Result from a thread that ended)	the thread ends	Thread		2
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	No go: done (a clean Result from a thread that ended)	the thread fails	Thread		2
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	No go: failed (the thread failed)	the thread fails	Thread	r1s10>r1s1	5
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	No go: gate (a question is open)	jbus opens a question	Ask		15
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	No go: launched (a launch whose thread is starting)	the thread starts	Thread	r1s10>r1s3	9
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	No go: left (the Result leaves work)	the thread stays quiet with nothing written, or writes a leftover	Thread	r1s10>r1s4	31
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	No go: left (the Result leaves work)	the thread stays quiet with nothing written, or writes a leftover	Write	r1s10>r1s4	3
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	No go: merged (its pull request merged)	the pull request merges	Pull		12
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	No go: pr (its pull request is open)	the pull request opens	Pull		15
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	No go: running (the thread at work, a Result or not, or its pull request opening)	the thread works again	Pull	r1s10>r1s9	6
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	No go: running (the thread at work, a Result or not, or its pull request opening)	the thread works again	Thread	r1s10>r1s9	28
+No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	No go: waiting (the thread asks you)	the thread asks for an answer	Thread		15
+No go: waiting (the thread asks you)	Approved, behind a row it depends on: waiting (the thread asks you)	you approve the row, behind a row it depends on	Grant	r0s4>r0s1	9
+No go: waiting (the thread asks you)	Approved: waiting (the thread asks you)	you approve the row, or a rule gives its go	Grant	r0s4>r0s0	9
+No go: waiting (the thread asks you)	Held: waiting (the thread asks you)	you hold the row	Hold	r0s4>r0s2	9
+No go: waiting (the thread asks you)	No go: done (a clean Result from a thread that ended)	T3 Code no longer lists the thread	Thread		1
+No go: waiting (the thread asks you)	No go: done (a clean Result from a thread that ended)	T3 Code settles the thread	Thread		1
+No go: waiting (the thread asks you)	No go: done (a clean Result from a thread that ended)	the thread ends	Thread		1
+No go: waiting (the thread asks you)	No go: done (a clean Result from a thread that ended)	the thread fails	Thread		1
+No go: waiting (the thread asks you)	No go: failed (the thread failed)	the thread fails while it waits	Thread	r1s11>r1s1	1
+No go: waiting (the thread asks you)	No go: gate (a question is open)	jbus opens a question	Ask		9
+No go: waiting (the thread asks you)	No go: launched (a launch whose thread is starting)	the thread starts	Thread		3
+No go: waiting (the thread asks you)	No go: left (the Result leaves work)	the thread ends after its request with work left	Thread	r1s11>r1s4	26
+No go: waiting (the thread asks you)	No go: merged (its pull request merged)	the pull request merges	Pull		6
+No go: waiting (the thread asks you)	No go: pr (its pull request is open)	the pull request opens	Pull		9
+No go: waiting (the thread asks you)	No go: running (the thread at work, a Result or not, or its pull request opening)	the request is answered and the thread works again	Thread	r1s11>r1s9	23
+No go: waiting (the thread asks you)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code lists no thread	Thread		3
+No go: waiting (the thread asks you)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code no longer lists the thread	Thread		1
+No go: waiting (the thread asks you)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	T3 Code settles the thread	Thread		1
+No go: waiting (the thread asks you)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread ends	Thread		1
+No go: waiting (the thread asks you)	No go: stale (the turn hung, or the thread ended, was settled or left T3 Code's list with nothing written)	the thread's turn hangs	Thread		9

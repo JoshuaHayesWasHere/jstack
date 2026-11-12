@@ -45,13 +45,33 @@
   },
   "classes": [],
   "codeLike": [],
+  "map": {
+    "runs": [
+      "MainRed.chart.cfg",
+      "MainRed.cfg"
+    ],
+    "states": 42,
+    "arrows": 377
+  },
+  "also": {
+    "cfg": "MainRed.cfg",
+    "modelStates": 140012,
+    "modelTransitions": 370209,
+    "states": 0,
+    "arrows": 8
+  },
   "drawnFrom": {
-    "command": "statechart from-spec MainRed.tla --config MainRed.chart.cfg --title 'Main went red: what fixes it?' --png",
+    "command": "statechart from-spec MainRed.tla --config MainRed.chart.cfg --also-config MainRed.cfg --title 'Main went red: what fixes it?'",
     "inputs": {
+      "MainRed.cfg": "1c6df965a1d39649ca0f38083899c0930110cccd9bb69ebaeb7d85836c4f167d",
       "MainRed.chart.cfg": "a94d54c1243c2f25ab3ce8b76c26819837e318519de4b2940f1cedd2efc0b412",
       "MainRed.map.py": "1693e02e7a080fe753c9750a38b900797d6321931bfcd0fdbaf8c8987342452a",
       "MainRed.tla": "d5359949c8082b3931f448a5dc99413b943dfeecc17b977f1cd4bcd782e9d2c6"
     },
-    "chart": "c9979929a1af2be866cc315ae4a9bb7040e2e60a667892a59108250bb29c85fb"
+    "chart": "c9979929a1af2be866cc315ae4a9bb7040e2e60a667892a59108250bb29c85fb",
+    "tables": {
+      "states.tsv": "4d7450f5597533b6ac7aba664f0fda456cb4336e85f7f8b83b564bbfda8c0945",
+      "arrows.tsv": "1c5faf95e2c73ee7f15055f8db4854f9c5430cd94a1bd8a8c2b07e35fff82fc9"
+    }
   }
 }

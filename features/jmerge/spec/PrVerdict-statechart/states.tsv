@@ -1,0 +1,44 @@
+state	group	status	start	chart	states in PrVerdict.cfg	within in PrVerdict.cfg
+Main as its check saw it: GitHub has not decided whether it merges	Waits on jmerge, GitHub or a check	works		r0s0 r1s0	96	32
+Main as its check saw it: held: a drop or decline the review did not uphold	Waits on your word	works		r0s0 r1s4	512	272
+Main as its check saw it: held: it touches a protected path	Waits on your word	works		r0s0 r1s5	256	136
+Main as its check saw it: held: its check failed twice	Waits on your word	works		r0s0 r1s6	2016	2584
+Main as its check saw it: held: its row has no go	Waits on your word	works		r0s0 r1s7	1168	712
+Main as its check saw it: held: merging is off	Waits on your word	works		r0s0 r1s8	48	16
+Main as its check saw it: its check failed	Waits on its crew	works		r0s0 r1s11	832	376
+Main as its check saw it: jmerge judges it next	Waits on jmerge, GitHub or a check	works	yes	r0s0 r1s12	72964	130582
+Main as its check saw it: merged	Merged	works		r0s0 r1s13	216	68
+Main as its check saw it: waits on its check	Waits on jmerge, GitHub or a check	works		r0s0 r1s15	2464	1872
+Main as its check saw it: waits on its review	Waits on its crew	works		r0s0 r1s16	5632	7680
+Main moved past its check: GitHub has not decided whether it merges	Waits on jmerge, GitHub or a check	works		r0s1 r1s0	396	960
+Main moved past its check: GitHub merges main into it, for its failed check	Waits on jmerge, GitHub or a check	works		r0s1 r1s1	256	0
+Main moved past its check: GitHub merges main into it, for the guards	Waits on jmerge, GitHub or a check	works		r0s1 r1s2	28	0
+Main moved past its check: conflicts with main	Waits on its crew	works		r0s1 r1s3	692	144
+Main moved past its check: held: a drop or decline the review did not uphold	Waits on your word	works		r0s1 r1s4	1696	2736
+Main moved past its check: held: it touches a protected path	Waits on your word	works		r0s1 r1s5	848	1368
+Main moved past its check: held: its check failed twice	Waits on your word	works		r0s1 r1s6	4384	12484
+Main moved past its check: held: its row has no go	Waits on your word	works		r0s1 r1s7	3856	5752
+Main moved past its check: held: merging is off	Waits on your word	works		r0s1 r1s8	112	28
+Main moved past its check: in jmerge's batch, whose check runs	Waits on jmerge, GitHub or a check	works		r0s1 r1s9	64	16
+Main moved past its check: in line behind the pull request ahead	Waits on jmerge, GitHub or a check	works		r0s1 r1s10	348	0
+Main moved past its check: its check failed	Waits on its crew	works		r0s1 r1s11	6752	15168
+Main moved past its check: jmerge judges it next	Waits on jmerge, GitHub or a check	works		r0s1 r1s12	240022	761728
+Main moved past its check: merged	Merged	works		r0s1 r1s13	294	72
+Main moved past its check: merged over main, it fails the guards	Waits on its crew	works		r0s1 r1s14	16	4
+Main moved past its check: waits on its check	Waits on jmerge, GitHub or a check	works		r0s1 r1s15	8896	24832
+Main moved past its check: waits on its review	Waits on its crew	works		r0s1 r1s16	24576	79520
+Main red: GitHub has not decided whether it merges	Waits on jmerge, GitHub or a check	works		r0s2 r1s0	300	672
+Main red: GitHub merges main into it, for the guards	Waits on jmerge, GitHub or a check	works		r0s2 r1s2	24	0
+Main red: conflicts with main	Waits on its crew	works		r0s2 r1s3	548	144
+Main red: held: a drop or decline the review did not uphold	Waits on your word	works		r0s2 r1s4	1536	1728
+Main red: held: it touches a protected path	Waits on your word	works		r0s2 r1s5	768	864
+Main red: held: its check failed twice	Waits on your word	works		r0s2 r1s6	3120	5376
+Main red: held: its row has no go	Waits on your word	works		r0s2 r1s7	3392	3616
+Main red: held: merging is off	Waits on your word	works		r0s2 r1s8	72	24
+Main red: in line behind the pull request ahead	Waits on jmerge, GitHub or a check	works		r0s2 r1s10	40	0
+Main red: its check failed	Waits on its crew	works		r0s2 r1s11	7232	17552
+Main red: jmerge judges it next	Waits on jmerge, GitHub or a check	works		r0s2 r1s12	227514	701412
+Main red: merged	Merged	works		r0s2 r1s13	194	56
+Main red: merged over main, it fails the guards	Waits on its crew	works		r0s2 r1s14	14	4
+Main red: waits on its check	Waits on jmerge, GitHub or a check	works		r0s2 r1s15	8256	23072
+Main red: waits on its review	Waits on its crew	works		r0s2 r1s16	22656	70912

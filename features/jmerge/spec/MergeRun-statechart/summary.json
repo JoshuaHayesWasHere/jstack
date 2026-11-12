@@ -47,13 +47,33 @@
   },
   "classes": [],
   "codeLike": [],
+  "map": {
+    "runs": [
+      "MergeRun.chart.cfg",
+      "MergeRun.cfg"
+    ],
+    "states": 44,
+    "arrows": 135
+  },
+  "also": {
+    "cfg": "MergeRun.cfg",
+    "modelStates": 16941,
+    "modelTransitions": 74112,
+    "states": 20,
+    "arrows": 82
+  },
   "drawnFrom": {
-    "command": "statechart from-spec MergeRun.tla --config MergeRun.chart.cfg --title 'jbus'\"'\"'s pass starts a run of jmerge: does what it said reach you?' --png",
+    "command": "statechart from-spec MergeRun.tla --config MergeRun.chart.cfg --also-config MergeRun.cfg --title 'jbus'\"'\"'s pass starts a run of jmerge: does what it said reach you?'",
     "inputs": {
+      "MergeRun.cfg": "1948a1c27b73f0e8df60b10d172ba79bec303374b85f543c5bb4eb771e685f37",
       "MergeRun.chart.cfg": "59ec03eb848e7e60eb9f1cc056f9968800ab9d2bbfa398823999fad6398e9143",
       "MergeRun.map.py": "4b3998c92e55eec0c5f07a6ec28c70b3b21f506feba8357de19cccd6fd31eb08",
       "MergeRun.tla": "e8298f329217b8085796afaabb3cbe17de4a656738454e4fd92c6d208b15673c"
     },
-    "chart": "c33cbb1c35488a72729498acedd7685b2effa0a6fe5390a4431e2e4ee476bf28"
+    "chart": "c33cbb1c35488a72729498acedd7685b2effa0a6fe5390a4431e2e4ee476bf28",
+    "tables": {
+      "states.tsv": "a08f46966bdcacb1bbaa55935a61f023e4f603f201c3b94f7388fdbf160c68fd",
+      "arrows.tsv": "c72e6304fe455d1bf9810bea5de055880849c995d00215e4bc37d59bc8328b7f"
+    }
   }
 }

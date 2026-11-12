@@ -1,0 +1,28 @@
+state	group	status	start	chart	states in GhBudget.cfg	within in GhBudget.cfg
+The API budget above the floor: a call under way, no call log, no old log	Budget kept	works		r0s0 r1s3	556	1102
+The API budget above the floor: a call under way, the call log has room, no old log	Budget kept	works		r0s0 r1s5	2662	6040
+The API budget above the floor: a call under way, the call log past its size, no old log	Budget kept	works		r0s0 r1s7	1288	2156
+The API budget above the floor: a pass held, no call log, no old log	A pass held	works		r0s0 r1s8	66	140
+The API budget above the floor: a pass held, the call log has room, no old log	A pass held	works		r0s0 r1s9	348	748
+The API budget above the floor: a pass held, the call log past its size, no old log	A pass held	works		r0s0 r1s11	1656	3576
+The API budget above the floor: no call, no call log, no old log	Budget kept	works	yes	r0s0 r1s13	35	78
+The API budget above the floor: no call, the call log has room, no old log	Budget kept	works		r0s0 r1s14	272	680
+The API budget above the floor: no call, the call log past its size, no old log	Budget kept	works		r0s0 r1s16	1468	3792
+The API budget at the floor: a call starts at the floor, no call log, the old log keeps the last full log	A call under the floor	wrong		r0s1 r1s0	88	24
+The API budget at the floor: a call starts at the floor, the call log has room, the old log keeps the last full log	A call under the floor	wrong		r0s1 r1s1	3962	5908
+The API budget at the floor: a call starts at the floor, the call log past its size, no old log	A call under the floor	wrong		r0s1 r1s2	1410	2166
+The API budget at the floor: a call under way, no call log, the old log keeps the last full log	Budget kept	works		r0s1 r1s4	2892	3912
+The API budget at the floor: a call under way, the call log has room, no old log	Budget kept	works		r0s1 r1s5	704	1024
+The API budget at the floor: a call under way, the call log has room, the old log keeps the last full log	Budget kept	works		r0s1 r1s6	6286	8922
+The API budget at the floor: a call under way, the call log past its size, no old log	Budget kept	works		r0s1 r1s7	8690	17698
+The API budget at the floor: a pass held, the call log has room, the old log keeps the last full log	A pass held	works		r0s1 r1s10	16498	36686
+The API budget at the floor: a pass held, the call log past its size, no old log	A pass held	works		r0s1 r1s11	3816	8328
+The API budget at the floor: no call, the call log has room, the old log keeps the last full log	Budget kept	works		r0s1 r1s15	7394	13460
+The API budget at the floor: no call, the call log past its size, no old log	Budget kept	works		r0s1 r1s16	2144	4224
+The API budget spent: a call under way, no call log, the old log keeps the last full log	Budget kept	works		r0s2 r1s4	4834	5894
+The API budget spent: a call under way, the call log has room, the old log keeps the last full log	Budget kept	works		r0s2 r1s6	34542	71586
+The API budget spent: a call under way, the call log past its size, no old log	Budget kept	works		r0s2 r1s7	8144	17214
+The API budget spent: a pass held, the call log has room, the old log keeps the last full log	A pass held	works		r0s2 r1s10	25500	56692
+The API budget spent: a pass held, the call log past its size, the old log keeps the last full log	A pass held	works		r0s2 r1s12	57902	127810
+The API budget spent: no call, the call log has room, the old log keeps the last full log	Budget kept	works		r0s2 r1s15	9376	15552
+The API budget spent: no call, the call log past its size, the old log keeps the last full log	Budget kept	works		r0s2 r1s17	22946	41100

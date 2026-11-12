@@ -91,11 +91,19 @@
   },
   "classes": [],
   "codeLike": [],
+  "map": {
+    "runs": [
+      "FlowToday.chart.cfg",
+      "FlowDesign.cfg"
+    ],
+    "states": 1998,
+    "arrows": 11581
+  },
   "uncited": {
     "FlowToday.tla": []
   },
   "drawnFrom": {
-    "command": "statechart from-spec FlowToday.tla --config FlowToday.chart.cfg --against FlowDesign.tla --label 'the design' --title 'Does work keep flowing?' --png",
+    "command": "statechart from-spec FlowToday.tla --config FlowToday.chart.cfg --against FlowDesign.tla --label 'the design' --title 'Does work keep flowing?'",
     "inputs": {
       "FlowDesign.cfg": "b6967b1301d5fe88460ce5c0488881755fddc904654f6098018ff516ccc0f870",
       "FlowDesign.tla": "506a27a11c63dbb35d984eb4bc0977f09452afa5e6443a7f6bcb3c55fb8fbc40",
@@ -103,6 +111,10 @@
       "FlowToday.map.py": "4d5c34df093020c5ddd8281c500b544e4a5da037b138028deab40486844fe32c",
       "FlowToday.tla": "98344ac1108f965d9b8de00c0a37a72b935950bbf6089a6e7adfeee0bb5481ad"
     },
-    "chart": "df85461590f624c96038ecaa99f95b34eb8633a1651aae0ca7a9fe744d0d8494"
+    "chart": "df85461590f624c96038ecaa99f95b34eb8633a1651aae0ca7a9fe744d0d8494",
+    "tables": {
+      "states.tsv": "a13285a2ade1586a2ee4b2b52cc3ba60bdc092e9e756eaf259deb42d08651481",
+      "arrows.tsv": "78b7cd67a8bdcc54e1ff18981d996602652c4bf01515427f0e11b589647ee6ad"
+    }
   }
 }
