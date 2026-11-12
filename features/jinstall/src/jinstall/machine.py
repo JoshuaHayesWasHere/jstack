@@ -266,16 +266,39 @@ class Machine:
             next_to.write_text("".join(f"{path}\n" for path in paths))
 
     def _note(self, path: Path | None) -> None:
-        """Put `path` into the record. This method makes the missing levels above the record
-        and records them too, since the record cannot hold them before it exists. When `path`
-        is None, it makes only the record's directory."""
+        """Put `path` into the record. The record's directory and each missing level above it
+        go into the record too, and appear only with it: the method builds the top missing
+        level under its stage, writes the record there, and renames the stage into place. A
+        stop before the rename leaves only the stage, which the next `_note` builds on and the
+        sweep removes. When `path` is None, only the levels go in."""
         record = self._record()
-        above = [level for level in _levels(record.parent.parent) if not level.exists()]
-        record.parent.mkdir(parents=True, exist_ok=True)
+        missing = [level for level in _levels(record.parent) if not level.exists()]
         known = self._recorded()
-        new = [each for each in dict.fromkeys((*above, path)) if each and each not in known]
-        if new:
-            self._write_record([*known, *new])
+        new = [each for each in dict.fromkeys((*missing, path)) if each and each not in known]
+        if not missing:
+            if new:
+                self._write_record([*known, *new])
+            return
+        stage = _stage(missing[0])
+        staged = stage / record.relative_to(missing[0])
+        staged.parent.mkdir(parents=True, exist_ok=True)
+        staged.write_text("".join(f"{each}\n" for each in new))
+        stage.rename(missing[0])
+
+    def _unstage(self) -> list[Path]:
+        """Remove each stage a stopped `_note` left, while it holds only the record, and return
+        the stages it removed."""
+        record = self._record()
+        removed = []
+        for level in _levels(record.parent):
+            if not level.name or _stage(level).is_symlink() or not _stage(level).is_dir():
+                continue
+            staged = _stage(level) / record.relative_to(level)
+            staged.unlink(missing_ok=True)
+            inside = reversed(_levels(staged.parent)[len(level.parts) - 1 :])
+            if all(_emptied(each) is not False for each in inside):
+                removed.append(_stage(level))
+        return removed
 
     def make_dirs(self, path: Path) -> None:
         """Make the directory and its parents, as mkdir -p does. Each level that was not
@@ -477,16 +500,18 @@ class Machine:
         """The last step of uninstall, over the record
         (${XDG_STATE_HOME:-~/.local/state}/jstack/created, one path on each line).
 
-        Deepest first, it removes each recorded directory that is empty and each recorded JSON
-        file that holds `{}`, and takes its line out. It keeps each directory or file that holds
-        anything else, and keeps its line. When the only lines left are those of the levels
-        above the record, it removes the record and its directory, then each of those levels
-        that is empty."""
+        First it removes each stage a stopped `_note` left. Then, deepest first, it removes
+        each recorded directory that is empty and each recorded JSON file that holds `{}`, and
+        takes its line out. It keeps each directory or file that holds anything else, and keeps
+        its line. When the only lines left are those of the record's directory and the levels
+        above it, it removes the record and its directory, then each of those levels that is
+        empty."""
         record = self._record()
+        removed = self._unstage()
         if not record.is_file():
-            return Dropped()
-        above = set(_levels(record.parent.parent))
-        removed, left = [], []
+            return Dropped(tuple(str(path) for path in removed))
+        above = set(_levels(record.parent))
+        left = []
         for path in sorted(set(self._recorded()), key=lambda each: len(each.parts), reverse=True):
             if path in above:
                 left.append(path)
@@ -524,6 +549,11 @@ def _beside(path: Path) -> Iterator[Path]:
         if next_to.is_symlink() or next_to.exists():
             next_to.unlink()
         raise
+
+
+def _stage(level: Path) -> Path:
+    """Where `_note` builds `level` before it renames it into place."""
+    return level.with_name(f"{level.name}.jstack-new")
 
 
 def _levels(path: Path) -> list[Path]:

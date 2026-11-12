@@ -442,10 +442,9 @@ def fake_gh(stub, args, cwd):
     """Run the `gh` of a kitchen with `args` in `cwd`, and return its exit code, stdout and stderr.
 
     `gh-down` is a GitHub that does not answer, and `gh-down-<checkout>` is one that does not answer
-    for that one project. `gh-view-down` is one that does not answer a `pr view`, and
-    `gh-list-down` one that does not answer a `pr list`. Each of these
-    files holds what `gh` says on stderr. `gh-code` is its exit code (1 when there is none), and
-    `gh-out` is what it prints.
+    for that one project. `gh-view-down` does not answer a `pr view`, `gh-list-down` a `pr list`,
+    and `gh-head-down` a `pr list` of one branch (`--head`). Each of these files holds what `gh`
+    says on stderr. `gh-code` is its exit code (1 when there is none), and `gh-out` what it prints.
 
     A list gives only a window of recent pull requests, at most its `--limit`, the first in the
     file. A pull request marked `old` is outside that window, and `pr view` still finds it by
@@ -491,7 +490,7 @@ def fake_gh(stub, args, cwd):
     if args[:2] == ["pr", "view"]:
         down.append(stub / "gh-view-down")
     if args[:2] == ["pr", "list"]:
-        down.append(stub / "gh-list-down")
+        down += [stub / "gh-list-down"] + ([stub / "gh-head-down"] if "--head" in args else [])
     for failing in down:
         if failing.exists():
             code = (stub / "gh-code").read_text() if (stub / "gh-code").exists() else "1"

@@ -26,8 +26,10 @@ Ops == {"dir", "seed", "repo"}
 \* The paths jstack makes. "above": a level above the record's folder that was not there, such
 \* as ~/.local/state on a fresh HOME; "state": the record's folder, ~/.local/state/jstack; "dir":
 \* a directory or new JSON file the install makes (`make_dirs`, `write_object`); "seed": a file
-\* `--setup` seeds; "hook": a git hook `--repo` puts in a repo.
-Paths == {"above", "state", "dir", "seed", "hook"}
+\* `--setup` seeds; "hook": a git hook `--repo` puts in a repo; "stage": the folder `_note`
+\* builds the top missing level under, `<level>.jstack-new`, before it renames it into place.
+Paths == {"above", "state", "dir", "seed", "hook", "stage"}
+Levels == {"above", "state"}
 
 VARIABLES
   \* D-092, ~/.local/state/jstack/created, one path on each line: the paths uninstall's sweep
@@ -86,9 +88,9 @@ Ids == 1..MaxId
 NoHook == [id |-> 0, by |-> None]
 
 TypeOK ==
-  /\ created \subseteq {"above", "dir"} /\ repos \in BOOLEAN /\ seeded \in BOOLEAN
+  /\ created \subseteq {"above", "state", "dir"} /\ repos \in BOOLEAN /\ seeded \in BOOLEAN
   /\ alone \in {"free", "held"} /\ disk \subseteq Paths /\ fresh \in BOOLEAN
-  /\ op \in Ops \cup {None} /\ step \in 0..4 /\ pend \subseteq {"above", "dir"}
+  /\ op \in Ops \cup {None} /\ step \in 0..4 /\ pend \subseteq {"above", "state", "dir"}
   /\ bak \in BOOLEAN /\ mirrorLock \in {"free", "held"}
   /\ entry \in {"own", "gone", "link"} /\ mpc \in {"idle", "rename", "link"}
   /\ homeId \in Threads \cup {None}
@@ -135,28 +137,33 @@ Begin(o) ==
   /\ UNCHANGED <<created, repos, seeded, disk, fresh, pend>> /\ UNCHANGED mirror
   /\ UNCHANGED expert
 
-\* `_note` names the levels above the record's folder that are missing, then makes the folder:
-\* jinstall/machine.py `above = [level for level in _levels(record.parent.parent) if not level.exists()]`
-\* and jinstall/machine.py `record.parent.mkdir(parents=True, exist_ok=True)`. The path is the
-\* level `make_dirs` makes, jinstall/machine.py `self._note(level) level.mkdir(exist_ok=True)`, or
-\* none for the seeded and repos records, jinstall/machine.py `self._note(None)
-\* with _beside(self._repos()) as next_to:`.
+\* `_note` names each missing level, the record's folder and the levels above it:
+\* jinstall/machine.py `missing = [level for level in _levels(record.parent) if not level.exists()]`.
+\* Where one is missing, it makes the stage, jinstall/machine.py
+\* `staged.parent.mkdir(parents=True, exist_ok=True)`, and writes the record in it, jinstall/machine.py
+\* `staged.write_text("".join(f"{each}\n" for each in new))`. A stage a stopped run left is built on.
+\* The path is the level `make_dirs` makes, jinstall/machine.py
+\* `self._note(level) level.mkdir(exist_ok=True)`, or none for the seeded and repos records,
+\* jinstall/machine.py `self._note(None) with _beside(self._repos()) as next_to:`.
 NoteMkdir ==
   /\ op /= None /\ At = "note1"
   /\ LET up == IF fresh /\ "above" \notin disk THEN {"above"} ELSE {}
+         missing == up \cup ({"state"} \ disk)
          path == IF op = "dir" THEN {"dir"} ELSE {}
-     IN /\ disk' = disk \cup up \cup {"state"}
-        /\ pend' = (up \cup path) \ created
+     IN /\ disk' = IF missing = {} THEN disk ELSE disk \cup {"stage"}
+        /\ pend' = (missing \cup path) \ created
   /\ op' = OpAfter /\ step' = StepAfter /\ alone' = AloneAfter
   /\ UNCHANGED <<created, repos, seeded, fresh>> /\ UNCHANGED mirror /\ UNCHANGED expert
 
-\* Then the record, only where a line is new: jinstall/machine.py
-\* `if new: self._write_record([*known, *new])`
+\* Then the levels and the record appear in one rename, jinstall/machine.py
+\* `stage.rename(missing[0])`, or, with no level missing, the record is written where a line is
+\* new, jinstall/machine.py `if new: self._write_record([*known, *new])`.
 NoteWrite ==
   /\ op /= None /\ At = "note2"
+  /\ disk' = IF pend \cap Levels = {} THEN disk ELSE (disk \ {"stage"}) \cup (pend \cap Levels)
   /\ created' = created \cup pend /\ pend' = {}
   /\ op' = OpAfter /\ step' = StepAfter /\ alone' = AloneAfter
-  /\ UNCHANGED <<repos, seeded, disk, fresh>> /\ UNCHANGED mirror /\ UNCHANGED expert
+  /\ UNCHANGED <<repos, seeded, fresh>> /\ UNCHANGED mirror /\ UNCHANGED expert
 
 \* The seeded record before the file, jinstall/machine.py
 \* `self._write_seeded(self._seeded() | {path: hashlib.sha256(data).hexdigest()})`, and the
@@ -183,17 +190,19 @@ InstallDies ==
   /\ UNCHANGED <<created, repos, seeded, disk, fresh>> /\ UNCHANGED mirror /\ UNCHANGED expert
 
 \* What a path is undone by: its line in the created record, the record's folder by the record,
-\* the seeded file by its line, a hook by the repo's line.
+\* the seeded file by its line, a hook by the repo's line, and a stage by its name, which the
+\* sweep looks for at each level, jinstall/machine.py `removed = self._unstage()`.
 Covered(p) ==
   \/ p \in created
   \/ p = "state" /\ created /= {}
   \/ p = "seed" /\ seeded
   \/ p = "hook" /\ repos
+  \/ p = "stage"
 
 \* Uninstall, as one step under HOME's lock: it drops the seeded file and the hooks, forgets the
 \* repos, jinstall/__main__.py `for step in [*steps, machine.forget_repos, machine.sweep]:`, and
-\* sweeps what the created record names, with the record's folder; with no record it sweeps
-\* nothing, jinstall/machine.py `if not record.is_file(): return Dropped()`.
+\* sweeps what the created record names, with the record's folder; with no record it removes
+\* only the stages, jinstall/machine.py `if not record.is_file():`.
 Uninstall ==
   /\ "install" \in Parts
   /\ alone = "free" /\ op = None /\ disk /= {}
@@ -347,9 +356,9 @@ Spec == Init /\ [][Next]_vars
 \* Every path jstack made is recorded or not made: an uninstall leaves nothing behind.
 UninstallComplete == \A p \in disk : Covered(p)
 \* The part of it over the record's own folder and the levels above it, which `_note` makes.
-RecordLevelsRecorded == \A p \in disk \cap {"above", "state"} : Covered(p)
+RecordLevelsRecorded == \A p \in disk \cap Levels : Covered(p)
 \* The part of it over the paths the install makes for its own use.
-MadePathsRecorded == \A p \in disk \ {"above", "state"} : Covered(p)
+MadePathsRecorded == \A p \in disk \ Levels : Covered(p)
 \* The mirror's own entry is never lost: it is at its name or in its backup.
 MirrorKept == entry = "own" \/ bak
 \* An expert has at most one live webhook, and once a start has ended, its record names it and

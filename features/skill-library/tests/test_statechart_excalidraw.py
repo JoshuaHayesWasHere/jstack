@@ -149,6 +149,7 @@ def test_each_chart_draws_as_a_valid_scene_with_a_box_per_state_and_a_bound_arro
     for a, b in itertools.combinations(boxes + drawn("start"), 2):
         assert not overlap(a, b), f"{a['id']} overlaps {b['id']}"
     frames = [e for e in elements if e["type"] == "frame"]
-    assert {f["name"] for f in frames} >= {"Legend"}
+    legend = re.search(r"^\s*state\b.*\bas legend\s*\{$", chart.read_text(), re.M)
+    assert ("Legend" in {f["name"] for f in frames}) == bool(legend)
     for a, b in itertools.combinations(frames, 2):
         assert not overlap(a, b), f"frame {a['name']} overlaps frame {b['name']}"
