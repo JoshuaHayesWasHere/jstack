@@ -62,13 +62,13 @@ It refuses the send, exit 2 with one line on stderr, when the sender is a home o
 | the sender's own home, now or before a handoff | nothing: it is not sent |
 | a home that handed off | the id in its `home-id` now, or that none is there, and the channel below |
 | the root, from a scoped home | a stop, `jbus stop` |
-| a scoped home, from the root | the user's word, carried by `jbus word`, or the answer to its stop |
+| a scoped home, from the root | the root's own words by `jbus tell`, the user's word by `jbus word`, or the answer to its stop |
 | a scoped home from another scope, or any home from a reviewer | a row queued unapproved for that home, `jbus queue add` |
 | the crew of another home's brief | a row queued unapproved for that home, `jbus queue add` |
 | another repo's home, from a home | nothing: jbus carries each repo's events to its own home |
 | the crew of the brief a reviewer reviews | nothing: jbus sends the crew the review notice |
 
-Each line names the jbus command as the home skill's scoped-homes page gives it.
+Each line names the jbus command as the home skill's scoped-homes page and the root's skill give it.
 
 A home's send to the crew of one of its own briefs, a steer, goes.
 So does any send to a scout, to a thread of another repo that is not that repo's home, and any send by a thread that is no home and no reviewer.

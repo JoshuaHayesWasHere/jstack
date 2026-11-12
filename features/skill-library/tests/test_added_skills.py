@@ -1,6 +1,8 @@
 """The skills added after the first eleven. The tests run their shell blocks. Each subagent a
 skill starts is a read-only Explore agent, of a type that the Agent tool accepts. The tests of
-what one skill's blocks print are in the folder of the feature that holds the skill."""
+what one skill's blocks print are in the folder of the feature that holds the skill. The root's
+skill is not run here: each of its blocks runs after the home skill's block at the top and the
+block that finds this home, as features/home/tests runs them."""
 
 import os
 import re
@@ -27,7 +29,8 @@ BEFORE = {
     "technical-writing",
     "unslop",
 }
-ADDED = sorted(name for name in SKILLS if name not in BEFORE)
+AFTER_THE_HOME = {"root"}
+ADDED = sorted(name for name in SKILLS if name not in BEFORE | AFTER_THE_HOME)
 BUILT_IN = set(
     """
     add-dir agents bashes bug clear code-review compact config context copy cost diff doctor

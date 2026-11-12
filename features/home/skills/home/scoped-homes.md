@@ -1,26 +1,25 @@
 ## Scoped homes
 
-A scoped home, a child of the root home, is a home like any other, for one goal: it plans and launches its own tasks by this skill, from its own directory, and carries each row the root queues in it.
-The root home investigates, hypothesises, sends scouts and briefs with the user, queues each row in a child ("Queueing a row in a child" below), and reads its children when the user asks ("Reading the scopes").
-It waits on no wake: a child's Results, stalls and decisions go to the child, and the child tells the user its own decisions and stops.
-jbus merges a scoped home's pull requests as it merges the root home's, and no home merges its own ("Merging a pull request that is ready").
-The homes of a repo do not plan each other's work, and they are quiet towards each other:
+A scoped home, a child of the root home, lands one goal in depth: it carries each row the root queues in it, owns its crews, decides within its goal, and escalates to the root what it may not decide alone.
+It plans and launches its tasks by this skill, from its own directory.
+The root home runs the whole pipeline for the user, by its own skill (`features/home/skills/root/SKILL.md`): it supplies each child its rows, gives a plan entry's go, tells a child what crosses scopes, answers a child's escalation, and reads every child on each wake.
+jbus merges a scoped home's pull requests as it merges every home's, and no home merges its own ("Merging a pull request that is ready").
+The homes of a repo do not plan each other's work, and every message between them goes through jbus:
 
-- The root home sends a scoped home one kind of message: a decision that crosses scopes, one that changes what that home may plan or touch.
-  It is the user's word, carried with `jbus word --to "$P" --message '<thread id>/last' --scope <scope>` (the user's newest message there; an older one by its id), given again for each scope or once as `--scope every`, and never with `t3_thread_send`.
-  jbus checks that the message is the user's own, keeps one record for each scope, says `held` for a scope that has it already, and wakes each home once on its next pass.
-  The root writes no words of its own into it.
-  A home with no `home-id` is not running: jbus keeps the word, and sends it on the pass after that home's next start.
-- A scoped home reaches the root only at a one-way door: a stop on its own open row, held at one case of `features/home/templates/gates.md`, which jbus takes only with that case and only when another home's row or something no home owns holds it ("Stopping on the root" below).
-  Every other decision is the scope's and the user's: the home tells the user directly from its own thread, parks it as a gate where only the user can make it, and stops.
+- The root steers a scoped home with `jbus tell <scope> "<words>" --from <root id>`, or `jbus tell every`.
+  jbus pushes it to the scope's thread once, signed as the root's own words: it is no go for any row, gate or door, and the home acts on it as the root's steer.
+  The user's own word for a scope comes as `jbus word --scope`, which jbus signs as the user's ("The user's word, carried by jbus").
+  A home with no `home-id` is not running: jbus keeps the message and sends it on the pass after that home's next start.
+- A scoped home escalates to the root with `jbus stop` ("Escalating to the root" below): a one-way door that holds its own row, a decision it may not make alone, or a go it may not give.
+  The root answers it, or passes it to the user as a gate that holds.
 - Nothing else is sent: not a launch, a merge, a pull request opened, a score, a status, or that a scope has ended.
-  The root home reads the scope's files, its plan and its queue rows, when the user asks for status ("Reading the scopes").
+  The root reads the scope's plan and its queue rows itself, on each wake.
   A scope that ends is archived by its home's `/handoff`, which hands what it has out to the `uncategorized` home.
 - A standing rule from the user becomes code, a lint, a script or a check, queued as a task by the home that heard it, and never a line in a file a thread reads at its start.
   It is relayed to no home: each home meets the rule in the code it runs.
-- A fault one home finds in another's work, with a known fix, is a queued row of that home's and never a send: `jbus queue add` with `--for <its home>`, its brief's `Decisions:` saying `noticed in <slug>`, unapproved, where approval by rule or the user's go takes it as any row.
+- A fault one home finds in another's work, with a known fix, is a queued row of that home's and never a send: `jbus queue add` with `--for <its home>`, its brief's `Decisions:` saying `noticed in <slug>`, unapproved, where approval by rule or a go takes it as any row.
   One with no known fix is nothing.
-- A row changes home only by a move, never by an edit of its brief's `Home:` line or a second row ("Moving a row" below).
+- A row changes home only by the root's move, never by an edit of its brief's `Home:` line or a second row.
 - No home asks another what it has out.
   `jmerge --claims` prints it.
 
@@ -29,13 +28,19 @@ A scoped home gives each brief and request a slug that starts with its prefix, t
 **`uncategorized`** is the scope name reserved for the catch-all.
 The root home owns no row: every brief whose `Home:` line names no live scope, `root`, or none at all, is `uncategorized`'s, and so is every slug no other scope's prefix claims (`features/jbriefs/src/jbriefs/home.py`).
 It has no `prefix` file, so it overlaps no other scope's prefix, and two other scopes still may not overlap each other.
-The root's start makes it beside a project's first home ("When a home starts", step 1), and jbus keeps its home running; "Making a scope" makes it too, with nothing in place of `<prefix>`, and its home starts with `/home uncategorized` like any scoped home's.
+The root's start makes it beside a project's first home ("When a home starts", step 1), and jbus keeps its home running; the root's "Making a scope" makes it too, and its home starts with `/home uncategorized` like any scoped home's.
 Until it has a home of its own, the root home's thread stands in for it: jbus sends the root what it would send `uncategorized`, and `jbus clear` and the root's start list its rows.
 
-**Stopping on the root** is a scoped home's, only for a one-way door, and the only way it reaches the root.
-A stop is a fact of the queue that jbus checks: one of this home's own open rows is held at a one-way door, one case of `features/home/templates/gates.md` word for word, by another home's open row or by something no home owns, and this home cannot clear it.
-Park the door as a gate first (`jbus gate`, with its `Holds:` and `Fail-safe:` lines), then stop, so the root has a gate to advise on.
-jbus refuses any other stop: one with no `--holds`, or a case not in that table, which the home tells the user directly from its own thread instead; one on this home's own rows only; one on a row that merged, is done or was removed; and the same stop again while it is open.
+**Escalating to the root** is a scoped home's, and the only way it reaches the root.
+It has three kinds, and jbus checks each against the queue and the plan:
+
+| Kind | When | What jbus checks |
+|---|---|---|
+| `door` | One of this home's own open rows is held at a one-way door, one case of `features/home/templates/gates.md` word for word, by another home's open row or by something no home owns, and this home cannot clear it. | `--holds` is a case of that table, and `--on` names another home's open row or `--outside` what holds it. |
+| `decision` | A choice this home may not make alone: one that crosses scopes, changes what a scope owns, or waives a line of a brief's `Done when`. | The row is this home's own and open, or `--entry` names an entry of this home's plan. |
+| `go` | A plan entry of this home's, or a row of it, needs a go, and none holds. | As for `decision`. |
+
+For a door, park the door as a gate first (`jbus gate`, with its `Holds:` and `Fail-safe:` lines), then escalate, so the root has a gate to advise on.
 In one call with the block at the top, the block that finds this home and the block that reads jbus, with this home's held row in place of `<own row>`, the other home's row or its pull request's `#<n>` in place of `<row or #pr>`, the case of the gates table in place of `<case>`, and what the root must clear, in a line, in place of the last words in angle brackets:
 
 ```sh
@@ -45,259 +50,23 @@ jbus --project "$P" stop '<own row>' --on '<row or #pr>' --holds '<case>' --from
 
 When what holds the row is no home's (the machine, the install, Claude Code), put `--outside '<what holds it>'` in place of `--on '<row or #pr>'`.
 jbus takes that stop too, and counts it per scope in the digest, since no row backs it.
-On `stopped:` jbus has sent the stop to the root home's thread, read as it sends, or keeps it until a root home runs, and sends nothing more for it.
-On `refused:` nothing is sent: the home clears what the line names itself, or it is no stop.
-A stop whose own row merges or is removed closes itself, with no message.
-On the root's answer, which jbus carries here, add it to this home's own gate for the door as the root's recommendation: the user alone opens or refuses the door.
 
-A `decision` the scope cannot make alone, one the user must make, is no stop: park it as a gate (`jbus gate`, "Gates"), which jbus takes to the user.
+For a decision or a go, run `jbus --project "$P" stop '<own row>' --kind decision --from "$ME" '<the choice and your pick>'`, or `--kind go`.
+For an entry with no row yet, leave the row out and add `--entry <entry>`: `jbus --project "$P" stop --kind go --entry '<entry>' --from "$ME" '<what the root must clear>'`.
+Name your pick and why: the root decides on it.
+
+On `stopped:` jbus has sent the escalation to the root home's thread, or keeps it until a root home runs, and sends nothing more for it.
+On `refused:` nothing is sent: the home clears what the line names itself, or makes the choice itself as its own.
+An escalation whose own row merges or is removed, or whose entry leaves the plan, closes itself, with no message.
+
+jbus carries the root's reply here once:
+
+- An answer to a door is the root's recommendation: add it to this home's own gate for the door.
+  The user alone opens or refuses the door.
+- An answer to a decision or a go is the root's word: act on it.
+  For a go, the root has given the entry its go already.
+- A pass means the root parked the question as a gate for the user on this home's slug, `home-<scope>`: wait for the user's answer, which jbus carries here too.
+
+A `decision` that is the user's alone, a gates.md door this home's own row holds with nothing outside it, is parked as a gate (`jbus gate`, "Gates"), which jbus takes to the user.
 Nothing else reaches the root, and never by a `t3_thread_send` of this home's own.
 `features/home/hooks/agent-sends.sh` refuses a home's own `t3_thread_send` to any home of this repo or of another repo, or to a crew of another home's brief, and its line names the jbus verb that carries the message instead.
-
-**Answering a stop** is the root home's, and a stop is always a one-way door, so the root investigates, then advises.
-It scouts first if it needs facts, then answers the stop with its recommendation; the scope's home adds that recommendation to its own gate, the one it parked for the door.
-The root writes nothing into a scope's files: the gate is the scope's, and the answer is the only thing the root sends it.
-The root never opens or refuses the door: the user alone does, with their own answer to the gate.
-jbus's message names the scope, the row and the door; answer it once, with the recommendation as the answer, in the same call as the block that finds this home and the block that reads jbus:
-
-```sh
-: "${ME:?run the block that finds this home first}" "${P:?run the block that reads jbus first}"
-jbus --project "$P" stop answer '<scope>' '<own row>' '<the answer>' --from "$ME"
-```
-
-`--from` comes last.
-jbus closes the stop and carries the answer to the scope's home, once.
-
-**Queueing a row in a child** is the root home's, and its only way to queue.
-A brief or a request goes to the child whose goal it serves, or to `uncategorized`, and its `Home:` line names that child.
-The user's message that asks for the work or says go to it approves the row as it is queued: `--message` binds it, as `jbus queue approve --message` does, and a row the user has not asked for is planned with them first.
-In one call with the block at the top and the block that finds this home, in the main checkout, with `tasks` for a brief or `scouts` for a request, its slug, the child, a priority, the plan entry and the user's message in place of the words in angle brackets, and the row's order added as `--depends <slugs>` or `--merge-after <slugs>` ("Handing a task to a crewmate", step 1):
-
-```sh
-kind='<tasks or scouts>'
-slug='<slug>'
-child='<child>'
-priority='<n>'
-entry='<entry>'
-message='<thread id>/last'
-case $kind in
-tasks) B="$H/tasks/$slug.md" ;;
-scouts) B="$H/scouts/$slug.md" ;;
-*) B= ;;
-esac
-why=
-if [ "${M:?run the block that finds this home first}" != "$H" ]; then
-    why="this is the home of the scope $(basename "$M"): a child queues its own rows by \"Handing a task to a crewmate\""
-fi
-if [ -z "$why" ]; then
-    case $kind/$slug/$child/$priority/$entry/$message in
-    *'<'* | *'>'*) why="the kind, the slug, the child, the priority, the entry or the user's message is not filled in" ;;
-    esac
-fi
-if [ -z "$why" ]; then
-    case $kind in tasks | scouts) ;; *) why="$kind is neither tasks nor scouts" ;; esac
-    case $child in
-    '' | root) why="the root queues no row of its own: name the child whose goal the row serves, or uncategorized" ;;
-    *) [ -f "$H/$child/plan.md" ] || why="$child is no child home of $R: there is no $H/$child/plan.md" ;;
-    esac
-    case $message in
-    ?*/?*) ;;
-    *) why="$message is not the user's message as <thread id>/last or <thread id>/<message id>" ;;
-    esac
-fi
-if [ -z "$why" ]; then
-    named=$(awk '/^Home:/ {print $(2); exit}' "$B" 2> /dev/null)
-    if [ ! -f "$B" ]; then
-        why="there is no $B"
-    elif [ "$named" != "$child" ]; then
-        why="$B has Home: ${named:-nothing}, not $child: write Home: $child in it"
-    fi
-fi
-if [ -n "$why" ]; then
-    echo "not queued: $why. Nothing is queued."
-elif ! command -v jbus > /dev/null || ! jbus plan > /dev/null 2>&1; then
-    echo "no plan: jbus holds no plan of this repo, so nothing is queued"
-elif said=$(jbus queue add "$slug" --priority "$priority" --entry "$entry" --from "$ME" --for "$child" --message "$message" < "$B" 2>&1); then
-    echo "queued: the row $slug, in $child, approved on $message"
-else
-    printf '%s\n' "$said"
-fi
-```
-
-On `queued:`, the row is the child's: jbus's pass launches it, and the root sends the child nothing.
-On `not queued:` nothing is queued: mend what the line names and run it again.
-On `no plan:` the repo is not on jbus: "On the bus" ("When a home starts") adds it.
-On `refused:`, mend the brief as the lines under it say, and run it again.
-`<entry>` is an entry of the child's plan, or of the root's plan for `uncategorized`, the plan whose go approves the row: `add` refuses an entry that plan does not have, and the line lists its open entries.
-
-**Moving a row** to another child home is the root home's: a row in `uncategorized`, the home of every row no scope claims, or in another child home goes to the scope whose work it is, at any status short of merged or done.
-In one call with the block at the top and the block that reads jbus, with the row's slug in place of `<slug>` and the scope's name in place of `<scope>`:
-
-```sh
-: "${P:?run the block that reads jbus first}"
-jbus --project "$P" queue move '<slug>' --home '<scope>'
-```
-
-On `moved` jbus has rewritten the brief's `Home:` line, in its stored brief and in `$H/tasks/<slug>.md`, kept the row's go by rule (its line says `carried`), and logged the move: the crew's next Result, each wake and each stall go to the scope's home, and nothing is sent to anyone now.
-Ask the user for no new go, and send the scope's home nothing: it meets the row on its next wake.
-On `refused:` nothing moved: the root is never a target, and a name that is no scope needs one made first ("Making a scope").
-
-**Making a scope** is the root home's, and only on the user's word. In one call with the block at the top and the block that finds this home, with the scope's name in place of `<scope>`, the prefix its slugs and branches will start with, such as `rs-`, in place of `<prefix>`, and what the scope owns, in the user's words, in place of `<what the scope owns>`:
-
-```sh
-scope='<scope>'
-prefix='<prefix>'
-what_it_owns() {
-    cat << 'WHAT_IT_OWNS_ENDS_HERE'
-<what the scope owns>
-WHAT_IT_OWNS_ENDS_HERE
-}
-owns=$(what_it_owns | paste -sd ' ' -)
-why=
-if [ "${M:?run the block that finds this home first}" != "$H" ]; then
-    why="this is the home of the scope $(basename "$M"), and only the root home makes a scope: the user asks the root home for it"
-fi
-if [ -z "$why" ]; then
-    case $scope in
-    '' | *'<'* | *'>'*) why="the scope's name is not filled in" ;;
-    .* | *[!A-Za-z0-9._-]*) why="$scope is not a name a scope can have: letters, digits, dots and dashes, and no dot first" ;;
-    asked | tasks | scouts | reports | log) why="$scope is a directory every home of $R shares" ;;
-    off | merge.log) why="$scope is a file of $R's own directory, there or not" ;;
-    *)
-        if [ -f "$H/$scope/plan.md" ]; then
-            why="$scope is already a scope of $R: its home starts with /home $scope"
-        elif [ -f "$H/$scope/plan-archived.md" ]; then
-            why="$scope is an archived scope of $R: /home $scope starts its home again"
-        elif [ "$scope" != uncategorized ] && [ -e "$H/$scope" ]; then
-            why="$scope is there already, as $H/$scope, and is no scope"
-        fi ;;
-    esac
-fi
-if [ -z "$why" ] && [ "$scope" = uncategorized ]; then
-    if [ -n "$prefix" ]; then
-        why="uncategorized takes no prefix: it owns every slug no other scope's prefix claims, so put nothing in place of the prefix"
-    fi
-    if [ -z "$owns" ]; then owns="every row no other scope of $R claims"; fi
-elif [ -z "$why" ]; then
-    case $prefix in
-    '' | *'<'* | *'>'*) why="the slug prefix is not filled in" ;;
-    *[!abcdefghijklmnopqrstuvwxyz0123456789-]* | -* | *[!-]) why="the slug prefix $prefix is not lower-case letters and digits that end in a dash, as rs- is" ;;
-    *)
-        for sent in "$H"/tasks/"$prefix"*.md "$H"/scouts/"$prefix"*.md; do
-            if [ -f "$sent" ]; then why="a brief or a request already starts with $prefix: $sent"; fi
-        done
-        for kept in "$H"/*/prefix; do
-            [ -f "$kept" ] || continue
-            given=$(awk 'NF {print $(1); exit}' "$kept")
-            case $given in
-            '') ;;
-            "$prefix") why="the slug prefix $prefix is another home's, as $kept says" ;;
-            "$prefix"*) why="the slug prefix $prefix is the start of $given, which $kept gives to another home" ;;
-            *) case $prefix in "$given"*) why="the slug prefix $prefix starts with $given, which $kept gives to another home" ;; esac ;;
-            esac
-        done ;;
-    esac
-fi
-if [ -z "$why" ]; then
-    case $owns in
-    '' | '<what the scope '*) why="what the scope owns is not filled in" ;;
-    esac
-fi
-if [ -n "$why" ]; then
-    echo "not made: $why. Nothing is written."
-else
-    day=$(date +%F)
-    if [ -d "$H/$scope" ]; then had=yes; else had=; fi
-    if { [ -n "$had" ] || mkdir "$H/$scope" 2> /dev/null; } &&
-        printf '# %s, %s: plan\n\nGoal (%s, the user): %s\n' "$R" "$scope" "$day" "$owns" 2> /dev/null > "$H/$scope/plan.md" &&
-        { [ -z "$prefix" ] || printf '%s\n' "$prefix" 2> /dev/null > "$H/$scope/prefix"; }; then
-        if [ -n "$prefix" ]; then
-            echo "made: scope $scope, with $H/$scope/plan.md and its prefix $prefix in $H/$scope/prefix"
-        else
-            echo "made: scope $scope, with $H/$scope/plan.md and no prefix: it owns every slug no other scope's prefix claims"
-        fi
-        printf 'launch: {"title": "home: %s %s", "workspaceStrategy": {"type": "root"}, "message": "/home %s"}\n' "$(printf '%s' "$R" | sed 's/[\\"]/\\&/g')" "$scope" "$scope"
-    else
-        if [ -n "$had" ]; then
-            uv run --project "$T/../source" jbus forget "$H/$scope/plan.md" > /dev/null 2>&1
-        else
-            uv run --project "$T/../source" jbus forget --dir "$H/$scope/plan.md" "$H/$scope/prefix" "$H/$scope" > /dev/null 2>&1
-        fi
-        echo "not made: $H/$scope/plan.md or $H/$scope/prefix could not be written, and what was made is taken back. Nothing is written."
-    fi
-fi
-```
-
-On `made:`, the scope has its plan, with the goal as its first line, and its prefix in `$H/<scope>/prefix`: the root home plans no task of that prefix, and that home plans nothing else.
-Start its home with `t3_thread_launch`, on `go` from `room`: send what the block printed after `launch: `, as it is.
-It starts in the main checkout, as every home does.
-A lost reply is looked for by that title, as "Handing a task to a crewmate" says.
-Give the user the link.
-With no such tool, tell the user to open a new thread in this project and type `/home <scope>`.
-
-On `not made:` nothing is written: tell the user what the line says. A name or a prefix that is taken needs another from them.
-For `uncategorized`, put nothing in place of `<prefix>`, and nothing in place of `<what the scope owns>` to have the plan say it owns every row no other scope claims; its directory may be there already, with jbus's files for its rows, and the block keeps them.
-
-**Reading the scopes** is the root home's too, at its start (step 5 of "When a home starts") and whenever the user asks for status or about a child: it reads the children's files and rows, and no child is asked or woken for it.
-In one call with the block at the top and the block that finds this home:
-
-```sh
-if [ "${M:?run the block that finds this home first}" = "$H" ]; then
-    why=
-    rows=
-    if ! command -v jbus > /dev/null; then
-        why="no jbus: jbus is not installed here, so it holds no row"
-    elif ! shown=$(jbus queue show 2>&1); then
-        why=$(printf '%s\n' "$shown" | head -n 1)
-    else
-        rows=$(printf '%s\n' "$shown" | awk '
-            function trim(s) { gsub(/^[ \t]+|[ \t]+$/, "", s); return s }
-            /^\|/ {
-                line = $(0); gsub(/\\\|/, "\001", line)
-                n = split(line, cell, "|")
-                for (i = 1; i <= n; i++) gsub(/\001/, "|", cell[i])
-                if (!head) { for (i = 2; i < n; i++) at[trim(cell[i])] = i; head = 1; next }
-                if (trim(cell[2]) ~ /^-+$/) next
-                print trim(cell[at["slug"]]) "\t" trim(cell[at["slug"]]) " | " trim(cell[at["status"]]) " | " trim(cell[at["pr"]]) " | " trim(cell[at["why"]])
-            }' | while IFS="$(printf '\t')" read -r slug line; do
-            if [ -f "$H/tasks/$slug.md" ]; then printf '%s\t%s\n' "$(whose "$H/tasks/$slug.md")" "$line"; fi
-        done)
-    fi
-    for plan in "$H"/*/plan.md; do
-        [ -f "$plan" ] || continue
-        scope=$(basename "$(dirname "$plan")")
-        case $scope in
-        asked | tasks | scouts | reports | log) continue ;;
-        esac
-        if [ -s "$H/$scope/home-id" ]; then
-            echo "=== scope $scope: home thread $(cat "$H/$scope/home-id")"
-        else
-            echo "=== scope $scope: no home thread"
-        fi
-        if [ -s "$H/$scope/handoff.md" ]; then cat "$H/$scope/handoff.md"; else echo "no handoff yet"; fi
-        echo "=== scope $scope: open plan entries"
-        awk '
-            function entry() {
-                if (title != "" && !done) { print title; if (status != "") print status; shown++ }
-                title = status = ""; done = 0
-            }
-            /^## / { entry(); title = substr($(0), 4); next }
-            /^Status:/ && title != "" && status == "" { status = $(0); if ($(2) == "done" || $(2) == "done.") done = 1 }
-            END { entry(); if (!shown) print "none" }' "$plan"
-        echo "=== scope $scope: queue rows"
-        if [ -n "$why" ]; then
-            echo "$why"
-        else
-            printf '%s\n' "$rows" | awk -F '\t' -v dir="$H/$scope" '$(1) == dir { print $(2); shown++ } END { if (!shown) print "none" }'
-        fi
-    done
-fi
-```
-
-It prints nothing in a repo with no scope, and nothing for a scoped home.
-For each scope it prints a note an older handoff left there, whole, or `no handoff yet`, then each entry of its plan that is not done, as its heading and its `Status:` line.
-Last it prints the scope's rows in jbus's queue, each as its slug, status, pull request and why: what a scope no longer sends the root, its launches, pull requests and merges, is there.
-A scope with a `home-id` has a home running, and that id makes its link.
-Tell the user each scope in a line or two: what is out and what is next.
-The rest of an entry is in `$H/<scope>/plan.md`: read it only when the user asks about that task.
-Send the scope's home nothing.

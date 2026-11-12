@@ -66,6 +66,17 @@ def block(skill, holding):
     return found
 
 
+HOMES = ("home", "root")
+"""The home skill, which every home runs, and the root's own skill, which the home skill reads for
+the root home. A block of the root's runs after the home skill's block at the top."""
+
+
+def home_block(holding):
+    """The one block of the home skill or the root's skill that holds `holding`."""
+    (found,) = [text for skill in HOMES for text in blocks(skill) if holding in text]
+    return found
+
+
 FILLED = "<the gate, filled in>"
 CONTEXT = "Context: the cups are in pull request 7, https://example.test/pull/7"
 PROPOSED = "Option: tea (default, recommended): the cups stay\nOption: coffee: the cups go back"

@@ -28,7 +28,7 @@ When in doubt between the two, any one of the durable column's conditions decide
    GitHub's API allowance is one for jbus, `jmerge` and every thread, and a scout's fetch for each job once spent all of it and stalled every merge for an hour.
 2. Queue it, after the block that finds this home, which sets `ME`: `jbus --project <project> queue add <slug> --priority <n> --entry <entry> --from "$ME" [--depends <slug>,...] < scouts/<slug>.md`.
    `--entry` is the entry the scout researches for, and is never left out: with `--from`, `add` refuses a new request that names no open entry of its home's plan, as it refuses a brief ("Handing a task to a crewmate", step 5).
-   The root home queues it by "Queueing a row in a child" (`scoped-homes.md`) instead.
+   The root home queues it by "Queueing a row in a child", in its own skill, instead.
    A text with a `Request:` line and no `Task:` line is a request, so the row is a scout's, and `add` refuses one with a crewmate's line (`Size:`, `Pull request:`) or not in the template's shape.
    It is approved as any row is, the entry's go included, and waits on its `--depends` as any row does.
    A pass launches it as `scout: <slug>` with the message `/scout <slug>`, in a detached worktree jbus makes for it, with no branch, removed once its Report says done, writes the request back to `scouts/<slug>.md` with its `Thread:` line, and marks the row done once its Report says `Status: done`.

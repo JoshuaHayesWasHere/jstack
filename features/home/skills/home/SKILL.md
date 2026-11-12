@@ -126,7 +126,8 @@ A `decision` is only what the user alone can decide, so four things are never on
 A command for the user to paste is none: offer to run it, as an option the user picks, and hand over only a step no agent can take, such as a sudo password, saying why.
 A finished or superseded row is none: once nothing of it is left to land, remove it with `jbus queue remove` on a message of the user's that covers it.
 A go the user already gave is none: record that message with `jbus word --from "$ME"` and approve the row on it, and never pass on jbus's `approve` line for work they approved.
-A waiver is asked once, in plain words: name each row by its slug with the numbers of the Done when lines it would waive, as `alpha: lines 2 and 3`, in this home's own thread.
+A waiver of a `Done when` line is the root's to judge: a scoped home escalates it with `jbus stop --kind decision` on its row, and the root judges it by its skill's "Judge a waiver".
+A waiver the user is asked is asked once, in plain words: name each row by its slug with the numbers of the Done when lines it would waive, as `alpha: lines 2 and 3`, in this home's own thread.
 The user's plain reply to that message ("yes", "clear them") is the waiver: bind it with `jbus waive <slug> <line number>... --message <thread id>/last` for each row, `last` their newest message, which writes the brief's `Waived:` lines that jmerge counts.
 Never ask the user to quote a line or send exact words.
 A reply jbus refuses (not the user's own, said before the ask, or to an ask that did not name the row and its lines) is asked again in one plain sentence.
@@ -183,11 +184,13 @@ When the shape of the work is not settled (more than one task, or a design choic
 - No row is queued outside an entry: a task that fits no open entry gets an entry of its own first, one heading and its `Done when:` list.
 - Queue each brief of an entry with `jbus queue add --entry <entry>`, in a repo `jbus plan` answers for and in no other, where the brief's slug is not the entry's own: an entry is often several briefs, and the column is how a row is counted for its entry.
   `jbus queue add --from` refuses a new row that names no open entry of its home's plan, unless its brief has a `Follows:` line, and queues nothing: write the entry, or give the right `--entry`, and add it again.
-  The root home queues by "Queueing a row in a child" (`scoped-homes.md`), which adds `--for <child>` and the user's message.
-- The user gives the go once per entry, never per row.
-  The home asks for it once, in one message that names the entry and the rows it plans, and records the user's answer at once with `jbus plan go <entry> --message <thread>/last`, before the entry has a row.
-  Then it briefs the entry and queues its first row, a scout's first if the entry needs design: until a row is queued, each jbus pass wakes the home with the entry and the time since the go (`owed <entry>`).
-  Each later row of the entry is approved by that go as it is queued, and the user is asked nothing for it.
+  The root home queues by its own skill's "Queueing a row in a child", which adds `--for <child>`.
+- An entry gets one go, before it has a row, and no row of it is asked a go of its own.
+  The root home gives it, on the user's standing word for goes, or asks the user where only they can give it (its skill, "Give an entry its go").
+  A scoped home asks the root for it with `jbus stop --kind go --entry <entry>` ("Escalating to the root" in `scoped-homes.md`).
+  A go the user gives a scoped home in its own thread is recorded there at once with `jbus plan go <entry> --scope <scope> --message <thread>/last`.
+  Once the go holds, the home briefs the entry and queues its first row, a scout's first if the entry needs design: until a row is queued, each jbus pass wakes the home with the entry and the time since the go (`owed <entry>`).
+  Each later row of the entry is approved by that go as it is queued, and nobody is asked for it.
   Under `go = "silence"` park each pick as a gate instead ("The user's word, carried by jbus" says how).
 
 An entry has the shape of `$T/plan-entry.md`: read it before writing the first one.
@@ -204,13 +207,11 @@ The home does no research of its own: it reads only its state directory, `$H`. N
 
 ## The root home
 
-The root home is where the user works: it investigates, hypothesises, sends scouts, plans with the user, writes briefs, and queues each one in a child home.
-A child home carries a row once it is moving: its launch, its Results, its leftovers, its stalls and its own decisions, which it tells the user itself.
-The root holds no row of its own: each brief and request it writes has `Home: <child>`, the scope whose goal the work serves, or `uncategorized` where none does, and it queues each by "Queueing a row in a child" in `scoped-homes.md`, with `--for <child>` and the user's message, which approves the row as it is queued.
-The root launches no crewmate: jbus's pass launches the row, and the crew reports to its child.
-No step of the root's waits on a wake.
-It reads its children when the user asks, and at its start, by "Reading the scopes" in `scoped-homes.md`, and never asks a child for anything.
-Only a one-way door, a stop, the user's word and the root's own notices reach the root's thread.
+A repo's root home and its scoped homes have different goals.
+The root runs the whole pipeline for the user: it supplies every child its rows, gives an entry's go, tells and answers its children through jbus, and builds nothing.
+A scoped home lands one goal in depth, owns its crews, and escalates to the root what it may not decide alone.
+When step 1 of "When a home starts" printed `root`, and on each turn of the root home after: read `$T/../skills/root/SKILL.md` now.
+It holds the root's goal and its steps, and the sections of this skill that it names are the ones the root shares with every home.
 
 ## Sending a scout
 
@@ -341,7 +342,7 @@ Put the new thread's id on the brief's `Thread:` line with the block of step 3 o
 
 ## Scoped homes
 
-When this is the root home, at its start, when it queues a row and when it is asked for status, when the repo has more than one home, or when the user asks for a home scoped to one goal: read `$T/../skills/home/scoped-homes.md` now.
+When this is a scoped home, at its start, when it escalates to the root and when the root's reply reaches it; when this is the root home and a step of its skill names this section; or when the user asks for a home scoped to one goal: read `$T/../skills/home/scoped-homes.md` now.
 
 ## When to archive
 

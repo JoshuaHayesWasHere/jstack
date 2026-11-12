@@ -10,6 +10,7 @@ import subprocess
 import pytest
 
 from test_home_thread import (
+    HOMES,
     NAME,
     TYPED,
     WHICH,
@@ -17,6 +18,7 @@ from test_home_thread import (
     about_the_home_id,
     block,
     blocks,
+    home_block,
     paths,
     start_block,
 )
@@ -70,8 +72,9 @@ class Homes(Scene):
         return path
 
     def step(self, holding, thread, **filled):
-        """One of the home skill's blocks, run by the home whose thread id is `thread`."""
-        found = block("home", holding)
+        """One of the blocks of the home skill or the root's, run by the home whose thread id is
+        `thread`."""
+        found = home_block(holding)
         for mark, text in filled.items():
             assert mark in found
             found = found.replace(mark, text)
@@ -228,10 +231,10 @@ def test_a_scoped_home_writes_the_thread_line_in_the_shared_directory(homes, kin
 
 
 def of_this_home():
-    """Every block of the home skill that names `$M`, except the one that sets it and step 3 of
-    the start, which sets its own."""
+    """Every block of the home skill and the root's that names `$M`, except the one that sets it
+    and step 3 of the start, which sets its own."""
     setting = (block("home", 'echo "no home:'), about_the_home_id("home"))
-    named = [text for text in blocks("home") if re.search(r"\$\{?M\b", text)]
+    named = [text for skill in HOMES for text in blocks(skill) if re.search(r"\$\{?M\b", text)]
     return [text for text in named if text not in setting]
 
 

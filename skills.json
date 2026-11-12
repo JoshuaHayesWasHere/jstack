@@ -584,6 +584,14 @@
       "hidden": true
     },
     {
+      "name": "root",
+      "kind": "skill",
+      "path": "features/home/skills/root/SKILL.md",
+      "source": "jstack",
+      "description": "The root home's goal and steps. The home skill reads this file when it starts the repo's root home, and it is never typed or loaded by itself.",
+      "hidden": true
+    },
+    {
       "name": "scout",
       "kind": "skill",
       "path": "features/scout/SKILL.md",

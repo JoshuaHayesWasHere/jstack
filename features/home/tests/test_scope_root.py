@@ -13,9 +13,10 @@ import pytest
 import test_home_thread
 from jbriefs.home import UNCATEGORIZED, scopes
 from jbriefs.skills import listed
-from test_home_thread import NAME, Scene
+from test_home_thread import NAME, Scene, as_read
 from test_scoped_home import ROOT, SCOPE, SCOPED, Homes
 from test_tool_calls import Call, errors
+from testing.paths import REPO, skills
 
 NEW = "release"
 PREFIX = "rl-"
@@ -82,7 +83,7 @@ def test_the_launch_is_json_whatever_the_repo_is_called(tmp_path, monkeypatch):
     scene = Scene(tmp_path)
     (scene.home_dir / "plan.md").write_text("")
     scene.home_starts(ROOT, "")
-    found = test_home_thread.block("home", MAKING)
+    found = test_home_thread.home_block(MAKING)
     for mark, text in {"<scope>": NEW, "<prefix>": PREFIX, "<what the scope owns>": OWNS}.items():
         found = found.replace(mark, text)
     _, launch = scene.run("home", found, scene.main, ROOT).stdout.splitlines()
@@ -231,7 +232,7 @@ def test_on_status_a_root_with_no_other_child_reads_its_catch_all_alone(tmp_path
         (scene.home_dir / shared).mkdir()
         (scene.home_dir / shared / "plan.md").write_text("# plan: a file with that name\n")
     scene.home_starts(ROOT, "")
-    ran = scene.run("home", test_home_thread.block("home", STATUS), scene.main, ROOT)
+    ran = scene.run("home", test_home_thread.home_block(STATUS), scene.main, ROOT)
     assert (ran.returncode, ran.stdout) == (
         0,
         "=== scope uncategorized: no home thread\n"
@@ -310,7 +311,7 @@ def test_the_blocks_run_in_zsh_where_a_pattern_that_matches_nothing_stops_a_call
     scene.home_starts(ROOT, "")
 
     def zsh(holding, **filled):
-        found = test_home_thread.block("home", holding)
+        found = test_home_thread.home_block(holding)
         for mark, text in filled.items():
             found = found.replace(mark, text)
         top = f"{test_home_thread.paths('home')}\n{test_home_thread.finds_this_home(ROOT)}"
@@ -459,3 +460,33 @@ def test_the_root_queues_nothing_without_a_child_its_brief_names(
     said = queues(homes, thread=thread, child=child, message=message)
     assert said.startswith("not queued: ") and why in said
     assert not called.exists()
+
+
+def test_the_root_queues_a_row_on_its_entry_s_go_with_no_message_of_the_users(stubbed):
+    homes, called = stubbed
+    homes.sent("tasks", "sc-row", f"Home: {SCOPE}")
+    assert queues(homes, message="none") == (
+        f"queued: the row sc-row, in {SCOPE}, on the go of the entry epic\n"
+    )
+    assert called.read_text() == (
+        f"queue add sc-row --priority 3 --entry epic --from {ROOT} --for {SCOPE}:"
+        " # sc-row: a title\n"
+    )
+
+
+ROOT_SKILL = REPO / "features" / "home" / "skills" / "root" / "SKILL.md"
+LOADS_ROOT = "read `$T/../skills/root/SKILL.md` now"
+
+
+def test_home_reads_the_root_s_own_skill_for_the_root_home_and_finds_it_where_it_is_installed(
+    tmp_path,
+):
+    """`/home` loads the home skill. Its one line that names the root's skill says to read it when
+    step 1 of the start printed `root`, and the path it names is the root's skill as installed."""
+    (line,) = [
+        one for one in as_read(skills()["home"] / "SKILL.md").splitlines() if LOADS_ROOT in one
+    ]
+    assert "printed `root`" in line
+    scene = Scene(tmp_path)
+    ran = scene.run("home", 'cat "$T/../skills/root/SKILL.md"', scene.main, None)
+    assert ran.stdout == ROOT_SKILL.read_text()
