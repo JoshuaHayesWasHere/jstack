@@ -94,7 +94,7 @@ VARIABLES
     failed,
     \* D-129: $G/crew-check-steps, its first line the head (and base) and the steps passed there:
     \* crew/do-the-task.md `[ "$(sed -n 1p "$steps" 2> /dev/null)" = "$head $base" ] || printf '%s %s\n' "$head" "$base" > "$steps"`
-    \* and crew/do-the-task.md `echo "passed $step" >> "$steps"`.
+    \* and crew/do-the-task.md `printf 'passed %s\n' $files >> "$steps"`.
     steps,
     \* D-130: $G/crew-proof-sides, its first line the head (and base) and the sides that exited 0:
     \* crew/templates/proved.sh `[ "$(sed -n 1p "$passed" 2> /dev/null)" = "$head $base" ] || printf '%s %s\n' "$head" "$base" > "$passed"`
@@ -273,7 +273,7 @@ CheckStart ==
     /\ UNCHANGED <<checked, failed, bg>> /\ Unchanged_check
 
 \* The steps this call still runs: each not passed at this head already
-\* (crew/do-the-task.md `if command grep -qxF "passed $step" "$steps"; then`) and not run yet.
+\* (crew/do-the-task.md `if ($i in passed) continue`) and not run yet.
 Todo ==
     LET all == IF call.ci THEN Steps ELSE SubSeq(Steps, 1, 2)
     IN SelectSeq(all, LAMBDA s: s \notin steps.passed \cup call.done)
@@ -299,7 +299,7 @@ CheckStep ==
     /\ UNCHANGED <<checked, failed, bg>> /\ Unchanged_check
 
 \* No step starts with less than the reserve left of the budget: the rest are left.
-\* crew/do-the-task.md `[ -n "$left" ] || [ "$have" -ge "$reserve" ] || left=0`
+\* crew/do-the-task.md `if [ "$have" -lt "$reserve" ]; then`
 OutOfTime ==
     /\ pc = "checking" /\ Len(Todo) > 0
     /\ call' = [call EXCEPT !.left = TRUE] /\ pc' = "checkEnd"
