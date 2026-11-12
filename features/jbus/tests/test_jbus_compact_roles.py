@@ -158,17 +158,17 @@ def test_a_list_t3_code_did_not_give_sends_none_and_the_next_pass_sends_it(kitch
     at = thread(kitchen, "scout: probe")
     calls(kitchen, at, (0, 400_000))
 
-    def scouts_unanswered():
+    def every_thread_unanswered():
         asked = kitchen.t3.calls[-1][1]
-        if asked.get("titleContains") == "scout: ":
+        if set(asked) == {"projectId", "limit"}:
             kitchen.t3.down.add(PROJECT)
         else:
             kitchen.t3.down.discard(PROJECT)
 
-    kitchen.t3.on_list = scouts_unanswered
+    kitchen.t3.on_list = every_thread_unanswered
     said = kitchen.poll(NOW + MIN)
     assert sent(kitchen) == []
-    assert any("did not list its scout threads" in line for line in said)
+    assert any("did not list its crew and scout threads" in line for line in said)
     kitchen.t3.on_list = None
     kitchen.t3.down.discard(PROJECT)
     kitchen.poll(NOW + 4 * MIN)

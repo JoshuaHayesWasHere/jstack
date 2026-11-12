@@ -33,10 +33,11 @@ call it is woken for. `tell_at_ceiling` sends `/compact` to each thread of a rol
 is idle and whose last call sent its role's ceiling or more:
 
 - a home is each home thread of the project (`jbus.t3.homes`): the root home's and each scope's;
-- a crew or a scout is each thread of the project that T3 Code lists, whose title gives that role
-  (`roles.role_of`): T3 Code lists no archived thread, and `jbus.threads.settle` archives the
-  threads of a finished task or scout, which are woken no more and have nothing to save. A row's
-  status cannot say this: a scout that sits idle has written its Report, so its row is `done`.
+- a crew or a scout is each thread of the project that T3 Code lists, in one list a pass for both
+  (`ceilings`), whose title gives that role (`roles.role_of`): T3 Code lists no archived thread,
+  and `jbus.threads.settle` archives the threads of a finished task or scout, which are woken no
+  more and have nothing to save. A row's status cannot say this: a scout that sits idle has
+  written its Report, so its row is `done`.
 
 Its key is `compact|<role>|<thread>|<at>`, `<at>` that call's time: a thread climbs many times, and
 the store keeps no call for a compaction itself, so the key sends once for a climb, and again only
@@ -58,6 +59,7 @@ import json
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 import jsettings
 from jbriefs import parse
@@ -96,13 +98,11 @@ def ceiling_key(role: str, thread: str, at: str) -> str:
     return f"{TEMPLATE}|{role}|{jsettings.thread_id(thread)}|{at}"
 
 
-def threads(run: Pass, client: Client, role: str) -> set[str]:
-    """The threads of the project of a role that has a ceiling: see the module. Raises what
-    `t3.listed` raises."""
+def threads(run: Pass, listed: list[dict[str, Any]], role: str) -> set[str]:
+    """The threads of the project of a role that has a ceiling: see the module. `listed` is the
+    project's threads as T3 Code lists them, read once a pass for the crew and the scout."""
     if role == "home":
         return t3.homes(run.home)
-    prefix = next(one.prefix for one in roles.ROLES if one.name == role)
-    listed = t3.listed(client, run.project.project_id, titleContains=prefix)
     return {
         jsettings.thread_id(str(one["threadId"]))
         for one in listed
@@ -200,16 +200,24 @@ def tell(run: Pass, client: Client, world: World) -> None:
             run.say(f"compact {slug}: sent its crew /compact ({line})")
 
 
-def tell_at_ceiling(run: Pass, client: Client, role: str) -> None:
-    """Send each idle thread of the role whose last call sent the role's ceiling or more
-    `/compact`, once for that call."""
+def ceilings(run: Pass, client: Client) -> None:
+    """Run `tell_at_ceiling` for each role, on one list of the project's threads: a list T3 Code
+    does not give compacts the homes alone this pass."""
+    try:
+        listed = t3.listed(client, run.project.project_id)
+    except T3Error as error:
+        run.say(f"wait {run.project.name}: T3 Code did not list its crew and scout threads ({error})")
+        listed = None
+    for role in CEILINGS:
+        if role == "home" or listed is not None:
+            tell_at_ceiling(run, client, role, threads(run, listed or [], role))
+
+
+def tell_at_ceiling(run: Pass, client: Client, role: str, found: set[str]) -> None:
+    """Send each idle thread of the role in `found` whose last call sent the role's ceiling or
+    more `/compact`, once for that call."""
     sent = set(run.box.sent())
     ceiling = CEILINGS[role]
-    try:
-        found = threads(run, client, role)
-    except T3Error as error:
-        run.say(f"wait {run.project.name}: T3 Code did not list its {role} threads ({error})")
-        return
     for thread in sorted(found):
         last = last_call(run, thread)
         if last is None or last.tokens < ceiling:
@@ -264,7 +272,7 @@ STEPS = (
         "after-expedite",
         36,
         "compact.ceilings",
-        lambda half: [tell_at_ceiling(half.run, half.client, role) for role in CEILINGS],
+        lambda half: ceilings(half.run, half.client),
         ("client",),
     ),
 )
