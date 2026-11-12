@@ -5,6 +5,7 @@ be written stops no run, and the report reads only what is a row. `test_slot.py`
 import json
 import os
 import subprocess
+import sys
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -206,3 +207,43 @@ def test_the_report_sums_the_cpu_of_the_holds_released_in_the_span_by_lane_and_b
 
     log.write_text("".join(json.dumps(row) + "\n" for row in hold("old", "short", "", 3, 5)))
     assert not any("CPU" in line for line in slotlog.report(log, start, until, until))
+
+
+SPIN = "import time\nwhile time.process_time() < 0.5: pass"
+LEAVES_A_SPIN = '(setsid "$1" -c "$2" &)'
+
+
+def test_a_release_counts_a_detached_child_that_burns_after_the_command_exits(tmp_path):
+    """The command's shell starts a Python in a session of its own and exits at once, so no
+    process the holder waits for ever reaps it. The Python then spins until it has used 0.5 s of
+    CPU, and that half second is the take's: the release row says so."""
+    env = {**os.environ, "JGAUGE_LOCKS_DIR": str(tmp_path / "locks"), "TMPFS": str(tmp_path)}
+    env.pop("JGAUGE_TEST_SLOT", None)
+    ran = subprocess.run(
+        [BIN / "jgauge", "test-slot", "--short", "--", "sh", "-c", LEAVES_A_SPIN, "sh"]
+        + [sys.executable, SPIN],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert ran.returncode == 0, ran.stderr
+    _take, release = rows(slotlog.path(tmp_path / "locks"))
+    assert release["cpu_user"] + release["cpu_system"] >= 0.45
+
+
+def test_with_no_cgroup_a_release_counts_a_detached_child_that_carries_the_take(
+    tmp_path, monkeypatch
+):
+    """Where the take can have no cgroup of its own, the processes that carry it in their
+    environment make its CPU: the same detached spin is counted from them."""
+    monkeypatch.setattr(slotlog, "CGROUPS", tmp_path / "no cgroups")
+    log = slotlog.path(tmp_path / "locks")
+
+    taken = slotlog.take(log, "short", 1, 3, "", ["sh"], 0)
+    subprocess.run(["sh", "-c", LEAVES_A_SPIN, "sh", sys.executable, SPIN], check=True)
+    slotlog.release(taken, 0)
+
+    _take, release = rows(log)
+    assert release["cpu_user"] + release["cpu_system"] >= 0.45
