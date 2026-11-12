@@ -106,3 +106,17 @@ def test_a_merge_line_is_shown_once_after_a_hand_cuts_merge_log(
     assert repo.merge_step() == [merged(n)[17:] for n in kept]
     assert repo.status() == []
     assert repo.merge_step() == []
+
+
+def test_a_count_left_in_merge_seen_from_before_is_read_once_and_replaced_by_a_line(
+    tmp_path, monkeypatch
+):
+    """A home whose merge step wrote merge-seen as a count, before it marked by a line, is shown
+    the lines past that count once; the merge step then marks by the line it read."""
+    repo = Repo(tmp_path, monkeypatch)
+    repo.merges(1, 2)
+    (repo.home / "merge-seen").write_text("1\n")
+
+    assert repo.status() == [merged(2)]
+    assert repo.merge_step() == [merged(2)[17:]]
+    assert repo.status() == []

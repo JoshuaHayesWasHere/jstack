@@ -6,7 +6,7 @@
 \* gates.md, and in questions.json once a thread pipes it to `jbus gate`; the kinds a pass
 \* rebuilds into waiting-on-user.json; the alerts in streaks.json, which a pass, `jbus alarm` and
 \* `jbus snapshot` write; and budget-hold.json. Two marks say what a home has read: read-seen,
-\* the Result and Report headings shown to it, and merge-seen, a count of the lines of merge.log,
+\* the Result and Report headings shown to it, and merge-seen, the last line of merge.log it read,
 \* which jmerge appends.
 \*
 \* The parts of the list share no state but the project's passes and the streaks' lock, so a
@@ -22,19 +22,18 @@
 \* World is the set of acts outside the code that this run lets happen: "closes" (the user
 \* closes the project in config.toml, `closed = "2026-11-07"`, so no pass of it runs again),
 \* "cuts" (a hand cuts merge.log, keeping its last lines) and "by-home" (a gate whose `Asked by:`
-\* names the home, which the handoff asks again as the catch-all's). OneList.cfg lets all three
-\* happen, as they do today.
+\* names the home, which the handoff pipes again). OneList.cfg lets all three happen, as they do
+\* today.
 \* Fault = "none" is the code. Fault = "stale-streak" is the canary of a streak no raiser clears:
 \* the pass does not retire the stall alert left from before. Fault = "closed-listed" is the
 \* canary of the code before #1708's finding was fixed: the list keeps a closed project's alerts.
-\* Fault = "mark-count" is the canary of merge-seen as a count: it marks by the code's count
-\* whatever MarkBy says.
-\* MarkBy is how merge-seen marks: "count", the code's line count, or "line", the last line read,
-\* which no code writes: the reference that shows ReadOnce can hold where a hand cuts merge.log.
+\* Fault = "mark-count" is the canary of merge-seen as a count of lines, as the merging block kept
+\* it before st-one-list-home-marks. Fault = "ask-again" is the canary of the handoff before that
+\* row: it piped a gate the home asked under the catch-all's key, so the gate was asked twice.
 EXTENDS Naturals, Sequences, FiniteSets
-CONSTANTS World, Fault, Scenes, After, MaxLines, MarkBy
+CONSTANTS World, Fault, Scenes, After, MaxLines
 
-By == IF Fault = "mark-count" THEN "count" ELSE MarkBy  \* how merge-seen marks in this run
+By == IF Fault = "mark-count" THEN "count" ELSE "line"  \* how merge-seen marks in this run
 
 Absent == MaxLines + 1                          \* no merge-seen file yet
 Keys == {"jmerge", "home-stall", "sign-in", "health"}
@@ -110,9 +109,9 @@ VARIABLES
   \* else <<the set of headings marked>>.
   readseen,
   heads,     \* the Result headings the brief has, each one more Result appended
-  \* C-079, merge-seen, the line count of merge.log this home has read:
-  \* home/merging-a-pull-request-that-is-ready.md `echo "$lines" > "$S"`, or Absent. Under
-  \* MarkBy = "line", the last line read, 0 for none.
+  \* C-079, merge-seen, the last line of merge.log this home has read:
+  \* home/merging-a-pull-request-that-is-ready.md `head -n "$lines" "$L" 2> /dev/null | tail -n 1 > "$S"`,
+  \* 0 for none, an empty file, or Absent. Under the canary "mark-count", the line count read.
   mark,
   \* merge.log, the lines jmerge appended and a hand kept: jmerge/cli.py
   \* `with (state / "merge.log").open("a", encoding="utf-8") as log:`.
@@ -320,14 +319,15 @@ Mark ==
   /\ UNCHANGED world /\ UNCHANGED streaks /\ UNCHANGED marks
 
 \* A scoped home's handoff pipes each open gate of its gates.md to `jbus gate`, handoff/SKILL.md
-\* `/^Status: open$/ { open = 1 }`, as the catch-all's where it was the home's, handoff/SKILL.md
-\* `if [ -z "$by" ] || [ "$by" = home ] || [ "$by" = "home-$scope" ]; then by=home-uncategorized; fi`,
-\* so under another key. `jbus gate` under a key it holds asks nothing again, jbus/questions.py
-\* `again = one if one.answer else replace(one, **said)`. Then it moves gates.md aside.
+\* `/^Status: open$/ { open = 1 }`, under the home's own slug where it was the home's,
+\* handoff/SKILL.md `by=home-$scope whose="this home's own question"`, the key it was asked under.
+\* `jbus gate` under a key it holds asks nothing again, jbus/questions.py
+\* `again = one if one.answer else replace(one, **said)`. Then it moves gates.md aside. The
+\* canary "ask-again" pipes the home's gate under the catch-all's key, as the handoff did before.
 Handoff ==
   /\ scene = "gates" /\ entry = "written" /\ ~moved
   /\ moved' = TRUE
-  /\ LET k == IF byHome THEN "catchall" ELSE "asker"
+  /\ LET k == IF byHome /\ Fault = "ask-again" THEN "catchall" ELSE "asker"
      IN question' = IF status = "open" /\ question[k] = "none"
                     THEN [question EXCEPT ![k] = "open"] ELSE question
   /\ UNCHANGED <<scene, closed, owed, holds, byHome, entry, status, listed, lock, hold>>
@@ -335,8 +335,8 @@ Handoff ==
 
 \* ---- The marks ----
 
-\* Under MarkBy = "line", where the line merge-seen names stands in merge.log, or 0 where it is
-\* not there: a cut keeps the last lines, so each line kept is newer than one cut away.
+\* Where the line merge-seen names stands in merge.log, or 0 where it is not there: a cut keeps
+\* the last lines, so each line kept is newer than one cut away.
 At(m) == IF \E i \in 1..Len(log) : log[i] = m THEN CHOOSE i \in 1..Len(log) : log[i] = m ELSE 0
 
 \* jmerge appends a line to merge.log.
@@ -354,10 +354,13 @@ Cut ==
   /\ UNCHANGED world /\ UNCHANGED gate /\ UNCHANGED streaks
 
 \* The home's merging block: home/merging-a-pull-request-that-is-ready.md
-\* `'' | *[!0-9]*) seen=$lines ;;` where there is no mark, home/merging-a-pull-request-that-is-ready.md
-\* `if [ "$seen" -gt "$lines" ]; then seen=0; fi`,
+\* `seen=$(cat "$S" 2> /dev/null) || seen=$lines` where there is no mark, the line after the one
+\* marked where it stands, else the log's start, home/merging-a-pull-request-that-is-ready.md
+\* `*[!0-9]*) seen=$(command grep -snxF "$seen" "$L" | tail -n 1 | cut -d: -f1) ;;`,
 \* home/merging-a-pull-request-that-is-ready.md `if [ "$lines" -gt "$seen" ]; then news "$seen" "$lines"; fi`,
-\* and the new count.
+\* and the new mark. The canary "mark-count" reads and writes a count, and reads a count past
+\* the log's end from its start, as the block did before st-one-list-home-marks. A count left on
+\* disk from before is read as a count once, and is not modelled.
 Read ==
   /\ scene = "marks"
   /\ LET lines == Len(log)
@@ -368,7 +371,7 @@ Read ==
          news == IF lines > from THEN {log[i] : i \in from + 1..lines} ELSE {}
      IN /\ shown' = [l \in Lines |-> IF l \in news /\ shown[l] < 2 THEN shown[l] + 1 ELSE shown[l]]
         /\ mark' = IF By = "count" THEN lines
-                   ELSE IF lines > 0 THEN log[lines] ELSE IF mark = Absent THEN 0 ELSE mark
+                   ELSE IF lines > 0 THEN log[lines] ELSE 0
         /\ born' = IF mark = Absent THEN next - 1 ELSE born
   /\ UNCHANGED <<scene, closed, listed, lock, hold, readseen, heads, log, next>>
   /\ UNCHANGED world /\ UNCHANGED gate /\ UNCHANGED streaks
