@@ -369,6 +369,36 @@ def test_main_going_green_closes_the_spell_and_the_store_reads_its_cause(
     assert spells == [(11, AGAIN, cause)]
 
 
+def test_a_spell_whose_merges_files_could_not_be_read_is_closed_by_a_later_pass(
+    machine, monkeypatch
+):
+    """GitHub gives no answer for the files of #13, the row that fixed the test, at the pass that
+    finds main green: that pass writes no closing line, since `no fix` there would read a break as
+    a flake, and `flakerow` would file a flake row for it. A later pass that reads them, with
+    main still at the green tip, closes the spell with `fix: #13`, once."""
+    state = machine.state("alpha")
+    red_spell(
+        machine,
+        state,
+        monkeypatch,
+        {GREEN: "green", TESTED: "failed", LINTED: "failed", AGAIN: "green"},
+    )
+    mainmoved.tell(GitHub(state))
+    merged = json.loads((state / "merged.json").read_text())
+    pull = {"number": 13, "headRefName": "row-13", "mergeCommit": {"oid": AGAIN}}
+    (state / "merged.json").write_text(json.dumps({**merged, "row-13": pull}))
+    mainmoved.tell(GitHub(state, main=AGAIN, files={LINTED: []}))
+    lines = [json.loads(line) for line in (state / mainmoved.REDS).read_text().splitlines()]
+    assert [line.get("cause") for line in lines] == [None, None]
+    for _ in range(2):
+        files = {LINTED: [], AGAIN: ["features/m/tests/test_m.py"]}
+        mainmoved.tell(GitHub(state, main=AGAIN, files=files))
+    lines = [json.loads(line) for line in (state / mainmoved.REDS).read_text().splitlines()]
+    assert [{k: v for k, v in line.items() if k != "at"} for line in lines[2:]] == [
+        {"sha": TESTED, "green": AGAIN, "prs": [12, 13], "cause": "fix: #13"}
+    ]
+
+
 def test_a_store_from_before_the_cause_reads_it_after_its_next_build(machine):
     """A store that read `main-reds.jsonl` to its end before
     `jbus.telemetry.migrations.v022_main_reds_cause` reads it again, so a spell closed before the
