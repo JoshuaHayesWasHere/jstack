@@ -16,7 +16,7 @@ from jmerge import mainjson
 from jmerge import reverts as kept
 from test_jbus_kitchen import NOW
 from test_jbus_main_moved import move
-from test_jbus_reverts import DONE, asked, red_merges
+from test_jbus_reverts import DONE, LOG, OTHER, TEST, asked, mac_red_merges, red_merges
 from test_jbus_watch import browser_red, browser_run, browser_runs
 
 
@@ -223,3 +223,48 @@ def test_a_pass_reverts_main_over_a_names_file_no_pass_could_have_written(kitche
     assert list(kept.read(kitchen.state)) == [red]
     assert len(said(kitchen, "alpha")) == 1
     assert json.loads((kitchen.state / reverts.OPENING).read_text()) == {}
+
+
+@pytest.mark.parametrize(("code", "out"), [("1", ""), ("0", "{not json")])
+def test_a_named_revert_waits_while_github_does_not_answer_and_is_kept_once_it_does(
+    kitchen, monkeypatch, code, out
+):
+    """RevertKnown with GitHub silent: a pass opened the revert and stopped before its record, and
+    the revert is past the window of open pull requests the pass reads. While `gh pr list`
+    fails, or answers what does not parse, `known` keeps the name and records nothing; once
+    GitHub answers, it keeps the revert and says it."""
+    (red,) = red_merges(kitchen, ("alpha", 7, None))
+    back = dies(monkeypatch, reverts, "_own")
+    died(kitchen)
+    back()
+    (opened,) = json.loads((kitchen.stub / "open.json").read_text())
+    kitchen.set("open.json", [{**opened, "old": True}])
+    green_fix(kitchen)
+    kitchen.set("gh-list-down", "gh: Bad Gateway")
+    kitchen.set("gh-code", code)
+    kitchen.set("gh-out", out)
+    kitchen.poll(NOW + timedelta(minutes=30))
+    assert kept.read(kitchen.state) == {}
+    assert list(json.loads((kitchen.state / reverts.OPENING).read_text())) == [red]
+    (kitchen.stub / "gh-list-down").unlink()
+    kitchen.poll(NOW + timedelta(minutes=33))
+    assert len(said(kitchen, "alpha")) == 1
+    assert json.loads((kitchen.state / reverts.OPENING).read_text()) == {}
+
+
+@pytest.mark.parametrize("red", ["nightly", "mac"])
+def test_a_brief_the_queue_refuses_keeps_its_copy_and_its_condition(kitchen, red):
+    """A nightly's or the Mac's brief the queue cannot take, as when queue.json does not parse,
+    is still written to tasks/, and the home is told it was not queued."""
+    if red == "nightly":
+        browser_runs(kitchen, browser_run())
+        slug = "browser-red-2026-10-12"
+    else:
+        _, second = mac_red_merges(kitchen, ("alpha", 7, None), ("beta", 8, None))
+        both = f"FAILED {TEST}\nFAILED {OTHER}\n= 2 failed =\n"
+        kitchen.set("logs.json", {"191": LOG, "192": both})
+        slug = f"macos-red-{second[:12]}"
+    (kitchen.state / "queue.json").write_text("{not json")
+    kitchen.poll(NOW)
+    assert (kitchen.home / "tasks" / f"{slug}.md").exists()
+    assert any(slug in line and "not queued" in line for line in kitchen.lines())
