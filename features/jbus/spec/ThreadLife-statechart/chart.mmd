@@ -123,8 +123,7 @@ stateDiagram-v2
     r1s0 --> r1s2 : the turn ends
     r1s1 --> r1s11 : jbus archives the thread
     r1s1 --> r1s42 : jbus settles the thread, its<br/>work held
-    r1s3 --> r1s9 : jbus tells the crew once to<br/>open its pull request [unless<br/>Its home's]
-    %% when not r0s1
+    r1s3 --> r1s9 : jbus tells the crew once to<br/>open its pull request
     r1s5 --> r1s9 : the turn writes again
     r1s6 --> r1s5 : 20 min with nothing written
     r1s7 --> r1s9 : you answer its request
@@ -137,10 +136,8 @@ stateDiagram-v2
     r1s12 --> r1s11 : jbus archives the thread
     r1s12 --> r1s42 : jbus settles the thread, its<br/>work held
     r1s13 --> r1s12 : the pull request merges or<br/>closes
-    r1s17 --> r1s36 : jbus tells the crew to carry<br/>on [unless Its home's]
-    %% when not r0s1
-    r1s18 --> r1s37 : jbus tells the crew to carry<br/>on [unless Its home's]
-    %% when not r0s1
+    r1s17 --> r1s36 : jbus tells the crew to carry<br/>on
+    r1s18 --> r1s37 : jbus tells the crew to carry<br/>on
     r1s20 --> r1s35 : the turn writes again
     r1s21 --> r1s36 : the turn writes again
     r1s22 --> r1s37 : the turn writes again

@@ -35,9 +35,9 @@ Its docstring says what each step is, the code line that backs it, what is stubb
 Two checks share this record, and one sha confirms both: `main_red_model.py` walks the real `tell` and `mainjson.read`, and `features/jbus/spec/MainRed.tla` models the wider red, from the rerun through the revert or the fix row to the close.
 
 Model: `features/jbus/spec/MainRed.tla`
-Sync: `228c1436cc6fe94de479d333c7aab7b007460462`
+Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
 Covers:
-- `features/jbus/src/jbus/mainmoved.py`: `tell`, `main_check`, `failed_at`, `failed_steps`, `red_line`, `REDS`, `landed`, `close`, `closing_line`
+- `features/jbus/src/jbus/mainmoved.py`: `tell`, `main_check`, `failed_at`, `failed_steps`, `red_line`, `REDS`, `landed`, `close`, `closing_line`, `spell`
 - `features/jmerge/src/jmerge/mainjson.py`: `record`, `read`, `fix_of`, `FIX`
 - `features/jbus/src/jbus/watch.py`: `_check`, `_rerun_failed`, `RERUN_WAIT`, `mac_check`, `retro`, `RedTip`, `_withdraw`, `_file`, `_same_red`, `_open_reds`, `FIX_GOES`
 - `features/jbus/src/jbus/culprits.py`: `judge`, `kept_why`
@@ -70,7 +70,7 @@ uv run pytest features/jbus/tests/test_main_red_spec.py -q
 
 It prints `6 passed` in seconds, and skips where no Java runs TLC; TLC's verdict may come from the statechart tools' cache (`tools.kept`), so to see TLC run, use the bare command in `features/jbus/spec/README.md`, "Check the rules of main's red", in a copy of the folder.
 
-- **Bounds:** `MainRed.cfg` is `MaxTips = 4` with no Mac (`Mac = FALSE`), 140,012 distinct states; `MainRed.chart.cfg` is `MaxTips = 3` with the Mac, 112,491 states.
+- **Bounds:** `MainRed.cfg` is `MaxTips = 4` with no Mac (`Mac = FALSE`), 147,834 distinct states; `MainRed.chart.cfg` is `MaxTips = 3` with the Mac, 116,957 states.
 - **The canary:** `Fault = "opener-only"` on `MainRed.chart.cfg` is a revert held by the check that opened it alone, and `NeverRevertedTwice` breaks.
   `BREAKS`, the rules today's code breaks, is empty.
 - **Assumptions:** two rows and an outside push; no cancelled, batched or job-less run; logs always readable; skew or no answer files the row at once; whether a culprit's slug is `over` is folded; `main-reds.jsonl` keeps only each pass's red tip; no browser run; the Mac's rerun is folded into its run, and its `tested`, `covered` and `flaky` checks are left out.
@@ -78,15 +78,22 @@ It prints `6 passed` in seconds, and skips where no Java runs TLC; TLC's verdict
 - **A trace:** each condition of a step quotes its code; open each quote, and a step the code cannot take is a modeling error.
   When every step is backed, tell it as the merges, runs, reruns and passes in the code's words.
 
-### Drift at the sync commit
+### The last upkeep
 
-`/maintain-formal-verification-skill` fixes it; the walk of `main_red_model.py` holds.
+`/maintain-formal-verification-skill` ran at `228c1436c` (st-model-upkeep-run) and fixed three drifts in `MainRed.tla`; the walk of `main_red_model.py` was rerun there and holds (`9 passed`):
 
-- **`MainRed.tla` has no closing lines:** since 46210ec44 and db90d454e, `mainmoved.tell` appends a closing line (`close`, `closing_line`) with its `cause` to `main-reds.jsonl` when main goes green, keyed by the spell's first red tip.
-  The model's `reds` has no such line and the README's "leaves out" does not name it, so `EachRedJudgedOnce` ("names no tip twice") is false of the real file, where the first tip has its red line and its closing line.
-  `main_red_model.py`'s S4 counts only the lines that carry a verdict and checks for at most one closing line a spell, so the TLA+ S4 is weaker than the S4 it claims to match.
-- **The base commit in the spec's prose is stale:** the README and the spec say "main 21112eba8", and the spec already has holders and `lean` from f82908cda (#1689), which came later.
-- A pending Mac commit inside the Mac's red range is `UNREAD` (quiet) in the code and "file" in the model; neither reverts, and the model keeps no Mac row.
+- **The closing lines:** `reds` holds the verdict lines, each with the green it came after, and `closing` the closing lines `mainmoved.close` appends when a green past the last one ends a spell, once a spell.
+  `tell`'s `judged` reads every line's sha, a closing line's too.
+  `EachRedJudgedOnce` now matches the walk's S4: verdict lines name no tip twice and name the red tip, and closing lines close no spell twice, each of a tip a verdict line names.
+  The old `EachRedJudgedOnce` passed on a description that had no closing lines.
+  The break: closing on every pass with a spell fails S4.
+  Dropping only the once guard passes, since the model's pass is one step and the guard is for a pass that dies between `close` and `main.json`; the README says so.
+- **The Mac's pending commit:** a commit of the Mac's range whose run has not ended is quiet (`UNREAD`), and the model has no clock and no Mac row for its later `OVERLAP`.
+- **Stale prose:** the spec and README no longer name main 21112eba8.
+
+The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `watch.py` changed in #1724, in `left`, and `jmerge.md` in #1715 and #1721, in the desk check's words and a conflict's line, none of them in what this model covers, so the sync commit moved there.
+
+st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: no covered file changed, so the sync commit moved there.
 
 ## Does a change touch it
 

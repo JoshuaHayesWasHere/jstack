@@ -146,11 +146,15 @@ def test_each_waiting_verdict_shows_the_step_that_ends_its_wait_on_the_chart():
     """A verdict jmerge says waits on someone: its check, its reviewer, its crew, GitHub, the one
     ahead, main's fix or you, and a row jbus held at two failed heads, which waits on you. The
     chart draws that one's step out of it, back to jmerge's next judgment or to merged, so no
-    verdict reads as a stall."""
+    verdict reads as a stall. The batch's check passing is a step of jmerge's run out of any
+    other verdict, and the owner's step out of "in jmerge's batch": a run may take a lone member
+    alone while its batch is pending (`Alone`), so the chart's nearest "the batch's check fails"
+    can leave from another verdict."""
     words = importlib.import_module("statechart.mapping").load_mapping(SPEC / "PrVerdict.map.py")
     run = {words.STEPS[a] for a in words.RUN} | {words.STEPS["BatchProves"]}
     owners = {*words.STEPS.values(), "its check passes", "its check fails"} - run
     judged, merged = words.SAID["none"], words.SAID["merged"]
+    batch_check = (words.SAID["in-batch"], words.STEPS["BatchProves"])
     chart = (SPEC / "PrVerdict-statechart" / "chart.mmd").read_text()
     says = lib.parse_mermaid(chart)["regions"]["What jmerge says"]
     waits = sorted(set(says["states"]) - {judged, merged})
@@ -159,7 +163,9 @@ def test_each_waiting_verdict_shows_the_step_that_ends_its_wait_on_the_chart():
         verdict
         for verdict in waits
         if not any(
-            t["from"] == verdict and t["label"] in owners and t["to"] in (judged, merged)
+            t["from"] == verdict
+            and (t["label"] in owners or (verdict, t["label"]) == batch_check)
+            and t["to"] in (judged, merged)
             for t in says["transitions"]
         )
     ]

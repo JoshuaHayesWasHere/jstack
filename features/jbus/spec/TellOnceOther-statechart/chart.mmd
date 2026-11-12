@@ -32,22 +32,24 @@ stateDiagram-v2
   class legendGroup6 group6
   state "At the same time" as regions {
     state "The act" as region0 {
+      [*] --> r0s1
+      [*] --> r0s6
+      [*] --> r0s4
+      [*] --> r0s0
+      [*] --> r0s2
       [*] --> r0s5
       [*] --> r0s3
-      [*] --> r0s0
-      [*] --> r0s1
-      [*] --> r0s4
-      [*] --> r0s2
       state "A cancelled check" as r0s0
-      state "A project closed" as r0s1
-      state "A row red at two heads" as r0s2
-      state "A work item proposed" as r0s3
-      state "CI that starts no job" as r0s4
-      state "The second target's body" as r0s5
+      state "A hold only your accept<br/>lifts" as r0s1
+      state "A project closed" as r0s2
+      state "A row red at two heads" as r0s3
+      state "A work item proposed" as r0s4
+      state "CI that starts no job" as r0s5
+      state "The second target's body" as r0s6
     }
     --
     state "Where its tell stands" as region1 {
-      [*] --> r1s18
+      [*] --> r1s20
       state "not told" as r1s0
       state "not told, a pass is in its<br/>step" as r1s1
       state "not told, account.json<br/>keeps the tip" as r1s2
@@ -62,50 +64,55 @@ stateDiagram-v2
       state "not told, fails.json<br/>counts two heads,<br/>fails.json keeps the<br/>page's key, a pass is in<br/>its step" as r1s11
       state "not told, fails.json<br/>counts two heads,<br/>fails.json keeps the<br/>page's key, the row is<br/>held" as r1s12
       state "not told, fails.json<br/>counts two heads,<br/>fails.json keeps the<br/>page's key, the row is<br/>held, a pass is in its<br/>step" as r1s13
-      state "not told, main's tip moved" as r1s14
-      state "not told, main's tip<br/>moved, a pass is in its<br/>step" as r1s15
-      state "not told, the body waits<br/>in the outbox" as r1s16
-      state "not told, the body waits<br/>in the outbox, a pass is<br/>in its step" as r1s17
-      state "nothing owed yet" as r1s18
-      state "told once" as r1s19
-      state "told once, a pass is in<br/>its step" as r1s20
-      state "told once, account.json<br/>keeps the newer question,<br/>account.json keeps the<br/>tip, main's tip moved" as r1s21
-      state "told once, account.json<br/>keeps the question,<br/>account.json keeps the tip" as r1s22
-      state "told once, account.json<br/>keeps the tip" as r1s23
-      state "told once, account.json<br/>keeps the tip, a pass is<br/>in its step" as r1s24
-      state "told once, account.json<br/>keeps the tip, main's tip<br/>moved" as r1s25
-      state "told once, account.json<br/>keeps the tip, main's tip<br/>moved, a pass is in its<br/>step" as r1s26
-      state "told once, cancelled.json<br/>says run again, sent.json<br/>has its key" as r1s27
-      state "told once, closed.json<br/>lists what to archive" as r1s28
-      state "told once, closed.json<br/>lists what to archive, a<br/>pass is in its step" as r1s29
-      state "told once, closed.json<br/>says closed" as r1s30
-      state "told once, fails.json<br/>counts two heads,<br/>fails.json keeps the<br/>page's key, the row is<br/>held" as r1s31
-      state "told once, fails.json<br/>counts two heads,<br/>fails.json keeps the<br/>page's key, the row is<br/>held, a pass is in its<br/>step" as r1s32
-      state "told once, fails.json says<br/>held, fails.json keeps the<br/>page's key, the row is<br/>held" as r1s33
-      state "told once, sent.json has<br/>its key" as r1s34
-      state "told once, sent.json has<br/>its key, a pass is in its<br/>step" as r1s35
-      state "told once, the body waits<br/>in the outbox" as r1s36
-      state "told once, the body waits<br/>in the outbox, a pass is<br/>in its step" as r1s37
-      state "told once, the counter is<br/>past it" as r1s38
-      state "told once, the outbox<br/>dropped it" as r1s39
+      state "not told, held.json waits" as r1s14
+      state "not told, held.json waits,<br/>a pass is in its step" as r1s15
+      state "not told, main's tip moved" as r1s16
+      state "not told, main's tip<br/>moved, a pass is in its<br/>step" as r1s17
+      state "not told, the body waits<br/>in the outbox" as r1s18
+      state "not told, the body waits<br/>in the outbox, a pass is<br/>in its step" as r1s19
+      state "nothing owed yet" as r1s20
+      state "told once" as r1s21
+      state "told once, a pass is in<br/>its step" as r1s22
+      state "told once, account.json<br/>keeps the newer question,<br/>account.json keeps the<br/>tip, main's tip moved" as r1s23
+      state "told once, account.json<br/>keeps the question,<br/>account.json keeps the tip" as r1s24
+      state "told once, account.json<br/>keeps the tip" as r1s25
+      state "told once, account.json<br/>keeps the tip, a pass is<br/>in its step" as r1s26
+      state "told once, account.json<br/>keeps the tip, main's tip<br/>moved" as r1s27
+      state "told once, account.json<br/>keeps the tip, main's tip<br/>moved, a pass is in its<br/>step" as r1s28
+      state "told once, cancelled.json<br/>says run again, sent.json<br/>has its key" as r1s29
+      state "told once, closed.json<br/>lists what to archive" as r1s30
+      state "told once, closed.json<br/>lists what to archive, a<br/>pass is in its step" as r1s31
+      state "told once, closed.json<br/>says closed" as r1s32
+      state "told once, fails.json<br/>counts two heads,<br/>fails.json keeps the<br/>page's key, the row is<br/>held" as r1s33
+      state "told once, fails.json<br/>counts two heads,<br/>fails.json keeps the<br/>page's key, the row is<br/>held, a pass is in its<br/>step" as r1s34
+      state "told once, fails.json says<br/>held, fails.json keeps the<br/>page's key, the row is<br/>held" as r1s35
+      state "told once, held.json says<br/>you were told" as r1s36
+      state "told once, held.json waits" as r1s37
+      state "told once, held.json<br/>waits, a pass is in its<br/>step" as r1s38
+      state "told once, sent.json has<br/>its key" as r1s39
+      state "told once, sent.json has<br/>its key, a pass is in its<br/>step" as r1s40
+      state "told once, the body waits<br/>in the outbox" as r1s41
+      state "told once, the body waits<br/>in the outbox, a pass is<br/>in its step" as r1s42
+      state "told once, the counter is<br/>past it" as r1s43
+      state "told once, the outbox<br/>dropped it" as r1s44
       r1s0 --> r1s1 : a pass reaches it and reads<br/>its marks
-      r1s0 --> r1s14 : the key the next try names<br/>changes [when CI that starts<br/>no job]
-      %% when r0s4
+      r1s0 --> r1s16 : the key the next try names<br/>changes [when CI that starts<br/>no job]
+      %% when r0s5
       r1s1 --> r1s7 : closed.json lists what to<br/>archive [when A project<br/>closed]
-      %% when r0s1
-      r1s1 --> r1s20 : the receiver takes it [when A<br/>cancelled check or A work item<br/>proposed]
-      %% when r0s0, r0s3
+      %% when r0s2
+      r1s1 --> r1s22 : the receiver takes it [when A<br/>cancelled check or A work item<br/>proposed]
+      %% when r0s0, r0s4
       r1s1 --> r1s3 : the try's key is written first<br/>[when CI that starts no job]
-      %% when r0s4
+      %% when r0s5
       r1s2 --> r1s3 : a pass reaches it and reads<br/>its marks
       r1s3 --> r1s2 : the pass dies
-      r1s3 --> r1s24 : the receiver takes it
+      r1s3 --> r1s26 : the receiver takes it
       r1s4 --> r1s5 : a pass reaches it and reads<br/>its marks
       r1s5 --> r1s4 : the pass dies
-      r1s5 --> r1s26 : the receiver takes it
+      r1s5 --> r1s28 : the receiver takes it
       r1s6 --> r1s7 : a pass reaches it and reads<br/>its marks
       r1s7 --> r1s6 : the pass dies
-      r1s7 --> r1s29 : the receiver takes it
+      r1s7 --> r1s31 : the receiver takes it
       r1s8 --> r1s9 : a pass reaches it and reads<br/>its marks
       r1s9 --> r1s11 : the try's key is written first
       r1s10 --> r1s11 : a pass reaches it and reads<br/>its marks
@@ -113,42 +120,49 @@ stateDiagram-v2
       r1s11 --> r1s13 : the row is held
       r1s12 --> r1s13 : a pass reaches it and reads<br/>its marks
       r1s13 --> r1s12 : the pass dies
-      r1s13 --> r1s32 : the receiver takes it
+      r1s13 --> r1s34 : the receiver takes it
       r1s14 --> r1s15 : a pass reaches it and reads<br/>its marks
-      r1s15 --> r1s5 : the try's key is written first
+      r1s15 --> r1s14 : the pass dies
+      r1s15 --> r1s38 : the receiver takes it
       r1s16 --> r1s17 : a pass reaches it and reads<br/>its marks
-      r1s17 --> r1s16 : the pass dies
-      r1s17 --> r1s37 : the receiver takes it
-      r1s18 --> r1s16 : what calls for it comes to<br/>hold [when The second target's<br/>body]
-      %% when r0s5
-      r1s18 --> r1s0 : what calls for it comes to<br/>hold [unless A row red at two<br/>heads or The second target's<br/>body]
-      %% when not r0s2, r0s5
-      r1s18 --> r1s8 : what calls for it comes to<br/>hold [when A row red at two<br/>heads]
-      %% when r0s2
-      r1s19 --> r1s20 : a pass reaches it and reads<br/>its marks
-      r1s20 --> r1s35 : its key goes in sent.json<br/>[when A cancelled check]
-      %% when r0s0
-      r1s20 --> r1s38 : its own file says done [when A<br/>work item proposed]
+      r1s17 --> r1s5 : the try's key is written first
+      r1s18 --> r1s19 : a pass reaches it and reads<br/>its marks
+      r1s19 --> r1s42 : the receiver takes it
+      r1s20 --> r1s14 : what calls for it comes to<br/>hold [when A hold only your<br/>accept lifts]
+      %% when r0s1
+      r1s20 --> r1s18 : what calls for it comes to<br/>hold [when The second target's<br/>body]
+      %% when r0s6
+      r1s20 --> r1s0 : what calls for it comes to<br/>hold [unless A hold only your<br/>accept lifts or A row red at<br/>two heads or The second<br/>target's body]
+      %% when not r0s1, r0s3, r0s6
+      r1s20 --> r1s8 : what calls for it comes to<br/>hold [when A row red at two<br/>heads]
       %% when r0s3
-      r1s20 --> r1s19 : the pass dies
-      r1s23 --> r1s24 : a pass reaches it and reads<br/>its marks
-      r1s24 --> r1s22 : its own file says done
-      r1s24 --> r1s23 : the pass dies
+      r1s21 --> r1s22 : a pass reaches it and reads<br/>its marks
+      r1s22 --> r1s40 : its key goes in sent.json<br/>[when A cancelled check]
+      %% when r0s0
+      r1s22 --> r1s43 : its own file says done [when A<br/>work item proposed]
+      %% when r0s4
+      r1s22 --> r1s21 : the pass dies
       r1s25 --> r1s26 : a pass reaches it and reads<br/>its marks
-      r1s26 --> r1s21 : its own file says done
+      r1s26 --> r1s24 : its own file says done
       r1s26 --> r1s25 : the pass dies
-      r1s28 --> r1s29 : a pass reaches it and reads<br/>its marks
-      r1s29 --> r1s30 : its own file says done
-      r1s29 --> r1s28 : the pass dies
-      r1s31 --> r1s32 : a pass reaches it and reads<br/>its marks
-      r1s32 --> r1s33 : its own file says done
-      r1s32 --> r1s31 : the pass dies
-      r1s34 --> r1s35 : a pass reaches it and reads<br/>its marks
-      r1s35 --> r1s27 : its own file says done
-      r1s35 --> r1s34 : the pass dies
-      r1s36 --> r1s37 : a pass reaches it and reads<br/>its marks
-      r1s37 --> r1s39 : its own file says done
-      r1s37 --> r1s36 : the pass dies
+      r1s27 --> r1s28 : a pass reaches it and reads<br/>its marks
+      r1s28 --> r1s23 : its own file says done
+      r1s28 --> r1s27 : the pass dies
+      r1s30 --> r1s31 : a pass reaches it and reads<br/>its marks
+      r1s31 --> r1s32 : its own file says done
+      r1s31 --> r1s30 : the pass dies
+      r1s33 --> r1s34 : a pass reaches it and reads<br/>its marks
+      r1s34 --> r1s35 : its own file says done
+      r1s34 --> r1s33 : the pass dies
+      r1s37 --> r1s38 : a pass reaches it and reads<br/>its marks
+      r1s38 --> r1s36 : its own file says done
+      r1s38 --> r1s37 : the pass dies
+      r1s39 --> r1s40 : a pass reaches it and reads<br/>its marks
+      r1s40 --> r1s29 : its own file says done
+      r1s40 --> r1s39 : the pass dies
+      r1s41 --> r1s42 : a pass reaches it and reads<br/>its marks
+      r1s42 --> r1s44 : its own file says done
+      r1s42 --> r1s41 : the pass dies
     }
   }
   class r0s0 plain
@@ -157,6 +171,7 @@ stateDiagram-v2
   class r0s3 plain
   class r0s4 plain
   class r0s5 plain
+  class r0s6 plain
   class r1s0 group0
   class r1s1 group1
   class r1s2 group0
@@ -176,24 +191,29 @@ stateDiagram-v2
   class r1s16 group0
   class r1s17 group1
   class r1s18 group0
-  class r1s19 group2
-  class r1s20 group2
-  class r1s21 group6
-  class r1s22 group6
-  class r1s23 group3
-  class r1s24 group4
+  class r1s19 group1
+  class r1s20 group0
+  class r1s21 group2
+  class r1s22 group2
+  class r1s23 group6
+  class r1s24 group6
   class r1s25 group3
   class r1s26 group4
-  class r1s27 group6
-  class r1s28 group2
-  class r1s29 group2
-  class r1s30 group6
-  class r1s31 group5
-  class r1s32 group5
-  class r1s33 group6
+  class r1s27 group3
+  class r1s28 group4
+  class r1s29 group6
+  class r1s30 group2
+  class r1s31 group2
+  class r1s32 group6
+  class r1s33 group5
   class r1s34 group5
-  class r1s35 group5
-  class r1s36 group2
+  class r1s35 group6
+  class r1s36 group6
   class r1s37 group2
-  class r1s38 group6
-  class r1s39 group6
+  class r1s38 group2
+  class r1s39 group5
+  class r1s40 group5
+  class r1s41 group2
+  class r1s42 group2
+  class r1s43 group6
+  class r1s44 group6
