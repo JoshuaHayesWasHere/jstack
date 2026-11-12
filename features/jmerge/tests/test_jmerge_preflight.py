@@ -1,6 +1,6 @@
 """`jmerge.preflight` on a real checkout: which open pull requests a rule's tests run on, what
 holds the rule and what holds nothing, and how a run with no time or no slot waits.
-`test_jmerge_rule_preflight.py` drives the same through the `jmerge` command, with #1702's replay."""
+`test_jmerge_rule_preflight.py` drives the same through `jmerge`, with #1702's replay."""
 
 import json
 
