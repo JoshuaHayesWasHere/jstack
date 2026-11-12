@@ -31,8 +31,9 @@ Work that turns out to be more than one pull request goes on the Result's `Left:
    Copy `features/pr-review/templates/pr-body.md`, which has the headings in order, and fill each `<...>`.
    Drop a heading with nothing to say, but never Scope.
    Write each line of the title and the body as one sentence: step 6 lints both.
-6. When the brief asks for a pull request, push and open it ready, never as a draft, on the base the block under "Do the task" in `skills/crew/SKILL.md` prints for your brief.
+6. When the brief asks for a pull request, push and open it ready, never as a draft, on the base `skills/crew/do-the-task.md`'s base block prints.
    On `no base`, open none.
+   Open it only once that file's open block, which runs `git merge-tree` on a fresh base, prints `open it`: on any other line, do what it says, then run it again.
    Open it with this, with `skills/crew/SKILL.md`'s top block: it lints, then locks.
 
    ```sh
@@ -53,7 +54,7 @@ Work that turns out to be more than one pull request goes on the Result's `Left:
    fi
    ```
 
-   CI checks it on each push, after its review, and `jmerge` marks no draft ready.
+   `jmerge` marks no draft ready.
    A line `Lock: not locked, <why>` goes into the Result as printed: a stranger can comment there.
    Run `gh pr view` before you say anything about its state.
 7. With a pull request open, hand over to `skills/crew/SKILL.md` "Stay on the pull request" and do what it says, in its order: link the pull request, write the Result, tell the home, end the turn.
@@ -69,5 +70,4 @@ Never done here, and who does it:
   A fix gets no review: one round, and it merges on its checks ("A second pass").
 - **Poll.** jbus wakes this thread when its pull request needs it: no loop, no watcher of your own.
 
-**Hand over:** the open pull request and the Result, to the home, as step 7 says.
-With no pull request, the Result alone, to the home.
+**Hand over:** the open pull request and the Result, or the Result alone, to the home, as step 7 says.
