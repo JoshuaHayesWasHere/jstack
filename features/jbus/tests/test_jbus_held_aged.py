@@ -19,7 +19,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 import jbus
-from jbus import aged, clock, passes, verbs, wakes
+from jbus import aged, blockers, clock, passes, verbs, wakes
 from jbus.view import state
 from jmerge import ready
 from test_jbus_blocker_retries import fix, paged, seen
@@ -96,12 +96,16 @@ def test_held_2026_11_11_hold_of_1695_stays_while_its_crew_is_busy_on_other_work
 
 def test_blockers_jbus_clear_prints_fix_wait_st_mainred_fast_at_21_20(kitchen):
     """`no-run` is a jbus act's, bounded at `aged.BOUNDS`' minutes: unchanged since 20:20:28Z,
-    it is no blocker at 21:19Z and the home's `fix` at 21:20Z, also with the crew busy."""
+    it is no blocker at 21:19Z and the home's `fix` at 21:20Z, also with the crew busy. A line a
+    pass cut short as it died ends `waits.jsonl` then, and `jbus.blockers` reads past it."""
+    assert blockers.waits(kitchen.state) == []
     day = Day(kitchen)
     day.busy()
     day.poll(at(21, 19, 30))
     assert not [line for line in day.clear(at(21, 19, 30)) if KEY in line]
     day.poll(at(21, 20, 30))
+    with (kitchen.state / "waits.jsonl").open("a") as log:
+        log.write('{"slug": "st-mainred-fast", "why": "wa')
     (line,) = [line for line in day.clear(at(21, 20, 30)) if KEY in line]
     assert line.startswith(f"fix {KEY}: ") and REASON in line and "try 1 of 2" in line
 

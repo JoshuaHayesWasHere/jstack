@@ -177,25 +177,16 @@ _CODES: tuple[tuple[str, int | None, tuple[str, ...]], ...] = (
 )
 
 
-def _bounds() -> dict[str, Bound]:
-    """`_CODES` by code. A code on two rows is a slip, and stops the import."""
-    found: dict[str, Bound] = {}
-    for owner, minutes, codes in _CODES:
-        for code in codes:
-            if code in found:
-                raise ValueError(f"{code} has two rows of jbus.aged.BOUNDS")
-            found[code] = Bound(owner, minutes)
-    return found
-
-
-BOUNDS = _bounds()
+BOUNDS: dict[str, Bound] = {
+    code: Bound(owner, minutes) for owner, minutes, codes in _CODES for code in codes
+}
 """Each code of `jmerge`'s reasons, its owner and its bound: see the module. A code `jmerge`
 gains with no row here fails `test_jbus_held_aged`."""
 
 
 def bound(reason: str) -> Bound:
     """The row of `BOUNDS` of a reason `jmerge` gives, by its code (`ready.code_of`)."""
-    return BOUNDS.get(ready.code_of(reason)) or BOUNDS[ready.UNKNOWN]
+    return BOUNDS[ready.code_of(reason)]
 
 
 @dataclass(frozen=True)
@@ -235,11 +226,7 @@ def aged(rows: list[queue.Row], waits: list[dict[str, Any]], now: datetime) -> d
         line = last.get(slug) or {}
         if work.over(row) or word != "wait" or not reason or line.get("why") != why:
             continue
-        rule = bound(reason)
-        try:
-            since = datetime.fromisoformat(str(line.get("at")))
-        except ValueError:
-            continue
+        rule, since = bound(reason), datetime.fromisoformat(line["at"])
         minutes = int((now - since).total_seconds() // 60)
         if rule.minutes is not None and minutes >= rule.minutes:
             found[slug] = Aged(slug, reason, rule, since, minutes)

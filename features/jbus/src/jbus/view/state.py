@@ -1905,7 +1905,7 @@ def wrongs(read: Read) -> list[dict[str, Any]]:
     and `idle`, a pull request whose crew jbus told what it is short of and found nobody at work
     after (`jbus.expedite`), while no stall of it stands and the hold is not the user's; and `aged`,
     a row whose wait of `jmerge`'s has not changed past its code's bound (`jbus.aged`), since
-    the time `waits.jsonl` keeps, while no stall of it stands: the home's `fix wait:<slug>` of
+    the time `waits.jsonl` keeps: the home's `fix wait:<slug>` of
     `jbus clear`. A `since`
     is None where nothing kept says. Each reads its source as it is now, so an entry goes once its
     source works again.
@@ -1972,9 +1972,8 @@ def wrongs(read: Read) -> list[dict[str, Any]]:
         found.append(_wrong(read, "idle", slug, cause, told.get(slug), route, home, slug))
     waits = read.records(queue.waits_path(read.state).name) or []
     for slug, one in aged.aged(read.rows, waits, read.now).items():
-        if slug not in tasks or slug in stalls:
-            continue
-        route, home, since = f"task/{quote(slug, safe='')}", tasks[slug]["home"], iso(one.since)
+        home = tasks.get(slug, {}).get("home")
+        route, since = f"task/{quote(slug, safe='')}", iso(one.since)
         found.append(_wrong(read, "aged", slug, one.said, since, route, home, slug))
     return _owned(read, found)
 
