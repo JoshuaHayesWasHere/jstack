@@ -7,6 +7,7 @@ The kitchen's `gh` gives the GraphQL list and REST's list from `open.json`, each
 runs from `check-runs.json` and its statuses from `statuses.json`."""
 
 import json
+import subprocess
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -229,3 +230,38 @@ def test_a_silent_github_hands_the_jmerge_of_the_pass_nothing(kitchen):
     kitchen.set("gh-list-down", "gh: Bad Gateway (HTTP 502)\n")
     merge.merge(a_pass())
     assert kitchen.log("jmerge") == ["--if-free"]
+
+
+def probes(kitchen, ran):
+    """Each free read `pulls.probe` made: REST's open list, a head's check runs or statuses, as
+    the kitchen's `gh` logged them, and the `git ls-remote --symref` of the remote's tips."""
+    rest = ("pulls?state=open", "/check-runs", "/status")
+    said = [line for line in kitchen.log("gh") if any(one in line for one in rest)]
+    return said + [" ".join(one) for one in ran if one[:3] == ["git", "ls-remote", "--symref"]]
+
+
+def test_a_pass_probes_once(kitchen, monkeypatch):
+    """The read `merge.handed` takes for the `jmerge` it starts is the one `watch.look` uses
+    after: a pass pays each probe once. A pass that handed no read has `watch.look` read on its
+    own, as a pass whose budget is not known does."""
+    open_one(kitchen)
+    ran, run_of = [], subprocess.run
+
+    def logged(command, **how):
+        ran.append(list(command))
+        return run_of(command, **how)
+
+    monkeypatch.setattr(subprocess, "run", logged)
+    for minutes, budget_known in ((0, True), (1, False)):
+        if budget_known:
+            known(kitchen)
+        else:
+            (kitchen.state_dir / budget.KEPT).unlink()
+        run = a_pass(minutes)
+        before = len(probes(kitchen, ran))
+        merge.merge(run)
+        handed = "--pulls" in kitchen.log("jmerge")[-1]
+        seen = watch.look(run, t3.Client(run.config.server, run.config.token_path), [])
+        assert seen.world is not None and sorted(seen.world.open) == ["row-7", "row-8"]
+        assert handed == budget_known
+        assert len(probes(kitchen, ran)) - before == 6, probes(kitchen, ran)[before:]
