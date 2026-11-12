@@ -215,6 +215,21 @@ def test_the_guards_and_the_lint_push_no_other_change(merged, tmp_path, monkeypa
     assert origin(pr) == checked
 
 
+def test_a_checked_head_git_cannot_read_pushes_no_merge_over_it(tmp_path, monkeypatch):
+    """A line of the whole check at a commit this repo lacks proves no merge of the base over
+    it, so the hook refuses the merge rather than guess."""
+    pr = PullRequest(tmp_path, None, "other.txt")
+    was = pr.head()
+    brief = hooked(pr, tmp_path, monkeypatch, full("1" * 40))
+    git(pr.work, "fetch", "-q", "origin")
+    git(pr.work, "merge", "-q", "--no-edit", "origin/main")
+    with brief.open("a") as lines:
+        lines.write(light(pr.head(), pr.landed))
+    ran = pushed_with(pr)
+    assert f"binds only a merge of origin/main over {'1' * 12}" in ran.stderr
+    assert origin(pr) == was
+
+
 def test_the_guards_and_the_lint_alone_push_no_head(tmp_path, monkeypatch):
     """With no line of the desk's whole check before it, a line of the guards and the lint has
     no checked head to be a merge of the base over."""
