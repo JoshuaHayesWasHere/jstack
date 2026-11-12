@@ -12,7 +12,8 @@ A root is one thing only the user can do, and it has a key:
 - `approve:<slug>`: approve a row that an approved row depends on;
 - `config:<project>`: sign in to T3 Code.
 
-`walk` starts at every approved row that was not launched and follows its `depends` links
+`walk` starts at every approved row that was not launched and follows its `depends` links, and the
+row out it waits on for a hot file (`jbus.hotfiles`)
 (`Pass.reasons`, which `dispatch` records). A stacked link (`jbus.stack`) launched before its
 base merged, and its own merge still waits on its base's: `walk` starts at it too, and follows it
 to its base. It starts too at a row `twice` held whose pull request is red and that no thread
@@ -101,7 +102,7 @@ from jbus import (
 from jbus.dispatch import launched
 from jbus.mainmoved import main_check
 from jbus.merge import parse
-from jbus.passes import Changed, Depends, Pass
+from jbus.passes import Changed, Depends, Hot, Pass
 from jbus.record import PASSES as PASS_LOG
 from jbus.t3 import Client
 from jbus.wake import notify
@@ -217,6 +218,8 @@ def walk(run: Pass, world: World, rows: list[queue.Row], pulls: list[str]) -> Ro
             for other in reason.slugs:
                 found |= roots(other, seen)
             return found
+        if isinstance(reason, Hot):
+            return roots(reason.slug, seen)
         if reason is None and row and not row.get("approved"):
             sha = judgement.brief_sha(queue.brief(run.state, slug) or "")[:12]
             return {f"approve:{slug}": f"approve {slug}: {waiting.approve(name, slug, sha, user)}"}

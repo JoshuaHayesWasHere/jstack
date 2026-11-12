@@ -141,33 +141,36 @@ def keep(connection: sqlite3.Connection, zone: tzinfo | None) -> int:
     return 1
 
 
+HOME = tuple(
+    f"features/home/skills/home/{name}.md"
+    for name in (
+        "SKILL",
+        "when-a-home-starts",
+        "clearing-its-own-blockers",
+        "gates",
+        "merging-a-pull-request-that-is-ready",
+    )
+)
+"""The files every home's start reads: the home skill and the files it reads at every start."""
+
 ROLES = {
     "crew": ("crewmate", ("features/crew/SKILL.md",)),
     "reviewer": ("reviewer", ("features/pr-review/SKILL.md", "features/pr-review/the-review.md")),
     "scout": ("scout", ("features/scout/SKILL.md",)),
-    "home": (
-        "home",
-        tuple(
-            f"features/home/skills/home/{name}.md"
-            for name in (
-                "SKILL",
-                "when-a-home-starts",
-                "clearing-its-own-blockers",
-                "gates",
-                "merging-a-pull-request-that-is-ready",
-            )
-        ),
-    ),
+    "home": ("home", HOME),
+    "root": ("home", (*HOME, "features/home/skills/root/SKILL.md")),
 }
 """Each role's `jbus playbook` role and the files its start reads before its first act: the
 skill the slash command expands and the files it reads at every start, by the paths each role
-named in the first tool calls of its sessions."""
+named in the first tool calls of its sessions. `home` is a scoped home's start, and `root` the
+root home's, which also reads the root's own skill."""
 
 BUDGET = {
     "crew": 10_600,
     "reviewer": 20_000,
     "scout": 9_500,
     "home": 35_000,
+    "root": 38_000,
 }
 """The most tokens of jstack's own text each role may start with. It is raised on purpose, by a
 pull request that edits this table, and lowered when a cut leaves more than `SLACK` above the

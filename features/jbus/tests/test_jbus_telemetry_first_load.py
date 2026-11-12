@@ -177,7 +177,7 @@ def test_a_start_at_its_budget_passes_and_one_character_over_fails(tree, capsys)
     code, out = checked(capsys)
     assert code == 0, out
     lines = out.splitlines()
-    assert [line.split(":")[0] for line in lines] == ["crew", "reviewer", "scout", "home"]
+    assert [line.split(":")[0] for line in lines] == ["crew", "reviewer", "scout", "home", "root"]
     assert lines[0] == f"crew: {budget * 29 // 10} characters, {budget} tokens, budget {budget}"
 
     skill.write_text(skill.read_text() + "x")
@@ -204,6 +204,12 @@ def test_a_budget_more_than_ten_percent_above_the_count_fails(tree, capsys):
     ) in out
 
 
+def test_the_root_home_starts_with_what_a_scoped_home_reads_and_the_root_skill(tree):
+    started = firstload.starts(tree)
+    root = tree / "features" / "home" / "skills" / "root" / "SKILL.md"
+    assert started["root"].characters == started["home"].characters + len(root.read_text())
+
+
 def test_a_start_file_that_is_not_there_fails(tree, capsys):
     (tree / "features" / "pr-review" / "the-review.md").unlink()
 
@@ -218,4 +224,5 @@ def test_the_module_run_as_make_lint_runs_it_prints_a_line_a_role(capsys, monkey
         runpy.run_module("jbus.telemetry.firstload", run_name="__main__")
     assert ended.value.code == 0
     lines = capsys.readouterr().out.splitlines()
-    assert [line.split(":")[0] for line in lines[:4]] == ["crew", "reviewer", "scout", "home"]
+    roles = ["crew", "reviewer", "scout", "home", "root"]
+    assert [line.split(":")[0] for line in lines[:5]] == roles

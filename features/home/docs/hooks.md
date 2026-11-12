@@ -61,7 +61,7 @@ It refuses the send, exit 2 with one line on stderr, when the sender is a home o
 | --- | --- |
 | the sender's own home, now or before a handoff | nothing: it is not sent |
 | a home that handed off | the id in its `home-id` now, or that none is there, and the channel below |
-| the root, from a scoped home | a stop, `jbus stop` |
+| the root, from a scoped home | an escalation, `jbus stop`: a one-way door by `--holds`, a decision by `--kind decision`, a go by `--kind go` |
 | a scoped home, from the root | the root's own words by `jbus tell`, the user's word by `jbus word`, or the answer to its stop |
 | a scoped home from another scope, or any home from a reviewer | a row queued unapproved for that home, `jbus queue add` |
 | the crew of another home's brief | a row queued unapproved for that home, `jbus queue add` |

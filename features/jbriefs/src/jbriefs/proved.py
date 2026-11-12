@@ -43,13 +43,19 @@ _PROVED_RUN = re.compile(
 _PROVED_TESTS_ONLY = re.compile(
     r"Proved: (?P<tests>\S.*?) head exit (?P<head_exit>\d+) at (?P<head>[0-9a-f]{40}), tests only"
 )
-TEST_FILE = re.compile(r"(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$")
-"""A file of a pull request's tests: one under a `tests/` or `test/` directory, a `test_*.py` or
-`*_test.py`, and a `conftest.py`. A pull request whose every file is one, or of an `EXEMPT` kind,
-changes no code, so the code at its base is its head's own and its tests pass there too: its
-`Proved: <tests> head exit <n> at <head>, tests only` line runs them at the head alone. The proof
-block's `grep -E` matches the test files alone, so it prints that line only where every file is
-one."""
+TEST_FILE = re.compile(
+    r"(^|/)(tests?|__tests__|__snapshots__)/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$"
+    r"|(^|/)[^/]*\.(test|spec)\.[cm]?[jt]sx?$"
+)
+"""A file of a pull request's tests: one under a `tests/`, `test/`, `__tests__/` or
+`__snapshots__/` directory, a `test_*.py` or `*_test.py`, a `conftest.py`, and a `*.test.*` or
+`*.spec.*` of JavaScript or TypeScript (`.js`, `.ts`, `.jsx`, `.tsx`, `.mjs`, `.mts`, and their
+kin), which Vitest or Playwright runs. The proof block lays each one over the base and runs the
+tests among them, with patterns of its own that a test of the crew holds to this one. A pull
+request whose every file is one, or of an `EXEMPT` kind, changes no code, so the code at its base
+is its head's own and its tests pass there too: its `Proved: <tests> head exit <n> at <head>,
+tests only` line runs them at the head alone. The proof block's `grep -E` matches the test files
+alone, so it prints that line only where every file is one."""
 FORK_FILE = re.compile(r"^features/[^/]+/packaging/")
 """A file of a fork: a feature's `packaging/` folder holds an upstream tag's build and the patches
 jstack lays over it (`features/t3code-jstack/packaging`), and the tests of that code are inside the
