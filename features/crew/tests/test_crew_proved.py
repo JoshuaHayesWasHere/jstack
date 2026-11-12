@@ -730,6 +730,26 @@ for one in "$@"; do
     esac
 done
 echo "$runner CI=$CI in $PWD:$files" >> "$TMPDIR/node-runs"
+# A runner finds a file only where the config in the folder it runs in reaches it, by the
+# config's `// reaches: <prefix>` line where it has one, as an `include` or a `testDir` does.
+config=$(ls "$runner".config.* 2> /dev/null | head -n 1)
+reaches=
+if [ -n "$config" ]; then reaches=$(sed -n 's|^// reaches: ||p' "$config"); fi
+found=
+for file in $files; do
+    case $file in "$reaches"*) found="$found $file" ;; esac
+done
+files=$found
+if [ -z "$files" ]; then
+    if [ "$runner" = vitest ]; then
+        echo '{"numPassedTests": 0, "numFailedTests": 0, "testResults": []}' > "$report"
+        echo "No test files found, exiting with code 1"
+    else
+        echo '{"stats": {"expected": 0, "unexpected": 0}, "errors": [{"message": "Error: No tests found."}]}' > "$report"
+        echo "Error: No tests found."
+    fi
+    exit 1
+fi
 passed=0
 failed=0
 for file in $files; do
@@ -757,7 +777,8 @@ case $PWD in "$TMPDIR"/base.*) if [ -n "$BASE_ERROR" ]; then exit 1; fi ;; esac
 """
 """Vitest or Playwright as `node_modules/.bin` holds them, with the JSON report each writes: a
 test file passes where its `// expects: <path> <text>` line, if it has one, finds the text in
-that file. With `BASE_ERROR` set, a run in the copy of the base ends 1 with no test run, as a
+that file, a path from the folder the runner runs in. A file the config there does not reach
+is not found, and a run that finds none ends 1 with no test run, as each runner does. With `BASE_ERROR` set, a run in the copy of the base ends 1 with no test run, as a
 Playwright web server that will not start or a Vitest that finds no file does."""
 NPM = """#!/bin/bash
 echo "npm $1 in $PWD" >> "$TMPDIR/npm-args"
@@ -908,6 +929,48 @@ def test_a_branch_of_node_tests_and_config_alone_runs_them_at_the_head_alone(rep
     said, line = node_proof(repo)
     assert "tests only: every file the branch changes is a test" in said
     assert line == proved.Proved(("src/calc.test.ts",), head_exit=0, head=head, tests_only=True)
+
+
+NESTED = {
+    "vitest.config.ts": "// reaches: src/\nexport default { test: { include: ['src/**/*.test.ts'] } };\n",
+    "playwright.config.ts": "// reaches: tests/\nexport default { testDir: 'tests' };\n",
+    "prototypes/kit/vitest.config.ts": "export default { test: { include: ['*.test.ts'] } };\n",
+    "prototypes/kit/kit.ts": BUGGY_TS,
+    "prototypes/breeding/playwright.config.ts": "export default { testDir: '.' };\n",
+    "prototypes/breeding/load.ts": BUGGY_TS,
+}
+"""robotica's prototypes: each folder's tests under its own config, which the root's do not
+reach."""
+
+
+def test_a_test_under_a_folder_with_its_own_config_runs_with_that_config(repo):
+    """robotica keeps each prototype's tests under that prototype's own `vitest.config.ts` or
+    `playwright.config.ts`, and the root's configs reach only `src/` and `tests/`: run with the
+    root's, each runner found no test, and both sides exited 2. Each changed test runs in the
+    folder of the nearest config above it, so the base fails and the head passes."""
+    node(repo)
+    commit(repo, NESTED)
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    base = git(repo, "rev-parse", "HEAD")
+    head = commit(
+        repo,
+        {
+            "prototypes/kit/kit.ts": FIXED_TS,
+            "prototypes/kit/kit.test.ts": "// expects: kit.ts a + b\n",
+            "prototypes/breeding/load.ts": FIXED_TS,
+            "prototypes/breeding/load.spec.ts": "// expects: load.ts a + b\n",
+        },
+    )
+    said, line = node_proof(repo)
+    tests = ("prototypes/breeding/load.spec.ts", "prototypes/kit/kit.test.ts")
+    assert line == proved.Proved(tests, 1, base, 0, head), said
+    runs = sorted(re.sub(r" in \S+?/(base|head)\.\w+/", " in ", run) for run in node_runs(repo))
+    assert runs == [
+        "playwright CI=1 in prototypes/breeding: load.spec.ts",
+        "playwright CI=1 in prototypes/breeding: load.spec.ts",
+        "vitest CI=1 in prototypes/kit: kit.test.ts",
+        "vitest CI=1 in prototypes/kit: kit.test.ts",
+    ]
 
 
 TEST_FILES = (
