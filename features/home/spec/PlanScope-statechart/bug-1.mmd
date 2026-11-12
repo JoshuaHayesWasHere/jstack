@@ -17,15 +17,15 @@ stateDiagram-v2
   class legendGroup0 group0
   class legendWrong plainWrong
   state "Scope s working" as g0 {
-    state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short; no fix" as s0
-    state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work; no fix" as s1
-    state "the entry in plan-done.md<br/>twice; no fix" as s2
-    state "the entry proposed or<br/>planned; no fix" as s3
+    state "the entry proposed or<br/>planned; no fix" as s0
+    state "the entry proposed or<br/>planned; the fix counted<br/>in s" as s1
+    state "the entry proposed or<br/>planned; the fix counted<br/>in s, not where its home<br/>reads it" as s2
+    state "the entry proposed or<br/>planned; the fix counted<br/>in s, not where its home<br/>reads it, the move at work" as s3
   }
-  [*] --> s3
-  s3 --> s1 : 1. the home closes the entry:<br/>plan close appends it to<br/>plan-done.md
-  s1 --> s0 : 2. the close dies between its<br/>two writes
-  s0 --> s2 : 3. the home closes it again:<br/>plan close appends it a second<br/>time
+  [*] --> s0
+  s0 --> s1 : 1. the home queues the fix,<br/>and jbus counts it
+  s1 --> s3 : 2. the home moves the fix to<br/>the catch-all: queue move<br/>rewrites its Home: line
+  s3 --> s2 : 3. the move dies
   class s0 group0Path
   class s1 group0Path
   class s2 group0Wrong

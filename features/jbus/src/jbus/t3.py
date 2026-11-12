@@ -355,6 +355,26 @@ class Client(Session):
                 return None
             span *= 4
 
+    def holds(self, thread: str, text: str, window: int = 100) -> bool | None:
+        """Say whether a user message among the thread's last `window` items holds `text` in its
+        first 600 characters. A thread T3 Code no longer has holds nothing, and None says T3 Code
+        gave no answer."""
+        try:
+            top = self.call("t3_thread_read", {"threadId": thread, "limit": 1}) or {}
+            count = (top.get("thread") or {}).get("itemCount")
+            after = max(0, count - window) if isinstance(count, int) else 0
+            asked = {"threadId": thread, "view": "activity", "afterPosition": after}
+            read = self.call("t3_thread_read", {**asked, "limit": window, "maxCharsPerItem": 600})
+        except T3Refused as error:
+            return False if GONE.search(str(error)) else None
+        except T3Error:
+            return None
+        return any(
+            item.get("type") == "user_message" and text in str(item.get("text") or "")
+            for item in (read or {}).get("items") or []
+            if isinstance(item, dict)
+        )
+
     def call(self, tool: str, arguments: dict[str, Any]) -> Any:
         if tool not in TOOLS:
             raise Refused(f"refused: jbus does not call {tool}")

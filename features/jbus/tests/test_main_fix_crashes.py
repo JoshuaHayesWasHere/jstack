@@ -11,9 +11,12 @@ from datetime import timedelta
 import pytest
 
 import jbus.queue
-from jbus import reverts, watch
+from jbus import daywarnings, flakerow, reverts, watch
 from jmerge import mainjson
 from jmerge import reverts as kept
+from test_jbus_day_warnings import CONSIDERED, DAY, TODAY, WARNING, merged, reviewed
+from test_jbus_flakerow import SLUG, red
+from test_jbus_flakerow import TEST as FLAKY
 from test_jbus_kitchen import NOW
 from test_jbus_main_moved import move
 from test_jbus_reverts import DONE, LOG, OTHER, TEST, asked, mac_red_merges, red_merges
@@ -271,3 +274,42 @@ def test_a_brief_the_queue_refuses_keeps_its_copy_and_its_condition(kitchen, red
     kitchen.poll(NOW)
     assert (kitchen.home / "tasks" / f"{slug}.md").exists()
     assert any(slug in line and "not queued" in line for line in kitchen.lines())
+
+
+def test_the_day_warnings_row_leaves_no_brief_when_its_pass_stopped_at_queue_add(
+    kitchen, monkeypatch
+):
+    """FiledWhole, for the day's warnings row. A pass that wrote `warnings-<day>.md` and stopped
+    before queue.add left a brief no row named, and no later pass filed it once the ledger moved
+    on to another day. The row is now the first write, so a pass stopped at it leaves nothing,
+    and the next pass files the row whole."""
+    monkeypatch.setattr(daywarnings, "SINCE", NOW - 30 * DAY)
+    reviewed(kitchen, "alpha", 7, (WARNING,))
+    reviewed(kitchen, "beta", 8, (WARNING, CONSIDERED))
+    merged(kitchen, ("alpha", 7), ("beta", 8))
+    kitchen.poll()
+    back = dies(monkeypatch, jbus.queue, "add")
+    died(kitchen, NOW + DAY)
+    assert unfiled(kitchen, daywarnings.PREFIX) == []
+    assert list((kitchen.home / "tasks").glob(f"{daywarnings.PREFIX}*.md")) == []
+    back()
+    kitchen.poll(NOW + DAY + timedelta(minutes=3))
+    assert unfiled(kitchen, daywarnings.PREFIX) == []
+    assert (kitchen.home / "tasks" / f"{daywarnings.PREFIX}{TODAY}.md").exists()
+
+
+def test_a_flake_row_leaves_no_brief_when_its_pass_stopped_at_queue_add(kitchen, monkeypatch):
+    """FiledWhole, for a flake row. A pass that wrote `flake-<name>.md` and stopped before
+    queue.add left a brief no row named, and no later pass filed it once the flake was out of
+    its window. The row is now the first write, so a pass stopped at it leaves nothing, and the
+    next pass files the row whole."""
+    red(kitchen, "1", 2 * DAY, [FLAKY])
+    red(kitchen, "2", DAY, [FLAKY])
+    back = dies(monkeypatch, jbus.queue, "add")
+    died(kitchen)
+    assert unfiled(kitchen, flakerow.PREFIX) == []
+    assert list((kitchen.home / "tasks").glob(f"{flakerow.PREFIX}*.md")) == []
+    back()
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert unfiled(kitchen, flakerow.PREFIX) == []
+    assert (kitchen.home / "tasks" / f"{SLUG}.md").exists()

@@ -120,6 +120,7 @@ ORDER = [
     "after-expedite 17 children.watch (client)",
     "after-expedite 20 remarks.tell (client, world)",
     "after-expedite 25 cancelled.rerun (world)",
+    "after-expedite 26 cancelled.unqueue (world)",
     "after-expedite 27 stack.move (client, world)",
     "after-expedite 30 rebase.github (client, world)",
     "after-expedite 35 compact.tell (client, world)",

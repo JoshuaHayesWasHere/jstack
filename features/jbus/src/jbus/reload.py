@@ -17,11 +17,13 @@ The notice goes only into a turn the thread already runs, as a steer (T3 Code's 
 turn running, since a thread woken only to read a skill again ends its turn having done nothing
 else. The merge stays owed in `reload.json` until the thread runs a turn, and leaves it once no
 thread that owes it is still out: a thread settled, archived or gone is not listed, and is owed
-nothing. A send T3 Code took with no answer,
-retried once another merge has landed, goes under a new key and may tell that thread of the
-first merge twice: a key of the first merges alone would let T3 Code drop the message as a
-repeat, and the later merge with it. A thread started after the merge loaded the new text and is
-not told. A thread is told only of the skills it loaded (`loaded`): the ones its role loads
+nothing. Right before it asks T3 Code, `tell` names the thread in `tried` of each merge the notice
+names, and until those merges are marked for the thread, it sends that thread only the same notice
+under the same key: a pass that died after the send, or a send that got no answer, sends T3 Code a
+repeat it takes as the notice it has, so a merge that landed since never makes a new key that names
+the first merge again. A merge that landed since waits for the pass after, under a key of its own.
+A thread started after the merge loaded the new text and is not told. A thread is told only of
+the skills it loaded (`loaded`): the ones its role loads
 (`LOADS`), and each that its brief's `Skills:` line names. A thread whose title gives no role
 (`roles.OTHER`) is the user's own and is not told.
 
@@ -32,6 +34,7 @@ with each merge `keep` added since it read the file.
 
 from __future__ import annotations
 
+import functools
 from typing import TYPE_CHECKING, Any
 
 from jbriefs import skills
@@ -47,6 +50,9 @@ if TYPE_CHECKING:
 
 FILE = "reload.json"
 LOCK = "reload.lock"
+TRIED = "tried"
+"""The threads a notice that names the merge was tried to and is not marked for yet, in
+`reload.json`."""
 LOADS = {
     "crew": {"crew"},
     "reviewer": {"pr-review"},
@@ -116,6 +122,20 @@ def loaded(run: Pass, role: str, slug: str) -> set[str]:
     return LOADS.get(role, set()) | {one.name for one in skills.named(text)}
 
 
+def _try(run: Pass, due: list[dict[str, Any]], at: str) -> None:
+    """Name the thread in `tried` of each merge the notice names, in `reload.json` and in `due`,
+    before T3 Code is asked (`outbox.send`'s `pin`)."""
+    commits = {one["commit"] for one in due}
+    for one in due:
+        one[TRIED] = sorted({*one.get(TRIED, ()), at})
+    with locked(run.state, LOCK):
+        kept = read_json(run.state / FILE, [])
+        for one in kept:
+            if one["commit"] in commits:
+                one[TRIED] = sorted({*one.get(TRIED, ()), at})
+        write_json(run.state / FILE, kept)
+
+
 def _told(
     run: Pass, client: Client, kept: list[dict[str, Any]], out: list[dict[str, Any]]
 ) -> list[dict[str, Any]]:
@@ -130,13 +150,15 @@ def _told(
         except (KeyError, TypeError, ValueError):
             began = None
         wanted = set() if role == roles.OTHER else loaded(run, role, slug)
-        due = [
+        owes = [
             one
             for one in kept
             if set(one["skills"]) & wanted
             and (began is None or began <= when(one["at"]))
             and f"{TEMPLATE}|{one['commit'][:12]}|{at}" not in run.box.sent()
         ]
+        due = [one for one in owes if at in one.get(TRIED, ())] or owes
+        left.update(one["commit"][:12] for one in owes if one not in due)
         commits = [one["commit"][:12] for one in due]
         names = ", ".join(dict.fromkeys(n for one in due for n in one["skills"] if n in wanted))
         merges = ", ".join(f"#{one['number']} at {one['commit'][:12]}" for one in due)
@@ -150,6 +172,7 @@ def _told(
                 text=TOLD.format(merges=merges, names=names),
                 template=TEMPLATE,
                 needs="decide",
+                pin=functools.partial(_try, run, due, at),
             )
         except T3Error as error:
             run.say(f"wait {slug or title}: its thread could not be told of a skill ({error})")
