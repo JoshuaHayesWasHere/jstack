@@ -40,21 +40,41 @@ def test_a_merge_after_child_waits_until_its_parent_is_over(two):
     assert two.run("--check")[1].startswith("ready 8 ")
 
 
+def over_and_held(kitchen, over, *others, **more):
+    """`delta`'s row, `over`, with its go and stored brief, beside the rows `others`, and its pull
+    request #9, which `jmerge` holds as the pull request of a row that is over. Its head."""
+    stored = "# delta: the goal\n"
+    delta = {**row("delta", status=over, pr="#9", **more), "brief_sha": judgement.brief_sha(stored)}
+    (kitchen.jbus / "briefs").mkdir()
+    (kitchen.jbus / "briefs" / "delta.md").write_text(stored)
+    (kitchen.jbus / "queue.json").write_text(json.dumps([delta, *others]))
+    head = accept_act.held(kitchen, "delta", 9, {"a.txt": "ours\n" + accept_act.LINES})
+    assert kitchen.run() == [f"hold 9 {url(9)}: {ready.ROW_OVER.format(status=over)}"]
+    return head
+
+
+def accepted(kitchen):
+    ref = accept_act.said(kitchen, "merge 9")
+    return accept_act.jmerge(kitchen, "--accept", "9", "--as", "user", "--message", ref)
+
+
 @pytest.mark.parametrize("over", ["done", "merged"])
 def test_the_users_accept_merges_the_pull_request_of_a_row_that_is_over_at_its_head(kitchen, over):
     """`ROW_OVER` says to accept it to merge it, and the accept merges it: the re-judge of the
     accept lifts it at the head it was given at, as it lifts each hold of its kind."""
-    stored = "# delta: the goal\n"
-    over_row = {**row("delta", status=over, pr="#9"), "brief_sha": judgement.brief_sha(stored)}
-    (kitchen.jbus / "briefs").mkdir()
-    (kitchen.jbus / "briefs" / "delta.md").write_text(stored)
-    (kitchen.jbus / "queue.json").write_text(json.dumps([over_row]))
-    head = accept_act.held(kitchen, "delta", 9, {"a.txt": "ours\n" + accept_act.LINES})
-    assert kitchen.run() == [f"hold 9 {url(9)}: {ready.ROW_OVER.format(status=over)}"]
-    ref = accept_act.said(kitchen, "merge 9")
-    out = accept_act.jmerge(kitchen, "--accept", "9", "--as", "user", "--message", ref)
+    head = over_and_held(kitchen, over)
+    out = accepted(kitchen)
     assert kitchen.home.code == 0, (out, kitchen.home.stderr)
     assert out[0].startswith(f"accepted 9 {url(9)}: {ready.ROW_OVER.format(status=over)}, ")
     assert f"lifted at {head[:12]} " in out[0]
     assert out[-1].startswith("merged 9 delta "), out
     assert [call.split()[2] for call in kitchen.calls()] == ["9"]
+
+
+def test_the_accept_of_a_row_that_is_over_lifts_no_other_wait_of_the_queue(kitchen):
+    """The accept lifts `ROW_OVER` alone: the row still merges after the rows it names."""
+    over_and_held(kitchen, "done", row("gamma", status="running"), merge_after=["gamma"])
+    out = accepted(kitchen)
+    assert kitchen.home.code == 1, kitchen.home.stderr
+    assert out == [f"wait 9 {url(9)}: merges after gamma (no pull request yet), not merged yet"]
+    assert kitchen.calls() == []
