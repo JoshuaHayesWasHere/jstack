@@ -101,7 +101,7 @@ New prose is one sentence per line, and an old line the pull request did not tou
    [ -n "$on" ] || on=$(git symbolic-ref -q --short refs/remotes/origin/HEAD | sed 's|^origin/||')
    on=${on:-main}
    if [ -z "$branch" ] || ! git fetch -q origin "$branch" "$on"; then
-       echo "stop: could not fetch origin's $branch and $on"
+       echo "stop: could not fetch origin's $branch and $on, this worktree is at $(git rev-parse HEAD)"
    elif [ -n "$(git status --porcelain)" ] || [ "$(git rev-parse HEAD)" != "$(git rev-parse "origin/$branch")" ]; then
        echo "stop: this worktree is not at origin's $branch, $(git rev-parse "origin/$branch"), with nothing uncommitted"
    else
@@ -135,7 +135,7 @@ case $scope in "<"*) scope= ;; esac
 uv run --project "$T/../source" jbriefs not-run "$B" "$head" "the reviewer stopped before its review: $said" "$by" "$scope"
 ```
 
-A `stop` of step 2 that could not fetch names no head: it writes no section.
+A `stop` of step 2 that could not fetch names this worktree's commit, since it could ask origin for none, and writes its section at that commit all the same.
 The section is the one "No room" writes, read the same way: `jmerge` merges nothing on it, its `Head:` line lets the crew rebase, and jbus's stall clock asks this reviewer again.
 Sent a second time for the same head, it writes no second section.
 Then say what the step and the block printed, and end without settling.
