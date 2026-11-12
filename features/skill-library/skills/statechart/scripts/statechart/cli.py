@@ -479,9 +479,10 @@ def run_tlc(tools, spec, cfg, base, dump=None, workers="1", first_only=False):
     # stdout never ran TLC to its first line: a jgauge that cannot run, such as a venv's shim
     # whose package is gone. Its own words say why, where TLC's empty output would not.
     if held is not command and r.returncode != 0 and not r.stdout:
+        jgauge = held[held.index("test-slot") - 1]
         raise CannotFinish(
-            f"cannot run TLC: {held[0]} test-slot exited {r.returncode} before TLC printed a"
-            f" line:\n{r.stderr.strip()}{resync_hint(held[0])}"
+            f"cannot run TLC: {jgauge} test-slot exited {r.returncode} before TLC printed a"
+            f" line:\n{r.stderr.strip()}{resync_hint(jgauge)}"
         )
     stdout = f"{FIRST_ONLY}{r.stdout}" if first_only else r.stdout
     with open(f"{base}.out", "w", encoding="utf-8") as handle:
