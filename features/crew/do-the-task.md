@@ -253,6 +253,60 @@
 
   On `label cross-cutting`, open it with `--label cross-cutting` too.
   A pull request already open whose diff a later push makes touch two features gets it with `gh pr edit --add-label cross-cutting`, and the borders check reruns when it is labelled.
+  The pull request opens only on a head that merges cleanly into today's base: one opened on a base hours old is in conflict the moment it opens, and then waits on a rebase that races the next merge, as #1725 did, opened three hours behind main.
+  Run this in this worktree right before you open it, with the block at the top and `<branch>` the base it printed, and open it only where it prints `open it`:
+
+  ```sh
+  G=$(git rev-parse --git-dir)
+  B="$H/tasks/<slug>.md"
+  base='<branch>'
+  branch=$(git branch --show-current)
+  if [ -d "$G/rebase-merge" ] || [ -d "$G/rebase-apply" ]; then
+      echo "the rebase stopped: resolve these as A conflict says, then git rebase --continue"
+      git diff --name-only --diff-filter=U
+  elif [ -f "$G/crew-before-rebase" ]; then
+      echo "a rebase is not pushed yet: prove it and push it as A conflict says, then run this again"
+  elif stacked=$(uv run --project "$T/../source" jbriefs line stacked "$B" 2> /dev/null) && [ "$stacked" != none ] && { [ "${stacked% at *}" = "$stacked" ] || ! git merge-base --is-ancestor "${stacked##* }" HEAD 2> /dev/null; }; then
+      echo "open it: a link of a stack, jbus moves it onto its base's merge"
+  elif [ "origin/$base" != "$(git symbolic-ref -q --short refs/remotes/origin/HEAD)" ]; then
+      echo "open it: $base is the base of a link, and jbus moves a link"
+  elif ! git fetch -q origin "$base"; then
+      echo "not opened: could not fetch origin/$base"
+  else
+      tip=$(git rev-parse --short=12 "origin/$base")
+      said=$(git merge-tree --write-tree --name-only "origin/$base" HEAD)
+      merged=$?
+      files=$(printf '%s\n' "$said" | sed -n '2,/^$/p' | sed '/^$/d' | paste -sd' ' -)
+      pushed=$(git ls-remote origin "refs/heads/$branch" | cut -f 1)
+      if [ "$merged" -eq 0 ]; then
+          echo "open it: $(git rev-parse --short=12 HEAD) merges cleanly into origin/$base at $tip"
+      elif [ "$merged" -ne 1 ]; then
+          echo "not opened: git merge-tree could not merge origin/$base with the head"
+      elif [ -z "$pushed" ]; then
+          echo "not opened: origin has no $branch, so a rebase has no lease: push it with the first push block, then run this again"
+      elif ! git update-ref "refs/jstack/pre-rebase/<slug>/$(git rev-parse --short=12 HEAD)" HEAD; then
+          echo "not opened: could not keep the head under refs/jstack/pre-rebase, so no rebase"
+      else
+          echo "not opened: the head conflicts with origin/$base at $tip in $files: rebasing onto it first"
+          echo "$(git rev-parse HEAD) $base $pushed" > "$G/crew-before-rebase"
+          if out=$(git rebase -q "origin/$base" 2>&1); then
+              echo "rebased onto origin/$base: prove it and push it as A conflict says, then run this again"
+          elif [ -d "$G/rebase-merge" ] || [ -d "$G/rebase-apply" ]; then
+              echo "the rebase stopped: resolve these as A conflict says, then git rebase --continue"
+              git diff --name-only --diff-filter=U
+          else
+              uv run --project "$T/../source" jbus forget "$G/crew-before-rebase" > /dev/null
+              echo "the rebase did not start: $out"
+          fi
+      fi
+  fi
+  ```
+
+  It fetches the base each time, so it reads main as it is now and not as the worktree last saw it, and asks `git merge-tree` what GitHub's merge would: exit 0 is a head that merges cleanly, exit 1 a conflict.
+  On a conflict it starts the rebase of "A conflict", with its record and its `refs/jstack/pre-rebase` ref, so the rest is that section's: resolve the files with `jmerge --remake` for the generated ones, prove no line was lost, run the check block at the new head, and push with its lease.
+  Then run this again: main may have moved once more while you rebased, and the pull request opens on the first run that prints `open it`.
+  A link of a stack opens at once, since jbus moves it once its base merged ("A link that moved").
+  So does a link jbus already moved onto main, whose `Stacked on:` line ends `at <merge>`, until its head holds that merge: until then its branch holds its base's commits too, and a rebase onto main would replay them, as "A conflict" says, so the block reads the line by the same rule that section does.
   The first push of the branch is this block's, run in this worktree with the block at the top and the brief's slug in place of the words in angle brackets, before the pull request opens:
 
   ```sh
