@@ -9,6 +9,7 @@ import shlex
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 
@@ -464,23 +465,37 @@ def test_a_change_runs_the_lint_each_touched_test_and_each_test_that_reads_it_in
     guard tests and the tests that read the change, each step its own call of the short lane,
     and never the selection: CI's check is the check of record and runs the rest. The real
     selector names the touched tests: a test file the branch edits. The guard tests are the
-    cross-cutting tests of the selection, and not the catch-all. The crew tests that read the
-    edited doc run last, a few files a step, as #1691's check would have run
-    test_status_line_readers.py at the desk."""
+    cross-cutting tests of the selection, and not the catch-all, wherever they live: the home
+    tree's spec is one outside features/repo-guards/tests, and dropped at the desk it failed
+    first in CI (8 of 51 failed attempts on a `make test` part, 2026-11-09). The tests that read
+    the edited doc run last, a few files a step, as #1691's check would have run
+    test_status_line_readers.py at the desk.
+
+    Each step is a real `jgauge test-slot --short` call, so the test takes as long as the block
+    has steps. The edit is to features/expert/verify.md, whose readers make 3 names steps, and
+    not to a crew doc, which every crew test reads: the-checks.md gave 52 names steps, about
+    100 in all, and the test went past pytest's 120 s on a loaded CI runner
+    (crew-check-test-bounded, 2026-11-12)."""
     repo = cloned(tmp_path)
-    with (repo / "features" / "crew" / "the-checks.md").open("a") as page:
+    with (repo / "features" / "expert" / "verify.md").open("a") as page:
         page.write("\nA line the test adds.\n")
     mine = "features/crew/tests/test_crew_label.py"
     with (repo / mine).open("a") as test:
         test.write("\n# A line the test adds.\n")
-    git(repo, "commit", "-qam", "a change to the crew feature")
+    git(repo, "commit", "-qam", "a change to an expert doc and a crew test")
     brief = a_brief(tmp_path)
-    said, code, ran, base = selected(tmp_path, repo)
-    guards = guarded(repo, base)
-    steps = named(repo, base)
+    base = git(repo, "merge-base", "origin/main", "HEAD")
+    with ThreadPoolExecutor() as pool:
+        guarding, naming = pool.submit(guarded, repo, base), pool.submit(named, repo, base)
+        said, code, ran, _ = selected(tmp_path, repo)
+    guards, steps = guarding.result(), naming.result()
     reads = [one for step in steps for one in step]
+    assert len(ran) <= 60, (
+        f"the block ran {len(ran)} steps, each a real short-lane call: past 60 the test nears "
+        "pytest's 120 s on a CI runner (crew-check-test-bounded); edit a doc fewer tests read"
+    )
     assert "features/repo-guards/tests/test_new_lines_run.py" in guards
-    assert "features/crew/tests/test_crew_checks.py" in reads
+    assert "features/jinstall/tests/test_setup_spec.py" in reads
     assert not set(reads) & {mine, *guards}
     assert said[0] == (
         f"touched: 1 test files, then {len(guards)} cross-cutting guard tests, "
@@ -497,6 +512,7 @@ def test_a_change_runs_the_lint_each_touched_test_and_each_test_that_reads_it_in
         *(alone(one, base) for one in guards),
         *(alone(" ".join(step), base) for step in steps),
     ]
+    assert alone("features/home/tests/test_home_tree_spec.py", base) in ran, said
     assert code == 0
     head = git(repo, "rev-parse", "HEAD")
     assert brief.read_text().endswith(
@@ -713,20 +729,6 @@ def test_a_file_ci_failed_on_is_a_step_until_it_passes(tmp_path):
         f"Checked: make check-fast BASE={base} PART=touched exit 0 at {head}\n"
     )
     assert kept.read_text() == "tests/test_gone.py\n"
-
-
-def test_a_cross_cutting_guard_outside_repo_guards_is_a_desk_step(tmp_path):
-    """A cross-cutting guard that lives in a feature, as the home tree's spec does, is a desk
-    step like one under features/repo-guards/tests: dropped at the desk, it failed first in CI
-    (8 of 51 failed attempts on a `make test` part, 2026-11-09). The catch-all stays CI's."""
-    repo = cloned(tmp_path)
-    with (repo / "features" / "crew" / "the-checks.md").open("a") as page:
-        page.write("\nA line the test adds.\n")
-    git(repo, "commit", "-qam", "a change to the crew feature")
-    a_brief(tmp_path)
-    said, code, ran, base = selected(tmp_path, repo)
-    assert alone("features/home/tests/test_home_tree_spec.py", base) in ran, said
-    assert code == 0
 
 
 NEW_LINES = "features/repo-guards/tests/test_new_lines_run.py"
