@@ -241,7 +241,8 @@ RISKY_OVERRULED = Reason(
 MEETS_NO = Reason(
     "findings",
     "its review at {head} says the brief is not met, {met} of {count}: Done when {lines} unmet, "
-    "so a fix and a scoped review whose line says yes, or the user's Waived: line",
+    "so a fix and a scoped review whose line says yes, or a waiver: the root home's jbus waive "
+    "--as root, or the user's Waived: line",
 )
 MEETS_UNREAD = Reason(
     "review",
