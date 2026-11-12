@@ -4,16 +4,119 @@
 # brief once it has a Result. Both sides run in the one slot a run gets, since a side that gave its
 # slot back would find every slot taken on a busy machine when it asked again. A side the short
 # lane's limit cut runs again alone in a full slot. A side that exited 0 is kept in the worktree's
-# `crew-proof-sides`, and a run at the same head and base runs only the side still owed. Each side
-# leaves out the tests marked `browser`, as `make check` and CI do. features/crew/do-the-task.md
-# says what it proves and how.
+# `crew-proof-sides`, and a run at the same head and base runs only the side still owed. A test is
+# a `test_*.py` or `*_test.py`, run on pytest, which leaves out the tests marked `browser`, as
+# `make check` and CI do, or a `*.test.*` or `*.spec.*` of JavaScript or TypeScript, run on the
+# repo's own Vitest, or Playwright for a `*.spec.*` where the repo has a `playwright.config.*`.
+# features/crew/do-the-task.md says what it proves and how.
 # A crew runs it by its path, `bash "$T/proved.sh" <brief> <thread id>`, from its worktree: the
 # command it sends then holds no `rm`, which Claude Code stops to ask about, even in full access.
+
+# One side's run of each runner's tests, in the slot: `bash proved.sh --sides`, with the copies,
+# the sides and the tests of each runner in PROOF_* variables. It prints `<side> exit <n>: <what
+# each runner said>`, the worst exit of its runners. Vitest and Playwright end 1 on a failed test
+# and on a run that never reached one alike (no file found, a web server that would not start),
+# and a base exit 1 is what proves the change: each one's JSON report says whether a test failed or
+# a test file did not load, and a run that ends 1 with neither is written 2.
+prove_sides() {
+    local side at more workers code worst said ran runner files out report failed
+    for side in $PROOF_SIDES; do
+        if [ "$side" = head ]; then at=$PROOF_HEAD more=; else at=$PROOF_BASE more=--continue-on-collection-errors; fi
+        cd "$at" || exit
+        worst=0
+        said=
+        if [ -n "$PROOF_PYTEST" ]; then
+            workers=
+            if env -u VIRTUAL_ENV uv run python -c "import xdist" > /dev/null 2>&1; then workers="-n $PROOF_WORKERS --dist worksteal"; fi
+            env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider -m "not browser" $workers $more $PROOF_PYTEST > "$PROOF_BASE/.proof-$side" 2>&1
+            worst=$?
+            said=$(tail -n 1 "$PROOF_BASE/.proof-$side")
+        fi
+        for runner in vitest playwright; do
+            if [ "$runner" = vitest ]; then files=$PROOF_VITEST; else files=$PROOF_PLAYWRIGHT; fi
+            [ -n "$files" ] || continue
+            out=$PROOF_BASE/.proof-$side-$runner
+            : > "$out.json"
+            if [ ! -f package.json ]; then
+                # A repo's first pull request: its base has no project for the tests to run on.
+                if [ "$side" = base ]; then code=1; else code=2; fi
+                ran="$runner: no package.json at the $side, so its tests have nothing of the project to run on"
+            else
+                if [ "$runner" = vitest ]; then
+                    CI=1 ./node_modules/.bin/vitest run --reporter=default --reporter=json --outputFile.json="$out.json" $files > "$out" 2>&1
+                    code=$?
+                    report=$(jq -r '(.testResults | map(select(.status == "failed"))) as $f
+                        | ($f | map(select((.assertionResults // []) | length == 0)) | length) as $unloaded
+                        | [($f | length), "vitest: \(.numPassedTests) passed, \(.numFailedTests) failed"
+                            + (if $unloaded > 0 then ", \($unloaded) files did not load" else "" end)] | @tsv' "$out.json" 2> /dev/null)
+                else
+                    CI=1 PLAYWRIGHT_JSON_OUTPUT_NAME=$out.json ./node_modules/.bin/playwright test --reporter=list,json $files > "$out" 2>&1
+                    code=$?
+                    report=$(jq -r '(.errors | map(select(.location != null)) | length) as $unloaded
+                        | (.errors | map(select(.location == null)) | first | .message // "" | split("\n")[0]) as $error
+                        | [.stats.unexpected + $unloaded, "playwright: \(.stats.expected) passed, \(.stats.unexpected) failed"
+                            + (if $unloaded > 0 then ", \($unloaded) files did not load" else "" end)
+                            + (if $error != "" then ", \($error)" else "" end)] | @tsv' "$out.json" 2> /dev/null)
+                fi
+                if [ -z "$report" ]; then
+                    ran="$runner: $(tail -n 1 "$out")"
+                    failed=0
+                else
+                    failed=${report%%$'\t'*}
+                    ran=${report#*$'\t'}
+                fi
+                if [ "$code" != 0 ] && [ "$failed" -gt 0 ]; then
+                    code=1
+                elif [ "$code" = 1 ]; then
+                    code=2
+                fi
+            fi
+            [ "$code" -gt "$worst" ] && worst=$code
+            said="${said:+$said, }$ran"
+        done
+        echo "$side exit $worst: $said"
+    done
+}
+if [ "$1" = --sides ]; then
+    prove_sides
+    exit
+fi
 B=$1
 thread=$2
 T=$(dirname "$0")
 exempt='(^|/)(docs|\.github)/|(^|/)\.[^/]*$|\.(md|txt|rst|toml|json|yml|yaml|cfg|ini|lock)$'
 fork='^features/[^/]+/packaging/'
+py_test='(^|/)(test_[^/]*|[^/]*_test)\.py$'
+js_test='(^|/)[^/]*\.(test|spec)\.[cm]?[jt]sx?$'
+# The tests and what they lean on, laid over the base with them, as jbriefs.proved.TEST_FILE has
+# it: a file under a `tests/`, `test/`, `__tests__/` or `__snapshots__/` directory, each test and
+# each `conftest.py`.
+kept='(^|/)(tests?|__tests__|__snapshots__)/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$|'$js_test
+# Each copy installs what its tests run on: a venv where pytest runs them, and the node_modules
+# its lockfile gives where Vitest or Playwright does. A copy with no package.json installs none.
+install() {
+    local at=$1 side=$2
+    if [ -n "$pytests" ]; then (cd "$at" && env -u VIRTUAL_ENV uv sync -q); fi
+    if [ -z "$vitests$specs" ] || [ ! -f "$at/package.json" ]; then return 0; fi
+    if (
+        cd "$at" || exit
+        if [ -f pnpm-lock.yaml ]; then
+            pnpm install --frozen-lockfile
+        elif [ -f yarn.lock ]; then
+            yarn install --frozen-lockfile
+        elif [ -f bun.lock ] || [ -f bun.lockb ]; then
+            bun install --frozen-lockfile
+        elif [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund
+        else
+            npm install --no-audit --no-fund
+        fi
+    ) > "$tree/.install-$side" 2>&1; then
+        return 0
+    fi
+    echo "no proof: the $side's install failed: $(tail -n 1 "$tree/.install-$side")"
+    exit 1
+}
 # A Proved: line of a head the branch has left, or with work not committed, is no proof of the
 # branch as it is: a commit or an edit made while the call sat in the background ends the run
 # with no line, and exit 1. Each side ran on a copy of its commit, so a side kept in
@@ -126,7 +229,7 @@ if [ -n "$(git status --porcelain)" ]; then
     echo "no proof: commit the work first"
 elif ! base=$(git merge-base "$on" HEAD); then
     echo "no proof: the branch shares no commit with $on"
-elif ! tests=$(git diff --name-only --diff-filter=d "$base" HEAD | command grep -E '(^|/)(test_[^/]*|[^/]*_test)\.py$') &&
+elif ! tests=$(git diff --name-only --diff-filter=d "$base" HEAD | command grep -E "$py_test|$js_test") &&
     changed=$(git diff --name-only --no-renames "$base" HEAD) &&
     printf '%s\n' "$changed" | command grep -E "$fork" | command grep -qvE "$exempt" &&
     ! printf '%s\n' "$changed" | command grep -vE "$fork" | command grep -qvE "$exempt"; then
@@ -141,7 +244,14 @@ elif [ -z "$tests" ]; then
         echo "no test changed: the Result says Proved: none, <kind>, where every file it changes is of that kind${line:+ ($line)}"
     fi
 else
-    kept='(^|/)tests?/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$'
+    pytests=$(printf '%s\n' "$tests" | command grep -E "$py_test" | paste -sd ' ' -)
+    nodes=$(printf '%s\n' "$tests" | command grep -E "$js_test")
+    specs=
+    if git ls-tree --name-only "$head" | command grep -qE '^playwright\.config\.[cm]?[jt]s$'; then
+        specs=$(printf '%s\n' "$nodes" | command grep -E '\.spec\.[^/]*$' | paste -sd ' ' -)
+        nodes=$(printf '%s\n' "$nodes" | command grep -vE '\.spec\.[^/]*$')
+    fi
+    vitests=$(printf '%s\n' "$nodes" | paste -sd ' ' -)
     if ! tree=$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX"); then
         echo "no proof: no copy of the base could be made in ${TMPDIR:-/tmp}"
         exit 1
@@ -158,7 +268,7 @@ else
                 mkdir -p "$tree/$(dirname "$file")"
                 git show "$head:$file" > "$tree/$file"
             done
-        (cd "$tree" && env -u VIRTUAL_ENV uv sync -q)
+        install "$tree" base
     else
         only=1
         sides=head
@@ -188,7 +298,7 @@ else
         fi
         git clone -q --shared --no-checkout . "$tip"
         git -C "$tip" checkout -q --detach "$head"
-        (cd "$tip" && env -u VIRTUAL_ENV uv sync -q)
+        install "$tip" head
         ;;
     esac
     for lane in --short ''; do
@@ -201,16 +311,8 @@ else
             proof_workers=$(($(getconf _NPROCESSORS_ONLN 2> /dev/null || echo 8) / 4))
             [ "$proof_workers" -ge 2 ] || proof_workers=2
         fi
-        PROOF_WORKERS=$proof_workers PROOF_HEAD=$tip PROOF_BASE=$tree PROOF_SIDES=$owed PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot $lane --thread "$thread" -- bash -c '
-            for side in $PROOF_SIDES; do
-                if [ "$side" = head ]; then at=$PROOF_HEAD more=; else at=$PROOF_BASE more=--continue-on-collection-errors; fi
-                cd "$at" || exit
-                workers=
-                if env -u VIRTUAL_ENV uv run python -c "import xdist" > /dev/null 2>&1; then workers="-n $PROOF_WORKERS --dist worksteal"; fi
-                env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider -m "not browser" $workers $more $PROOF_TESTS > "$PROOF_BASE/.proof-$side" 2>&1
-                echo "$side exit $?: $(tail -n 1 "$PROOF_BASE/.proof-$side")"
-            done
-        ' | tee -a "$tree/.proof-said"
+        PROOF_WORKERS=$proof_workers PROOF_HEAD=$tip PROOF_BASE=$tree PROOF_SIDES=$owed PROOF_PYTEST=$pytests PROOF_VITEST=$vitests PROOF_PLAYWRIGHT=$specs \
+            uv run --project "$T/../source" jgauge test-slot $lane --thread "$thread" -- bash "$0" --sides | tee -a "$tree/.proof-said"
         ran=${PIPESTATUS[0]}
         left=
         for side in $owed; do

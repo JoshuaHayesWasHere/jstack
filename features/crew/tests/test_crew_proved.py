@@ -742,7 +742,7 @@ case $PWD in "$TMPDIR"/base.*) if [ -n "$BASE_ERROR" ]; then passed=0 failed=0; 
 if [ "$runner" = vitest ]; then
     status=passed
     [ "$failed" = 0 ] || status=failed
-    printf '{"numPassedTests": %s, "numFailedTests": %s, "testResults": [{"status": "%s"}]}\\n' \\
+    printf '{"numPassedTests": %s, "numFailedTests": %s, "testResults": [{"status": "%s", "assertionResults": [{}]}]}\\n' \\
         "$passed" "$failed" "$status" > "$report"
 else
     printf '{"stats": {"expected": %s, "unexpected": %s}, "errors": []}\\n' \\
