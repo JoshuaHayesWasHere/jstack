@@ -96,13 +96,17 @@ def test_each_carrier_is_a_variable_that_quotes_its_writer():
 
 
 def tlc(cfg: str) -> subprocess.CompletedProcess:
-    """TLC's run of MainFix.tla with the config `cfg`, in a copy of the spec's folder."""
+    """TLC's run of MainFix.tla with the config `cfg`, in a copy of the spec's folder. Java's tmpdir
+    is the run's own too: TLC writes Naturals.tla and the other standard modules there under fixed
+    names, and a run that shares /tmp can parse one while another rewrites it."""
     found = tools.find_tlc()
     with tempfile.TemporaryDirectory(prefix="mainfix-") as folder:
         work = Path(folder)
+        (work / "tmp").mkdir()
         shutil.copy(SPEC / "MainFix.tla", work)
         (work / "run.cfg").write_text(cfg)
-        command = [found.java, "-Xmx1g", "-XX:+UseParallelGC", "-cp", found.jar, "tlc2.TLC"]
+        command = [found.java, f"-Djava.io.tmpdir={work / 'tmp'}"]
+        command += ["-Xmx1g", "-XX:+UseParallelGC", "-cp", found.jar, "tlc2.TLC"]
         command += ["-workers", "1", "-metadir", str(work / "meta"), "-config", "run.cfg"]
         return subprocess.run(
             tools.in_test_slot([*command, "MainFix.tla"]),
