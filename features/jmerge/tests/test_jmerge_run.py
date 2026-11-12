@@ -112,7 +112,12 @@ def test_merge_off_still_merges_nothing(proven_merged, rules):
 
 
 def pull_request(
-    *files, head=merge.PUSHED, checks=(STARTED,), rollup=merge.rollup, required=ready.REQUIRED
+    *files,
+    head=merge.PUSHED,
+    checks=(STARTED,),
+    rollup=merge.rollup,
+    required=ready.REQUIRED,
+    mergeable="MERGEABLE",
 ):
     listed = {
         "number": 7,
@@ -120,7 +125,7 @@ def pull_request(
         "headRefName": "alpha",
         "headRefOid": head,
         "baseRefName": "main",
-        "mergeable": "MERGEABLE",
+        "mergeable": mergeable,
         "title": merge.TITLE,
         "statusCheckRollup": rollup(checks),
         "files": [merge.file(path) for path in files],
@@ -175,6 +180,22 @@ def test_it_waits_on_each_required_check_until_it_has_passed(checks, short):
     required = ready.required_of("check\nborders\n")
     one = pull_request("a.txt", checks=checks, rollup=list, required=required)
     assert ready.short_on_github(one) == short.format(head=one.head[:12])
+
+
+def test_a_conflict_with_no_run_at_its_head_is_said_as_the_conflict():
+    """GitHub runs no check on a pull request that conflicts with its base, so its required
+    check has no run at the head. #1694 at 0e0eb1b was CONFLICTING (DIRTY) with no run, and its
+    line said `check has no run`, which hid the conflict that held it."""
+    head = "0e0eb1b35b9cb71a2b9216b56871680c67395c27"
+    unrun = pull_request("a.txt", head=head, checks=())
+    conflicting = pull_request("a.txt", head=head, checks=(), mergeable="CONFLICTING")
+    assert ready.short_on_github(unrun) == "check has no run at 0e0eb1b35b9c"
+    assert ready.short_on_github(conflicting) == ready.CONFLICTS
+
+
+def test_the_row_of_a_conflict_with_no_run_says_it_conflicts(proven_merged, rules):
+    proven_merged.home.open_pull_request(proven_merged.head, checks=(), mergeable="CONFLICTING")
+    assert jmerge(proven_merged, rules) == [f"wait 7 {merge.URL}: {ready.CONFLICTS}"]
 
 
 def mac(conclusion, name="macos"):
