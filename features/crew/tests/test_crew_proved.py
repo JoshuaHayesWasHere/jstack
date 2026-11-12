@@ -949,3 +949,102 @@ def test_proved_sh_runs_or_lays_over_the_base_each_path_test_file_matches_and_no
     for path in (*TEST_FILES, *OTHER_FILES):
         assert bool(proved.TEST_FILE.search(path)) == (path in ran | over), path
     assert ran <= over
+
+
+SIM_TS = "export const add = (a: number, b: number) => a + b;\n"
+"""A package's own code, with no `times` yet."""
+ROOT_TS = SIM_TS + "export const times = (a: number, b: number) => a * b;\n"
+"""The root's own `src/calc.ts`, which has a `times` of its own."""
+EXPECTS_TIMES = "// expects: src/calc.ts times\nimport { times } from '@sim/calc';\n"
+"""A test of `times` through `@sim/calc`, an alias that the Vitest config of the directory it
+runs in resolves, as the stub runner reads `src/calc.ts` from that directory."""
+SIM_CONFIG = "export default { resolve: { alias: { '@sim': './src' } } };\n"
+
+
+def monorepo(repo):
+    """The repo made a Node monorepo at a new `origin/main`, as robotica would be with a package
+    split out: the root's own package and `src/calc.ts`, which has a `times`, and a package
+    `packages/sim` with its own package.json, lockfile, Vitest config and `src/calc.ts`, which
+    has none."""
+    stub = repo.parent / "stub"
+    (stub / "node-runner").write_text(NODE_RUNNER)
+    (stub / "npm").write_text(NPM)
+    (stub / "npm").chmod(0o755)
+    files = {
+        ".gitignore": "__pycache__/\nnode_modules/\n",
+        "package.json": '{"name": "robotica"}\n',
+        "package-lock.json": "{}\n",
+        "src/calc.ts": ROOT_TS,
+        "packages/sim/package.json": '{"name": "@robotica/sim"}\n',
+        "packages/sim/package-lock.json": "{}\n",
+        "packages/sim/vitest.config.ts": SIM_CONFIG,
+        "packages/sim/src/calc.ts": SIM_TS,
+    }
+    commit(repo, files)
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    return git(repo, "rev-parse", "HEAD")
+
+
+def test_a_package_s_test_runs_from_its_package_on_its_own_install(repo):
+    """A monorepo package has its own package.json, dependencies and Vitest config, and the block
+    ran its changed test from the repo's root on the root's install: there the test resolved the
+    root's setup, passed at the base without its change, and the `Proved:` line proved nothing.
+    Each changed test runs from the directory of the nearest package.json above it, on that
+    package's own install, so a test of a function the base lacks fails there."""
+    base = monorepo(repo)
+    test = "packages/sim/src/calc.test.ts"
+    head = commit(repo, {"packages/sim/src/calc.ts": ROOT_TS, test: EXPECTS_TIMES})
+    said, line = node_proof(repo)
+    assert "base exit 1: vitest packages/sim: 0 passed, 1 failed\n" in said
+    assert "head exit 0: vitest packages/sim: 1 passed, 0 failed\n" in said
+    assert line == proved.Proved((test,), 1, base, 0, head)
+    runs = node_runs(repo)
+    assert len(runs) == 2
+    assert all(re.search(r"/packages/sim: src/calc\.test\.ts$", run) for run in runs), runs
+    installs = (repo.parent / "npm-args").read_text().splitlines()
+    assert len(installs) == 2
+    assert all(one.startswith("npm ci in ") and one.endswith("/packages/sim") for one in installs)
+
+
+def test_a_workspace_package_installs_and_runs_from_the_workspace_s_lockfile_and_runner(repo):
+    """A package of an npm workspace has no lockfile of its own: its project installs from the
+    root's lockfile, which puts the runner in the root's `node_modules/.bin`, and the test still
+    runs from the package's directory, against the package's own code."""
+    monorepo(repo)
+    git(repo, "rm", "-q", "packages/sim/package-lock.json")
+    git(repo, "commit", "-q", "-m", "a workspace")
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    base = git(repo, "rev-parse", "HEAD")
+    test = "packages/sim/src/calc.test.ts"
+    head = commit(repo, {"packages/sim/src/calc.ts": ROOT_TS, test: EXPECTS_TIMES})
+    said, line = node_proof(repo)
+    assert "base exit 1: vitest packages/sim: 0 passed, 1 failed\n" in said
+    assert line == proved.Proved((test,), 1, base, 0, head)
+    installs = (repo.parent / "npm-args").read_text().splitlines()
+    assert len(installs) == 2
+    assert all(re.search(r"^npm ci in .*/(base|head)\.[^/]*$", one) for one in installs), installs
+    assert all(re.search(r"/packages/sim: src/calc\.test\.ts$", run) for run in node_runs(repo))
+
+
+def test_a_package_s_spec_runs_on_the_playwright_config_above_it(repo):
+    """A package's `*.spec.*` whose `playwright.config.*` is the root's, not its own package's,
+    runs on Playwright from the root, where that config's `testDir` reaches it."""
+    base = monorepo(repo)
+    spec = "packages/sim/e2e/calc.spec.ts"
+    expects = (
+        "// expects: packages/sim/src/calc.ts times\nimport { test } from '@playwright/test';\n"
+    )
+    head = commit(
+        repo,
+        {
+            "playwright.config.ts": PLAYWRIGHT_CONFIG,
+            "packages/sim/src/calc.ts": ROOT_TS,
+            spec: expects,
+        },
+    )
+    said, line = node_proof(repo)
+    assert "base exit 1: playwright: 0 passed, 1 failed" in said
+    assert line == proved.Proved((spec,), 1, base, 0, head)
+    runs = node_runs(repo)
+    assert [run.split(" in ")[0] for run in runs] == ["playwright CI=1", "playwright CI=1"]
+    assert all(run.endswith(f": {spec}") for run in runs)
