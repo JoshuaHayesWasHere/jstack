@@ -28,18 +28,18 @@ Each process writes only its own entry, under the file's lock, and jbus forgets 
 - `"today"`: the code as it is, with two faults (`TestSlot.cfg`).
 - `"none"`: the mode that passes, where each fault is closed.
 - `"spare-outside-lock"`, `"no-ledger-lock"`: canaries, each one of today's faults put back into the mode that passes.
-- `"forget-unended"`, `"orphan-command"`: canaries, each one that puts back a fault the code has closed.
+- `"forget-unended"`, `"orphan-command"`, `"pid-alone"`: canaries, each one that puts back a fault the code has closed.
 
 | Fault | Today | The mode that passes | Rule it breaks |
 |---|---|---|---|
 | `spare-outside-lock` | `slotwait.wake` reads the waiters, counts `spare` with no lock, sends the wake, and only then records `woken` | count and record the wake under one hold of the waiters lock, before the send, as `_claim` counts and takes | `WokenGetsSlot` |
 | `forget-unended` | closed: a holder records `keeper`, the pid of its `jgauge test-slot`, and `holders.running` counts a run with no `ended` as running while its command or its `jgauge test-slot` lives, so `wake_ended` keeps it until the end is written | forget such a run only once its `jgauge test-slot` is gone too | `EndNotLost` |
 | `orphan-command` | closed: a killed `jgauge test-slot` takes its command with it, since a watchdog, `jgauge.children`, kills the command and what it started once the holder's pipe ends | the command ends with its holder | `OneCommandPerSlot` |
+| `pid-alone` | closed: `holders.running` counts a run as running only while its pid has the start time the run recorded, from `/proc/<pid>/stat` | a pid another process took reads as gone | `NoLostHolder` |
 | `no-ledger-lock` | each writer reads the ledger, merges its record, and renames the file into place, with no lock | read, merge and write under one lock | `LedgerNoLostUpdate` |
 
 `PidReuse` lets another process take a dead command's pid.
-`holders.running` checks only that some process has the pid, so with `PidReuse = TRUE`, `NoLostHolder` breaks in every mode.
-`TestSlot.cfg` keeps it `FALSE` and names it as a gap that is not closed.
+`TestSlot.cfg` sets it `TRUE`: `holders.running` checks the pid's start time, so `NoLostHolder` holds, and the canary `pid-alone` breaks it.
 `Mortal` names the processes that can be killed, and `TestSlot.cfg` has every one.
 `Chart` is for the chart's config alone (below).
 
@@ -77,7 +77,7 @@ It is the shortest trace of today's two faults, and the `.cfg` keeps it:
 
 A cap that the hook or jbus wrote can be undone by `jgauge limits` that read the file before it, or the other way round, until the next reading writes it again.
 
-The other fault, and the two the code has closed, break their rules in the canaries.
+The other fault, and the three the code has closed, break their rules in the canaries.
 `test_test_slot_spec.py` runs each canary and asserts the rule it breaks:
 
 - `spare-outside-lock`, `WokenGetsSlot`: a crew registers and ends its turn.
@@ -92,9 +92,9 @@ The other fault, and the two the code has closed, break their rules in the canar
   jbus's loop makes T3 Code calls for the other holders between its read and its `running` check, which widens it.
 - `orphan-command`, `OneCommandPerSlot`: `jgauge test-slot` is killed with SIGKILL, and its command runs on with the slot free.
   The next call starts a second command in the same slot, and its `_temporary` empties the directory the first command still uses.
-  Today's code holds `OneCommandPerSlot` over all 831,692 distinct states of its mode, and the test checks it in the short lane's room alone.
+  Today's code holds `OneCommandPerSlot` over all TODAYCOUNT distinct states of its mode, and the test checks it in the short lane's room alone.
 
-`Fault = "none"` holds every rule over 614,686 distinct states: 607,211 in the full lane's room, 4,938 in the short lane's, 1,690 in the ledger's and 847 in the pool's.
+`Fault = "none"` holds every rule over 672,971 distinct states: 664,208 in the full lane's room, 6,226 in the short lane's, 1,690 in the ledger's and 847 in the pool's.
 
 The mode that passes has a cost of its own.
 A wake recorded before its send claims the slot for `HOLDS` even when the send fails.
@@ -114,7 +114,7 @@ W=$(mktemp -d) && cp features/jgauge/spec/TestSlot.tla features/jgauge/spec/Test
 
 Run it from the repo root.
 Then copy the files of `$W/TestSlot-statechart` into `TestSlot-statechart/`, all except `tlc/`.
-`TestSlot.cfg` has 614,686 states in the mode that passes and 831,692 in today's mode, more than the chart's state graph can hold.
+`TestSlot.cfg` has 672,971 states in the mode that passes and TODAYCOUNT in today's mode, more than the chart's state graph can hold.
 So the chart is drawn from `TestSlot.chart.cfg`: today's code, where only the short lane's crew can be killed, and the full room keeps no holders file (`Chart = TRUE`), which the short room draws.
 That is 101,086 model states, and it draws one numbered path for each of the two bugs.
 `TestSlot.map.py` labels each state by what the machine's files say, and names each join of values in its header.

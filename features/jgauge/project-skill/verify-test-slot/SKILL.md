@@ -19,8 +19,8 @@ The rules, each with its harm, and today's verdict:
   Broken, a crew jbus woke finds its slot taken and registers again.
 - **`EndNotLost`** (holds since #1794, canary `forget-unended`): a run whose `jgauge test-slot` lives to its end has that end on file for jbus to tell.
 - **`OneCommandPerSlot`** (holds since #1719, canary `orphan-command`): a slot runs one command at a time.
-- **`NoLostHolder`** (holds with `PidReuse = FALSE`): every holder ends, or its pid is dead.
-  With `PidReuse = TRUE` it breaks in every mode, a gap the model names and does not close.
+- **`NoLostHolder`** (holds with `PidReuse = TRUE`, canary `pid-alone`): every holder ends, or its pid is dead.
+  `holders.running` checks that the pid still has the start time its run recorded, so a pid another process took reads as gone.
 - **`LogMatchesFlock`** (holds): a run past its take row has that take in the log and no release.
 - **`PoolNoLostWait`** (holds): a pool wait leaves the file only once jbus told its thread, or by its own thread's call.
 
@@ -68,8 +68,8 @@ uv run pytest features/jgauge/tests/test_test_slot_spec.py -q
 It finds each quote of the spec once in its file, checks that each ledger row (D-048 to D-074) is a VARIABLE that cites its writer, and runs TLC on today's mode, the mode that passes and each canary, in under a minute; the TLC tests skip where no Java runs TLC.
 The bare TLC command, the table of faults and the trace are in `features/jgauge/spec/README.md`, "Check the rules"; run TLC in a copy of the folder, since it writes `states/` where it runs.
 
-- **Bounds:** one full slot, one short slot, one crew thread waiting on the full lane; `TestSlot.cfg` (`Fault = "today"`, `PidReuse = FALSE`, every process `Mortal`) stops at `LedgerNoLostUpdate` after 186 distinct states on one worker; `Fault = "none"` holds every rule over 614,686 distinct states; today's mode holds `OneCommandPerSlot` and `EndNotLost` over 831,692.
-- **The faults:** `spare-outside-lock` breaks `WokenGetsSlot` and `no-ledger-lock` breaks `LedgerNoLostUpdate`; `forget-unended`, which breaks `EndNotLost`, and `orphan-command`, which breaks `OneCommandPerSlot`, are faults the code has closed.
+- **Bounds:** one full slot, one short slot, one crew thread waiting on the full lane; `TestSlot.cfg` (`Fault = "today"`, `PidReuse = TRUE`, every process `Mortal`) stops at `LedgerNoLostUpdate` after 186 distinct states on one worker; `Fault = "none"` holds every rule over 672,971 distinct states; today's mode holds `OneCommandPerSlot` and `EndNotLost` over 932,880.
+- **The faults:** `spare-outside-lock` breaks `WokenGetsSlot` and `no-ledger-lock` breaks `LedgerNoLostUpdate`; `forget-unended`, which breaks `EndNotLost`, `orphan-command`, which breaks `OneCommandPerSlot`, and `pid-alone`, which breaks `NoLostHolder`, are faults the code has closed.
 - **Assumptions:** the rest is in the README's "What the model leaves out": no `free()` probe outside the waiters lock but jbus's own, one jgauge slot count, no order of the short lane for a call with no thread, no crash between `Popen` and `holders.hold`, no `dead` checks in jbus, and a ledger merge joined into "each merged record stays".
 
 ## A real bug or a modeling error

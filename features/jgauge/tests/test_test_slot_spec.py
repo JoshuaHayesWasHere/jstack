@@ -81,7 +81,6 @@ def test_each_carrier_is_a_variable_that_cites_its_writer():
 def tlc(
     fault: str,
     rules: list[str] | None = None,
-    pid_reuse: bool = False,
     room: str = "",
     workers: str = "",
 ) -> tuple[int, str]:
@@ -93,10 +92,8 @@ def tlc(
     under fixed names, and a run that shares it can read one while another rewrites it."""
     found = tools.find_tlc()
     cfg = (SPEC / "TestSlot.cfg").read_text()
-    assert 'Fault = "today"' in cfg and "PidReuse = FALSE" in cfg
+    assert 'Fault = "today"' in cfg and "PidReuse = TRUE" in cfg
     cfg = cfg.replace('Fault = "today"', f'Fault = "{fault}"')
-    if pid_reuse:
-        cfg = cfg.replace("PidReuse = FALSE", "PidReuse = TRUE")
     if room:
         cfg = re.sub(r"Rooms = \{.*\}", f'Rooms = {{"{room}"}}', cfg)
     if rules is not None:
@@ -122,7 +119,7 @@ def tlc(
 
 JAVA = pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
 TLC = pytest.mark.timeout(600)
-"""A TLC run comes near the 120 s bound on CI: the mode that passes, 614,686 states, took 86 s."""
+"""A TLC run comes near the 120 s bound on CI: the mode that passes took 86 s at 614,686 states."""
 
 
 @JAVA
@@ -154,11 +151,14 @@ def test_the_mode_that_passes_holds_every_rule():
         ("forget-unended", "EndNotLost"),
         ("orphan-command", "OneCommandPerSlot"),
         ("no-ledger-lock", "LedgerNoLostUpdate"),
+        ("pid-alone", "NoLostHolder"),
     ],
 )
 def test_each_of_today_s_faults_breaks_its_rule(fault, rule):
-    """A canary: one of today's faults, put back into the mode that passes, breaks its rule, so
-    the rule does not hold by construction."""
+    """A canary: one of today's faults, or one the code has closed, put back into the mode that
+    passes, breaks its rule, so the rule does not hold by construction. `pid-alone` is
+    `holders.running` as it was, asking only whether some process has the pid: once another
+    process takes a dead command's pid, a reader counts the holder as running."""
     code, out = tlc(fault, [rule])
     assert code != 0
     assert f"Invariant {rule} is violated" in out, out[-4000:]
@@ -170,7 +170,7 @@ def test_each_of_today_s_faults_breaks_its_rule(fault, rule):
 def test_a_killed_test_slot_takes_its_command_with_it_today(fault, code):
     """Today's code holds OneCommandPerSlot where a killed `jgauge test-slot` leaves the slot
     free, and the canary that lets its command live on breaks it there. The short lane's room
-    alone, since the whole of today's mode is 831,692 states."""
+    alone, since the whole of today's mode is COUNT states."""
     ended, out = tlc(fault, ["OneCommandPerSlot"], room="short")
     assert ended == code, out[-4000:]
     assert ("Invariant OneCommandPerSlot is violated" in out) == bool(code), out[-4000:]
@@ -187,12 +187,3 @@ def test_a_run_s_end_is_kept_for_jbus_to_tell_today(fault, code):
     assert ended == code, out[-4000:]
     assert ("Invariant EndNotLost is violated" in out) == bool(code), out[-4000:]
 
-
-@JAVA
-@TLC
-def test_a_dead_holder_whose_pid_is_taken_reads_as_running():
-    """`holders.running` asks only whether some process has the pid: once another process takes
-    a dead command's pid, a reader counts the holder as running, and NoLostHolder breaks."""
-    code, out = tlc("none", ["NoLostHolder"], pid_reuse=True)
-    assert code != 0
-    assert "Invariant NoLostHolder is violated" in out, out[-4000:]
