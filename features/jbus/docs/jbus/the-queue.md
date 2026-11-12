@@ -219,7 +219,7 @@ A pull request that no row names is judged as any other.
 
 ### A check that failed twice
 
-jbus holds a row itself when its pull request fails a required check at two heads (`jbus.stall.twice`).
+jbus holds a row itself when its pull request fails a required check at a third head, or at a second whose failed jobs' logs name no failed test (`jbus.stall.twice`).
 Each head counts once, and a required check is one the home's `required-checks` names.
 A head that is only a merge of main into the head jbus saw before it, a merge commit whose first parent is that head and whose second is on the main its check ran on, as `git merge main` and GitHub's update-branch make, is not counted when it fails something that head did not.
 A failure there is a failed test's id, or a lint rule and the path it names, such as `a-cap-on-size-only-shrinks` on `work.py`.
@@ -235,9 +235,11 @@ Each sign is searched in the own part of the log of the step that failed the job
 A passed step's retried download is no sign, and neither is a lint line that quotes the words in prose.
 Nor is a 503 of a step that runs with `continue-on-error: true`, such as check.yml's `failed on main`: it fails first, the job goes on, and a later step, such as `no AI co-author trailer`, fails the job on the row's own work.
 jbus asks GitHub for a job's failed step once, and keeps it with the job.
-At the second head jbus runs the same `hold` as `jbus queue hold <slug>`, keeping the go it takes, and pages the Chef once, with the gate `condition <slug>: check failed twice`, whose text names the row, the pull request, both heads and the failed jobs at each.
+At a second counted head whose failed jobs' logs name failed tests, jbus holds nothing and pages nobody: the crewmate's message of that head's failed check names those tests and both heads, and says that a third failed head holds the row and pages you (#1691, 2026-11-11: both its failed heads failed on one test of the change's own, and the row waited 22 minutes for an approve that carried no decision).
+GitHub's merge of main onto a head, red on the failure its crewmate was told of, is still not told again.
+At the third head, or at the second where the logs name no failed test, jbus runs the same `hold` as `jbus queue hold <slug>`, keeping the go it takes, and pages the Chef once, with the gate `condition <slug>: check failed twice`, whose text names the row, the pull request, each counted head and the failed jobs at each.
 The row's `why` says `check failed twice` while it is held.
-A held row's crewmate gets no rebase and no fix message from jbus, at the second head or a third, any held row alike (`jbus.outbox.FIXES`); your answers, its review's findings and its wakes still reach it.
+A held row's crewmate gets no rebase and no fix message from jbus, at the head that held it or a later one, any held row alike (`jbus.outbox.FIXES`); your answers, its review's findings and its wakes still reach it.
 jbus lifts the hold itself in the pass that sees every required check passed at the pull request's head: the row gets back the go the hold took, with no approve from anyone.
 It does so only where the row's brief is still the one that go was for, by its sha, and the hold is still its own: a row held again since, by anyone, or whose brief changed since, stays held.
 Such a row is lifted as any hold is, with `jbus queue approve`.

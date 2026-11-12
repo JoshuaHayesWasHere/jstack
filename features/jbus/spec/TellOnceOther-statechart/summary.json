@@ -82,7 +82,7 @@
     "command": "statechart from-spec TellOnce.tla --config TellOnceOther.chart.cfg --title 'Does jbus act twice, or drop an act, outside a thread when a pass dies?'",
     "inputs": {
       "TellOnce.map.py": "31d8587344a6030e5b45073d5e839eeabd2e38ae7cb8229d0d14ca3bf8a4b4be",
-      "TellOnce.tla": "7f9636b9b51fd35f763a9bc3bb646d303ec905cad479c4bea8a63b24aa75e253",
+      "TellOnce.tla": "e04553a015c5c12f600ddcbdfebb7ec9526a2f0f111e1a975afe0e852d6fce78",
       "TellOnceOther.chart.cfg": "ae7f5a60b8ec225befeaeb452bad6e9336fe69f524fc4b04daf10261e5db39cf"
     },
     "chart": "2e466a0a8058e069854b03b3edbba4a827639875fd0fd179b838539a0020dfca"

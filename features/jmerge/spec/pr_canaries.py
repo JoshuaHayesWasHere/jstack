@@ -39,7 +39,7 @@ CANARIES = {
     "rejudge": "a check that failed is judged again as if it passed (Repo.judge, red_only)",
     "again": "GitHub merges a moved main into a pull request whose check failed (Repo.again)",
     "batch-failed": "a member of a failed batch of one goes alone at its head (Batching.takes)",
-    "twice": "a row whose check failed at two heads is held for you (jbus.stall.twice)",
+    "twice": "a row whose check failed at its limit of heads is held for you (jbus.stall.twice)",
 }
 
 

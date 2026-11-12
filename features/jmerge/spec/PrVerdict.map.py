@@ -26,8 +26,8 @@ FIXES = {"check-failed", "conflicts", "merged-tree-fails"}
 
 
 HELD = "held: its check failed twice"
-"""A row jbus held at two failed heads, whatever jmerge last said of it: only your approve or a
-head whose check passes lifts it."""
+"""A row jbus held at its limit of failed heads, whatever jmerge last said of it: only your approve
+or a head whose check passes lifts it."""
 
 
 def _held(v):
@@ -105,7 +105,7 @@ STEPS = {
     "OtherMerges": "the one ahead in line merges",
     "Release": "the one ahead waits on its crew or user, and gives up the line",
     "Review": "its reviewer's round holds",
-    "Twice": "jbus holds its row: its check failed at two heads",
+    "Twice": "jbus holds its row: its check failed at three heads, or two that name no test",
 }
 
 

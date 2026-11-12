@@ -126,14 +126,15 @@ def test_a_question_keeps_pr_on_a_row_whose_pull_request_is_open(pull):
 
 
 def test_a_question_keeps_pr_and_leads_the_why_and_the_user_sees_it_once(launched):
-    """The pass that holds a row whose check failed at two heads asks of it (`stall.twice`), with
-    its pull request open. The row stays `pr`, its why says the question and then what jmerge says,
-    and the user's list has one item for it: jmerge's hold of its pull request."""
+    """The pass that holds a row whose check failed at two heads that name no test asks of it
+    (`stall.twice`), with its pull request open. The row stays `pr`, its why says the question and
+    then what jmerge says, and the user's list has one item for it: jmerge's hold of its pull
+    request."""
     held = f"hold 7 https://example.test/pull/7: {ready.NO_GO}"
     launched.set("jmerge.txt", held + "\n")
-    red_at(launched, A, "11")
+    red_at(launched, A, "11", named=False)
     polls(launched, 0)
-    red_at(launched, B, "12")
+    red_at(launched, B, "12", named=False)
     polls(launched, 3)
     row = rows(launched)["alpha"]
     assert (row["status"], row["held"]) == ("pr", True)

@@ -48,19 +48,25 @@ GitHub's update-branch make one, is kept apart too, under `moved`, and counted f
 fails something that head did not (`failures`: a failed test's id, or a lint rule and its path):
 main moved under it, as when two diffs that each pass a size cap cross it together, and a held crew
 would get no fix message to mend it (#1720, 2026-11-11). Its crew is told to fix it as at any first
-failure. At the second counted head, a push or a merge of main that failed nothing new, `twice`
-holds the row (`jbus queue hold`), keeping the go the hold takes, and pages the Chef once, a gate
-`check failed twice` that names the row, the pull request, both heads and the failed jobs at each.
-The page's key goes into `fails.json` (`paging`) before the hold, and `held_at` after the page, so a
-pass that dies between the hold and the page leaves the page owed: the next pass pages under the
-same key, which the log takes once (`_page`). The outbox then sends the crew of a held row no rebase
-and no fix message (`outbox.FIXES`), so none goes out at a third head. The row's `why` says `check
-failed twice` while it is held. In the pass that sees every required check passed at the head,
-`twice` lifts its own hold and puts back the go it took (`lifted`, `queue.lift`), where the row's
-brief is still the one that go was for; a row held again since, by anyone, or whose brief changed
-since, stays held until an approve. Either way the count starts again from none. A counted head, of
-a held row or not, whose every required check then passes at that same head, as on a rerun, leaves
-the count: its red was not the row's to keep (#1708, 2026-11-11).
+failure. A counted head keeps the failed tests its failed jobs' logs name (`named`). At the second
+counted head, a push or a merge of main that failed nothing new, whose logs name failed tests, the
+red is one the crew can mend by name: `twice` holds nothing and pages nobody, and keeps the head as
+`told` in `fails.json`, from which `jbus.rebase.github` words the crew's one message of that head's
+failed check, naming the tests and both heads (#1691, 2026-11-11: both its failed heads failed on
+one test of the change's own, and the row waited 22 minutes for an approve that carried no
+decision). At the third counted head (`LIMIT`), or at the second where its logs name no failed test,
+`twice` holds the row (`jbus queue hold`), keeping the go the hold takes, and pages the Chef once, a
+gate `check failed twice` that names the row, the pull request, each counted head and the failed
+jobs at each. The page's key goes into `fails.json` (`paging`) before the hold, and `held_at` after
+the page, so a pass that dies between the hold and the page leaves the page owed: the next pass
+pages under the same key, which the log takes once (`_page`). The outbox then sends the crew of a
+held row no rebase and no fix message (`outbox.FIXES`), so none goes out at a later head. The row's
+`why` says `check failed twice` while it is held. In the pass that sees every required check passed
+at the head, `twice` lifts its own hold and puts back the go it took (`lifted`, `queue.lift`), where
+the row's brief is still the one that go was for; a row held again since, by anyone, or whose brief
+changed since, stays held until an approve. Either way the count starts again from none. A counted
+head, of a held row or not, whose every required check then passes at that same head, as on a rerun,
+leaves the count: its red was not the row's to keep (#1708, 2026-11-11).
 
 `hung` also keeps `stalls.jsonl`, how long each running row's thread was quiet or hung (`spells`):
 the stall minutes the telemetry store reads (`jbus.telemetry.views.weekly_stall`).
@@ -95,7 +101,7 @@ from jbus.passes import Changed, Depends, Pass
 from jbus.record import PASSES as PASS_LOG
 from jbus.t3 import Client
 from jbus.wake import notify
-from jbus.watch import FAILS, TWICE, World, at_work, task_brief
+from jbus.watch import FAILS, TOLD, TWICE, World, at_work, task_brief
 from jmerge import judgement, ready
 from jmerge.lines import READY
 from jsettings import store
@@ -410,9 +416,23 @@ def _keep(run: Pass, line: dict[str, Any], file: str = HUNG) -> bool:
     return True
 
 
-def _failure(red: rebase.Red, names: list[str]) -> dict[str, Any]:
-    """Return what `fails.json` keeps of a failed head: when, the failed checks and their jobs."""
-    return {"checks": names, "jobs": [f"{repo} job {job}" for repo, job in red.jobs]}
+LIMIT = 3
+"""The counted failed head at which `twice` holds the row, where an earlier one does not."""
+COUNTS = {2: "two", 3: "three"}
+
+
+def _failure(red: rebase.Red, names: list[str], tests: list[str]) -> dict[str, Any]:
+    """Return what `fails.json` keeps of a failed head: the failed checks, their jobs and the
+    failed tests their logs name."""
+    jobs = [f"{repo} job {job}" for repo, job in red.jobs]
+    return {"checks": names, "jobs": jobs, "tests": tests}
+
+
+def holds(heads: dict[str, dict[str, Any]]) -> bool:
+    """Say whether the row's counted failed heads hold it: at the `LIMIT`-th, or at the second
+    where its logs name no failed test, which leaves its crew nothing to mend by name."""
+    counted = list(heads.values())
+    return len(counted) >= LIMIT or (len(counted) == 2 and not counted[-1].get("tests"))
 
 
 def lifted(
@@ -448,7 +468,9 @@ def _said(head: str, one: dict[str, Any]) -> str:
 
 def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
     """Count, for each row's open pull request, the heads at which a required check failed, and
-    hold the row and page the Chef once at the second (`TWICE`). A head whose check ran on a red
+    hold the row and page the Chef once where they hold it (`holds`, `TWICE`): at the third, or at
+    the second where its logs name no failed test. A second head whose logs name failed tests is
+    kept as `told`, the head whose message tells the crew of them. A head whose check ran on a red
     main is not counted, nor one whose failed tests are each a flake of two other branches, nor
     one that failed only at an infra step (`infra`), nor a merge of main that brought a new
     failure (`merge_of_main`). A held row is counted no further; its own hold is lifted once
@@ -532,8 +554,15 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
                 "under it, not counted"
             )
             continue
-        heads[head] = {"at": run.now.isoformat(), **_failure(found, names)}
-        if len(heads) < 2:
+        tests = redhead.named(run, found)
+        heads[head] = {"at": run.now.isoformat(), **_failure(found, names, tests)}
+        if not holds(heads):
+            if len(heads) > 1:
+                kept[slug][TOLD] = head
+                run.say(
+                    f"failed {slug}: #{pull['number']} at {head[:12]}, its second failed head, "
+                    f"failed on {', '.join(heads[head]['tests'])}: crew told, a third holds"
+                )
             continue
         kept[slug][PAGING] = f"{TWICE} {' '.join(failed[:12] for failed in heads)}"
         write_json(path, {**was, **kept})
@@ -557,9 +586,10 @@ def _page(run: Pass, slug: str, row: queue.Row, pull: dict[str, Any], one: dict[
             run.say(f"wait {slug}: {TWICE}, and it could not be held ({error})")
             return
     number, url = pull["number"], pull.get("url", "")
+    count = COUNTS.get(len(heads), len(heads))
     at = "; ".join(_said(failed, heads[failed]) for failed in heads)
     text = (
-        f"#{number} {url} of {slug} failed a required check at two heads: {at}. jbus {said}, "
+        f"#{number} {url} of {slug} failed a required check at {count} heads: {at}. jbus {said}, "
         "and sends its crew no rebase and no fix until every required check passes at a head, "
         "which gives the row back its go, or the row is approved again."
     )
