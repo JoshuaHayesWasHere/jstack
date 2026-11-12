@@ -107,10 +107,12 @@ def test_a_scoped_home_is_archived_in_its_own_directory_and_its_scope_closed(hom
         [
             kept,
             before_note,
+            f"{SCOPE}/blockers.lock",
             f"{SCOPE}/handoff.md",
             f"{SCOPE}/home-id",
             f"{SCOPE}/plan.md",
             f"{SCOPE}/plan-archived.md",
+            "uncategorized/blockers.lock",
         ]
     )
     assert (homes.home_dir / before_note).read_bytes() == last
