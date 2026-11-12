@@ -1,64 +1,54 @@
 {
   "view": "customer",
-  "modelStates": 396,
-  "modelTransitions": 1478,
-  "chartStates": 64,
-  "chartTransitions": 103,
-  "allTransitions": 147,
+  "modelStates": 191,
+  "modelTransitions": 639,
+  "chartStates": 32,
+  "chartTransitions": 50,
+  "allTransitions": 67,
   "final": [
-    "no run out, a run died and nobody is told",
-    "no run out, a run's lines are lost, the pass said a run left no record, though it did",
-    "no run out, the pass said a run left no record, though it did"
+    "no run out, a run was said to have left no record",
+    "no run out, a run's lines are lost",
+    "no run out, every record written was sent"
   ],
   "chartStatus": {
-    "works": 33,
+    "works": 27,
     "fixed": 0,
-    "wrong": 31
+    "wrong": 5
   },
   "chartGroups": [
     {
       "name": "Lines heard, no run out",
       "color": "#d1f2eb",
-      "states": 9
+      "states": 7
     },
     {
       "name": "Lines heard, a run is out",
       "color": "#a3e4d7",
-      "states": 9
+      "states": 6
     },
     {
       "name": "Lines on their way",
       "color": "#eaf2f8",
-      "states": 12
-    },
-    {
-      "name": "Told wrong, no run out",
-      "color": "#fdebd0",
-      "states": 9
-    },
-    {
-      "name": "Told wrong, a run is out",
-      "color": "#f8c471",
-      "states": 9
+      "states": 11
     },
     {
       "name": "Lines lost",
       "color": "#fadbd8",
-      "states": 13
+      "states": 5
     }
   ],
   "mixedGroups": [],
   "regions": {
     "drawn": true,
     "states": [
-      3,
-      61
+      4,
+      28
     ],
-    "transitions": 103,
-    "all": 147,
+    "transitions": 50,
+    "all": 67,
     "flat": {
-      "states": 73,
-      "transitions": 165
+      "states": 34,
+      "transitions": 76
     }
   },
   "classes": [
@@ -70,29 +60,7 @@
       "cause": "the pass marked a record read and died before it sent its lines, so what jmerge said of those pull requests never reaches anyone",
       "readerSteps": 5,
       "modelSteps": 10,
-      "counterexamples": 14,
-      "fix": null
-    },
-    {
-      "n": 2,
-      "end": "Between passes: no run out; a run died and nobody is told",
-      "invariant": "DeathTold",
-      "rule": "A run that died before it wrote its record is told, or its stamp still stands to be told.",
-      "cause": "a run died before it wrote its record, and its stamp went before any pass said so",
-      "readerSteps": 6,
-      "modelSteps": 9,
-      "counterexamples": 21,
-      "fix": null
-    },
-    {
-      "n": 3,
-      "end": "Between passes: a run is out; the pass said a run left no record, though it did, a record waits for the next pass",
-      "invariant": "NoFalseNoRecord",
-      "rule": "The pass says a run ended with no record only of a run that wrote none.",
-      "cause": "the pass says a run ended with no record while that run wrote one, or is still starting",
-      "readerSteps": 6,
-      "modelSteps": 12,
-      "counterexamples": 12,
+      "counterexamples": 6,
       "fix": null
     }
   ],
@@ -100,10 +68,10 @@
   "drawnFrom": {
     "command": "statechart from-spec MergeRun.tla --config MergeRun.chart.cfg --title 'jbus'\"'\"'s pass starts a run of jmerge: does what it said reach you?' --png",
     "inputs": {
-      "MergeRun.chart.cfg": "2df6d16681ea7e46dbb822ad57591e8a70d010ea5a58b4beb8aeea3d048ea7fa",
-      "MergeRun.map.py": "ccb90fca039a3a99b4067506d4acfd59ca0123db756996edab0ca4121c4c2974",
-      "MergeRun.tla": "e415f32d5635e1a234c8a7d2bace22e2e8ea52b8218c5d8bfc991afdc3cc4fa1"
+      "MergeRun.chart.cfg": "1efbb7086e6d552d866afc77f12fa38e519682f33a4584bbc5d333d01c24126b",
+      "MergeRun.map.py": "4b3998c92e55eec0c5f07a6ec28c70b3b21f506feba8357de19cccd6fd31eb08",
+      "MergeRun.tla": "29357cbfaf2c85c93329b68e614755d98121157e7328ad8dfe24c280a4fe39f0"
     },
-    "chart": "b21188cfcd78793dedb8b27fbbf63446a4636eb4f97b25ee71d19c2227142253"
+    "chart": "6b34249ff309c0ff6e99a3fbaa291749132964e89b7074f3fdba7505450d17dc"
   }
 }

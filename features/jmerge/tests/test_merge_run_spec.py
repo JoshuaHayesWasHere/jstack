@@ -132,8 +132,10 @@ def test_tlc_gives_each_config_the_verdict_its_comment_keeps(cfg):
 RULES = [
     ("MergeRun.cfg", {}, "RunHeard", False),
     ("MergeRun.cfg", {}, "StreakOnce", True),
-    ("MergeRun.cfg", {}, "NoFalseNoRecord", False),
-    ("MergeRun.cfg", {}, "DeathTold", False),
+    ("MergeRun.cfg", {}, "NoFalseNoRecord", True),
+    ("MergeRun.cfg", {}, "DeathTold", True),
+    ("MergeRun.cfg", {"Fault": '"unlink-first"'}, "NoFalseNoRecord", False),
+    ("MergeRun.cfg", {"Fault": '"unlink-first"'}, "DeathTold", False),
     ("MergeRun.cfg", {}, "OneRunAtATime", True),
     ("MergeRun.cfg", {"Fault": '"judge-first"'}, "RunHeard", True),
     ("MergeRun.cfg", {"Fault": '"judge-first"'}, "StreakOnce", False),
