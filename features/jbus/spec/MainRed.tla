@@ -1,5 +1,5 @@
 ---- MODULE MainRed ----
-\* How jbus notices a red main, judges it and gets it fixed, as the code of main 21112eba8 does it:
+\* How jbus notices a red main, judges it and gets it fixed, as the code does it (read at 228c1436c):
 \* main's push run fails, jbus reruns it once, the rerun fails, `mainmoved.tell` writes the red tip
 \* into main.json, `watch.retro` hands main's tip to `culprits.judge`, which reverts its one clear
 \* culprit or files main's fix row, and a later merge turns main green, after which `reverts.close`
@@ -235,6 +235,10 @@ MacVerdict(green, red) ==
     IF red = 0 THEN "quiet"
     \* jbus/reverts.py `lean(run, [sha for sha, _ in since], MAC)`
     ELSE IF \E k \in DOMAIN reverts : k \in since THEN "lean"
+    \* A commit of the range whose Mac run has not ended: quiet while the red is young, its row once
+    \* older (jbus/reverts.py `if any(check == "pending" for _, check in red.since):`). The model
+    \* has no clock and keeps no Mac row, so it is quiet here, and either leaves reverts as they are.
+    ELSE IF \E i \in since : mac[i] = "pending" THEN "quiet"
     \* jbus/reverts.py `if len(red.since) > 1 and (not red.under or any(check != "failed" for _, check in red.since)):`
     ELSE IF \E i \in since : mac[i] # "failed" THEN "file"
     ELSE IF by[oldest] \notin Rows THEN "file"
