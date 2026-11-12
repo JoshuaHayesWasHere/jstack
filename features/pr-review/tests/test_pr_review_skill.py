@@ -723,12 +723,8 @@ def test_a_proof_with_every_short_slot_taken_registers_nothing_and_ends_76(proof
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         held.append(fd)
     try:
-        printed, code = proof.ends(
-            "echo the fact holds\n",
-            HOME=str(home),
-            JGAUGE_LOCKS_DIR=str(locks),
-            JGAUGE_SHORT_WAIT_SECONDS="0",
-        )
+        locked = {"JGAUGE_LOCKS_DIR": str(locks), "JGAUGE_SHORT_WAIT_SECONDS": "0"}
+        printed, code = proof.ends("echo the fact holds\n", HOME=str(home), **locked)
     finally:
         for fd in held:
             os.close(fd)
