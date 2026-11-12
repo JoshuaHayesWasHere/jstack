@@ -23,6 +23,9 @@ Each project's steps run in this order:
    A required check of a row's pull request that ran and was cancelled or timed out at its head is no crewmate's: at its run's first attempt jbus runs it again once (`gh run rerun <run> --failed`) and logs `cancelled <slug>: ran #<n>'s check again, run <run> at <head>`.
    A check cancelled again at a later attempt, or one GitHub will not run again, is one stall, once for the head, that the one list takes to the brief's home, and its line is the row's why.
    A run on a head the pull request has left, one a newer push displaced, is neither run again nor told.
+   A required run GitHub queued at a row's head and started nothing of for 30 minutes (`ready.QUEUED_MINUTES`) is no crewmate's either, on every open row's pull request (`cancelled.unqueue`): a run with no jobs, which the roll-up does not list, or a run whose `check` job sits queued.
+   Where the roll-up lists no run of a required check, or one queued that long, jbus reads the head's workflow runs and their jobs, cancels each such run that has not ended (`gh run cancel <run>`), runs it again (`gh run rerun <run>`), and logs `queued <slug>: GitHub queued #<n>'s <check> run at <head> <m> minutes ago and started no job: cancelled it and ran it again`.
+   That is once for the head, marked `queued|<slug>|<head12>`: a rerun GitHub refuses while its cancel ends is asked again on each pass for 10 minutes (`ready.RESTART_MINUTES`) and then given up with GitHub's refusal on the line, and a run GitHub queues again at that head is logged once and not restarted, so its wait is the home's.
    When the last review's `Meets the brief:` line says `no`, has no shape `jmerge` reads, or counts other lines than the brief has, jbus sends the crew to the crew skill's "A second pass" (`jbus.expedite`).
    When `jmerge` waits on the Result's `Proved:` line, jbus sends the crew to the proof block of the crew skill's do-the-task.md, the step "Once the check passed, prove the change with the tests it changes", and tells it to push nothing for it; when the Result's `Skills run:` leaves out a skill the brief names, jbus tells the crew the item each such skill owes.
    Every reason `jmerge.ready` gives, of every step, is told to its crew this way (`expedite.TABLE`), or named with why it is not: no crew can fix it (`expedite.UNTOLD`), or another part of jbus tells the crew of it (`expedite.ELSEWHERE`).
@@ -37,6 +40,7 @@ On a project's first pass, jbus records the Results, Reviews, Reports, questions
 jbus writes these things to GitHub, and no others:
 
 - a rerun of a check that was cancelled, and of main's red check at its first attempt;
+- a cancel and a rerun of a required run GitHub kept queued at a row's head, once for the head;
 - a new base for a stacked pull request, when its base merged ([What a pass launches](jbus/what-a-pass-launches.md));
 - a push of a stacked link's own commits moved onto its new base, under a lease;
 - a revert of the one clear culprit of a red main, a pull request `gh pr revert` opens, and the close of that revert, with a comment, once main is green without it ([A red main](jbus/a-red-main.md)).

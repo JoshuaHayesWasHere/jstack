@@ -575,6 +575,53 @@ def queued(
     return tuple(found)
 
 
+@dataclass(frozen=True)
+class StuckRun:
+    """A required workflow run at a head that GitHub has kept from starting for
+    `QUEUED_MINUTES` (`stuck_runs`): `run` is its id, `check` the required check it is the
+    workflow of, `since` when GitHub queued what has not started, `attempt` the run's attempt,
+    and `ended` whether the run itself ended, so that GitHub would refuse to cancel it."""
+
+    run: int
+    check: str
+    since: datetime
+    attempt: int
+    ended: bool
+
+
+def stuck_runs(
+    runs: list[dict], jobs: dict[str, list[dict]], required: tuple[str, ...], now: datetime
+) -> tuple[StuckRun, ...]:
+    """The required workflow runs at a head, as GitHub's REST `actions/runs` gives them, that
+    GitHub queued `QUEUED_MINUTES` ago or more and started nothing of: the latest run of each
+    required check's workflow, where it has not started and lists no job that started, since its
+    latest attempt began, or where the run lists the job of the check's own name queued, since
+    that job was queued. The roll-up lists no check of a run with no jobs, so `queued` cannot see
+    the first (#1695, 2026-11-11), and a run that ended can still list its `check` job queued
+    (#1691). `jobs` is each run's jobs by its id: a run GitHub gave no jobs for is not judged."""
+    found = []
+    for name in required:
+        mine = [one for one in runs if one.get("name") == name and one.get("id")]
+        if not mine:
+            continue
+        last = max(mine, key=lambda one: int(one["id"]))
+        listed = jobs.get(str(last["id"]))
+        if listed is None:
+            continue
+        ended = last.get("status") == "completed"
+        if not ended and str(last.get("status", "")).upper() in NOT_STARTED:
+            began = any(one.get("status") in ("in_progress", "completed") for one in listed)
+            since = None if began else _at(last.get("run_started_at") or last.get("created_at"))
+        else:
+            waits = [one for one in listed if one.get("name") == name]
+            times = [_at(one.get("created_at")) for one in waits if one.get("status") == "queued"]
+            since = max((at for at in times if at), default=None)
+        if since and (now - since).total_seconds() >= QUEUED_MINUTES * 60:
+            attempt = int(last.get("run_attempt") or 1)
+            found.append(StuckRun(int(last["id"]), name, since, attempt, ended))
+    return tuple(found)
+
+
 def unrun(rollup: list[dict], required: tuple[str, ...] = REQUIRED) -> tuple[str, ...]:
     """The required checks GitHub lists no run of at the head, and no job of their workflow at
     work there, in `required`'s order: no runner is at work on them, as for a workflow the head's
