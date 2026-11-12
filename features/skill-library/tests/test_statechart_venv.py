@@ -25,12 +25,20 @@ def main():
 """
 
 
+REDRAW = re.compile(r'statechart-venv" uv run (.*?) --project "')
+
+
 def redraw_flags():
-    """The flags of `uv run` in the skill's command, as the SKILL.md states it."""
-    text = (SCRIPTS.parent / "SKILL.md").read_text(encoding="utf-8")
-    line = re.search(r'statechart-venv" uv run (.*?) --project "\$S"', text)
-    assert line, "SKILL.md states no redraw command"
-    return line[1].split()
+    """Each set of `uv run` flags a redraw command gives, in the skill's SKILL.md and in the
+    spec READMEs, so each command these files state is the one the tests run."""
+    docs = [SCRIPTS.parent / "SKILL.md", *sorted(REPO.glob("features/*/spec/README.md"))]
+    flags = {
+        tuple(found.split())
+        for doc in docs
+        for found in REDRAW.findall(doc.read_text(encoding="utf-8"))
+    }
+    assert flags, "no redraw command found"
+    return sorted(flags)
 
 
 def env_for(venv):
@@ -75,7 +83,7 @@ def checkouts(tmp_path):
     second = tmp_path / "B"
     assert run(["git", "worktree", "add", "-q", str(second)], repo, env).returncode == 0
     said = run(
-        ["uv", "run", *redraw_flags(), "--project", "scripts", "statechart", "--help"], second, env
+        ["uv", "run", "--frozen", "--project", "scripts", "statechart", "--help"], second, env
     )
     assert said.returncode == 0, said.stderr
     said = run(["uv", "run", "python", "-c", "import jgauge"], second, env)
@@ -87,14 +95,17 @@ def checkouts(tmp_path):
 
 @needs_tlc
 @pytest.mark.timeout(600)
-def test_a_removed_second_checkout_leaves_the_first_checkouts_redraw_working(checkouts, tmp_path):
-    """the skill's command, run in A after B synced into the venv and was removed, draws the
-    chart"""
+@pytest.mark.parametrize("flags", redraw_flags(), ids=" ".join)
+def test_a_removed_second_checkout_leaves_the_first_checkouts_redraw_working(
+    flags, checkouts, tmp_path
+):
+    """each redraw command the skill and the spec READMEs state, run in A after B synced into
+    the venv and was removed, draws the chart"""
     scripts, venv, env = checkouts
     work = tmp_path / "work"
     work.mkdir()
     chart = write_lamp(work)
-    command = ["uv", "run", *redraw_flags(), "--project", str(scripts)]
+    command = ["uv", "run", *flags, "--project", str(scripts)]
     r = run([*command, "statechart", "from-spec", "Lamp.tla"], work, env)
     assert r.returncode == 0, r.stderr
     assert (chart / "chart.mmd").exists()
@@ -125,17 +136,3 @@ def test_a_redraw_whose_jgauge_cannot_import_prints_the_re_sync_that_mends_it(ch
     r = run([str(venv / "bin" / "statechart"), "from-spec", "Lamp.tla"], work, env)
     assert r.returncode == 0, r.stderr
     assert (chart / "chart.mmd").exists()
-
-
-def test_every_redraw_command_re_syncs_the_venv_exactly():
-    """each redraw command in the skill and the spec READMEs syncs the shared venv with
-    --exact, so a package another checkout left in it is gone before the redraw starts"""
-    docs = [SCRIPTS.parent / "SKILL.md", *sorted(REPO.glob("features/*/spec/README.md"))]
-    lines = [
-        (doc.relative_to(REPO), line)
-        for doc in docs
-        for line in doc.read_text(encoding="utf-8").splitlines()
-        if 'statechart-venv" uv run' in line
-    ]
-    assert lines
-    assert [(doc, line) for doc, line in lines if " --exact " not in line] == []
