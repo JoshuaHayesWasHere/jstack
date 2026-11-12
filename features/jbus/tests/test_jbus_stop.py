@@ -13,7 +13,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from jbus import queue, stop
+from jbus import questions, queue, stop
 from test_jbus_capped_sends import cap
 from test_jbus_kitchen import NOW, Kitchen, sends
 from test_jbus_word import thread
@@ -412,3 +412,171 @@ def test_a_tell_to_every_scope_of_a_project_with_none_is_refused(kitchen):
     code, said = tells(kitchen, "go", to="every")
     assert (code, said) == (1, "refused: demo has no scoped home for every\n")
     assert stop.load(kitchen.state) == stop.Kept()
+
+
+ENTRY = "fl-epic"
+FLOW_PLAN = f"# a plan\n\n## {ENTRY}: one goal of the flow home\nStage: planned\nDone when:\n- it lands\n"
+
+
+def asks(kitchen, kind, *subject, by=FLOW, what=WHAT, extra=()):
+    """Run a decision's or a go's stop: `subject` is the own row, or `--entry <entry>`."""
+    return kitchen.main("stop", *subject, "--kind", kind, *extra, "--from", by, *what)
+
+
+def passes(kitchen, *text, scope=SCOPE, subject="fl-mine", by=ROOT):
+    return kitchen.main("stop", "pass", scope, subject, *text, "--from", by)
+
+
+@pytest.fixture
+def planned(kitchen):
+    (kitchen.home / SCOPE / "plan.md").write_text(FLOW_PLAN)
+    return kitchen
+
+
+@pytest.mark.parametrize("kind", ["decision", "go"])
+def test_a_decision_or_a_go_on_the_scopes_own_row_goes_to_the_root_with_no_door(kitchen, kind):
+    code, said = asks(kitchen, kind, "fl-mine")
+    assert (code, said) == (
+        0,
+        f"stopped: stop|flow|fl-mine|{kind}, sent to the root home at {ROOT}\n",
+    )
+    assert sent(kitchen) == [(ROOT, "stop")]
+    (text,) = texts(kitchen)
+    assert f"the flow home escalates a {kind} on fl-mine" in text
+    assert "the train is red on a root fix" in text
+    assert "jbus stop answer flow fl-mine" in text
+    assert "jbus stop pass flow fl-mine" in text
+    assert "one-way door" not in text
+    assert asks(kitchen, kind, "fl-mine")[1] == (
+        f"refused: the stop stop|flow|fl-mine|{kind} is already open, and the root has it\n"
+    )
+
+
+def test_a_go_on_an_entry_of_the_scopes_plan_names_the_roots_standing_go(planned):
+    code, said = asks(planned, "go", "--entry", ENTRY)
+    assert (code, said) == (
+        0,
+        f"stopped: stop|flow|{ENTRY}|go, sent to the root home at {ROOT}\n",
+    )
+    (text,) = texts(planned)
+    assert f"the flow home escalates a go on the entry {ENTRY} of its plan" in text
+    assert f"jbus plan go {ENTRY} --scope flow --standing --from" in text
+    assert f"jbus stop pass flow {ENTRY}" in text
+
+
+@pytest.mark.parametrize(
+    ("subject", "extra", "why"),
+    [
+        (("fl-mine",), DOOR, "refused: a decision or a go holds for no door, so it takes no --holds"),
+        (("fl-mine",), ("--on", "fix-root"), "refused: a decision or a go names no --on"),
+        (("fl-mine",), ("--outside", "the disk"), "refused: a decision or a go names no --on"),
+        (("vw-board",), (), "refused: vw-board is the view home's row"),
+        (("fl-landed",), (), "refused: fl-landed is merged"),
+        (("--entry", "nothing-here"), (), "refused: the flow home's plan has no entry nothing-here"),
+        (("--entry", ENTRY, "fl-mine"), (), "refused: a stop is on a row or on --entry, not both"),
+    ],
+)
+def test_a_decision_that_is_not_on_the_scopes_own_open_row_or_entry_is_refused(
+    planned, subject, extra, why
+):
+    code, said = asks(planned, "decision", *subject, extra=extra)
+    assert (code, said.startswith(why)) == (1, True), said
+    assert sent(planned) == []
+    assert stop.load(planned.state) == stop.Kept()
+
+
+def test_a_door_on_an_entry_is_refused_since_a_door_keeps_todays_checks(planned):
+    code, said = planned.main(
+        "stop", "--entry", ENTRY, "--on", "fix-root", *DOOR, "--from", FLOW, *WHAT
+    )
+    assert (code, said) == (1, "refused: a door stop is on the home's own row, not on --entry\n")
+
+
+def test_a_stop_with_no_door_points_the_home_at_a_decision_for_the_root(kitchen):
+    code, said = stops(kitchen, "fl-mine", "--on", "fix-root", door=())
+    assert code == 1
+    assert "--kind decision" in said
+    assert "tell the user directly" not in said
+
+
+def test_the_roots_answer_to_a_decision_is_its_word_for_the_scope_to_act_on(kitchen):
+    assert asks(kitchen, "decision", "fl-mine")[0] == 0
+    code, said = answers(kitchen, "take", "the", "smaller", "one")
+    assert (code, said) == (
+        0,
+        f"answered: stop|flow|fl-mine|decision, closed, the answer sent to {FLOW}\n",
+    )
+    answer = texts(kitchen)[1]
+    assert "the root home's answer to the flow home's decision on fl-mine: take the smaller one" in (
+        answer
+    )
+    assert "act on it" in answer
+    assert "gate for the door" not in answer
+
+
+def held(kitchen):
+    return [one for one in questions.load(kitchen.state) if one.answer is None]
+
+
+def test_a_passed_decision_closes_the_stop_and_parks_a_gate_that_holds_for_the_user(kitchen):
+    assert asks(kitchen, "decision", "fl-mine")[0] == 0
+    code, said = passes(kitchen, "the", "smaller", "one")
+    (gate,) = held(kitchen)
+    assert (code, said) == (
+        0,
+        f"passed: stop|flow|fl-mine|decision, closed, question {gate.number} holds for the "
+        f"user, and the flow home is told at {FLOW}\n",
+    )
+    assert [one.closed for one in stop.load(kitchen.state).stops] == ["passed"]
+    assert (gate.slug, gate.question) == ("fl-mine", "the train is red on a root fix")
+    assert gate.holds == stop.PASSED
+    assert "the root recommends: the smaller one" in gate.default
+    told = texts(kitchen)[1]
+    assert f"passed the flow home's decision on fl-mine to the user, as question {gate.number}" in (
+        told
+    )
+    kitchen.poll()
+    kitchen.poll()
+    assert [one.number for one in held(kitchen)] == [gate.number]
+    code, out = kitchen.main("needs")
+    assert code == 0, out
+    assert f"question {gate.number}: the train is red on a root fix" in out
+    assert f"it holds ({stop.PASSED}) for your answer" in out
+    assert passes(kitchen)[1] == "refused: the flow home has no open decision or go on fl-mine\n"
+
+
+def test_a_passed_go_on_an_entry_parks_its_gate_on_the_scopes_own_slug(planned):
+    assert asks(planned, "go", "--entry", ENTRY)[0] == 0
+    code, said = passes(planned, subject=ENTRY)
+    assert code == 0, said
+    (gate,) = held(planned)
+    assert (gate.slug, gate.holds) == (f"home-{SCOPE}", stop.PASSED)
+    assert "nothing is done on it until you answer" in gate.default
+    planned.poll()
+    assert f"question {gate.number}:" in planned.main("needs", "--home", str(planned.home / SCOPE))[1]
+
+
+def test_only_the_root_passes_and_a_door_stop_is_never_passed(kitchen):
+    assert asks(kitchen, "decision", "fl-mine")[0] == 0
+    code, said = passes(kitchen, by=FLOW)
+    assert (code, said.startswith(f"refused: --from {FLOW} is not the root home's thread")) == (
+        1,
+        True,
+    )
+    assert stops(kitchen, "fl-sibling", "--on", "fix-root")[0] == 0
+    code, said = passes(kitchen, subject="fl-sibling")
+    assert (code, said) == (
+        1,
+        "refused: the flow home has no open decision or go on fl-sibling: a door stop is the "
+        "user's already, through the home's own gate, so answer it\n",
+    )
+    assert held(kitchen) == []
+
+
+def test_an_entry_stop_closes_itself_once_the_entry_leaves_the_plan(planned):
+    assert asks(planned, "go", "--entry", ENTRY)[0] == 0
+    (planned.home / SCOPE / "plan.md").write_text("# a plan\n")
+    planned.poll()
+    (one,) = stop.load(planned.state).stops
+    assert one.closed == "closed"
+    assert sent(planned) == [(ROOT, "stop")]
