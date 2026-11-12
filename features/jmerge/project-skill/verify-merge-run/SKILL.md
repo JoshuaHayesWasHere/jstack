@@ -12,12 +12,14 @@ Any actor can die between two of its writes.
 
 The rules, each with its harm, and today's verdict:
 
-- **`RunHeard`** (breaks): every run's lines are judged once. Broken, what jmerge said never reaches you.
+- **`RunHeard`** (breaks): every run's lines are judged once.
+  Broken, what jmerge said never reaches you.
 - **`StreakOnce`** (holds): the jmerge streak counts each run once.
 - **`NoFalseNoRecord`** (breaks): "ended with no record" only of a run with none.
 - **`DeathTold`** (breaks): a run that died with no record is told.
 - **`OneRunAtATime`** (holds): no two runs hold the repo.
-- **`RestartReopens`** (breaks): a pull request jmerge closed to restart is reopened or the user is told. Broken, a pull request stays closed.
+- **`RestartReopens`** (breaks): a pull request jmerge closed to restart is reopened or the user is told.
+  Broken, a pull request stays closed.
 - **`WaitLoggedOnce`** (holds) and **`WaitKept`** (breaks): a merged pull request's wait is logged, once.
 - **`BatchMergedOnce`** (holds).
 
@@ -69,4 +71,5 @@ When every step is backed, it is a bug: tell it as the run's story (pass, keep, 
 
 ## Drift at the sync commit
 
-None found in the steps. The README and spec say "main aa5469d97"; the one covered change from there to the sync, 23f42940f, moved the import of `stacked` in `cli.py` and changed no step.
+None found in the steps.
+The README and spec say "main aa5469d97"; the one covered change from there to the sync, 23f42940f, moved the import of `stacked` in `cli.py` and changed no step.
