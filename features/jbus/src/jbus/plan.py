@@ -29,6 +29,13 @@ its brief included (`queue.entered`). The go holds while the entry is in the pla
 head and no `jbus plan stop <entry>` stopped it (`holding`). When it no longer holds, each row of
 the entry that has not launched waits for the user's go again, and a launched one goes on.
 
+Once the user's word for goes stands (`jbus standing --covers goes`, `jbus.standing`), the root
+gives an entry its go itself: `jbus plan go <entry> --standing --from <root id>` keeps a `Go` that
+names the word and the root's thread (`given_by`), and its rows read `the root's go for the plan
+entry <entry>, on your standing word <id> for goes`. jbus refuses it from any thread but the
+root's, with no such word, and for an entry that has a live row whose brief holds for a door: that
+go is the user's. The go ends as the user's does, and also when the word is withdrawn.
+
 A go that holds over an entry whose rows are all over is owed (`owed`): the user said go and
 nothing is queued, so its home is woken to queue the next row or close the entry.
 
@@ -54,7 +61,8 @@ import jbus
 import jsettings
 from jbriefs import home as homes
 from jbriefs.chains import builds_on
-from jbus import Config, Refused, locked, queue, read_json, t3, verbs, work, write_json
+from jbriefs.home import thread_of
+from jbus import Config, Refused, locked, queue, read_json, t3, verbs, word, work, write_json
 
 LINE, STATUS = 56, 60
 _ENTRY = re.compile(r"## (?P<slug>[A-Za-z0-9][A-Za-z0-9._-]*): (?P<line>.+)")
@@ -225,7 +233,10 @@ class Go:
     entry, or empty for the root home. `head` is the entry's head's sha (`head`) when the user
     gave it. `ref` is the user's message, `<thread id>/<message id>`, with its words, its time and
     its thread's title as `t3.heard` read them. `ran_by` and `ran_at` are who ran `plan go` and
-    when. `stopped` is when and by whom `plan stop` stopped it, or empty."""
+    when. `stopped` is when and by whom `plan stop` stopped it, or empty. Where the root gave the
+    go on the user's standing word for goes, `word` is that word's id, `given_by` the root's
+    thread, and `ref`, the words and their time are the word's; for the user's own go both are
+    empty."""
 
     entry: str
     scope: str
@@ -237,9 +248,11 @@ class Go:
     ran_by: dict[str, str]
     ran_at: str
     stopped: str = ""
+    word: str = ""
+    given_by: str = ""
 
     def said(self) -> queue.Said:
-        return queue.Said(self.words, self.said_at, self.said_in, True, self.ref)
+        return queue.Said(self.words, self.said_at, self.said_in, True, self.ref, word=self.word)
 
 
 def head(text: str, slug: str) -> str:
@@ -285,10 +298,19 @@ def _scope(home: Path, directory: Path) -> str:
     return "" if directory == home else directory.name
 
 
-def why_not(made: Go, text: str | None) -> str:
-    """Return why the go no longer holds for the plan `text`, or nothing while it holds."""
+def goes_word(state: Path) -> str:
+    """The id of the root's standing word for goes while it holds, or nothing."""
+    held = queue.standing_words(state, queue.GOES).get("")
+    return held[0] if held else ""
+
+
+def why_not(made: Go, text: str | None, word: str = "") -> str:
+    """Return why the go no longer holds for the plan `text`, with `word` the root's standing word
+    for goes now (`goes_word`), or nothing while it holds."""
     if made.stopped:
         return f"stopped {made.stopped}"
+    if made.word and made.word != word:
+        return f"the root's standing word {made.word} for goes was withdrawn"
     if text is None or not head(text, made.entry):
         return "the entry is not in the plan: it closed"
     if head(text, made.entry) != made.head:
@@ -316,7 +338,7 @@ def holding(state: Path, home: Path, brief: str, entry: str) -> queue.Said | Non
         text: str | None = (directory / "plan.md").read_text()
     except OSError:
         text = None
-    return None if why_not(made, text) else made.said()
+    return None if why_not(made, text, goes_word(state)) else made.said()
 
 
 def filed_under(home: Path, state: Path, slug: str, text: str, entry: str) -> None:
@@ -358,10 +380,10 @@ def entry_go(state: Path, home: Path) -> queue.EntryGo:
     return lambda brief, entry: holding(state, home, brief, entry)
 
 
-def _gone(made: Go | None, text: str) -> str:
+def _gone(made: Go | None, text: str, word: str) -> str:
     if made is None:
         return ""
-    why = why_not(made, text)
+    why = why_not(made, text, word)
     if not why:
         return f"go {made.said_at}"
     return f"go {why}" if made.stopped else f"go void: {why}"
@@ -371,16 +393,17 @@ def _cut(text: str, cap: int) -> str:
     return text if len(text) <= cap else text[: cap - 3].rstrip() + "..."
 
 
-def shown(text: str, rows: list[queue.Row], given: list[Go] | None = None) -> str:
+def shown(text: str, rows: list[queue.Row], given: list[Go] | None = None, word: str = "") -> str:
     """Return a line for each entry whose stage is unknown, first, so the home's start, which
     cuts the listing at 12 lines, never cuts one. Then one line for each entry of the plan: its
-    slug, its one line and its status, and the entry's go where `given` has one. It cuts each part
+    slug, its one line and its status, and the entry's go where `given` has one, with `word` the
+    root's standing word for goes now (`goes_word`). It cuts each part
     short so that a plan of seventeen entries fits on one screen."""
     said, flags = [], []
     kept = {one.entry: one for one in given or []}
     for one in entries(text):
         counted = status(one, rows_of(one.slug, rows))
-        go = _gone(kept.get(one.slug), text)
+        go = _gone(kept.get(one.slug), text, word)
         go = f" | {go}" if go else ""
         said.append(f"{one.slug} | {_cut(one.line, LINE)} | {_cut(counted, STATUS)}{go}\n")
         if one.unknown:
@@ -452,6 +475,9 @@ def _plan(args: argparse.Namespace, config: Config) -> int:
     if args.verb == "close":
         print(close(where, args.entry, rows))
         return 0
+    if args.verb == "go" and args.standing:
+        print("\n".join(root_go(config, state, home, where, args.entry, args.given_by, rows)))
+        return 0
     if args.verb == "go":
         print("\n".join(go(config, state, home, where, args.entry, args.message, rows)))
         return 0
@@ -473,7 +499,8 @@ def listing(config: Config, project: jbus.Project, scope: str | None) -> str:
     where = path(config.home(project), scope)
     home, state = config.home(project), config.state(project)
     mine = [one for one in goes(state) if one.scope == _scope(home, where.parent)]
-    return shown(where.read_text(), _rows(config, project), mine) or f"no entry in {where}\n"
+    listed = shown(where.read_text(), _rows(config, project), mine, goes_word(state))
+    return listed or f"no entry in {where}\n"
 
 
 def go(
@@ -490,15 +517,11 @@ def go(
     no queue row in any status, so no go is kept with nothing queued under it, and a message
     that is not the user's own (`t3.heard`)."""
     if not message:
-        raise Refused("refused: go needs the user's word: --message <thread id>/<message id>")
-    bound = head(where.read_text(), entry)
-    if not bound:
-        raise Refused(f"refused: {where} has no entry {entry}")
-    if not rows_of(entry, rows):
         raise Refused(
-            f"refused: {entry} has no queue row: queue its first row, a scout's if it needs "
-            "design (--depends for what it waits on), then give the go"
+            "refused: go needs the user's word: --message <thread id>/<message id>, or the "
+            "root's --standing --from <root id>"
         )
+    bound = _bound(where, entry, rows)
     heard = t3.heard(config, message)
     made = Go(
         entry,
@@ -511,12 +534,84 @@ def go(
         queue.runner(),
         config.user.stamp(queue.clock()),
     )
+    return _given(config, state, home, made)
+
+
+def root_go(
+    config: Config, state: Path, home: Path, where: Path, entry: str, by: str, rows: list[queue.Row]
+) -> list[str]:
+    """Keep the root's go of the entry on the user's standing word for goes, bound to its head
+    now, and approve the rows of the entry that wait for a go. Refuse it from any thread but the
+    root's (`--from`), with no such word held, and for an entry with a live row whose brief holds
+    for a door (`queue.case`), besides what `go` refuses."""
+    if not by or by != thread_of(home):
+        raise Refused(
+            f"refused: --from {by or 'nothing'} is not the root home's thread, and only the root "
+            "gives a go on a standing word"
+        )
+    held = queue.standing_words(state, queue.GOES).get("")
+    if held is None:
+        raise Refused(
+            "refused: the root holds no standing word for goes: the user's own message makes one, "
+            "jbus standing --to <project> --word <id> --covers goes"
+        )
+    bound = _bound(where, entry, rows)
+    doors = [
+        f"{row['slug']} ({queue.case(text)})"
+        for row in rows_of(entry, rows)
+        if not queue.over(row)
+        and (text := queue.brief(state, row["slug"])) is not None
+        and queue.case(text)
+    ]
+    if doors:
+        raise Refused(
+            f"refused: {entry} has a row whose brief holds for a door, {', '.join(doors)}: its go "
+            f"is the user's, jbus plan go {entry} --message <thread>/<message>"
+        )
+    named, said = held
+    kept = next((one for one in word.load(state) if one.id == named), None)
+    if kept is None:
+        raise Refused(f"refused: the standing word for goes {named} is no word jbus keeps")
+    made = Go(
+        entry,
+        _scope(home, where.parent),
+        bound,
+        kept.ref,
+        said.words,
+        said.said_at,
+        said.said_in,
+        queue.runner(),
+        config.user.stamp(queue.clock()),
+        word=named,
+        given_by=by,
+    )
+    return _given(config, state, home, made)
+
+
+def _bound(where: Path, entry: str, rows: list[queue.Row]) -> str:
+    """Return the head of the entry a go binds, and refuse an entry the plan does not have and an
+    entry with no queue row in any status, so no go is kept with nothing queued under it."""
+    bound = head(where.read_text(), entry)
+    if not bound:
+        raise Refused(f"refused: {where} has no entry {entry}")
+    if not rows_of(entry, rows):
+        raise Refused(
+            f"refused: {entry} has no queue row: queue its first row, a scout's if it needs "
+            "design (--depends for what it waits on), then give the go"
+        )
+    return bound
+
+
+def _given(config: Config, state: Path, home: Path, made: Go) -> list[str]:
+    """Keep the go and approve each row of its entry that waits for one."""
     _kept(state, made)
+    ground = f"standing word {made.word}" if made.word else ""
     said = queue.Approval(
-        queue.ENTRY, entry, heard.words, heard.said_at, heard.said_in, True, {}, ""
+        queue.ENTRY, made.entry, made.words, made.said_at, made.said_in, True, {}, "", ground=ground
     )
     line = said.line().partition(";")[0]
-    return [f"went {entry}: {line}", *queue.entered(state, config.user, entry_go(state, home))]
+    went = f"went {made.entry}: {line}"
+    return [went, *queue.entered(state, config.user, entry_go(state, home))]
 
 
 def stop(user: jsettings.Settings, state: Path, home: Path, scope: str, entry: str) -> list[str]:
@@ -547,14 +642,14 @@ def owed(state: Path, home: Path, rows: list[queue.Row]) -> list[Go]:
     reported, a row merged) and nothing is queued for what is left. Each is an item of the one
     list that wakes the entry's home (`jbus.wakes`), and a thing its home has out
     (`jbus.children.out`). It leaves both on the entry's next row, or on `plan close`."""
-    found = []
+    found, word = [], goes_word(state)
     for made in goes(state):
         try:
             text: str | None = (home / made.scope / "plan.md").read_text()
         except OSError:
             text = None
         mine = rows_of(made.entry, rows)
-        if not why_not(made, text) and mine and all(queue.over(row) for row in mine):
+        if not why_not(made, text, word) and mine and all(queue.over(row) for row in mine):
             found.append(made)
     return found
 
@@ -634,6 +729,15 @@ def _planned(planned: argparse.ArgumentParser) -> None:
         metavar="THREAD/MESSAGE",
         help="with go: the user's own message in T3 Code that gives the entry its go"
         "; THREAD/last is the user's newest message there",
+    )
+    planned.add_argument(
+        "--standing",
+        action="store_true",
+        help="with go and --from: the root gives the go itself, on the user's standing word for "
+        "goes (jbus standing --covers goes)",
+    )
+    planned.add_argument(
+        "--from", dest="given_by", metavar="THREAD", help="with --standing: the root's thread"
     )
     planned.add_argument("--scope", help="a scoped home's plan, in place of the root home's")
 
