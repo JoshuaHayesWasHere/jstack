@@ -73,4 +73,5 @@ Every rule holds over 11,477 states, and `uv run pytest features/skill-library/t
 
 The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `cli.py` changed in #1698 and #1702, in its help, `from_chart` and `site_main`, none of the names this model covers, so the sync commit moved there.
 
-st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: `run_tlc` changed in #1743: a test slot that dies before TLC prints raises `CannotFinish`, so the run exits 2 before it publishes, as a TLC run that fails always did; the model has no step for TLC failing, which touches no folder as `Refuse` does, and the assumptions now say so. The sync commit moved there.
+st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: `run_tlc` changed in #1743: a test slot that dies before TLC prints raises `CannotFinish`, so the run exits 2 before it publishes, as a TLC run that fails always did; the model has no step for TLC failing, which touches no folder as `Refuse` does, and the assumptions now say so.
+The sync commit moved there.

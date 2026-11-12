@@ -73,10 +73,12 @@ When every step is backed, it is a bug: tell it as the homes' story (a call, a n
 
 `/maintain-formal-verification-skill` ran at `228c1436c` (st-model-upkeep-run): the covered code is unchanged from it to the row's first base, and the three older mismatches were settled from the code.
 
-- **Fixed, `RaiseCall`:** a call no longer calms the spell. `children.watch` leaves calls out of the spell's signature (`USERS`), so a call is only a write of the child's home thread, which ends the spell only while it is `calm`.
+- **Fixed, `RaiseCall`:** a call no longer calms the spell.
+  `children.watch` leaves calls out of the spell's signature (`USERS`), so a call is only a write of the child's home thread, which ends the spell only while it is `calm`.
   Every rule still holds in every scene with the same states (398,880, 237,780, 280,108), and every canary still breaks its rule: `uv run pytest features/home/tests/test_home_tree_spec.py -q` printed `46 passed`.
 - **Kept as an assumption, a failed nudge or launch:** modeled, a send that fails while T3 Code is down leaves a quiet child `calm` past its patience, which `StallFlagged` forbids as worded, and a rule's words change only on the user's word.
-  The code tries again each pass, so the step is late, not lost. The README's "leaves out" says so.
+  The code tries again each pass, so the step is late, not lost.
+  The README's "leaves out" says so.
 - **Kept as an abstraction, one route to you:** `wakes.need_items` sends a child's gate to its own home thread, and approve, stalled, install and self-asked gates to no thread; the model's single `up` flag is every route, and the README's "leaves out" says so.
 - The spec's header no longer names main 21112eba8, and the README and `canaries.py` give `uv run python`.
 

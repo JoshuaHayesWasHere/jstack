@@ -86,7 +86,8 @@ It prints `6 passed` in seconds, and skips where no Java runs TLC; TLC's verdict
   `tell`'s `judged` reads every line's sha, a closing line's too.
   `EachRedJudgedOnce` now matches the walk's S4: verdict lines name no tip twice and name the red tip, and closing lines close no spell twice, each of a tip a verdict line names.
   The old `EachRedJudgedOnce` passed on a description that had no closing lines.
-  The break: closing on every pass with a spell fails S4. Dropping only the once guard passes, since the model's pass is one step and the guard is for a pass that dies between `close` and `main.json`; the README says so.
+  The break: closing on every pass with a spell fails S4.
+  Dropping only the once guard passes, since the model's pass is one step and the guard is for a pass that dies between `close` and `main.json`; the README says so.
 - **The Mac's pending commit:** a commit of the Mac's range whose run has not ended is quiet (`UNREAD`), and the model has no clock and no Mac row for its later `OVERLAP`.
 - **Stale prose:** the spec and README no longer name main 21112eba8.
 
