@@ -32,6 +32,7 @@ from jmerge import (
     lines,
     lock,
     mainjson,
+    preflight,
     proof,
     rangediff,
     ready,
@@ -177,12 +178,14 @@ class Repo:
         self.open: list[ready.PullRequest] = []
         self.heads: dict[int, bool] = {}
         self.words: dict[tuple[meets.Waiver, str], bool] = {}
+        self.briefs: dict[str, bool] = {}
         origin = _run(main, "git", "remote", "get-url", "origin")
         self.about = [] if origin.returncode else ["--repo", origin.stdout.strip()]
         self.base_merge = rejudge.BaseMerge(main, state, self.about, asks)
         self.guards = treeguards.Guards(
             main, state, asks, lambda path: self.api(f"repos/{{owner}}/{{repo}}/{path}")
         )
+        self.rules = preflight.Preflight(main, state, check=not asks)
         self.spells = waits.Spells(state, asks)
         self.began: dict[int, datetime] = {}
         self.batching: batch.Batching | None = None
@@ -1110,7 +1113,11 @@ class Repo:
         short = short or ("" if judged.batch else self.guards.kept(one, judged.tip))
         if short:
             return Judgement(brief.stem, "wait", short, note, None)
+        short, breaks = self.rules.of(one, self.beside(one), text)
+        if short:
+            return Judgement(brief.stem, judgement.verb(short), short, note, None)
         note = f"{note}, {ready.KEPT}" if note else ""
+        note = ", ".join(filter(None, (note, breaks)))
         if (self.state / "merge-off").exists():
             return Judgement(
                 brief.stem, judgement.verb(ready.MERGE_OFF), ready.MERGE_OFF, note, None
@@ -1118,6 +1125,24 @@ class Repo:
         if one.number in self.order:
             self.through = one.number
         return Judgement(brief.stem, "", "", note, judged)
+
+    def beside(self, one: ready.PullRequest) -> list[ready.PullRequest]:
+        """The open pull requests other than `one` whose rule preflight it runs on: each a brief
+        names, with its head in the main checkout (`preflight`)."""
+        tasks = self.state / "tasks"
+        return [
+            other
+            for other in self.open
+            if other.number != one.number
+            and other.branch != batch.BRANCH
+            and self.briefed(other.url, tasks)
+            and self.has(other)
+        ]
+
+    def briefed(self, url: str, tasks: Path) -> bool:
+        if url not in self.briefs:
+            self.briefs[url] = ready.brief_of(url, tasks) is not None
+        return self.briefs[url]
 
     def row_first(self, slug: str, short: str) -> str:
         """`short`, unless it is one of GitHub's waits that come and go (`QUEUE_OUTRANKS`) and the
@@ -1280,6 +1305,7 @@ class Repo:
         self.base_merge.reopen(heads)
         self.base_merge.open_only(heads)
         self.guards.open_only(heads)
+        self.rules.open_only(heads)
         self.spells.open_only({one.number for one in listed})
         self.holds_are({number: head for number, head in self.holds().items() if number in heads})
 

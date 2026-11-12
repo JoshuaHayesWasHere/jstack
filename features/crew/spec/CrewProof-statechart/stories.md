@@ -2,7 +2,7 @@
 
 Rule broken: `RebaseRecorded`
 Why: a rebase record stays after its push.
-There are 5400 ways to get here in the model. This is the shortest.
+There are 3384 ways to get here in the model. This is the shortest.
 
 0. Start: No check at this head: at work, no Result
 1. The crew runs the check block. Now: the check runs: at work, no Result

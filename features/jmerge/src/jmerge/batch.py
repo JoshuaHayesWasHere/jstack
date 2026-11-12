@@ -34,7 +34,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from jmerge import ready
+from jmerge import ready, treeguards
 from jsettings import store
 
 BRANCH = "jmerge/batch"
@@ -72,7 +72,6 @@ PENDING_MINUTES = 30
 the p90 of 387 s of the pull request check, so a run GitHub left queued or never started, or a
 pass whose artifact is never found, does not hold its members for ever."""
 SHA = 12
-_IDENTITY = ("-c", "user.name=jmerge", "-c", "user.email=jmerge@localhost")
 
 BUILT = "batch: built over {base} at {tip}, {size} of {most} members at most"
 """The line of a batch built, its size and the most it could take (`Record.most`), which merge.log
@@ -362,12 +361,14 @@ def build(main: Path, base: str, tip: str, heads: list[Member], most: int) -> Bu
         found = merged.stdout.split()[:1]
         if merged.returncode or not found or len(members) == most:
             continue
-        step = _git(main, *_IDENTITY, "commit-tree", found[0], "-p", at, "-m", f"#{one.number}")
+        step = _git(
+            main, *treeguards.IDENTITY, "commit-tree", found[0], "-p", at, "-m", f"#{one.number}"
+        )
         at, tree = step.stdout.strip(), found[0]
         members.append(one)
     numbers = " ".join(f"#{one.number}" for one in members)
     message = f"jmerge: batch of {numbers} over {base} at {tip[:SHA]}"
-    made = _git(main, *_IDENTITY, "commit-tree", tree, "-p", tip, "-m", message)
+    made = _git(main, *treeguards.IDENTITY, "commit-tree", tree, "-p", tip, "-m", message)
     return Built(tree, made.stdout.strip(), tuple(members))
 
 

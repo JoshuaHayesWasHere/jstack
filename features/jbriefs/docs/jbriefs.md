@@ -99,6 +99,12 @@ Every path it prints starts from the root of jstack's source tree, which is the 
 Each value comes from the one reader jbriefs, jmerge and jbus call (`below.pull`, `reviewers.running`, `jbriefs.stacked`, `jbriefs.status`), so the skills' blocks call it in place of an awk field of their own and act on the answer jbus acts on.
 The `Checked:` line has its reader too, `jbriefs.checked`, which jmerge binds a merge to and jbus launches a review at.
 
+## `jbriefs not-run`
+
+`jbriefs not-run <brief> <head> <why> <by> <scope>` appends the `## Review` of a reviewer that stopped before its review: `Verdict: not run`, its `By:` and `Scope:` lines where they are not empty, `Why:`, and `Head:`.
+It is how pr-review's "A stop" and "No room" end, so a reviewer that stops still closes its seat and `reviewing` says `no`: the crew may rebase, and the pull request is not held by a reviewer that is gone.
+A brief that already ends in that section, at the same head and by the same reviewer, gets no second one, and a brief that is not there gets none and exit 1.
+
 ## What an approval binds to
 
 The user's go applies to the brief's goal, scope and done-when: its title, `Task:`, `Done when:`, `Where:`, `Do not touch:` and `Size:`.
