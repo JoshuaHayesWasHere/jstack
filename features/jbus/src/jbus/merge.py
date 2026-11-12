@@ -94,8 +94,9 @@ TOLD = (
 
 
 RUNS = "jmerge-runs"
-"""The directory, in a project's state, of the pass's runs of `jmerge`: `GOING`, `STARTED`, the
-record of each run that ended and was not read (`ran-<at>.json`), and the last one read (`READ`)."""
+"""The directory, in a project's state, of the pass's runs of `jmerge`: `GOING`, `STARTED`,
+`DIED`, the record of each run that ended and was not read (`ran-<at>.json`), and the last one
+read (`READ`)."""
 GOING = "going.lock"
 """Held by a run's process (`keep`) from its start to its end, so a pass starts no second run.
 The kernel gives it back when the process dies."""
@@ -104,8 +105,13 @@ STARTED = "started"
 that run once its record, which names it too, is written. A run removes no stamp but its own, and
 one that takes `GOING` to find another stamp, or none, was told dead and runs nothing (`keep`).
 A stamp older than `STARTING` with `GOING` free is a run that ended with no record, unless a
-record names it. A younger one is a run that may not yet hold its lock, and is left to start.
+record names it: it is moved to `DIED` and told of. A younger one is a run that may not yet hold
+its lock, and is left to start.
 Each step on the stamp holds `GOING`, so a pass and a run never change it at one moment."""
+DIED = "died"
+"""The stamp of a run told dead, moved aside from `STARTED` under `GOING` so its run, should it
+start after all, finds no stamp and runs nothing, and kept until the pass has told of the run,
+so a pass that dies first leaves it for the next (`_stamped`)."""
 STARTING = timedelta(minutes=1)
 """How long a run's process has to take `GOING` from its start: a Python's start and an import of
 jbus, a second or two on a loaded machine."""
@@ -161,10 +167,10 @@ def merge(run: Pass) -> Said:
 
 
 def _stamped(run: Pass, where: Path) -> str:
-    """Holding `GOING`, tell of a stale stamp's run that kept no record and remove its stamp,
-    then write the stamp of the run to start, and return it. Return nothing where a run holds
-    `GOING` or a stamp younger than `STARTING` stands: its run is going, or may yet start. The
-    run is started once `GOING` is given back, since it takes `GOING` itself."""
+    """Holding `GOING`, move a stale stamp whose run kept no record to `DIED`, tell of that run
+    and remove `DIED`, then write the stamp of the run to start, and return it. Return nothing
+    where a run holds `GOING` or a stamp younger than `STARTING` stands: its run is going, or may
+    yet start. The run is started once `GOING` is given back, since it takes `GOING` itself."""
     with open(where / GOING, "a") as going:
         try:
             fcntl.flock(going, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -173,9 +179,14 @@ def _stamped(run: Pass, where: Path) -> str:
         if _starting(where):
             return ""
         if stale := _stamp(where):
-            if not _kept(where, stale):
-                _told(run, stale, f"its run ended with no record: {_last(where / CHILD_LOG)}")
-            _unstamp(where, stale)
+            if _kept(where, stale):
+                _unstamp(where, stale)
+            else:
+                os.replace(where / STARTED, where / DIED)
+        if (where / DIED).exists():
+            died = (where / DIED).read_text().strip()
+            _told(run, died, f"its run ended with no record: {_last(where / CHILD_LOG)}")
+            (where / DIED).unlink()
         stamp = f"{restated.moment(verbs.clock())} {secrets.token_hex(6)}"
         (where / STARTED).write_text(stamp + "\n")
         return stamp
