@@ -64,6 +64,31 @@ def test_a_pull_request_that_changes_a_test_and_has_no_proved_line_waits(merged)
     assert merged.untouched()
 
 
+def test_a_pull_request_that_changes_a_typescript_test_and_has_no_proved_line_waits(merged):
+    opened(merged, ("src/a.ts", "src/a.test.ts"))
+    (said,) = merged.run()
+    why = ready.PROVED_MISSING.format(tests="src/a.test.ts")
+    assert said == f"wait 7 {merge.URL}: {why}"
+    assert merged.untouched()
+
+
+NODE_TESTS = (
+    "src/a.test.ts",
+    "tests/own-server.spec.ts",
+    "a.test.js",
+    "a.spec.jsx",
+    "web/a.test.tsx",
+    "a.spec.mjs",
+    "a.test.mts",
+    "a.spec.cjs",
+)
+
+
+def test_each_javascript_or_typescript_test_a_pull_request_changes_is_a_changed_test():
+    pull = one("src/a.ts", "README.md", "src/test.ts", "a.test.json", "a_spec.ts", *NODE_TESTS)
+    assert ready.changed_tests(pull) == NODE_TESTS
+
+
 def test_a_pull_request_whose_tests_fail_at_its_base_and_pass_at_its_head_merges(merged):
     opened(merged, ("a.py", TEST), proved(head=merged.head))
     (said,) = merged.run()

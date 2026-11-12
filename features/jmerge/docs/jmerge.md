@@ -179,6 +179,7 @@ The section "Protected paths" describes one more hold.
   The pull request waits on the `result` step while one of three lines of its brief's Result is short (`ready.short_of`, `ready.short_on_proved`, `ready.short_on_checked`).
   `Skills run:` has an artifact for each skill the brief's `Skills:` line names (`skills-unrun`).
   A pull request that changes tests has a `Proved:` line that names each of them, with their run ending 1 at its base and 0 at its head.
+  Its tests are each `test_*.py` and `*_test.py`, and each `*.test.*` and `*.spec.*` of JavaScript or TypeScript, it adds or changes (`ready.changed_tests`), so a Node repo's pull request is held to the same proof as a Python one's.
   A run that does not fail at the base holds it, since such tests prove nothing of the change, unless the pull request changes no code (`ready.changed_code`): its tests then run over the same code at its base as at its head, a pass at the base is what they should do, and the run at the head is the whole proof.
   That ends the hold by rule, with no word of the user's: a pull request of tests, docs and config, of a `.py` file whose change is to its docstrings alone, or of a fork's tests alone, as #1535 was, a patch that adds a test of what the fork already does.
   A fork's change is of its tests alone where each patch it adds or edits touches only the fork's test files and `.md` files at both sides, and its `PKGBUILD` changes only in its series, its checksums, `pkgver` and `pkgrel`, the series losing or gaining only such patches (`jmerge.forktests`).
