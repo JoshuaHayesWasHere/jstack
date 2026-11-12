@@ -21,7 +21,11 @@ The desk's run stops once each file's lines have run so, or once every test that
 has ended (`features/repo-guards/ran/lines_ran.py`), so a branch whose lines a few tests run pays
 for those and not for every test that names its module, and a line no test runs is listed once
 the tests that name its module have ended, not the tests that name every other module the branch
-touches.
+touches. The desk's run also stops at `BUDGET`, inside the test's own limit: a module many tests
+name can take more than that to decide from scratch (#1718's 132 lines of `jbus.queue`, named by
+67 test files, outran the 900 s limit), so a line still undecided then is not a fault there but a
+warning, and CI's check, which reads what its parts recorded, decides it. A line the run decided
+no test runs still fails.
 
 An exception is coverage's own pragma on the line, with its reason and the user's word:
 `# pragma: no cover, <reason> (the user, <when>: "<their words>")`. An added pragma without them
@@ -35,6 +39,9 @@ import os
 import re
 import subprocess
 import sys
+import time
+import warnings
+from collections.abc import Iterable
 from pathlib import Path
 
 import coverage
@@ -49,6 +56,8 @@ PRAGMA = re.compile(r"#\s*pragma[:\s]?\s*no\s*cover", re.I)
 EXCEPTION = re.compile(r"#\s*pragma: no cover, \S.*?\(the user[,:]\s*[^)]*\S\)\s*$")
 TESTS = ("features/*/tests/**/test_*.py", "testing/tests/**/test_*.py")
 WORKERS = "4"
+LIMIT = 900
+BUDGET = 600
 RAN = Path(__file__).parents[1] / "ran"
 SPEC = importlib.util.spec_from_file_location("new_lines_rounds", RAN / "new_lines_rounds.py")
 rounds = importlib.util.module_from_spec(SPEC)
@@ -134,14 +143,16 @@ def unrun(
     naming: dict[str, list[str]],
     scratch: Path,
     repo: Path = REPO,
+    deadline: float | None = None,
 ) -> dict[str, set[int]]:
     """The lines of `lines` that `tests` do not run in a test file that names their module. The
     tests run as one of CI's parts runs its own, with `part_lines` recording the test file that
     ran each line, into a part of its own under `scratch`, and `unread` counts what it recorded,
     so the desk and CI count a line by the one rule. The run stops early once each file's lines
     have run so, or once the tests among `tests` that name it (`naming`), all of `tests` when none
-    does, have ended. A run that breaks, not one whose tests fail, fails the test with what pytest
-    printed."""
+    does, have ended, or at `deadline` (seconds since the epoch), which writes the files it had not
+    decided to `undecided` under `scratch`. A run that breaks, not one whose tests fail, fails the
+    test with what pytest printed."""
     parts = scratch / "parts"
     part = parts / "1"
     part.mkdir(parents=True, exist_ok=True)
@@ -160,6 +171,8 @@ def unrun(
                 },
                 "data": str(part / "data"),
                 "stopped": str(stopped),
+                "deadline": deadline,
+                "undecided": str(scratch / "undecided"),
             }
         )
     )
@@ -230,8 +243,21 @@ def statements(file: Path) -> set[int]:
     } - set(excluded)
 
 
+def undecided(scratch: Path, paths: Iterable[str], repo: Path = REPO) -> set[str]:
+    """Those of `paths` that the run under `scratch` stopped at its deadline before deciding."""
+    said = scratch / "undecided"
+    if not said.exists():
+        return set()
+    stopped = {Path(one).resolve() for one in said.read_text().split("\n") if one}
+    return {path for path in paths if (repo / path).resolve() in stopped}
+
+
 def faults(
-    lines: dict[str, set[int]], scratch: Path, repo: Path = REPO, parts: Path | None = None
+    lines: dict[str, set[int]],
+    scratch: Path,
+    repo: Path = REPO,
+    parts: Path | None = None,
+    deadline: float | None = None,
 ) -> list[str]:
     """What is wrong with the lines a branch adds: an unexcused pragma, or a statement no test file
     that names its module runs, by the one rule, with `parts` and without. With `parts`, the
@@ -240,7 +266,9 @@ def faults(
     two rounds, so a module many tests name costs little when its own tests run its lines: first
     each module's own test files, those whose name holds the module's file name
     (`test_jbus_remarks.py` for `remarks.py`), then, for the lines still unrun, every other test
-    that names the module."""
+    that names the module. With a `deadline` (seconds since the epoch), a run stops there, and the
+    lines of a file it had not decided are no fault but a warning, as is every line still unrun
+    once the deadline passed before the second round."""
     pragmas = unexcused(lines, repo)
     lines = {path: numbers & statements(repo / path) for path, numbers in lines.items()}
     lines = {path: numbers for path, numbers in lines.items() if numbers}
@@ -255,17 +283,37 @@ def faults(
         left = unread(left, tests, parts)
     own = {path: [one for one in tests[path] if Path(path).stem in Path(one).stem] for path in left}
     first = sorted({one for path in left for one in own[path]})
+    deferred: set[str] = set()
     if first:
         mine = unrun(
-            {path: left[path] for path in left if own[path]}, first, tests, scratch / "own", repo
+            {path: left[path] for path in left if own[path]},
+            first,
+            tests,
+            scratch / "own",
+            repo,
+            deadline,
         )
+        deferred |= undecided(scratch / "own", left, repo)
         left = {
             path: mine.get(path, set()) if own[path] else numbers for path, numbers in left.items()
         }
         left = {path: numbers for path, numbers in left.items() if numbers}
     rest = rounds.second(left, tests, own)
-    if left and rest:
-        left = unrun(left, rest, tests, scratch / "rest", repo)
+    if left and rest and deadline is not None and time.time() >= deadline:
+        deferred |= set(left)
+    elif left and rest:
+        left = unrun(left, rest, tests, scratch / "rest", repo, deadline)
+        deferred |= undecided(scratch / "rest", left, repo)
+    if held := {path: numbers for path, numbers in left.items() if path in deferred}:
+        warnings.warn(
+            "the desk's run stopped at its deadline before it decided these added lines, which "
+            "CI's check decides from what its parts ran: "
+            + ", ".join(
+                f"{path}:{','.join(map(str, sorted(held[path])))}" for path in sorted(held)
+            ),
+            stacklevel=2,
+        )
+        left = {path: numbers for path, numbers in left.items() if path not in held}
     said += [
         f"{path}:{number} is a line this branch adds that no test runs: add a test that runs it, "
         f"among the tests that name its module ({len(tests[path])} of them ran)"
@@ -275,7 +323,7 @@ def faults(
     return pragmas + said
 
 
-@pytest.mark.timeout(900)
+@pytest.mark.timeout(LIMIT)
 def test_every_line_this_branch_adds_to_a_feature_runs_in_a_test(tmp_path, request):
     """In CI's check each part records what its tests run (`part_lines.py`), and the job `check`
     runs this test once the parts end, with `NEW_LINES_PARTS` the folder of what they recorded,
@@ -286,7 +334,8 @@ def test_every_line_this_branch_adds_to_a_feature_runs_in_a_test(tmp_path, reque
     if since is None:
         pytest.skip("no merge-base with origin/main here, so the added lines are not known")
     parts = os.environ.get("NEW_LINES_PARTS")
-    found = faults(added(since), tmp_path, parts=Path(parts) if parts else None)
+    deadline = None if os.environ.get("GITHUB_ACTIONS") == "true" else time.time() + BUDGET
+    found = faults(added(since), tmp_path, parts=Path(parts) if parts else None, deadline=deadline)
     assert found == [], "\n".join(found)
 
 
@@ -547,6 +596,59 @@ def test_an_added_function_stops_the_run_once_a_test_runs_it_not_after_every_tes
     assert faults(added(since, repo), tmp_path / "ran", repo) == []
     assert (tmp_path / "ran/own/stopped").exists(), "the run went on to its end"
     assert len(list(ended.iterdir())) < 12, "the run waited on every test once the def had run"
+
+
+def test_a_line_undecided_at_the_deadline_is_left_to_ci_and_a_decided_one_still_fails(tmp_path):
+    """The desk's run stops at its deadline, so a module whose tests outlast it holds no check
+    past the guard's limit: a line no test had run by then is a warning that CI's check decides
+    it, and a line of a module whose tests all ended unrun is still a fault."""
+    repo = tmp_path / "repo"
+    code = repo / "features/pkg/src/pkg"
+    tests = repo / "features/pkg/tests"
+    ended = tmp_path / "ended"
+    code.mkdir(parents=True)
+    tests.mkdir(parents=True)
+    ended.mkdir()
+    (code / "__init__.py").write_text("")
+    (code / "held.py").write_text("def held(row):\n    return row == 'held'\n")
+    (code / "fast.py").write_text("def fast(row):\n    return row\n")
+    (tests / "test_held.py").write_text(
+        "import sys\n"
+        "import time\n"
+        "from pathlib import Path\n\n"
+        "import pytest\n\n"
+        "sys.path.insert(0, 'features/pkg/src')\n"
+        "from pkg import held\n\n\n"
+        "@pytest.mark.parametrize('n', range(12))\n"
+        "def test_a_slow_row(n):\n"
+        "    time.sleep(2)\n"
+        f"    Path({str(ended)!r}, str(n)).touch()\n\n\n"
+        "def test_no_row():\n"
+        "    assert not held.held(None)\n"
+    )
+    (tests / "test_fast.py").write_text(
+        "import sys\n"
+        "sys.path.insert(0, 'features/pkg/src')\n"
+        "from pkg import fast\n\n\n"
+        "def test_a_row():\n"
+        "    assert fast.fast(1) == 1\n"
+    )
+    for args in (["init", "-q"], ["add", "."], ["commit", "-qm", "base"]):
+        git("-c", "user.name=t", "-c", "user.email=t@t", *args, repo=repo)
+    since = git("rev-parse", "HEAD", repo=repo)
+    (code / "held.py").write_text(
+        "def held(row):\n    if row is None:\n        return False\n    return row == 'held'\n"
+    )
+    (code / "fast.py").write_text(
+        "def fast(row):\n    if row is None:\n        return 0\n    return row\n"
+    )
+    with pytest.warns(UserWarning, match=r"features/pkg/src/pkg/held\.py:2,3$"):
+        found = faults(added(since, repo), tmp_path / "desk", repo, deadline=time.time() + 3)
+    assert found == [
+        "features/pkg/src/pkg/fast.py:3 is a line this branch adds that no test runs: add a test "
+        "that runs it, among the tests that name its module (1 of them ran)",
+    ]
+    assert len(list(ended.iterdir())) < 12, "the run went on past its deadline"
 
 
 def a_part(repo: Path, since: str, folder: Path, *tests: str) -> None:
