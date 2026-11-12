@@ -13,6 +13,23 @@ thread=$2
 T=$(dirname "$0")
 exempt='(^|/)(docs|\.github)/|(^|/)\.[^/]*$|\.(md|txt|rst|toml|json|yml|yaml|cfg|ini|lock)$'
 fork='^features/[^/]+/packaging/'
+# A Proved: line of a head the branch has left, or with work not committed, is no proof of the
+# branch as it is: a commit or an edit made while the call sat in the background ends the run
+# with no line, and exit 1. Each side ran on a copy of its commit, so a side kept in
+# crew-proof-sides still holds.
+still_at_head() {
+    local now dirty
+    now=$(git rev-parse HEAD)
+    if [ "$now" != "$head" ]; then
+        echo "no proof: the head or the worktree moved while it ran: HEAD $head is now $now"
+        exit 1
+    fi
+    dirty=$(git status --porcelain | sed 's/^ *//' | paste -sd , - | sed 's/,/, /g')
+    if [ -n "$dirty" ]; then
+        echo "no proof: the head or the worktree moved while it ran: the worktree has changes: $dirty"
+        exit 1
+    fi
+}
 # A branch whose every file is under a fork's `packaging/` folder, or docs or config, changes only
 # the fork's patches, whose tests are inside them. Each side lays its own series over its own
 # PKGBUILD's tag, the base's with the head's test files over it, installs, and runs the vitest
@@ -88,6 +105,7 @@ prove_fork() {
         done
     ' | tee "$tree/.proof-said"
     ran=${PIPESTATUS[0]}
+    still_at_head
     at_head=$(sed -n 's/^head exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
     at_base=$(sed -n 's/^base exit \([0-9]*\):.*/\1/p' "$tree/.proof-said")
     if [ "$ran" != 0 ] || [ -z "$at_head" ] || [ -z "$at_base" ]; then
@@ -127,7 +145,8 @@ else
         echo "no proof: no copy of the base could be made in ${TMPDIR:-/tmp}"
         exit 1
     fi
-    trap 'rm -rf "$tree"' EXIT
+    tip=
+    trap 'rm -rf "$tree" ${tip:+"$tip"}' EXIT
     if git diff --name-only --no-renames "$base" HEAD | command grep -vE "$kept" | command grep -qvE "$exempt"; then
         only=
         sides='head base'
@@ -136,7 +155,7 @@ else
         git diff --name-only --diff-filter=d "$base" HEAD | command grep -E "$kept" |
             while read -r file; do
                 mkdir -p "$tree/$(dirname "$file")"
-                git show "HEAD:$file" > "$tree/$file"
+                git show "$head:$file" > "$tree/$file"
             done
         (cd "$tree" && env -u VIRTUAL_ENV uv sync -q)
     else
@@ -158,6 +177,19 @@ else
             owed="$owed $side"
         fi
     done
+    # The head side runs in a checkout of the head it began at, as the base runs in its copy: a
+    # crew whose proof call sits in the background may edit, commit or drop an edit in the
+    # worktree meanwhile, and a run there would be of files that are not the head's.
+    case " $owed " in *" head "*)
+        if ! tip=$(mktemp -d "${TMPDIR:-/tmp}/head.XXXXXX"); then
+            echo "no proof: no copy of the head could be made in ${TMPDIR:-/tmp}"
+            exit 1
+        fi
+        git clone -q --shared --no-checkout . "$tip"
+        git -C "$tip" checkout -q --detach "$head"
+        (cd "$tip" && env -u VIRTUAL_ENV uv sync -q)
+        ;;
+    esac
     for lane in --short ''; do
         [ -n "$owed" ] || break
         # The short lane's worker count is the Makefile's SHORT_WORKERS; a full slot takes the
@@ -168,7 +200,7 @@ else
             proof_workers=$(($(getconf _NPROCESSORS_ONLN 2> /dev/null || echo 8) / 4))
             [ "$proof_workers" -ge 2 ] || proof_workers=2
         fi
-        PROOF_WORKERS=$proof_workers PROOF_HEAD=$PWD PROOF_BASE=$tree PROOF_SIDES=$owed PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot $lane --thread "$thread" -- bash -c '
+        PROOF_WORKERS=$proof_workers PROOF_HEAD=$tip PROOF_BASE=$tree PROOF_SIDES=$owed PROOF_TESTS=$list uv run --project "$T/../source" jgauge test-slot $lane --thread "$thread" -- bash -c '
             for side in $PROOF_SIDES; do
                 if [ "$side" = head ]; then at=$PROOF_HEAD more=; else at=$PROOF_BASE more=--continue-on-collection-errors; fi
                 cd "$at" || exit
@@ -190,6 +222,7 @@ else
             echo "$side: stopped at the short lane's limit, no verdict: it runs again alone in a full slot"
         done
     done
+    still_at_head
     at_head=$(sed -n 's/^head exit \([0-9]*\):.*/\1/p' "$tree/.proof-said" | tail -n 1)
     at_base=$(sed -n 's/^base exit \([0-9]*\):.*/\1/p' "$tree/.proof-said" | tail -n 1)
     line=

@@ -14,19 +14,12 @@ import json
 import os
 import re
 import subprocess
+import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from statechart.lib import LEGEND_ID, ChartError, unwrap
-
-# The question a chart answers, for a chart whose title does not ask one.
-QUESTIONS = {
-    "RowLife": "What happens to my row?",
-    "HomeTreeToday": "When a child home stalls or retires, does what it had out still reach you?",
-}
-
-# The order the page lists the charts in: from the user's row to the merge, then the homes.
-ORDER = ["RowLife", "ThreadLife", "PrVerdict", "FlowToday", "MainRed", "HomeTreeToday"]
+from statechart.overview import MOST, caption, groups_of, overview_of, plural
 
 CITE = re.compile(r"([\w./-]+\.(?:py|tla|md|sh|toml|json|js|ts))(?::(\d+)|\s+`([^`]+)`)", re.A)
 
@@ -60,6 +53,7 @@ class State:
     h: float = 0
     lines: list = field(default_factory=list)
     heads: list = field(default_factory=list)
+    notes: list = field(default_factory=list)
 
 
 @dataclass
@@ -95,6 +89,54 @@ class Chart:
     fills: dict
     stories: str
     summary: dict
+
+
+@dataclass
+class Flow:
+    """The map of the whole flow, from the file `--flow` names: the charts in the page's order,
+    what each charts, the question a chart asks when its title asks none, and the hand-offs from
+    a group of one chart to a group of another."""
+
+    order: list = field(default_factory=list)
+    things: dict = field(default_factory=dict)
+    questions: dict = field(default_factory=dict)
+    handoffs: list = field(default_factory=list)
+    path: Path | None = None
+
+
+def load_flow(path):
+    if path is None:
+        return Flow()
+    path = Path(path)
+    try:
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
+    except OSError as e:
+        raise ChartError(f"cannot read {path}: {e.strerror}") from e
+    except tomllib.TOMLDecodeError as e:
+        raise ChartError(f"{path}: {e}") from e
+    flow = Flow(path=path)
+    for chart in data.get("chart", []):
+        if not isinstance(chart.get("name"), str) or not isinstance(chart.get("thing"), str):
+            raise ChartError(f"{path}: each [[chart]] needs a name and a thing")
+        flow.order.append(chart["name"])
+        flow.things[chart["name"]] = chart["thing"]
+        if chart.get("question"):
+            flow.questions[chart["name"]] = chart["question"]
+    for handoff in data.get("handoff", []):
+        ends = [handoff.get("from"), handoff.get("to")]
+        if not all(isinstance(e, str) and ": " in e for e in ends) or not handoff.get("says"):
+            raise ChartError(
+                f'{path}: each [[handoff]] needs from = "Chart: Group", to = "Chart: Group"'
+                " and says"
+            )
+        flow.handoffs.append(
+            {
+                "from": tuple(ends[0].split(": ", 1)),
+                "to": tuple(ends[1].split(": ", 1)),
+                "says": handoff["says"],
+            }
+        )
+    return flow
 
 
 # Reading chart.mmd
@@ -259,7 +301,11 @@ def legend_of(root, classes, fills):
     for child in root["parts"][0]["children"]:
         if child["id"] == LEGEND_ID:
             return [
-                {"name": leaf["caption"], **_paint(fills, classes.get(leaf["id"], ""))}
+                {
+                    "name": leaf["caption"],
+                    "class": classes.get(leaf["id"], ""),
+                    **_paint(fills, classes.get(leaf["id"], "")),
+                }
                 for leaf in child["parts"][0]["children"]
             ]
     return []
@@ -340,17 +386,15 @@ def _line_of(lines, word):
 # Reading a chart's folder
 
 
-def find_charts(root):
+def find_charts(root, flow):
     found = sorted((root / "features").glob("*/spec/*-statechart/chart.mmd"))
-    rank = {name: k for k, name in enumerate(ORDER)}
+    rank = {name: k for k, name in enumerate(flow.order)}
     return sorted(found, key=lambda p: (rank.get(p.parent.name[: -len("-statechart")], 99), p))
 
 
-def read_chart(path, root, index):
-    folder = path.parent
-    name = folder.name[: -len("-statechart")]
-    feature = folder.relative_to(root / "features").parts[0]
-    title, tree, fills, classes = read_tree(path.read_text(encoding="utf-8"))
+def read_text(text, name, cite=lambda text: [], question=None):
+    """A chart.mmd as the page draws it, its states and steps cited by `cite`."""
+    title, tree, fills, classes = read_tree(text)
     composites = composites_by_id(tree)
     regions = []
     for region_name, part in regions_of(tree):
@@ -364,7 +408,7 @@ def read_chart(path, root, index):
                     label=leaf["caption"],
                     composite=composite,
                     group=classes.get(leaf["id"], ""),
-                    cites=cites_of(leaf["caption"], feature, index),
+                    cites=cite(leaf["caption"]),
                 )
             )
         ids = {s.id for s in region.states}
@@ -386,25 +430,41 @@ def read_chart(path, root, index):
                     s["label"],
                     guard=s.get("guard", []),
                     unless=s.get("unless", False),
-                    cites=cites_of(s["label"], feature, index),
+                    cites=cite(s["label"]),
                 )
             )
         regions.append(region)
-    stories = folder / "stories.md"
-    summary = folder / "summary.json"
-    question = title if title.endswith("?") else QUESTIONS.get(name, title or name)
     return Chart(
         name=name,
-        feature=feature,
-        folder=folder,
+        feature="",
+        folder=Path(),
         title=title or name,
-        question=question,
+        question=title if title.endswith("?") else question or title or name,
         regions=regions,
         legend=legend_of(tree, classes, fills),
         fills=fills,
-        stories=stories.read_text(encoding="utf-8") if stories.exists() else "",
-        summary=json.loads(summary.read_text(encoding="utf-8")) if summary.exists() else {},
+        stories="",
+        summary={},
     )
+
+
+def read_chart(path, root, index, flow):
+    folder = path.parent
+    name = folder.name[: -len("-statechart")]
+    feature = folder.relative_to(root / "features").parts[0]
+    chart = read_text(
+        path.read_text(encoding="utf-8"),
+        name,
+        lambda text: cites_of(text, feature, index),
+        flow.questions.get(name),
+    )
+    stories = folder / "stories.md"
+    summary = folder / "summary.json"
+    chart.feature = feature
+    chart.folder = folder
+    chart.stories = stories.read_text(encoding="utf-8") if stories.exists() else ""
+    chart.summary = json.loads(summary.read_text(encoding="utf-8")) if summary.exists() else {}
+    return chart
 
 
 # Layout
@@ -474,7 +534,7 @@ def layout(region):
     for s in region.states:
         s.lines = wrap_words(s.label)
         s.heads = wrap_words(s.composite, 30) if s.composite else []
-        s.h = PAD_Y * 2 + LINE_H * len(s.lines) + 13 * len(s.heads)
+        s.h = PAD_Y * 2 + LINE_H * (len(s.lines) + len(s.notes)) + 13 * len(s.heads)
     widest = max(len(r) for r in rows)
     width = widest * NODE_W + (widest - 1) * GAP_X
     y = REGION_PAD + 28
@@ -500,24 +560,28 @@ def esc(text):
 
 def edge_path(a, b, row_of, k, n, width):
     """A curve from a to b: down from a's bottom to b's top when b is in a later row, and
-    round the side otherwise. k of n spreads parallel curves apart."""
+    round the side otherwise. k of n spreads parallel curves apart. Returns the path and the
+    curve's middle point."""
     spread = (k - (n - 1) / 2) * 10
     ax, bx = a.x + NODE_W / 2, b.x + NODE_W / 2
     if row_of[b.id] > row_of[a.id]:
         x1, y1 = ax + spread, a.y + a.h
         x2, y2 = bx + spread, b.y
         dy = max(30, (y2 - y1) / 2)
-        return (
-            f"M{x1:.1f},{y1:.1f} C{x1:.1f},{y1 + dy:.1f} {x2:.1f},{y2 - dy:.1f} {x2:.1f},{y2:.1f}"
-        )
-    right = (ax + bx) / 2 >= width / 2
-    sx = a.x + NODE_W if right else a.x
-    tx = b.x + NODE_W if right else b.x
-    y1 = a.y + a.h / 2 + spread
-    y2 = b.y + b.h / 2 + spread
-    reach = 50 + abs(y2 - y1) * 0.25 + abs(k) * 6
-    out = reach if right else -reach
-    return f"M{sx:.1f},{y1:.1f} C{sx + out:.1f},{y1:.1f} {tx + out:.1f},{y2:.1f} {tx:.1f},{y2:.1f}"
+        points = [(x1, y1), (x1, y1 + dy), (x2, y2 - dy), (x2, y2)]
+    else:
+        right = (ax + bx) / 2 >= width / 2
+        sx = a.x + NODE_W if right else a.x
+        tx = b.x + NODE_W if right else b.x
+        y1 = a.y + a.h / 2 + spread
+        y2 = b.y + b.h / 2 + spread
+        reach = 50 + abs(y2 - y1) * 0.25 + abs(k) * 6
+        out = reach if right else -reach
+        points = [(sx, y1), (sx + out, y1), (tx + out, y2), (tx, y2)]
+    (x1, y1), (cx1, cy1), (cx2, cy2), (x2, y2) = points
+    d = f"M{x1:.1f},{y1:.1f} C{cx1:.1f},{cy1:.1f} {cx2:.1f},{cy2:.1f} {x2:.1f},{y2:.1f}"
+    mid = ((x1 + 3 * cx1 + 3 * cx2 + x2) / 8, (y1 + 3 * cy1 + 3 * cy2 + y2) / 8)
+    return d, mid
 
 
 def draw_region(chart, r, offset, width):
@@ -559,7 +623,7 @@ def draw_region(chart, r, offset, width):
             )
         else:
             fan = fans[down(source, target)]
-            d = edge_path(a, b, row_of, fan.index(source), len(fan), region.w - REGION_PAD * 2)
+            d, _ = edge_path(a, b, row_of, fan.index(source), len(fan), region.w - REGION_PAD * 2)
         ids = " ".join(f"{chart.name}-e{r}-{n}" for n in steps)
         said = esc(" | ".join(region.steps[n].label for n in steps))
         parts.append(
@@ -614,6 +678,197 @@ def draw_chart(chart):
         f'<defs><marker id="arrow-{esc(chart.name)}" viewBox="0 0 10 10" refX="9" refY="5"'
         ' markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
         '<path d="M0,0 L10,5 L0,10 z"/></marker></defs>' + "".join(pieces) + "</svg>"
+    )
+
+
+# Overviews: one box per group, and the map of the whole flow, one box per chart
+
+
+def draw_boxes(regions, prefix, links, attrs, css, dots=True):
+    """Boxes and labelled arrows, each region laid out as a chart's is, the regions side by side.
+    `links[r]` maps a pair of box ids to the arrow's label, and `attrs(state)` gives the
+    attributes of a box's <g>. An arrow between two boxes of one row runs straight across the gap
+    between them, its label above it. No xmlns: the page is HTML, which needs none."""
+    for r, region in enumerate(regions):
+        region.steps = [Step(a, b, said) for (a, b), said in links[r].items()]
+        region.row_of = layout(region)
+    titled = 26 if any(region.name for region in regions) else 0
+    height = max(region.h for region in regions) + titled
+    arrow = f"arrow-{esc(prefix)}"
+    parts, offset = [], 0.0
+    xs = [0.0]
+    for r, region in enumerate(regions):
+        states = {s.id: s for s in region.states}
+        row_of = region.row_of
+        if region.name:
+            parts.append(
+                f'<text class="region-name" x="{offset + REGION_PAD:.1f}" y="{REGION_PAD - 6}">'
+                f"{esc(region.name)}</text>"
+            )
+        parts.append(f'<g transform="translate({offset:.1f},{titled})">')
+        fans = {}
+        for a, b in links[r]:
+            key = (a, b) if row_of[b] > row_of[a] else (b, a)
+            fans.setdefault(key, []).append(a)
+        labels = []
+        for (a, b), said in links[r].items():
+            sa, sb = states[a], states[b]
+            if row_of[a] == row_of[b]:
+                y = min(sa.y + sa.h / 2, sb.y + sb.h / 2)
+                x1, x2 = (sa.x + NODE_W, sb.x) if sa.x < sb.x else (sa.x, sb.x + NODE_W)
+                d = f"M{x1:.1f},{y:.1f} L{x2:.1f},{y:.1f}"
+                mx, my = (x1 + x2) / 2, max(sa.y + sa.h, sb.y + sb.h) + 14
+            else:
+                key = (a, b) if row_of[b] > row_of[a] else (b, a)
+                fan = fans[key]
+                d, (mx, my) = edge_path(
+                    sa, sb, row_of, fan.index(a), len(fan), region.w - 2 * REGION_PAD
+                )
+            xs.extend(offset + float(x) for x in re.findall(r"(-?[\d.]+),", d))
+            parts.append(
+                f'<path class="{css}-edge" d="{d}" data-from="{esc(a)}" data-to="{esc(b)}"'
+                f' marker-end="url(#{arrow})"><title>{esc(said)}</title></path>'
+            )
+            w = 7.2 * len(said) + 14
+            labels.append(
+                f'<g class="{css}-count"><rect x="{mx - w / 2:.1f}" y="{my - 10:.1f}"'
+                f' width="{w:.1f}" height="20" rx="10"/>'
+                f'<text x="{mx:.1f}" y="{my + 4.5:.1f}">{esc(said)}</text></g>'
+            )
+        for s in dict.fromkeys(region.starts) if dots else []:
+            st = states[s]
+            cx = st.x + NODE_W / 2
+            parts.append(
+                f'<circle class="start" cx="{cx:.1f}" cy="{st.y - 34:.1f}" r="7"/>'
+                f'<path class="{css}-edge" d="M{cx:.1f},{st.y - 27:.1f} L{cx:.1f},{st.y:.1f}"'
+                f' marker-end="url(#{arrow})"/>'
+            )
+        for s in region.states:
+            mid = s.x + NODE_W / 2
+            parts.append(
+                f'<g class="{css}-box" {attrs(s)} tabindex="0" role="button">'
+                f'<rect x="{s.x:.1f}" y="{s.y:.1f}" width="{NODE_W}" height="{s.h:.1f}" rx="12"/>'
+                f'<text x="{mid:.1f}" y="{s.y + PAD_Y + LINE_H - 3:.1f}">'
+            )
+            for k, line in enumerate(s.lines):
+                parts.append(
+                    f'<tspan x="{mid:.1f}" dy="{0 if k == 0 else LINE_H}">{esc(line)}</tspan>'
+                )
+            parts.extend(
+                f'<tspan class="note" x="{mid:.1f}" dy="{LINE_H}">{esc(line)}</tspan>'
+                for line in s.notes
+            )
+            parts.append("</text></g>")
+        parts.extend(labels)
+        parts.append("</g>")
+        offset += region.w
+        xs.append(offset)
+    left, right = min(xs) - 20, max(xs) + 20
+    span = right - left
+    top = 0 if dots else REGION_PAD
+    return (
+        f'<svg class="{css}" viewBox="{left:.1f} {top - 20} {span:.1f} {height - top + 40:.1f}"'
+        f' style="max-width:{span * 1.1:.0f}px;min-width:{span * 0.9:.0f}px"'
+        f' role="img" aria-label="{esc(prefix)}"><defs><marker id="{arrow}" viewBox="0 0 10 10"'
+        ' refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">'
+        '<path d="M0,0 L10,5 L0,10 z"/></marker></defs>' + "".join(parts) + "</svg>"
+    )
+
+
+def overview_figure(chart):
+    """The chart's overview, as its tab shows it above the chart: a box per group, a click on
+    which moves the chart below to that group's states."""
+    ov = overview_of(chart)
+    regions, links, boxes = [], [], {}
+    for part in ov.parts:
+        region = Region(part.name, starts=[b.key for b in part.boxes if b.start])
+        for box in part.boxes:
+            boxes[box.key] = box
+            region.states.append(
+                State(id=box.key, label=box.name, group=box.group, notes=[caption(box)])
+            )
+        regions.append(region)
+        links.append({pair: plural(n, "step") for pair, n in part.links.items()})
+
+    def attrs(s):
+        paint = _paint(chart.fills, s.group)
+        return (
+            f'id="{esc(chart.name)}-ov-{esc(s.id)}" data-box="{esc(s.id)}"'
+            f' data-name="{esc(s.label)}" data-states="{esc(" ".join(boxes[s.id].states))}"'
+            f' style="--fill:{esc(paint["fill"])};--stroke:{esc(paint["stroke"])}"'
+            f' aria-label="{esc(s.label)}: {esc(s.notes[0])}"'
+        )
+
+    count = len(ov.boxes())
+    return (
+        f'<figure class="overview" data-chart="{esc(chart.name)}">'
+        f"<figcaption>Overview: {count} {'box' if count == 1 else 'boxes'}, one per group"
+        f"{', ' if count > MOST else ''}{'more than ' + str(MOST) if count > MOST else ''}."
+        " Tap a box to move the chart below to its states.</figcaption>"
+        f"{draw_boxes(regions, f'{chart.name}-ov', links, attrs, 'ov')}</figure>"
+    )
+
+
+def flow_section(charts, flow):
+    """The Overview tab: one box per chart, what it charts and the question it answers, the
+    hand-offs between them as numbered arrows, and the hand-offs listed under the map, each end
+    a button to the group it names."""
+    by_name = {c.name: c for c in charts}
+    first = flow.handoffs[0]["from"][0] if flow.handoffs else charts[0].name
+    region = Region("", starts=[first if first in by_name else charts[0].name])
+    for chart in charts:
+        groups = len(groups_of(chart))
+        states = sum(len(r.states) for r in chart.regions)
+        region.states.append(
+            State(
+                id=chart.name,
+                label=flow.things.get(chart.name, chart.name),
+                notes=[
+                    *wrap_words(chart.question),
+                    f"{plural(states, 'state')}, {plural(groups, 'group')}",
+                ],
+            )
+        )
+    links, items = {}, []
+    for n, h in enumerate(flow.handoffs, 1):
+        ends = []
+        for side in ("from", "to"):
+            name, group = h[side]
+            chart = by_name.get(name)
+            if chart is None:
+                raise ChartError(f"{flow.path}: hand-off {n} names {name}, which is no chart")
+            ov = overview_of(chart)
+            keys = [b.key for b in ov.boxes() if b.name == group and b.group]
+            if not keys:
+                have = ", ".join(groups_of(chart).values())
+                raise ChartError(
+                    f"{flow.path}: hand-off {n} names the group {group!r} of {name}, which has"
+                    f" no such group; its groups: {have}"
+                )
+            ends.append(
+                f'<button class="go" data-chart="{esc(name)}" data-box="{esc(keys[0])}">'
+                f"{esc(name)} &rsaquo; {esc(group)}</button>"
+            )
+        pair = (h["from"][0], h["to"][0])
+        links[pair] = f"{links[pair]}, {n}" if pair in links else str(n)
+        items.append(
+            f'<li>{ends[0]} &rarr; {ends[1]}<span class="says">{esc(h["says"])}</span></li>'
+        )
+
+    def attrs(s):
+        return f'id="flow-{esc(s.id)}" data-chart="{esc(s.id)}" aria-label="{esc(s.label)}"'
+
+    map_svg = draw_boxes([region], "flow", [links], attrs, "flow", dots=False)
+    listed = f'<ol class="handoffs">{"".join(items)}</ol>' if items else ""
+    return (
+        '<section class="flow-panel" data-view="overview">'
+        '<header class="chart-head"><p class="feature">jstack &middot; overview</p>'
+        "<h2>How a task flows through what the charts show</h2>"
+        f'<p class="sub">{plural(len(charts), "chart")}, one box each: what it charts and the'
+        " question it answers. Tap a box to open its chart. Each numbered arrow is a hand-off,"
+        " listed below: a group of one chart leads into a group of another.</p></header>"
+        f'<div class="flow-map">{map_svg}</div>'
+        f"{listed}</section>"
     )
 
 
@@ -699,22 +954,33 @@ def stories_html(text):
     return "\n".join(out)
 
 
-def page(charts, out_dir):
-    tabs, panels, data = [], [], {}
-    for k, chart in enumerate(charts):
+def overviews(charts, flow):
+    """The page's overview parts, by chart name and "Overview" for the map: drawn from the
+    charts' groups alone, with no code a chart cites, so a check that each is in the committed
+    page holds while the code moves under the charts."""
+    out = {"Overview": flow_section(charts, flow)}
+    for chart in charts:
+        out[chart.name] = overview_figure(chart)
+    return out
+
+
+def page(charts, out_dir, flow):
+    parts = overviews(charts, flow)
+    tabs = [
+        '<button class="tab" role="tab" data-view="overview" aria-selected="true">'
+        '<span class="tab-name">Overview</span>'
+        '<span class="tab-q">How do the charts hand off to each other?</span></button>'
+    ]
+    panels, data = [parts["Overview"]], {}
+    for chart in charts:
         data[chart.name] = chart_data(chart, out_dir)
         count = sum(len(r.states) for r in chart.regions)
         steps = sum(len(r.steps) for r in chart.regions)
         tabs.append(
             f'<button class="tab" role="tab" data-chart="{esc(chart.name)}"'
-            f' aria-selected="{"true" if k == 0 else "false"}">'
+            ' aria-selected="false">'
             f'<span class="tab-name">{esc(chart.name)}</span>'
             f'<span class="tab-q">{esc(chart.question)}</span></button>'
-        )
-        legend = "".join(
-            f'<li><span class="swatch" style="--fill:{esc(g["fill"])};--stroke:{esc(g["stroke"])}">'
-            f"</span>{esc(g['name'])}</li>"
-            for g in chart.legend
         )
         png = os.path.relpath(chart.folder / "chart.png", out_dir)
         spec = os.path.relpath(chart.folder.parent / "README.md", out_dir)
@@ -735,14 +1001,14 @@ def page(charts, out_dir):
         model = chart.summary.get("modelStates")
         model_note = f" TLC walked {model} model states to draw it." if model else ""
         panels.append(
-            f'<section class="chart-panel" data-chart="{esc(chart.name)}"'
-            f'{"" if k == 0 else " hidden"}><header class="chart-head">'
+            f'<section class="chart-panel" data-chart="{esc(chart.name)}" hidden>'
+            '<header class="chart-head">'
             f'<p class="feature">{esc(chart.feature)} &middot; {esc(chart.name)}</p>'
             f"<h2>{esc(chart.question)}</h2>"
             f'<p class="sub">{sizes}{at_once}{model_note}'
             f' Spec: <a href="{esc(spec)}">README</a> &middot;'
-            f' <a href="{esc(png)}">chart.png</a></p>'
-            f'<ul class="legend">{legend}</ul></header>'
+            f' <a href="{esc(png)}">chart.png</a></p></header>'
+            f"{parts[chart.name]}"
             '<div class="stage"><div class="viewport" tabindex="0"'
             ' aria-label="chart, drag or scroll to move, pinch or ctrl and scroll to zoom">'
             f"{draw_chart(chart)}</div>"
@@ -757,6 +1023,12 @@ def page(charts, out_dir):
         TEMPLATE.replace("{{TABS}}", "".join(tabs))
         .replace("{{PANELS}}", "".join(panels))
         .replace("{{DATA}}", payload)
+        .replace(
+            "{{FLOW}}",
+            f" and the map in <code>{esc(os.path.relpath(flow.path, out_dir))}</code>"
+            if flow.path
+            else "",
+        )
         .replace("{{STYLE}}", STYLE)
         .replace("{{SCRIPT}}", SCRIPT)
     )
@@ -776,33 +1048,36 @@ def repo_root(cwd):
     return Path(r.stdout.strip()) if r.returncode == 0 and r.stdout.strip() else Path(cwd)
 
 
-def read_all(root):
+def read_all(root, flow):
     root = Path(root).resolve()
-    paths = find_charts(root)
+    paths = find_charts(root, flow)
     if not paths:
         raise ChartError(f"no features/*/spec/*-statechart/chart.mmd under {root}")
     index = SourceIndex(root)
     charts = []
     for path in paths:
         try:
-            charts.append(read_chart(path, root, index))
+            charts.append(read_chart(path, root, index, flow))
         except ChartError as e:
             raise ChartError(f"{path.relative_to(root)}: {e}") from e
     return root, charts
 
 
-def render(root, out):
-    """The page the charts under `root` make, for a page written at `out`."""
-    root, charts = read_all(root)
-    return page(charts, Path(out).resolve().parent)
+def render(root, out, flow=None):
+    """The page the charts under `root` and the map in `flow` make, for a page written at
+    `out`."""
+    flow = load_flow(flow)
+    root, charts = read_all(root, flow)
+    return page(charts, Path(out).resolve().parent, flow)
 
 
-def build(root, out):
+def build(root, out, flow=None):
     """Writes the page for every chart under `root` to `out`: the charts it drew."""
-    root, charts = read_all(root)
+    flow = load_flow(flow)
+    root, charts = read_all(root, flow)
     out = Path(out).resolve()
     out.parent.mkdir(parents=True, exist_ok=True)
-    text = page(charts, out.parent)
+    text = page(charts, out.parent, flow)
     scratch = out.with_name(f".{out.name}.part")
     scratch.write_text(text, encoding="utf-8")
     os.replace(scratch, out)

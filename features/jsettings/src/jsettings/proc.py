@@ -248,7 +248,11 @@ def _log(
     state: Path, command: tuple[str, ...], caller: str, status: int, said: Debug, waited: float
 ) -> None:
     """Write the call's line to `CALLS`, in one append, so that lines from many processes never
-    mix. A log that cannot be written costs the call nothing."""
+    mix. A log grown past `KEPT` becomes `gh-calls.old.jsonl` first, with the size checked and
+    the log renamed under one flock of `.gh-calls.jsonl.lock`, so a second process that found
+    the log full checks it again once the first has renamed it, and renames nothing more. A log
+    whose lock cannot be taken is not renamed, and still gets its line. A log that cannot be
+    written costs the call nothing."""
     line: dict[str, object] = {
         "at": datetime.now(UTC).isoformat(timespec="seconds"),
         "caller": caller,
@@ -269,7 +273,8 @@ def _log(
     if waited >= WAIT:
         line["waited"] = round(waited, 2)
     path = state / CALLS
-    with contextlib.suppress(OSError):
+    with contextlib.ExitStack() as held, contextlib.suppress(OSError):
+        fcntl.flock(held.enter_context(open(state / f".{CALLS}.lock", "a")), fcntl.LOCK_EX)
         if path.stat().st_size > KEPT:
             os.replace(path, state / f"{Path(CALLS).stem}.old.jsonl")
     with contextlib.suppress(OSError), open(path, "a") as log:

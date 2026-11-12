@@ -1,0 +1,95 @@
+---
+title: "Does the proof on the brief match the head, and does a rebase leave its record?, bug 1"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0 fill:#ffffff,stroke:#808080,color:#1b2631
+  classDef group0Path fill:#ffffff,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group1 fill:#eaf2f8,stroke:#75797c,color:#1b2631
+  classDef group1Path fill:#eaf2f8,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group2 fill:#e8daef,stroke:#746d78,color:#1b2631
+  classDef group2Path fill:#e8daef,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group3 fill:#fadbd8,stroke:#7d6e6c,color:#1b2631
+  classDef group3Path fill:#fadbd8,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group6 fill:#fef9e7,stroke:#7f7d74,color:#1b2631
+  classDef group6Path fill:#fef9e7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group7 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group7Path fill:#fdebd0,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group9 fill:#e5e8e8,stroke:#737474,color:#1b2631
+  classDef group9Wrong fill:#e5e8e8,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group9Path fill:#e5e8e8,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  state "Legend" as legend {
+    state "At work" as legendGroup0
+    state "Result written" as legendGroup1
+    state "In review" as legendGroup2
+    state "A finding to answer" as legendGroup3
+    state "In conflict" as legendGroup6
+    state "Rebasing" as legendGroup7
+    state "The rebase record" as legendGroup9
+    state "Breaks a rule" as legendWrong
+  }
+  class legendGroup0 group0
+  class legendGroup1 group1
+  class legendGroup2 group2
+  class legendGroup3 group3
+  class legendGroup6 group6
+  class legendGroup7 group7
+  class legendGroup9 group9
+  class legendWrong plainWrong
+  state "Checked and proved at this<br/>head" as g0 {
+    state "rebasing" as s0
+    state "reviewed, a finding to<br/>answer" as s1
+    state "the Result is written, no<br/>review yet" as s2
+    state "the pull request is in<br/>conflict" as s3
+    state "the review runs" as s4
+  }
+  state "Checked at this head, not<br/>proved" as g1 {
+    state "a rebase record left<br/>behind" as s5
+    state "at work, no Result" as s6
+    state "rebased, not pushed" as s7
+    state "the Result is written, no<br/>review yet" as s8
+    state "the rebase is pushed, its<br/>record not removed yet" as s9
+  }
+  state "No check at this head" as g2 {
+    state "at work, no Result" as s10
+    state "rebased, not pushed" as s11
+  }
+  state "the check runs" as g3 {
+    state "at work, no Result" as s12
+    state "rebased, not pushed" as s13
+  }
+  state "the proof runs: the Result<br/>is written, no review yet" as s14
+  [*] --> s10
+  s10 --> s12 : 1. the crew runs the check<br/>block
+  s12 --> s6 : 2. the check block writes its<br/>Checked line, exit 0
+  s6 --> s8 : 3. the crew writes its Result
+  s8 --> s14 : 4. the crew runs proved.sh
+  s14 --> s2 : 5. proved.sh writes its Proved<br/>line
+  s2 --> s4 : 6. jbus launches the review
+  s4 --> s1 : 7. the reviewer writes its<br/>review
+  s1 --> s3 : 8. GitHub says the pull<br/>request is in conflict
+  s3 --> s0 : 9. the head is kept under<br/>pre-rebase
+  s0 --> s11 : 10. git rebases
+  s11 --> s13 : 11. the crew runs the check<br/>block
+  s13 --> s7 : 12. the check block writes its<br/>Checked line, exit 0
+  s7 --> s9 : 13. the rebase is pushed with<br/>its lease
+  s9 --> s5 : 14. the block is killed
+  class s0 group7Path
+  class s1 group3Path
+  class s2 group1Path
+  class s3 group6Path
+  class s4 group2Path
+  class s5 group9Wrong
+  class s6 group0Path
+  class s7 group7Path
+  class s8 group1Path
+  class s9 group9Path
+  class s10 group0Path
+  class s11 group7Path
+  class s12 group0Path
+  class s13 group7Path
+  class s14 group1Path
