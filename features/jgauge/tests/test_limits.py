@@ -215,6 +215,18 @@ def test_a_path_it_cannot_write_to_breaks_nothing(tmp_path, env):
     assert sorted(os.listdir(tmp_path)) == ["file", "limits", "proc", "stub"]
 
 
+def test_a_directory_where_the_lock_cannot_be_opened_breaks_nothing(tmp_path, env):
+    """The state directory stands but is read-only, so `limits.lock` cannot be opened: the
+    status line still ends 0 and writes nothing."""
+    shut = tmp_path / "shut"
+    shut.mkdir(mode=0o555)
+    write(
+        handed(five_hour=(23.5, SOON), seven_day=(41.2, WEEK)),
+        {**env, "LIMITS": str(shut / "limits")},
+    )
+    assert os.listdir(shut) == []
+
+
 def test_a_machine_with_no_jq_breaks_nothing(tmp_path, env):
     empty = tmp_path / "empty"
     empty.mkdir()

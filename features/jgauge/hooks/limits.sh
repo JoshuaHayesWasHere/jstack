@@ -26,7 +26,7 @@ esac
 [ ! -d "$LIMITS" ] || exit 0
 
 mkdir -p "$(dirname "$LIMITS")" 2>/dev/null || exit 0
-{ exec 9>>"$LIMITS.lock"; } 2>/dev/null || exit 0
+{ command exec 9>>"$LIMITS.lock"; } 2>/dev/null || exit 0
 perl -MFcntl=:flock -e 'open(my $l, ">&=9") or exit 1; flock($l, LOCK_EX) or exit 1' 2>/dev/null || exit 0
 kept=$(cat "$LIMITS" 2>/dev/null)
 merged=$(printf '%s\n%s\n' "$kept" "$seen" | awk '
