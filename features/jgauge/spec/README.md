@@ -35,7 +35,7 @@ Each process writes only its own entry, under the file's lock, and jbus forgets 
 | `spare-outside-lock` | `slotwait.wake` reads the waiters, counts `spare` with no lock, sends the wake, and only then records `woken` | count and record the wake under one hold of the waiters lock, before the send, as `_claim` counts and takes | `WokenGetsSlot` |
 | `forget-unended` | closed: a holder records `keeper`, the pid of its `jgauge test-slot`, and `holders.running` counts a run with no `ended` as running while its command or its `jgauge test-slot` lives, so `wake_ended` keeps it until the end is written | forget such a run only once its `jgauge test-slot` is gone too | `EndNotLost` |
 | `orphan-command` | closed: a killed `jgauge test-slot` takes its command with it, since a watchdog, `jgauge.children`, kills the command and what it started once the holder's pipe ends | the command ends with its holder | `OneCommandPerSlot` |
-| `pid-alone` | closed: `holders.running` counts a run as running only while its pid has the start time the run recorded, from `/proc/<pid>/stat` | a pid another process took reads as gone | `NoLostHolder` |
+| `pid-alone` | closed: `holders.running` counts a run as running only while its pid has the start time the run recorded, from `/proc/<pid>/stat`, or from `ps` where there is no /proc, as on macOS | a pid another process took reads as gone | `NoLostHolder` |
 | `no-ledger-lock` | closed: each writer holds `<ledger>.lock`, an flock beside the file, from its read to its rename (`ledger.write`, and a perl `flock` of fd 9 in `hooks/limits.sh`, since macOS has no `flock` command) | read, merge and write under one lock | `LedgerNoLostUpdate` |
 
 `PidReuse` lets another process take a dead command's pid.
