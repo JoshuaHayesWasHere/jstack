@@ -40,7 +40,7 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --p
 ```
 
 It writes `RowLife-statechart/`: `chart.mmd`, `stories.md` and `summary.json`, labelled by `RowLife.map.py`.
-No chart's PNG or Excalidraw scene, nor the charts page, is committed: `make charts`, at the repo's root, draws them from each committed `chart.mmd` into a folder git ignores, and prints the page's path.
+No chart's PNG or Excalidraw scenes, nor the charts page, is committed: `make charts`, at the repo's root, draws them from each committed `chart.mmd` into a folder git ignores, and prints the page's path.
 Each status on the chart says what in `work.py` sets it, and each step that moves the status is labelled by its row of `queue.MOVES`.
 The regions draw 64 of their 112 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
 Its `tlc/` folder holds TLC's output, which is not committed.

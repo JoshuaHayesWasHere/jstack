@@ -1,25 +1,20 @@
 """`statechart overview` draws a chart at the level of its groups: ten boxes or fewer, one per group
 of each region and one for a region's states in no group, every state in a box, and every step
 inside a box or on an arrow that counts it. Each overview is drawn on the page, above its chart, and
-committed as an Excalidraw file beside the chart's own under features/home/docs/charts/. A chart is
-held to its model by test_statechart_current.py, and the committed overviews are held to their
-charts here, so a group that moves fails the drift check. The page is built, not committed."""
+`make charts` writes it as an Excalidraw scene beside the chart's own, none of them committed."""
 
 import importlib
 import json
 import re
-import shutil
 
 import pytest
 
-from statechart_support import node, read, statechart_cli, write
+from statechart_support import node, read, statechart_cli
 from testing.paths import REPO
 
 site = importlib.import_module("statechart.site")
-READ_SET = ("features/*/spec/*-statechart/chart.mmd", "features/home/docs/charts/")
+READ_SET = ("features/*/spec/*-statechart/chart.mmd",)
 CHARTS = sorted(REPO.glob("features/*/spec/*-statechart/chart.mmd"))
-DRAWN = REPO / "features" / "home" / "docs" / "charts"
-FLOW = DRAWN / "flow.toml"
 BOX = re.compile(r'^\s*state "(.*?)<br/>(\d+) states?(?:, (\d+) steps? inside)?" as (\w+)$', re.M)
 ARROW = re.compile(r"^\s*(\w+) --> (\w+) : (\d+) steps?$", re.M)
 
@@ -51,54 +46,11 @@ def test_the_overview_has_a_box_per_group_and_counts_every_state_and_step(chart)
     assert all(a in keys and b in keys and a != b for a, b, _ in arrows)
 
 
-def stale_overviews(root, drawn, scratch):
-    """The drift check: each chart under `root` whose overview is not the one its chart.mmd draws
-    now in `drawn`/NAME.overview.excalidraw. The page is built, not committed, so its overviews are
-    drawn fresh each time and cannot drift."""
-    flow = site.load_flow(root / FLOW.relative_to(REPO))
-    root, charts = site.read_all(root, flow)
-    stale = []
-    for chart in charts:
-        out = scratch / f"{chart.name}.overview.excalidraw"
-        built = statechart_cli.main(
-            ["overview", str(chart.folder / "chart.mmd"), "--out", str(out)]
-        )
-        assert built == 0
-        if out.read_bytes() != (drawn / f"{chart.name}.overview.excalidraw").read_bytes():
-            stale.append(f"{chart.name}.overview.excalidraw")
-    return stale
-
-
-def test_each_committed_overview_is_the_one_its_chart_draws(tmp_path):
-    stale = stale_overviews(REPO, DRAWN, tmp_path)
-    assert not stale, (
-        f"stale overviews: {', '.join(stale)}. Draw them again: for each chart,"
-        " statechart overview CHART.mmd --out"
-        f" {DRAWN.relative_to(REPO)}/NAME.overview.excalidraw"
-    )
-
-
-def test_the_drift_check_fails_once_a_state_moves_to_another_group(tmp_path):
-    for chart in CHARTS:
-        copy = tmp_path / chart.relative_to(REPO)
-        copy.parent.mkdir(parents=True)
-        shutil.copy(chart, copy)
-    shutil.copytree(DRAWN, tmp_path / DRAWN.relative_to(REPO))
-    drawn = tmp_path / DRAWN.relative_to(REPO)
-    scratch = tmp_path / "scratch"
-    scratch.mkdir()
-    assert stale_overviews(tmp_path, drawn, scratch) == []
-    moved = tmp_path / "features/jmerge/spec/FlowToday-statechart/chart.mmd"
-    text = read(moved)
-    first = re.search(r"^  class s\d+ group0$", text, re.M)[0]
-    write(moved, text.replace(first, first.replace("group0", "group1"), 1))
-    assert stale_overviews(tmp_path, drawn, scratch) == ["FlowToday.overview.excalidraw"]
-
-
 @pytest.mark.parametrize("chart", CHARTS, ids=name_of)
-def test_each_overview_file_is_a_scene_with_a_box_per_group_beside_the_charts_own(chart):
-    scene = json.loads(read(DRAWN / f"{name_of(chart)}.overview.excalidraw"))
-    assert (DRAWN / f"{name_of(chart)}.excalidraw").exists()
+def test_each_overview_file_is_a_scene_with_a_box_per_group(chart, tmp_path):
+    out = tmp_path / f"{name_of(chart)}.overview.excalidraw"
+    assert statechart_cli.main(["overview", str(chart), "--out", str(out)]) == 0
+    scene = json.loads(read(out))
     boxes = [
         e
         for e in scene["elements"]

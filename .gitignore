@@ -6,8 +6,11 @@ __pycache__/
 /.claude/skills/
 /.cursor/skills/
 
-# Drawn by `make charts` from each committed chart.mmd: the charts page, and a PNG and an
-# Excalidraw scene of each chart. Every chart change rewrites them, and git cannot merge them.
-/features/home/docs/charts/
+# Drawn by `make charts` from each committed chart.mmd: the charts page, and a PNG and Excalidraw
+# scenes of each chart. Every chart change rewrites them, and git cannot merge them. flow.toml,
+# beside them, is written by hand and stays committed.
+/features/home/docs/charts/index.html
+/features/home/docs/charts/*.png
+/features/home/docs/charts/*.excalidraw
 # `statechart from-spec --png` draws these beside chart.mmd.
 /features/*/spec/*-statechart/*.png

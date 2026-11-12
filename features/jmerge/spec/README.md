@@ -115,7 +115,7 @@ W=$(TMPDIR=$D mktemp -d) && cp features/jmerge/spec/FlowToday.* features/jmerge/
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `FlowToday-statechart/`.
-No chart's PNG or Excalidraw scene, nor the charts page, is committed: `make charts`, at the repo's root, draws them from each committed `chart.mmd` into a folder git ignores, and prints the page's path.
+No chart's PNG or Excalidraw scenes, nor the charts page, is committed: `make charts`, at the repo's root, draws them from each committed `chart.mmd` into a folder git ignores, and prints the page's path.
 `FlowToday.chart.cfg` checks the four rules on the model cut by `ChartCut`: no change breaks a browser test of its own, and no brief is edited.
 The chart command holds TLC's whole state graph in memory: the whole model, 2.6M states before fl-rules-1103, took more than 27 GB before earlyoom stopped it.
 The cut, 1.19M states at #946, 1.04M since fl-no-draft and 0.97M since st-flow, needed more than 14 GB at fl-spec-readme-docs's head, and earlyoom stopped it once, so run it with that much memory free.

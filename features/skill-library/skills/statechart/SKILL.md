@@ -26,7 +26,7 @@ Start with `statechart --help`, which gives the commands and how to read a chart
 TLC's `tla2tools.jar` is pinned in `scripts/statechart/tools.py` and is downloaded to `~/.cache/jstack/tla2tools/` on the first run, checked against its sha256; set `TLA2TOOLS` to use another copy.
 `--png` renders with Mermaid's `@mermaid-js/mermaid-cli` through `npx`, at the version pinned in the same file, so it needs Node.
 In jstack a chart folder commits only `chart.mmd`, any `bug-N.mmd`, `stories.md` and `summary.json`: git cannot merge a drawing, and every chart change rewrites one.
-`make charts` runs `statechart site`, which draws from those, with no TLC run, the charts page and a PNG and an Excalidraw scene of each chart beside it, in a folder git ignores, and prints the page's path.
+`make charts` runs `statechart site`, which draws from those, with no TLC run, the charts page and a PNG and Excalidraw scenes of each chart and its overview beside it, in a folder git ignores, and prints the page's path.
 Run it when you want to look at them; no hook or check runs it.
 The mapping that labels a model is a Python file, `SPEC.map.py`, and `scripts/model/` has a worked one: `OutputFolder.tla` models the command's own output folder, and `OutputFolder.map.py` labels it.
 Work in a scratch folder outside the repo.

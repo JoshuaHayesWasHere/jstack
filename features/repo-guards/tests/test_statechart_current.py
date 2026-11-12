@@ -58,7 +58,7 @@ def test_each_chart_was_drawn_from_its_spec_as_it_is_now(chart):
 
 def test_no_drawing_of_a_chart_is_committed():
     tracked = subprocess.run(
-        ["git", "ls-files", "--", "*.png", "*.excalidraw", "features/home/docs/charts/"],
+        ["git", "ls-files", "--", "*.png", "*.excalidraw", "features/home/docs/charts/index.html"],
         cwd=REPO,
         capture_output=True,
         text=True,
