@@ -20,7 +20,8 @@ The rules, each with its harm:
 - **`FixCountedWhereRead`:** each counted fix is in the ledger of the home admit reads.
   Broken, a fix moved part way is counted where nothing reads it.
 
-Today's code breaks `EntryOnce` (a close cut short and run again appends a second copy) and `FixCountedWhereRead` (a move cut before `blockers.rehome`); `PlanScope.cfg` keeps each trace.
+Today's code breaks `FixCountedWhereRead` (a move cut before `blockers.rehome`), and `PlanScope.cfg` keeps its trace.
+A close cut short and run again appends no second copy, since `plan.close` skips the append when plan-done.md already ends with the entry's section, so `EntryOnce` holds; the `close-twice` canary puts the second append back and breaks it.
 
 ## The record
 
@@ -59,4 +60,4 @@ A canary that does not break its rule tests nothing: fix the rule or the canary,
 
 ## Drift at the sync commit
 
-None: the two rules today's code breaks are expected in the cfg, not drift.
+None: the one rule today's code breaks is expected in the cfg, not drift.
