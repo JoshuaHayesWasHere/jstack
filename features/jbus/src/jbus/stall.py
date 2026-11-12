@@ -82,6 +82,7 @@ from jbus import (
     reverts,
     verbs,
     waiting,
+    watch,
     write_json,
 )
 from jbus.ci import collect
@@ -155,15 +156,13 @@ def walk(run: Pass, world: World, rows: list[queue.Row], pulls: list[str]) -> Ro
         for line in lines
         if (line.code or ready.code_of(line.reason)) == ready.CHECK_FAILED.code
     }
-    counted: dict[str, Any] = read_json(run.state / FAILS, {})
 
     def red(slug: str, pull: dict[str, Any]) -> str:
         """The root of a red pull request `twice` held its row for, that no thread works on, or
         nothing: no crew is told of it while the row is held, so only the user moves it."""
         number, row = pull["number"], table.get(slug, {})
-        if number not in failing or at_work(world.threads.get(slug, [])) or not row.get("held"):
-            return ""
-        if not (counted.get(slug) or {}).get("held_at"):
+        held = row.get("held") and watch.failed_twice(run, slug)
+        if number not in failing or at_work(world.threads.get(slug, [])) or not held:
             return ""
         return (
             f"pick up #{number} {pull.get('url', '')}: {failing[number]}, {slug} is held by "
