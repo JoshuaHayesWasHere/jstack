@@ -681,7 +681,7 @@ def tlc_output_warning(text, file):
         re.M,
     ):
         raise ChartError(
-            f"{file}: TLC did not finish, so its counterexamples are not all there; read the file"
+            f"{file}: TLC did not finish, so its counterexamples are not all there; read the file."
         )
     return None
 
