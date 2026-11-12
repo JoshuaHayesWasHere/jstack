@@ -57,14 +57,14 @@ On `not a root home:` or `no home:`, say that one line and stop.
 
 ## May
 
-On its own, with no word from the user, a pass may:
+With no new word from the user, a pass may:
 
 - approve a follow-up row with `jbus queue approve <slug> --follows <approved slug>`;
 - give a go again, on the standing word for goes, for a row whose brief changed after its go, once it judged the change: `jbus queue approve <slug> --word <the standing word's id>`;
 - waive a `Done when` line it judged by the root's "Judge a waiver" with `jbus waive --as root`, once that verb exists: today `jbus waive` takes only `--as user` or `--as home`, so a pass asks for the waiver as a Call;
 - rerun a failed CI job that step 4 found to be a flake;
 - tell a child home with `jbus tell`, by the root's "Tell a child";
-- remove a dead row, one with nothing left to land, with `jbus queue remove`;
+- remove a dead row, one with nothing left to land, on the user's standing word for such rows, as the home skill's "How a turn ends" does: `jbus queue remove <slug> --message <thread id>/<message id>`;
 - stop a row that a later word of the user's superseded, with `jbus queue hold <slug>`.
 
 ## Never
@@ -83,7 +83,7 @@ A pass never:
 ## The verdict
 
 The pass ends in one of three verdicts.
-The report's first word is the verdict, and the report has no other part.
+A Moving or a Call report opens with its verdict's word, and has only the lines below.
 
 - **Quiet**: nothing changed since the last pass, and every call is one the user was already told.
   Write nothing: no recap, and no line that says nothing changed.
@@ -91,7 +91,8 @@ The report's first word is the verdict, and the report has no other part.
   In at most five lines: what merged, what started, and what the root fixed, each a line.
   This overrides the home skill's "How a turn ends", which tells only a decision or a stop.
 - **Call**: a choice only the user can make, such as a lost go, a new plan entry, or anything a revert does not undo.
-  Run each call through the block of the home skill's "How a turn ends" as a `decision` line, and tell only the lines its `say:` prints, so that a call is told once.
+  Run each call through the block of the home skill's "How a turn ends" as a `decision` line, so that a call is told once.
+  Its `silent` makes the verdict Moving or Quiet, and its `say:` lines are the report, after the word Call.
   A call names its row as `<slug>: line <n>` where it is about a `Done when` line, and never by a pull request's number, since `jbus waive` binds a reply only to a message that named the row and its line.
   Each call has three parts: the pick, its evidence and its risk.
   For example: `alpha: line 4, waive it: the test takes 15.2 s where the line asks for 15, and a revert undoes the merge`.
