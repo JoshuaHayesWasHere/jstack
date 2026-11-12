@@ -18,7 +18,7 @@ from datetime import timedelta
 
 import pytest
 
-from test_jbus_github import failed, launched, passes, pull, sends
+from test_jbus_github import FAILED, failed, launched, passes, pull, sends
 from test_jbus_kitchen import NOW
 from test_jbus_queue import go, rows
 
@@ -122,6 +122,26 @@ def test_a_second_head_whose_log_comes_a_pass_late_still_tells_the_crew_its_test
     second = sends(launched)[1]["message"]
     for named in (TEST, "aaaaaaaaaaaa", "bbbbbbbbbbbb", "a third"):
         assert named in second, second
+    assert not rows(launched)["alpha"].get("held")
+    assert not pages(launched)
+
+
+def test_a_second_head_whose_log_never_comes_is_told_the_plain_failed_message_once_the_bound_passes(
+    launched,
+):
+    """The review of st-stall-names-late (F1, 2026-11-12): a second failed head whose job's log
+    GitHub never gives (expired, a 404, a lasting gh error) stayed `judging` every pass, so its
+    crew was told nothing of the red at all. It waits for a judgment no longer than
+    `jbus.stall.JUDGE_FOR`, and then its crew is told the plain failed message."""
+    red_at(launched, A, "11")
+    passes(launched, 0)
+    red_at(launched, B, "12", main=None)
+    passes(launched, 3, 6, 3 + 29)
+    assert told(launched) == ["failed|alpha|aaaaaaaaaaaa"]
+
+    passes(launched, 3 + 30, 3 + 33)
+    assert told(launched) == ["failed|alpha|aaaaaaaaaaaa", "failed|alpha|bbbbbbbbbbbb"]
+    assert sends(launched)[1]["message"] == FAILED.format(short="bbbbbbbbbbbb")
     assert not rows(launched)["alpha"].get("held")
     assert not pages(launched)
 
