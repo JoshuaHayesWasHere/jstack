@@ -5,9 +5,10 @@ The merge-rate scout found a go reached a queued row a mean 2.25 h later over a 
 rows: `jbus plan go` refused an entry with no row, so the go waited, unrecorded, until its home
 wrote the brief and queued the row, and no pass knew of it. Now the home records the go when the
 user gives it, and each pass that sees a go holding over an entry with no row wakes the entry's
-home, naming the entry and how long ago the go was said, until a row is queued under it. `jbus
-flow` reads, for each entry, the time from its go to its first queued row. The tests run the real
-commands and the real pass against the kitchen's fakes.
+home, naming the entry and how long ago the go was said, until a row is queued under it
+(`jbus.plan.owed`, `jbus.wakes.owed_items`). `jbus flow` reads, for each entry, the time from its
+go to its first queued row (`jbus.flow.measure.go_to_queued`). The tests run the real commands and
+the real pass against the kitchen's fakes.
 """
 
 from datetime import UTC, datetime, timedelta
