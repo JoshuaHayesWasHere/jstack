@@ -239,6 +239,7 @@ TABLE = {
     "retro": "quiet",
     "revert": "quiet",
     "cancelled": "quiet",
+    "queued": "quiet",
     "snapshot": "quiet",
     "jmerge": "quiet",
     "expedite": "quiet",
