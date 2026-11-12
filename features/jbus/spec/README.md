@@ -395,7 +395,7 @@ S=features/skill-library/skills/statechart/scripts
 cd features/jbus/spec
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "../../../$S" \
     statechart from-spec OneList.tla --config OneList.chart.cfg --expect-broken AnsweredLeaves,ListIsTrue \
-    --title "Does a gate reach my list, and leave it once I answer?" --png
+    --title "Does a gate reach my list, and leave it once I answer?"
 ```
 
 `OneList.chart.cfg` draws the gates scene alone: the other scenes have too many states to draw.
