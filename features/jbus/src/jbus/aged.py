@@ -90,6 +90,7 @@ _CODES: tuple[tuple[str, int | None, tuple[str, ...]], ...] = (
                 ready.MERGED_TREE_UNBUILT,
                 ready.MERGED_TREE_NO_TIME,
                 ready.MERGED_TREE_NO_SLOT,
+                ready.RULE_UNRUN,
                 ready.MERGING,
                 ready.IN_BATCH,
                 ready.BATCH_FIRST,
@@ -149,6 +150,7 @@ _CODES: tuple[tuple[str, int | None, tuple[str, ...]], ...] = (
                 ready.MIGRATION_TAKEN,
                 ready.UNMERGED,
                 ready.MERGED_TREE_FAILS,
+                ready.RULE_BREAKS,
                 ready.BROWSER_RED,
             )
         ),
