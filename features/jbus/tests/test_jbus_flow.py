@@ -12,6 +12,7 @@ of the window.
 
 import json
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -548,3 +549,77 @@ def test_the_command_refuses_a_window_that_ends_before_it_starts(kitchen):
 
 def test_flow_is_a_verb():
     assert [verb.name for verb in flow.VERBS] == ["flow"]
+
+
+NIGHT = Path(__file__).parent / "fixtures" / "flow" / "2026-11-11"
+"""The night of 2026-11-11, cut from jbus's own logs: `events.jsonl` keeps #1728's events, its
+tables cut to its own row, and every `rollover`; `outbox.jsonl` the lines of the five rows a cap
+held and of #1728's thread; `capped.jsonl` the two reads where claudeAgent went from free to
+capped. The text of an event `jbus flow` does not read is cut."""
+CRASH_GAPS = "st-main-fix-crash-gaps"
+
+
+def test_the_night_of_the_cap_reads_the_capped_hours_held_rows_rollovers_and_the_owner_s_hold(
+    kitchen, monkeypatch
+):
+    kitchen.state.mkdir(parents=True, exist_ok=True)
+    for name in ("events.jsonl", "outbox.jsonl"):
+        (kitchen.state / name).write_text((NIGHT / name).read_text())
+    (kitchen.state_dir / "capped.jsonl").write_text((NIGHT / "capped.jsonl").read_text())
+    monkeypatch.setattr(records, "ask", lambda command, cwd=None: None)
+    window = ("--since", "2026-11-11T21:00-05:00", "--until", "2026-11-12T06:00-05:00")
+    quiet = ("--no-github", "--no-journal", "--rows")
+    code, out = kitchen.main("flow", *window, *quiet, "--json")
+    assert code == 0, out
+    said = json.loads(out)
+    cap = said["caps"]
+    assert cap["by_account"] == {"claudeAgent": 6.2}
+    assert cap["rows_held"] == 5
+    assert cap["rollovers"] == 39
+    spans = next(
+        one["spans"]
+        for one in said["lead_times"]["rows"] + said["lead_times"]["open"]
+        if one["slug"] == CRASH_GAPS
+    )
+    held = [one for one in spans if one["class"] == "owner: held"]
+    assert [(one["start"], one["end"]) for one in held] == [
+        ("2026-11-12T06:08:31+00:00", "2026-11-12T10:54:34+00:00")
+    ]
+    assert "act" in held[0]["source"]
+    code, out = kitchen.main("flow", *window, *quiet)
+    assert code == 0, out
+    line = next(one for one in out.splitlines() if one.startswith("account caps:"))
+    assert "an account capped 6.2 h (claudeAgent 6.2 h)" in line
+    assert "5 rows a cap held" in line and "39 threads rolled over" in line
+    assert "owner: held  <- " in out
+
+
+def test_a_cap_hold_ends_at_the_row_s_next_send_or_at_its_cap_and_a_free_read_ends_a_spell():
+    def sent(when, row, went, rule=""):
+        return json.dumps({"at": when.isoformat(), "row": row, "went": went, "rule": rule})
+
+    cap = f"cap: until {at(2).isoformat()}"
+    demo = project([])
+    lines = [sent(at(0), "told", "held", cap), sent(at(1), "told", "sent")]
+    records.outbox(demo, [*lines, sent(at(0.5), "quiet", "held", cap)])
+    assert {(one.slug, one.until) for one in demo.cap_holds} == {("told", at(1)), ("quiet", at(2))}
+    reads = [
+        {"at": at(0).isoformat(), "instances": ["a", "b"], "capped": {"a": at(9).isoformat()}},
+        {"at": at(1).isoformat(), "instances": ["a", "b"], "capped": {"b": at(2).isoformat()}},
+        {"at": at(1.5).isoformat(), "instances": ["a", "b"], "capped": {"b": at(5).isoformat()}},
+        {"at": at(3).isoformat(), "instances": ["b"], "capped": {"b": at(5).isoformat()}},
+    ]
+    spells = records.capped(["not a read", *(json.dumps(one) for one in reads)])
+    said = measure.caps([demo], [], at(-1), at(12), spells)
+    assert said["by_account"] == {"a": 1.0, "b": 4.0}
+    assert said["rows_held"] == 2 and said["row_hours_held"] == 2.5
+
+
+def test_a_row_its_home_held_waits_on_the_owner_until_the_home_approves_it_again():
+    held = event(at(2.6), "act", "held alpha; run 2026-10-20 12:36 EDT by the demo home")
+    again = event(at(3.5), "act", "approved alpha: brief 0123456789ab, your word")
+    for lines, until in (([held, again], at(3.5)), ([held], at(4))):
+        row = measure.row_spans(project([*ALPHA, *lines]), "alpha", at(-1), at(9), {})
+        assert [(one.start, one.end) for one in row.spans if one.what == "owner: held"] == [
+            (at(2.6), until)
+        ]
