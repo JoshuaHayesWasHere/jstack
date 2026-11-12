@@ -446,10 +446,12 @@ def coverage_of(folder, name, summary):
     if not drawn:
         return None
     spec = folder.parent
-    cfg = _drawn_with(drawn["command"], name, "--config", ".cfg")
+    model = re.search(r"from-spec (\S+)\.tla", drawn["command"])
+    model = Path(model.group(1)).name if model else name
+    cfg = _drawn_with(drawn["command"], model, "--config", ".cfg")
     try:
         text = (spec / cfg).read_text(encoding="utf-8")
-        spec_text = (spec / f"{name}.tla").read_text(encoding="utf-8")
+        spec_text = (spec / f"{model}.tla").read_text(encoding="utf-8")
     except OSError as e:
         raise ChartError(f"cannot read {e.filename}: {e.strerror}") from e
     scene = []
@@ -464,7 +466,7 @@ def coverage_of(folder, name, summary):
         (cut, _sentence_above(spec_text, cut))
         for cut in re.findall(r"^CONSTRAINT\s+(\w+)", text, re.M)
     )
-    mapped = spec / _drawn_with(drawn["command"], name, "--map", ".map.py")
+    mapped = spec / _drawn_with(drawn["command"], model, "--map", ".map.py")
     if not mapped.is_file():
         raise ChartError(f"cannot read {mapped}: no such file")
     regions = summary.get("regions", {})

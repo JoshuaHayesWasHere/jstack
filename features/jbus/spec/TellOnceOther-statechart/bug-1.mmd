@@ -1,0 +1,39 @@
+---
+title: "Does jbus act twice, or drop an act, outside a thread when a pass dies?, bug 1"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0 fill:#fef5e7,stroke:#7f7b74,color:#1b2631
+  classDef group0Path fill:#fef5e7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group1 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group1Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group1Path fill:#fdebd0,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  state "Legend" as legend {
+    state "Not told: nothing marked" as legendGroup0
+    state "Not told: a pass in its step or a mark written" as legendGroup1
+    state "Breaks a rule" as legendWrong
+  }
+  class legendGroup0 group0
+  class legendGroup1 group1
+  class legendWrong plainWrong
+  state "A row red at two heads" as g0 {
+    state "not told, fails.json<br/>counts two heads" as s0
+    state "not told, fails.json<br/>counts two heads, a pass<br/>is in its step" as s1
+    state "not told, fails.json<br/>counts two heads, the row<br/>is held" as s2
+    state "not told, fails.json<br/>counts two heads, the row<br/>is held, a pass is in its<br/>step" as s3
+    state "nothing owed yet" as s4
+  }
+  [*] --> s4
+  s4 --> s0 : 1. what calls for it comes to<br/>hold
+  s0 --> s1 : 2. a pass reaches it and reads<br/>its marks
+  s1 --> s3 : 3. the row is held
+  s3 --> s2 : 4. the pass dies
+  class s0 group0Path
+  class s1 group1Path
+  class s2 group1Wrong
+  class s3 group1Path
+  class s4 group0Path

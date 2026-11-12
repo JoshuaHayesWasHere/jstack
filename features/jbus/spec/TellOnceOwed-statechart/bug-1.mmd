@@ -1,0 +1,43 @@
+---
+title: "Does jbus send an ask owed after a limit twice when a pass dies?, bug 1"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group0Path fill:#fdebd0,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group2 fill:#e8f8f5,stroke:#747c7b,color:#1b2631
+  classDef group2Path fill:#e8f8f5,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group6 fill:#fdedec,stroke:#7f7776,color:#1b2631
+  classDef group6Wrong fill:#fdedec,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  state "Legend" as legend {
+    state "Not told: the ask owed or not yet due" as legendGroup0
+    state "Told once: the ask owed" as legendGroup2
+    state "Told twice: the ask owed" as legendGroup6
+    state "Breaks a rule" as legendWrong
+  }
+  class legendGroup0 group0
+  class legendGroup2 group2
+  class legendGroup6 group6
+  class legendWrong plainWrong
+  state "An ask owed after a limit" as g0 {
+    state "not told, owed.json says<br/>owed" as s0
+    state "nothing owed yet" as s1
+    state "told once, owed.json says<br/>owed" as s2
+    state "told once, owed.json says<br/>owed, a pass is in its<br/>step" as s3
+    state "told twice, owed.json says<br/>owed, a pass is in its<br/>step" as s4
+  }
+  [*] --> s1
+  s1 --> s0 : 1. what calls for it comes to<br/>hold
+  s0 --> s3 : 2. failover carries the thread<br/>on, the ask quoted
+  s3 --> s2 : 3. the pass dies
+  s2 --> s3 : 4. a pass reaches it and reads<br/>its marks
+  s3 --> s4 : 5. the receiver takes it
+  class s0 group0Path
+  class s1 group0Path
+  class s2 group2Path
+  class s3 group2Path
+  class s4 group6Wrong
