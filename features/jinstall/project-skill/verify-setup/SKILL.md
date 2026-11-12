@@ -8,6 +8,7 @@ paths: "features/jinstall/spec/Setup.tla, features/jinstall/src/jinstall/machine
 
 `features/jinstall/spec/Setup.tla` follows what jstack leaves on a machine and the records that undo it, in three parts that change apart.
 The install part is `jinstall/machine.py`'s `created`, `repos` and `seeded` records, each written by `_note` or its writer before the path it names, under HOME's lock, and uninstall as one step.
+`_note` builds the record's missing levels under a stage, `<level>.jstack-new`, writes `created` there, and renames the stage into place, so a level appears only with the record that names it.
 The mirror part is one entry of a role mirror moved to its `.bak-<time>` backup and linked to `~/.claude`'s, under the mirror's lock.
 The expert part is steps 3 and 4 of `features/expert/when-an-expert-starts.md`: `home-id`, the kept `webhook`, and `webhook.url`, across two threads that can each take the expert over.
 A process or a turn can stop between any two steps, and the disk keeps what it wrote.
@@ -15,15 +16,15 @@ A process or a turn can stop between any two steps, and the disk keeps what it w
 
 The rules, each with its harm, and today's verdict:
 
-- **`UninstallComplete`** (breaks): every path jstack made is recorded or not made.
+- **`UninstallComplete`** (holds): every path jstack made is recorded or not made.
   Broken, an uninstall leaves the record's own folder behind.
-- **`RecordLevelsRecorded`** (breaks): the record's folder and the levels above it are recorded.
-  `_note` makes `~/.local/state/jstack`, and any missing level above it, before it writes `created`.
+- **`RecordLevelsRecorded`** (holds): the record's folder and the levels above it are recorded.
+  Broken, `_note` makes `~/.local/state/jstack`, or a missing level above it, before a record names it.
 - **`MadePathsRecorded`** (holds): each path the install makes for its own use is recorded first.
 - **`MirrorKept`** (holds): the mirror's own entry is at its name or in its backup.
-- **`OneWebhook`** (breaks): an expert has at most one live webhook, and once a start has ended, its record names it.
+- **`OneWebhook`** (holds): an expert has at most one live webhook, and once a start has ended, its record names it.
   Broken, a takeover that stopped leaves a webhook no record names, or a record that names the wrong thread.
-- **`UrlNamesWebhook`** (breaks): once a start has ended, the address kept is the kept webhook's.
+- **`UrlNamesWebhook`** (holds): once a start has ended, the address kept is the kept webhook's.
   Broken, a stop between the record and the address loses the address for good.
 
 ## The record
@@ -31,7 +32,7 @@ The rules, each with its harm, and today's verdict:
 Model: `features/jinstall/spec/Setup.tla`
 Sync: `bc13624077653b4458133d4486544d863a602141`
 Covers:
-- `features/jinstall/src/jinstall/machine.py`: `Machine.alone`, `Machine._note`, `Machine._write_record`, `Machine.make_dirs`, `Machine.add_repo`, `Machine.forget_repos`, `Machine._write_seeded`, `Machine.seed`, `Machine.sweep`, `_levels`, `_beside`
+- `features/jinstall/src/jinstall/machine.py`: `Machine.alone`, `Machine._note`, `Machine._write_record`, `Machine.make_dirs`, `Machine.add_repo`, `Machine.forget_repos`, `Machine._write_seeded`, `Machine.seed`, `Machine.sweep`, `Machine._unstage`, `_levels`, `_beside`
 - `features/jinstall/src/jinstall/__main__.py`: `setup`, `set_up_repo`, `uninstall`, `act`
 - `features/jroles/src/jroles/mirror.py`: `plan`, `apply`, `run`, `_backup`, `LOCK`
 - `features/expert/when-an-expert-starts.md`: `home-id`, `webhook.url`, `update_scheduled_task`, `list_scheduled_tasks`, `delete_scheduled_task`, `schedule_task`, `boundThreadId`
@@ -57,10 +58,10 @@ The test also fails when a quote of the spec no longer stands once in its file: 
 uv run pytest features/jinstall/tests/test_setup_spec.py -q
 ```
 
-It finds each quote of the spec once in its file, then runs TLC on `Setup.cfg`, on each rule alone over the part it reads, and on the canary, in seconds, and skips the TLC runs where no Java runs TLC.
+It finds each quote of the spec once in its file, then runs TLC on `Setup.cfg`, on each rule alone over the part it reads, and on the canaries, in seconds, and skips the TLC runs where no Java runs TLC.
 The bare TLC command, the table of rules and verdicts, and the four findings are in `features/jinstall/spec/README.md`; run TLC in a copy of the folder, since it writes `states/` where it runs.
 
-- **Bounds:** `MaxId = 2` webhooks, two threads, and one mirror entry; `Setup.cfg` follows all three parts and stops at the first break, `UninstallComplete`, after 15 distinct states; `MadePathsRecorded` alone holds over 609 states and `MirrorKept` over 10.
+- **Bounds:** `MaxId = 2` webhooks, two threads, and one mirror entry; `Setup.cfg` follows all three parts and breaks no rule over 411,730 distinct states; each install rule alone holds over 418 states and `MirrorKept` over 10.
 - **The canary:** `Fault = "note-after"` has `make_dirs` make a folder before it records it, and breaks `MadePathsRecorded`, which today's code holds.
 - **Assumptions:** uninstall is one step; each level above the record is empty when uninstall reaches it; the `_beside` temporary file, the mirror's `.jroles-mirror.lock` and a seeded file the user changed are out; the expert has no create without an address, no webhook in another project and no pin; the rest is in the README's "What the model leaves out".
 
@@ -72,7 +73,7 @@ When every step is backed, it is a bug: tell it as the run's story (an install a
 
 ## Change the model when the code changes on purpose
 
-- A fix that records the record's folder before it is made: change `NoteMkdir` and `NoteWrite`, rerun every rule alone, and move the README's verdict table and the cfg's comment with what TLC prints.
+- A change to how `_note` makes the record's folder: change `NoteMkdir` and `NoteWrite`, rerun every rule alone, and move the README's verdict table, the cfg's comment and this skill's verdicts with what TLC prints.
 - A new record or a new path the install makes: give it a variable or a member of `disk` whose comment quotes its writer, and add it to `Covered`.
 - A change to the expert's blocks: move the step and its quote with the block, and rerun `OneWebhook` and `UrlNamesWebhook`.
 
@@ -81,3 +82,11 @@ When every step is backed, it is a bug: tell it as the run's story (an install a
 None found in the steps.
 `seed` calls `make_dirs(path.parent)` between the seeded record and the file, which the model folds into `seed`'s `make` step, so a missing parent's own `_note` steps are not followed there; `MadePathsRecorded` is the rule they would touch, and `make_dirs` notes each level before it makes it.
 The README and spec say "the code of main c49a8bd3c"; no covered file changed from there to the sync.
+
+## Changed since the sync commit
+
+- `_note` builds the record's levels under a stage and renames it in with `created` (jinstall-note-records-its-folder), and the sweep removes a stage left behind (`Machine._unstage`).
+  `NoteMkdir` and `NoteWrite` follow it, and `RecordLevelsRecorded` and `UninstallComplete` hold.
+- Step 4 of the expert's start reconciles the kept webhook with T3 Code's tasks (#1775), and the expert part changed with it.
+
+Neither moves `Sync:`: read the covered files' diffs since it against the model first.
