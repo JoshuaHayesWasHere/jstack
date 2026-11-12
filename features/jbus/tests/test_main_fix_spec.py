@@ -1,8 +1,9 @@
 """How jbus files main's fix and revert, and the nightly runs it has seen, as a TLA+ spec,
 `features/jbus/spec/MainFix.tla`: each quote of the spec stands once in the file it cites; each
 carrier of the ledger's MainFix rows is a variable that quotes the code that writes it; and TLC
-says what each rule does on today's code: `MainFix.cfg` holds, the canary breaks RevertKnown, and
-each of `FINDINGS` breaks while the code does. The TLC runs skip where no Java runs TLC."""
+says what each rule does on today's code: `MainFix.cfg` holds, each of `FIXED` holds in its
+World, each of `CANARIES` breaks its rule, and each of `FINDINGS` breaks while the code does. The
+TLC runs skip where no Java runs TLC."""
 
 import importlib
 import re
@@ -38,16 +39,30 @@ CARRIERS = {
 }
 """Each row of the st-state-ledger with machine MainFix, and the variable that carries it."""
 
-FINDINGS = {
+FINDINGS: set[tuple[str, str]] = set()
+"""The rules today's code breaks, each with the World it breaks in, none: st-main-fix-crash-gaps
+fixed the five that st-model-main-fix found, RevertSaid in `{}`, RevertKnown in `{"hand"}` and
+`{"refuses"}`, FiledWhole in `{"refuses"}` and `{"late"}`. A break TLC finds again goes here,
+with its trace in MainFix.cfg's comment."""
+
+FIXED = {
     ("RevertSaid", "{}"),
     ("RevertKnown", '{"hand"}'),
     ("RevertKnown", '{"refuses"}'),
     ("FiledWhole", '{"refuses"}'),
     ("FiledWhole", '{"late"}'),
 }
-"""The rules today's code breaks, each with the World it breaks in, as MainFix.cfg's comment tells
-with TLC's trace. A fix of the code makes its row fail here: take the row out, and its line out of
-the comment."""
+"""The five breaks st-model-main-fix found, each a rule and the World it broke in, which
+st-main-fix-crash-gaps fixed: TLC holds each rule in its World."""
+
+CANARIES = {
+    ("RevertSaid", "{}", "keep-first"),
+    ("RevertKnown", '{"hand"}', "no-known"),
+    ("FiledWhole", '{"refuses"}', "brief-first"),
+    ("FiledWhole", '{"late"}', "brief-first"),
+}
+"""Each fix of st-main-fix-crash-gaps taken back (`Fault`), with the rule and the World it was
+found broken in: TLC finds each break again, so the rules still see what they were written for."""
 
 
 def comments() -> str:
@@ -137,12 +152,19 @@ def alone(rule: str, world: str = "{}", fault: str = "none") -> subprocess.Compl
 
 
 @JAVA
-def test_a_reopen_that_does_not_ask_github_breaks_revert_known():
-    """The canary, `Fault = "no-reopen-check"`: `opened` does not ask GitHub for the revert's
-    branch, so a revert opened by a pass that died is never recorded."""
-    ran = alone("RevertKnown", fault="no-reopen-check")
+@pytest.mark.parametrize(("rule", "world"), sorted(FIXED))
+def test_each_fixed_break_holds_in_the_world_it_broke_in(rule, world):
+    ran = alone(rule, world)
+    assert ran.returncode == 0, ran.stdout[-4000:]
+    assert "No error has been found" in ran.stdout
+
+
+@JAVA
+@pytest.mark.parametrize(("rule", "world", "fault"), sorted(CANARIES))
+def test_each_fix_taken_back_breaks_its_rule_again(rule, world, fault):
+    ran = alone(rule, world, fault)
     assert ran.returncode != 0
-    assert "Invariant RevertKnown is violated" in ran.stdout, ran.stdout[-4000:]
+    assert f"Invariant {rule} is violated" in ran.stdout, ran.stdout[-4000:]
 
 
 @JAVA

@@ -21,8 +21,9 @@ jbus judges the red run: every commit of main since the last green, main's tip f
 One culprit is clear when the run's oldest commit, the first red after the last green, is the merge commit of a briefed pull request, and every later tip of the run failed no test outside the ones that failed at that oldest commit.
 The later merges landed on its red and broke nothing more, so a culprit with merges on top of it is still reverted, as #334 would have been on 2026-10-23 with four merges on top.
 With one commit since the last green, the oldest is the tip.
-Then jbus runs `gh pr revert`, which makes a new commit on a new branch, and never pushes to main.
-It keeps the revert in `reverts.json` beside the queue, writes its brief, says `revert <slug>: main red at <sha12>, jbus opened <url> to revert it`, and tells the culprit's crew (`features/jbus/src/jbus/culprits.py`).
+Then jbus names the revert in `reverts-opening.json`, runs `gh pr revert`, which makes a new commit on a new branch, and never pushes to main.
+It writes the revert's brief, says `revert <slug>: main red at <sha12>, jbus opened <url> to revert it`, keeps the revert in `reverts.json` beside the queue, drops its name, and tells the culprit's crew (`features/jbus/src/jbus/culprits.py`).
+The record is the last write, so a pass that stops before it leaves the revert to the next: each pass first keeps a revert `reverts-opening.json` names that GitHub has open and `reverts.json` does not, whether main is still red or not (`reverts.known`).
 The home is not sent it: the `revert` event is quiet, wakes no thread, and reaches the home only in the digest ([Events and wakes](events-and-wakes.md)).
 `jmerge` merges the revert by the normal path once its checks are green, with no review.
 It is first in `jmerge`'s merge order, ahead of every pull request `reverts.json` does not name, and once main moves past its check it takes the line of branch updates from the pull request that holds it ([Merges cleanly over today's main](../../../jmerge/docs/jmerge.md#merges-cleanly-over-todays-main)).

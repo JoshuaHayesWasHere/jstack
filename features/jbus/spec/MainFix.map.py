@@ -6,8 +6,10 @@
 # Each value the code writes is kept apart, and each join is named here:
 # - the revert's brief (B-023) is one value, written or not: its lines (`Status: done`, `Branch:`,
 #   `Pull request:`, `Home:`) are written together by one write_text, so no state has some of them;
-# - a fix row (B-028 main, B-029 the Mac) is "no brief", "a brief with no row" or "its row queued";
-#   a row with no brief cannot be, since the brief is written first;
+# - a fix row (B-028 main, B-029 the Mac) is "no fix row" or "its row queued": the row is queued
+#   before its brief's copy is written to tasks/, which no pass reads, so the copy is not drawn,
+#   and a brief with no row, which only a canary writes, cannot be;
+# - reverts-opening.json, the revert a pass set out to open, is one value, named or not;
 # - a nightly's seen file (B-030 browser, B-031 macOS nightly, B-032 scheduled) keeps, by run:
 #   no key ("not seen"), the slug of the day's row ("seen as the day's row"), `passed`, which only
 #   the macOS nightly writes ("seen passing"), and the empty string. The empty string joins five
@@ -15,7 +17,10 @@
 #   nightly before any run of it passed, a red run whose failures were all shots (`fixed` is
 #   blank), and a project's first pass, which the model leaves out. Each means "seen, nothing to
 #   file for it", and no reader tells them apart.
-reader_actions = ["HandGreen"]
+# The reader's steps are the world's: a merge, a red check run again, a nightly run, the days that
+# age it, and the next pass starting. A state that enables only these is one between passes, where
+# nothing happens until the world moves, and the chart draws the shortest way to each of them.
+reader_actions = ["GoesRed", "Merge", "HandGreen", "NightlyRuns", "Ages", "Start"]
 
 REVERT = {
     "none": "no revert",
@@ -23,7 +28,7 @@ REVERT = {
     "merged": "the revert merged",
 }
 FILING = {
-    "none": "no fix brief",
+    "none": "no fix row",
     "brief": "a fix brief with no row",
     "row": "its fix row queued",
 }
@@ -58,13 +63,14 @@ def where(v):
 
 def revert(v):
     if v["pull"] == "none":
-        return REVERT["none"]
+        return REVERT["none"] + (", one named in reverts-opening.json" if v["opening"] else "")
     if v["pull"] == "merged":
         return REVERT["merged"]
     if v["record"]:
         return "a revert on record" + ("" if v["said"] else ", never said")
     brief = ", its brief written" if v["revertBrief"] else ""
-    return f"a revert open on GitHub{brief}, not on record"
+    named = ", named in reverts-opening.json" if v["opening"] else ""
+    return f"a revert open on GitHub{brief}{named}, not on record"
 
 
 def filed(v, name, rows):
@@ -103,10 +109,16 @@ group_colors = {
 }
 
 
+def mac_phase(v):
+    """The step of the pass that judges the Mac: after reverts.known and each nightly."""
+    return 2 + len(v["runs"])
+
+
 def judged(before, after):
-    check = CHECKS["mac" if before["phase"] == 1 else "main"]
+    name = "mac" if before["phase"] == mac_phase(before) else "main"
+    check = CHECKS[name]
     if after["phase"] != before["phase"] or after["at"] == "judge":
-        if not before["red"]["mac" if before["phase"] == 1 else "main"]:
+        if not before["red"][name]:
             return f"jbus finds {check} green"
         return f"jbus finds {check} red, and its revert on record"
     if after["at"] == "revert":
@@ -116,10 +128,10 @@ def judged(before, after):
 
 def nightly(before, after):
     names = [n for n in ("browser", "macos", "scheduled") if n in before["runs"]]
-    n = names[before["phase"] - 3] if before["phase"] - 3 < len(names) else ""
-    if after["at"] == "filed":
+    n = names[before["phase"] - 2] if before["phase"] - 2 < len(names) else ""
+    if after["at"] == "copy":
         row = [r for r in after["rows"] if after["rows"][r] != before["rows"][r]][0]
-        return f"jbus writes the brief of {NIGHTLY[row]}"
+        return f"jbus queues {NIGHTLY[row]}"
     if after["phase"] != before["phase"]:
         return f"jbus is done with {NIGHTLY.get(n, 'the nightlies')}"
     seen = {"browser": "browserSeen", "macos": "macosSeen", "scheduled": "scheduledSeen"}[n]
@@ -157,28 +169,40 @@ def step(action, before, after):
         return "a pass starts"
     if action == "Die":
         return "the pass dies"
+    if action == "Known":
+        if after["at"] == "found":
+            return "jbus finds the revert it named open on GitHub"
+        if before["opening"] and not after["opening"]:
+            return "jbus forgets a revert GitHub has not opened, or one on record"
+        return "jbus has no revert named and unrecorded"
     if action == "Judge":
         return judged(before, after)
     if action == "Open":
+        if after["at"] == "intent":
+            return "jbus names the revert in reverts-opening.json"
+        return "jbus finds its revert on GitHub by its branch"
+    if action == "GhRevert":
         if after["at"] == "file":
             return "GitHub refuses the revert, so jbus files a row"
-        if before["pull"] != after["pull"]:
-            return "jbus opens the revert on GitHub"
-        return "jbus finds its revert on GitHub by its branch"
+        return "jbus opens the revert on GitHub"
     if action == "BriefRevert":
         if after["revertBrief"] != before["revertBrief"] or after["at"] == "briefed":
             return "jbus writes the revert's brief"
         return "GitHub does not say the revert's branch yet"
-    if action == "KeepRevert":
-        return "jbus records the revert in reverts.json"
-    if action == "SayRevert":
+    if action in ("SayOrKeep", "KeepOrSay"):
+        if after["record"] != before["record"]:
+            return "jbus records the revert in reverts.json"
         return "jbus says it opened the revert"
+    if action == "ForgetIntent":
+        return "jbus drops the revert's name from reverts-opening.json"
     if action == "FileBrief":
-        if after["at"] == "filed":
-            return "jbus writes the fix brief"
+        if after["at"] in ("copy", "filed"):
+            return "jbus queues the fix row"
         return "the queue already holds the fix row"
     if action == "QueueFix":
         return "jbus queues the fix row"
+    if action == "CopyBrief":
+        return "jbus writes the brief's copy to tasks/"
     if action == "NightlyRead":
         return nightly(before, after)
     if action == "QueueNightly":
@@ -186,20 +210,6 @@ def step(action, before, after):
     if action == "SeeNightly":
         return "jbus records the run as seen"
     return action
-
-
-def cause(v, facts, invariant):
-    if invariant == "RevertSaid":
-        return "the pass died after it recorded the revert, and no later pass says it"
-    if invariant == "RevertKnown":
-        if any(v["red"].values()):
-            return (
-                "GitHub did not answer, and the pass filed a row in place of recording the revert"
-            )
-        return "main turned green before a pass recorded the revert, so none judges it again"
-    if invariant == "FiledWhole":
-        return "the pass died after the fix brief, and the next pass reverted in place of filing"
-    return None
 
 
 legend = {"works": "Works today", "wrong": "Wrong today", "fixed": "Fixed by the design"}
