@@ -7,8 +7,9 @@ one run cannot tell a load flake from a break, and the verdict a red tip got whe
 called real faults flakes (jstack's 8b6c51f76 and 54d9f0055) and flakes faults (spells 44 and
 45). This step reads that cause and works out no flake rule of its own. Where one test failed in
 two spells that went green with no fix, their first red tips no more than `WINDOW` apart, and the
-later of them within `WINDOW` of the pass, it writes `tasks/flake-<name>.md` and queues it with no
-go, as jbus's pass. The next pass approves it by the follow-up rule, since jbus filed it
+later of them within `WINDOW` of the pass, it queues `flake-<name>` with no go, as jbus's pass,
+and then writes `tasks/flake-<name>.md`, so a pass that stops between the two leaves a row, never
+a brief that no row names. The next pass approves it by the follow-up rule, since jbus filed it
 (`queue.filed`). One flake is noise: two timing flakes of one week were two different tests (the
 scout po-worse-change-failure's Report).
 
@@ -112,18 +113,19 @@ def brief(name: str, test: str, pair: tuple[Seen, Seen]) -> str:
 
 
 def file(run: Pass, name: str, test: str, pair: tuple[Seen, Seen]) -> bool:
-    """Write and queue the row `name` where the queue has none, and return whether it is filed:
-    removed, already in the queue, or queued now."""
+    """Queue the row `name` where the queue has none, then write its brief's copy to `tasks/`
+    (`watch.copy_brief`), and return whether it is filed: removed, already in the queue, or
+    queued now."""
     if name in run.removed or queue.fresh(run.state, name) is not None:
         return True
     text = brief(name, test, pair)
-    (run.home / "tasks").mkdir(parents=True, exist_ok=True)
-    (run.home / "tasks" / f"{name}.md").write_text(text)
     try:
         queue.add(run.state, name, 0, [], text, user=run.user, ran_by=queue.PASS)
     except (Refused, queue.Unparsable) as refused:
         run.condition(name, f"its brief was not queued: {refused}")
+        watch.copy_brief(run, name, text)
         return False
+    watch.copy_brief(run, name, text)
     run.find(name, "retro", f"retro {name}: `{test}` flaked on main twice in seven days")
     return True
 
