@@ -290,15 +290,20 @@ In today's code the half of `NoTellTwice` that says no act runs after its mark w
 
 ### Draw the act-once charts
 
-The ask owed after a limit has as many states as the other twelve acts together, so it is a chart of its own: `TellOnce.chart.cfg` draws the twelve, `TellOnceOwed.chart.cfg` the ask, and `TellOnce.cfg` still checks all thirteen.
-Since one behavior follows one act, the two charts together draw every path.
+The thirteen acts are three charts, so each chart's overview fits in ten boxes with at most 15 states to a group.
+`TellOnce.chart.cfg` draws the six acts that tell a thread through `t3_thread_send`, `TellOnceOther.chart.cfg` the six that do not, and `TellOnceOwed.chart.cfg` the ask owed after a limit, which alone has as many states as the twelve; `TellOnce.cfg` still checks all thirteen.
+Since one behavior follows one act, the three charts together draw every path.
 
 ```sh
 S=features/skill-library/skills/statechart/scripts
 cd features/jbus/spec
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
     statechart from-spec TellOnce.tla --config TellOnce.chart.cfg \
-    --title "Does jbus tell anyone twice, or drop a tell, when a pass dies?" \
+    --title "Does jbus tell a thread twice, or drop a tell, when a pass dies?" \
+    --expect-broken NoTellTwice,NoTellLost
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
+    statechart from-spec TellOnce.tla --config TellOnceOther.chart.cfg --out TellOnceOther-statechart \
+    --title "Does jbus act twice, or drop an act, outside a thread when a pass dies?" \
     --expect-broken NoTellTwice,NoTellLost
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
     statechart from-spec TellOnce.tla --config TellOnceOwed.chart.cfg --out TellOnceOwed-statechart \
@@ -306,7 +311,7 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --e
     --expect-broken NoTellTwice
 ```
 
-They write `TellOnce-statechart/` and `TellOnceOwed-statechart/`, labelled by `TellOnce.map.py`, with one `bug-N` chart for each act that breaks a rule.
+They write `TellOnce-statechart/`, `TellOnceOther-statechart/` and `TellOnceOwed-statechart/`, labelled by `TellOnce.map.py`, with one `bug-N` chart for each act that breaks a rule.
 A state's color says where its tell stands: orange not told, green told once, red told twice, each shade a step short of done that its label names, such as a mark written or the outbox holding it; the ask's chart splits by whether owed.json still owes the ask and by its try.
 
 ### What the act-once model leaves out

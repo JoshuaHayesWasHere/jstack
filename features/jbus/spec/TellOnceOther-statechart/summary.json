@@ -1,0 +1,129 @@
+{
+  "view": "customer",
+  "modelStates": 80,
+  "modelTransitions": 104,
+  "chartStates": 46,
+  "chartTransitions": 46,
+  "allTransitions": 52,
+  "final": [
+    "A cancelled check",
+    "A project closed",
+    "A row red at two heads",
+    "A work item proposed",
+    "CI that starts no job",
+    "not told, fails.json counts two heads, sent.json has its key, the row is held",
+    "not told, fails.json counts two heads, the row is held",
+    "The second target's body",
+    "told once, account.json keeps the newer question, main's tip moved",
+    "told once, account.json keeps the question",
+    "told once, cancelled.json says run again, sent.json has its key",
+    "told once, closed.json says closed",
+    "told once, fails.json counts two heads, sent.json has its key, the row is held",
+    "told once, fails.json says held, sent.json has its key, the row is held",
+    "told once, the counter is past it",
+    "told once, the outbox dropped it",
+    "told twice, account.json keeps the newer question, main's tip moved",
+    "told twice, the outbox dropped it"
+  ],
+  "chartStatus": {
+    "works": 38,
+    "fixed": 0,
+    "wrong": 8
+  },
+  "chartGroups": [
+    {
+      "name": "Not told: nothing marked",
+      "color": "#fef5e7",
+      "states": 6
+    },
+    {
+      "name": "Not told: a pass in its step or a mark written",
+      "color": "#fdebd0",
+      "states": 9
+    },
+    {
+      "name": "Told once: nothing marked",
+      "color": "#e8f8f5",
+      "states": 4
+    },
+    {
+      "name": "Told once: a pass in its step",
+      "color": "#d1f2eb",
+      "states": 4
+    },
+    {
+      "name": "Told once: sent.json has its key",
+      "color": "#d4efdf",
+      "states": 4
+    },
+    {
+      "name": "Told once: its file says done",
+      "color": "#a9dfbf",
+      "states": 7
+    },
+    {
+      "name": "Told twice",
+      "color": "#fadbd8",
+      "states": 6
+    }
+  ],
+  "mixedGroups": [],
+  "regions": {
+    "drawn": true,
+    "states": [
+      6,
+      40
+    ],
+    "transitions": 46,
+    "all": 52,
+    "flat": {
+      "states": 55,
+      "transitions": 67
+    }
+  },
+  "classes": [
+    {
+      "n": 1,
+      "end": "A row red at two heads: not told, fails.json counts two heads, the row is held",
+      "invariant": "NoTellLost",
+      "rule": "\"jbus drops no tell\": between passes, an act still owed whose mark is written was taken, so a mark with no act never stands; one with no mark the next pass does. The home's stall the clock's home says went is in the log.",
+      "cause": "the row is held, and the pass died before it paged the Chef",
+      "readerSteps": 4,
+      "modelSteps": 5,
+      "counterexamples": 2,
+      "fix": null
+    },
+    {
+      "n": 2,
+      "end": "The second target's body: told twice, the body waits in the outbox, a pass is in its step",
+      "invariant": "NoTellTwice",
+      "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
+      "cause": "the body went, and the pass died before the outbox dropped it",
+      "readerSteps": 6,
+      "modelSteps": 7,
+      "counterexamples": 1,
+      "fix": null
+    },
+    {
+      "n": 3,
+      "end": "CI that starts no job: told twice, main's tip moved, a pass is in its step",
+      "invariant": "NoTellTwice",
+      "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
+      "cause": "the question was parked, the pass died before account.json kept it, main moved",
+      "readerSteps": 7,
+      "modelSteps": 8,
+      "counterexamples": 1,
+      "fix": null
+    }
+  ],
+  "codeLike": [],
+  "drawnFrom": {
+    "command": "statechart from-spec TellOnce.tla --config TellOnceOther.chart.cfg --title 'Does jbus act twice, or drop an act, outside a thread when a pass dies?' --expect-broken NoTellTwice,NoTellLost --png",
+    "inputs": {
+      "TellOnce.map.py": "708a6eebdd2442f23878ea9b6cfee12ea7443e3e4f63c13bf45698475d7a8fe7",
+      "TellOnce.tla": "41b23d8ea74289f120ee8a2915c393a38f69150b4d21609acbfb92a1fda743cc",
+      "TellOnceOther.chart.cfg": "ae7f5a60b8ec225befeaeb452bad6e9336fe69f524fc4b04daf10261e5db39cf"
+    },
+    "chart": "0280deaa5843933ff05130874ea7f1b45c1db63ab67e0f0e2254a1cda7dec28c"
+  }
+}

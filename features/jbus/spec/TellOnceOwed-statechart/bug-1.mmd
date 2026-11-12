@@ -7,25 +7,21 @@ config:
 ---
 stateDiagram-v2
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef group0 fill:#ffffff,stroke:#808080,color:#1b2631
-  classDef group0Path fill:#ffffff,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group1 fill:#fdebd0,stroke:#7f7668,color:#1b2631
-  classDef group1Path fill:#fdebd0,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group3 fill:#e8f8f5,stroke:#747c7b,color:#1b2631
-  classDef group3Path fill:#e8f8f5,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group7 fill:#fdedec,stroke:#7f7776,color:#1b2631
-  classDef group7Wrong fill:#fdedec,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group0Path fill:#fdebd0,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group2 fill:#e8f8f5,stroke:#747c7b,color:#1b2631
+  classDef group2Path fill:#e8f8f5,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group6 fill:#fdedec,stroke:#7f7776,color:#1b2631
+  classDef group6Wrong fill:#fdedec,stroke:#c0392b,stroke-width:4px,color:#7b241c
   state "Legend" as legend {
-    state "Nothing owed yet" as legendGroup0
-    state "Not told: the ask owed" as legendGroup1
-    state "Told once: the ask owed" as legendGroup3
-    state "Told twice: the ask owed" as legendGroup7
+    state "Not told: the ask owed or not yet due" as legendGroup0
+    state "Told once: the ask owed" as legendGroup2
+    state "Told twice: the ask owed" as legendGroup6
     state "Breaks a rule" as legendWrong
   }
   class legendGroup0 group0
-  class legendGroup1 group1
-  class legendGroup3 group3
-  class legendGroup7 group7
+  class legendGroup2 group2
+  class legendGroup6 group6
   class legendWrong plainWrong
   state "An ask owed after a limit" as g0 {
     state "not told, owed.json says<br/>owed" as s0
@@ -40,8 +36,8 @@ stateDiagram-v2
   s3 --> s2 : 3. the pass dies
   s2 --> s3 : 4. a pass reaches it and reads<br/>its marks
   s3 --> s4 : 5. the receiver takes it
-  class s0 group1Path
+  class s0 group0Path
   class s1 group0Path
-  class s2 group3Path
-  class s3 group3Path
-  class s4 group7Wrong
+  class s2 group2Path
+  class s3 group2Path
+  class s4 group6Wrong

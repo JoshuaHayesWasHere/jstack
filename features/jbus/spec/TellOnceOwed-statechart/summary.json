@@ -79,14 +79,9 @@
   },
   "chartGroups": [
     {
-      "name": "Nothing owed yet",
-      "color": "#ffffff",
-      "states": 1
-    },
-    {
-      "name": "Not told: the ask owed",
+      "name": "Not told: the ask owed or not yet due",
       "color": "#fdebd0",
-      "states": 12
+      "states": 13
     },
     {
       "name": "Not told: the ask closed",
@@ -156,10 +151,10 @@
   "drawnFrom": {
     "command": "statechart from-spec TellOnce.tla --config TellOnceOwed.chart.cfg --title 'Does jbus send an ask owed after a limit twice when a pass dies?' --expect-broken NoTellTwice --png",
     "inputs": {
-      "TellOnce.map.py": "c397e7de1a65438b8d128ed326447500849f6d46b55bdf4f7f854a27dd417257",
+      "TellOnce.map.py": "708a6eebdd2442f23878ea9b6cfee12ea7443e3e4f63c13bf45698475d7a8fe7",
       "TellOnce.tla": "41b23d8ea74289f120ee8a2915c393a38f69150b4d21609acbfb92a1fda743cc",
-      "TellOnceOwed.chart.cfg": "648bd5364ce248404f4205285ed4c1f5b4de346f017d62052b51ea9e517d9d4a"
+      "TellOnceOwed.chart.cfg": "7b558b2d2c75b7853c24bc0f1d2ce43337ffe5d48319c6eaad292e8b386ba8c2"
     },
-    "chart": "15adae136773bc2bf8c47d2d097a33f3482b9c7f20ad31fdff345cac1b163442"
+    "chart": "12d792eabfe09d4d2bcd1747cc22a8721db0b8be6f284c82766a308c2b739bbc"
   }
 }

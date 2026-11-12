@@ -1,66 +1,44 @@
 {
   "view": "customer",
-  "modelStates": 1152,
-  "modelTransitions": 2888,
-  "chartStates": 143,
-  "chartTransitions": 172,
-  "allTransitions": 244,
+  "modelStates": 1072,
+  "modelTransitions": 2784,
+  "chartStates": 103,
+  "chartTransitions": 131,
+  "allTransitions": 198,
   "final": [
-    "A cancelled check",
     "A hold nobody works on",
     "A merge that changed a skill",
-    "A project closed",
     "A revert's crew",
-    "A row red at two heads",
     "A short pull request's crew",
-    "A work item proposed",
-    "CI that starts no job",
-    "not told, fails.json counts two heads, sent.json has its key, the row is held",
-    "not told, fails.json counts two heads, the row is held",
     "not told, sent.json says told",
     "not told, sent.json says told, the outbox held it",
-    "The second target's body",
     "The user's word",
     "The wait clock",
-    "told once, account.json keeps the newer question, main's tip moved",
-    "told once, account.json keeps the question",
-    "told once, cancelled.json says run again, sent.json has its key",
-    "told once, closed.json says closed",
     "told once, expedite.json says told, sent.json has its key",
-    "told once, fails.json counts two heads, sent.json has its key, the row is held",
-    "told once, fails.json says held, sent.json has its key, the row is held",
     "told once, held.json says its home woke, sent.json has its key",
+    "told once, sent.json has its key",
     "told once, sent.json says told",
     "told once, sent.json says told, the outbox held it",
-    "told once, the counter is past it",
-    "told once, the outbox dropped it",
     "told once, word-sends.json says sent",
     "told once, word-sends.json says sent, the home's thread changed",
-    "told twice, account.json keeps the newer question, main's tip moved",
     "told twice, sent.json has its key",
-    "told twice, the outbox dropped it",
     "told twice, word-sends.json says sent, the home's thread changed"
   ],
   "chartStatus": {
-    "works": 120,
+    "works": 88,
     "fixed": 0,
-    "wrong": 23
+    "wrong": 15
   },
   "chartGroups": [
     {
-      "name": "Nothing owed yet",
-      "color": "#ffffff",
-      "states": 1
-    },
-    {
       "name": "Not told: nothing marked",
       "color": "#fef5e7",
-      "states": 11
+      "states": 8
     },
     {
-      "name": "Not told: nothing marked, a pass in its step",
+      "name": "Not told: a pass in its step or a mark written",
       "color": "#fdebd0",
-      "states": 10
+      "states": 8
     },
     {
       "name": "Not told: the outbox held it",
@@ -68,19 +46,14 @@
       "states": 15
     },
     {
-      "name": "Not told: a mark written",
-      "color": "#f5cba7",
-      "states": 6
-    },
-    {
       "name": "Told once: nothing marked",
       "color": "#e8f8f5",
-      "states": 11
+      "states": 8
     },
     {
-      "name": "Told once: nothing marked, a pass in its step",
+      "name": "Told once: a pass in its step",
       "color": "#d1f2eb",
-      "states": 11
+      "states": 8
     },
     {
       "name": "Told once: the outbox held it",
@@ -90,7 +63,7 @@
     {
       "name": "Told once: sent.json has its key",
       "color": "#d4efdf",
-      "states": 11
+      "states": 8
     },
     {
       "name": "Told once: its file says done",
@@ -98,60 +71,28 @@
       "states": 14
     },
     {
-      "name": "Told once: the clock's stall",
-      "color": "#e9f7ef",
-      "states": 6
-    },
-    {
       "name": "Told twice",
       "color": "#fadbd8",
-      "states": 12
-    },
-    {
-      "name": "Told twice: a pass in its step",
-      "color": "#f5b7b1",
-      "states": 8
+      "states": 14
     }
   ],
   "mixedGroups": [],
   "regions": {
     "drawn": true,
     "states": [
-      12,
-      131
+      6,
+      97
     ],
-    "transitions": 172,
-    "all": 244,
+    "transitions": 131,
+    "all": 198,
     "flat": {
-      "states": 161,
-      "transitions": 271
+      "states": 106,
+      "transitions": 204
     }
   },
   "classes": [
     {
       "n": 1,
-      "end": "A row red at two heads: not told, fails.json counts two heads, the row is held",
-      "invariant": "NoTellLost",
-      "rule": "\"jbus drops no tell\": between passes, an act still owed whose mark is written was taken, so a mark with no act never stands; one with no mark the next pass does. The home's stall the clock's home says went is in the log.",
-      "cause": "the row is held, and the pass died before it paged the Chef",
-      "readerSteps": 4,
-      "modelSteps": 5,
-      "counterexamples": 2,
-      "fix": null
-    },
-    {
-      "n": 2,
-      "end": "The second target's body: told twice, the body waits in the outbox, a pass is in its step",
-      "invariant": "NoTellTwice",
-      "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
-      "cause": "the body went, and the pass died before the outbox dropped it",
-      "readerSteps": 6,
-      "modelSteps": 7,
-      "counterexamples": 1,
-      "fix": null
-    },
-    {
-      "n": 3,
       "end": "A merge that changed a skill: told twice, reload.json owes it, a pass is in its step",
       "invariant": "NoTellTwice",
       "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
@@ -162,18 +103,7 @@
       "fix": null
     },
     {
-      "n": 4,
-      "end": "CI that starts no job: told twice, main's tip moved, a pass is in its step",
-      "invariant": "NoTellTwice",
-      "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
-      "cause": "the question was parked, the pass died before account.json kept it, main moved",
-      "readerSteps": 7,
-      "modelSteps": 8,
-      "counterexamples": 1,
-      "fix": null
-    },
-    {
-      "n": 5,
+      "n": 2,
       "end": "The user's word: told twice, the home's thread changed, a pass is in its step",
       "invariant": "NoTellTwice",
       "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
@@ -184,7 +114,7 @@
       "fix": null
     },
     {
-      "n": 6,
+      "n": 3,
       "end": "The wait clock: told once, the clock says its home was told, sent.json has its key, the stall's key is written, no stall in the log",
       "invariant": "NoTellLost",
       "rule": "\"jbus drops no tell\": between passes, an act still owed whose mark is written was taken, so a mark with no act never stands; one with no mark the next pass does. The home's stall the clock's home says went is in the log.",
@@ -197,12 +127,12 @@
   ],
   "codeLike": [],
   "drawnFrom": {
-    "command": "statechart from-spec TellOnce.tla --config TellOnce.chart.cfg --title 'Does jbus tell anyone twice, or drop a tell, when a pass dies?' --expect-broken NoTellTwice,NoTellLost --png",
+    "command": "statechart from-spec TellOnce.tla --config TellOnce.chart.cfg --title 'Does jbus tell a thread twice, or drop a tell, when a pass dies?' --expect-broken NoTellTwice,NoTellLost --png",
     "inputs": {
-      "TellOnce.chart.cfg": "dda74037721bcf18bc09e3812039a087cbdc6d127699c59d070ea464eda5ff9c",
-      "TellOnce.map.py": "c397e7de1a65438b8d128ed326447500849f6d46b55bdf4f7f854a27dd417257",
+      "TellOnce.chart.cfg": "78c1a795ec882f3f814c6906a338bc587724d491c528721063ded07324e297f5",
+      "TellOnce.map.py": "708a6eebdd2442f23878ea9b6cfee12ea7443e3e4f63c13bf45698475d7a8fe7",
       "TellOnce.tla": "41b23d8ea74289f120ee8a2915c393a38f69150b4d21609acbfb92a1fda743cc"
     },
-    "chart": "8c1d348d095d80d53bf7db961f0fbb9c501d775ac2a36608b84aca4b4cd2ce0a"
+    "chart": "dc47ecb5ff4a670380426511403e74116b2b0d737702ab15dddb528cc5dafbfb"
   }
 }

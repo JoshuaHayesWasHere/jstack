@@ -39,11 +39,20 @@ name = "HomeTreeToday"
 thing = "A tree of homes"
 question = "When a child home stalls or retires, does what it had out still reach you?"
 
-# jbus acts once on each step above (a message, a body, a rerun, a line), so this chart has no
-# hand-off of its own.
+# jbus acts once on each step above (a message, a body, a rerun, a line), so these three charts
+# have no hand-off of their own: TellOnce draws the acts that tell a thread, TellOnceOther the
+# others, and TellOnceOwed the ask owed after a limit.
 [[chart]]
 name = "TellOnce"
 thing = "A thing jbus does once"
+
+[[chart]]
+name = "TellOnceOther"
+thing = "A thing jbus does once outside a thread"
+
+[[chart]]
+name = "TellOnceOwed"
+thing = "An ask jbus owes after a limit"
 
 [[chart]]
 name = "MainFix"

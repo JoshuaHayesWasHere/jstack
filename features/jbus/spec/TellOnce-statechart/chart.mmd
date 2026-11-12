@@ -1,5 +1,5 @@
 ---
-title: "Does jbus tell anyone twice, or drop a tell, when a pass dies?"
+title: "Does jbus tell a thread twice, or drop a tell, when a pass dies?"
 config:
   markdownAutoWrap: false
   state:
@@ -8,37 +8,27 @@ config:
 stateDiagram-v2
   classDef plain fill:#f4f6f7,stroke:#566573,color:#1b2631
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef group0 fill:#ffffff,stroke:#808080,color:#1b2631
-  classDef group1 fill:#fef5e7,stroke:#7f7b74,color:#1b2631
-  classDef group2 fill:#fdebd0,stroke:#7f7668,color:#1b2631
-  classDef group3 fill:#fad7a0,stroke:#7d6c50,color:#1b2631
-  classDef group4 fill:#f5cba7,stroke:#7b6654,color:#1b2631
-  classDef group4Wrong fill:#f5cba7,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef group5 fill:#e8f8f5,stroke:#747c7b,color:#1b2631
-  classDef group6 fill:#d1f2eb,stroke:#697976,color:#1b2631
-  classDef group7 fill:#a3e4d7,stroke:#52726c,color:#1b2631
-  classDef group8 fill:#d4efdf,stroke:#6a7870,color:#1b2631
-  classDef group9 fill:#a9dfbf,stroke:#557060,color:#1b2631
-  classDef group10 fill:#e9f7ef,stroke:#757c78,color:#1b2631
-  classDef group10Wrong fill:#e9f7ef,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef group11 fill:#fadbd8,stroke:#7d6e6c,color:#1b2631
-  classDef group11Wrong fill:#fadbd8,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef group12 fill:#f5b7b1,stroke:#7b5c59,color:#1b2631
-  classDef group12Wrong fill:#f5b7b1,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0 fill:#fef5e7,stroke:#7f7b74,color:#1b2631
+  classDef group1 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group2 fill:#fad7a0,stroke:#7d6c50,color:#1b2631
+  classDef group3 fill:#e8f8f5,stroke:#747c7b,color:#1b2631
+  classDef group4 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group5 fill:#a3e4d7,stroke:#52726c,color:#1b2631
+  classDef group6 fill:#d4efdf,stroke:#6a7870,color:#1b2631
+  classDef group7 fill:#a9dfbf,stroke:#557060,color:#1b2631
+  classDef group7Wrong fill:#a9dfbf,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group8 fill:#fadbd8,stroke:#7d6e6c,color:#1b2631
+  classDef group8Wrong fill:#fadbd8,stroke:#c0392b,stroke-width:4px,color:#7b241c
   state "Legend" as legend {
-    state "Nothing owed yet" as legendGroup0
-    state "Not told: nothing marked" as legendGroup1
-    state "Not told: nothing marked, a pass in its step" as legendGroup2
-    state "Not told: the outbox held it" as legendGroup3
-    state "Not told: a mark written" as legendGroup4
-    state "Told once: nothing marked" as legendGroup5
-    state "Told once: nothing marked, a pass in its step" as legendGroup6
-    state "Told once: the outbox held it" as legendGroup7
-    state "Told once: sent.json has its key" as legendGroup8
-    state "Told once: its file says done" as legendGroup9
-    state "Told once: the clock's stall" as legendGroup10
-    state "Told twice" as legendGroup11
-    state "Told twice: a pass in its step" as legendGroup12
+    state "Not told: nothing marked" as legendGroup0
+    state "Not told: a pass in its step or a mark written" as legendGroup1
+    state "Not told: the outbox held it" as legendGroup2
+    state "Told once: nothing marked" as legendGroup3
+    state "Told once: a pass in its step" as legendGroup4
+    state "Told once: the outbox held it" as legendGroup5
+    state "Told once: sent.json has its key" as legendGroup6
+    state "Told once: its file says done" as legendGroup7
+    state "Told twice" as legendGroup8
     state "Breaks a rule" as legendWrong
   }
   class legendGroup0 group0
@@ -50,368 +40,267 @@ stateDiagram-v2
   class legendGroup6 group6
   class legendGroup7 group7
   class legendGroup8 group8
-  class legendGroup9 group9
-  class legendGroup10 group10
-  class legendGroup11 group11
-  class legendGroup12 group12
   class legendWrong plainWrong
   state "At the same time" as regions {
     state "The act" as region0 {
-      [*] --> r0s11
-      [*] --> r0s1
-      [*] --> r0s9
-      [*] --> r0s7
-      [*] --> r0s10
-      [*] --> r0s6
-      [*] --> r0s0
-      [*] --> r0s3
-      [*] --> r0s8
-      [*] --> r0s4
       [*] --> r0s5
+      [*] --> r0s0
+      [*] --> r0s4
+      [*] --> r0s3
       [*] --> r0s2
-      state "A cancelled check" as r0s0
-      state "A hold nobody works on" as r0s1
-      state "A merge that changed a<br/>skill" as r0s2
-      state "A project closed" as r0s3
-      state "A revert's crew" as r0s4
-      state "A row red at two heads" as r0s5
-      state "A short pull request's<br/>crew" as r0s6
-      state "A work item proposed" as r0s7
-      state "CI that starts no job" as r0s8
-      state "The second target's body" as r0s9
-      state "The user's word" as r0s10
-      state "The wait clock" as r0s11
+      [*] --> r0s1
+      state "A hold nobody works on" as r0s0
+      state "A merge that changed a<br/>skill" as r0s1
+      state "A revert's crew" as r0s2
+      state "A short pull request's<br/>crew" as r0s3
+      state "The user's word" as r0s4
+      state "The wait clock" as r0s5
     }
     --
     state "Where its tell stands" as region1 {
-      [*] --> r1s42
+      [*] --> r1s30
       state "not told" as r1s0
       state "not told, a pass is in its<br/>step" as r1s1
-      state "not told, closed.json<br/>lists what to archive" as r1s2
-      state "not told, closed.json<br/>lists what to archive, a<br/>pass is in its step" as r1s3
-      state "not told, expedite.json<br/>counts" as r1s4
-      state "not told, expedite.json<br/>counts, a pass is in its<br/>step" as r1s5
-      state "not told, expedite.json<br/>counts, the outbox held it" as r1s6
-      state "not told, expedite.json<br/>counts, the outbox held<br/>it, a pass is in its step" as r1s7
-      state "not told, fails.json<br/>counts two heads" as r1s8
-      state "not told, fails.json<br/>counts two heads, a pass<br/>is in its step" as r1s9
-      state "not told, fails.json<br/>counts two heads,<br/>sent.json has its key, the<br/>row is held" as r1s10
-      state "not told, fails.json<br/>counts two heads,<br/>sent.json has its key, the<br/>row is held, a pass is in<br/>its step" as r1s11
-      state "not told, fails.json<br/>counts two heads, the row<br/>is held" as r1s12
-      state "not told, fails.json<br/>counts two heads, the row<br/>is held, a pass is in its<br/>step" as r1s13
-      state "not told, held.json waits" as r1s14
-      state "not told, held.json waits,<br/>a pass is in its step" as r1s15
-      state "not told, held.json waits,<br/>the outbox held it" as r1s16
-      state "not told, held.json waits,<br/>the outbox held it, a pass<br/>is in its step" as r1s17
-      state "not told, main's tip moved" as r1s18
-      state "not told, main's tip<br/>moved, a pass is in its<br/>step" as r1s19
-      state "not told, reload.json owes<br/>it" as r1s20
-      state "not told, reload.json owes<br/>it, a pass is in its step" as r1s21
-      state "not told, reload.json owes<br/>it, the outbox held it" as r1s22
-      state "not told, reload.json owes<br/>it, the outbox held it, a<br/>pass is in its step" as r1s23
-      state "not told, sent.json says<br/>told" as r1s24
-      state "not told, sent.json says<br/>told, the outbox held it" as r1s25
-      state "not told, the body waits<br/>in the outbox" as r1s26
-      state "not told, the body waits<br/>in the outbox, a pass is<br/>in its step" as r1s27
-      state "not told, the clock is<br/>counting" as r1s28
-      state "not told, the clock is<br/>counting, the outbox held<br/>it" as r1s29
-      state "not told, the clock is due" as r1s30
-      state "not told, the clock is<br/>due, a pass is in its step" as r1s31
-      state "not told, the clock is<br/>due, the outbox held it" as r1s32
-      state "not told, the clock is<br/>due, the outbox held it, a<br/>pass is in its step" as r1s33
-      state "not told, the home's<br/>thread changed" as r1s34
-      state "not told, the home's<br/>thread changed, a pass is<br/>in its step" as r1s35
-      state "not told, the outbox held<br/>it" as r1s36
-      state "not told, the outbox held<br/>it, a pass is in its step" as r1s37
-      state "not told, word-sends.json<br/>says it waits, the outbox<br/>held it" as r1s38
-      state "not told, word-sends.json<br/>says it waits, the outbox<br/>held it, a pass is in its<br/>step" as r1s39
-      state "not told, word-sends.json<br/>says it waits, the outbox<br/>held it, the home's thread<br/>changed" as r1s40
-      state "not told, word-sends.json<br/>says it waits, the outbox<br/>held it, the home's thread<br/>changed, a pass is in its<br/>step" as r1s41
-      state "nothing owed yet" as r1s42
-      state "told once" as r1s43
-      state "told once, a pass is in<br/>its step" as r1s44
-      state "told once, account.json<br/>keeps the newer question,<br/>main's tip moved" as r1s45
-      state "told once, account.json<br/>keeps the question" as r1s46
-      state "told once, cancelled.json<br/>says run again, sent.json<br/>has its key" as r1s47
-      state "told once, closed.json<br/>lists what to archive" as r1s48
-      state "told once, closed.json<br/>lists what to archive, a<br/>pass is in its step" as r1s49
-      state "told once, closed.json<br/>says closed" as r1s50
-      state "told once, expedite.json<br/>counts" as r1s51
-      state "told once, expedite.json<br/>counts, a pass is in its<br/>step" as r1s52
-      state "told once, expedite.json<br/>counts, sent.json has its<br/>key" as r1s53
-      state "told once, expedite.json<br/>counts, sent.json has its<br/>key, a pass is in its step" as r1s54
-      state "told once, expedite.json<br/>counts, the outbox held it" as r1s55
-      state "told once, expedite.json<br/>counts, the outbox held<br/>it, a pass is in its step" as r1s56
-      state "told once, expedite.json<br/>says told, sent.json has<br/>its key" as r1s57
-      state "told once, fails.json<br/>counts two heads,<br/>sent.json has its key, the<br/>row is held" as r1s58
-      state "told once, fails.json<br/>counts two heads,<br/>sent.json has its key, the<br/>row is held, a pass is in<br/>its step" as r1s59
-      state "told once, fails.json says<br/>held, sent.json has its<br/>key, the row is held" as r1s60
-      state "told once, held.json says<br/>its home woke, sent.json<br/>has its key" as r1s61
-      state "told once, held.json waits" as r1s62
-      state "told once, held.json<br/>waits, a pass is in its<br/>step" as r1s63
-      state "told once, held.json<br/>waits, sent.json has its<br/>key" as r1s64
-      state "told once, held.json<br/>waits, sent.json has its<br/>key, a pass is in its step" as r1s65
-      state "told once, held.json<br/>waits, the outbox held it" as r1s66
-      state "told once, held.json<br/>waits, the outbox held it,<br/>a pass is in its step" as r1s67
-      state "told once, main's tip<br/>moved" as r1s68
-      state "told once, main's tip<br/>moved, a pass is in its<br/>step" as r1s69
-      state "told once, reload.json<br/>owes it" as r1s70
-      state "told once, reload.json<br/>owes it, a pass is in its<br/>step" as r1s71
-      state "told once, reload.json<br/>owes it, sent.json has its<br/>key" as r1s72
-      state "told once, reload.json<br/>owes it, sent.json has its<br/>key, a pass is in its step" as r1s73
-      state "told once, reload.json<br/>owes it, the outbox held<br/>it" as r1s74
-      state "told once, reload.json<br/>owes it, the outbox held<br/>it, a pass is in its step" as r1s75
-      state "told once, sent.json has<br/>its key" as r1s76
-      state "told once, sent.json has<br/>its key, a pass is in its<br/>step" as r1s77
-      state "told once, sent.json says<br/>told" as r1s78
-      state "told once, sent.json says<br/>told, the outbox held it" as r1s79
-      state "told once, the body waits<br/>in the outbox" as r1s80
-      state "told once, the body waits<br/>in the outbox, a pass is<br/>in its step" as r1s81
-      state "told once, the clock is<br/>due" as r1s82
-      state "told once, the clock is<br/>due, a pass is in its step" as r1s83
-      state "told once, the clock is<br/>due, sent.json has its key" as r1s84
-      state "told once, the clock is<br/>due, sent.json has its<br/>key, a pass is in its step" as r1s85
-      state "told once, the clock is<br/>due, the outbox held it" as r1s86
-      state "told once, the clock is<br/>due, the outbox held it, a<br/>pass is in its step" as r1s87
-      state "told once, the clock says<br/>its home was told,<br/>sent.json has its key, the<br/>stall's key is written" as r1s88
-      state "told once, the clock says<br/>its home was told,<br/>sent.json has its key, the<br/>stall's key is written, no<br/>stall in the log" as r1s89
-      state "told once, the clock says<br/>jbus acted, counting<br/>again, sent.json has its<br/>key" as r1s90
-      state "told once, the clock says<br/>jbus acted, counting<br/>again, sent.json has its<br/>key, the stall's key is<br/>written" as r1s91
-      state "told once, the clock says<br/>jbus acted, counting<br/>again, sent.json has its<br/>key, the stall's key is<br/>written, a pass is in its<br/>step" as r1s92
-      state "told once, the clock says<br/>jbus acted, counting<br/>again, sent.json has its<br/>key, the stall's key is<br/>written, no stall in the<br/>log" as r1s93
-      state "told once, the clock says<br/>jbus acted, counting<br/>again, sent.json has its<br/>key, the stall's key is<br/>written, no stall in the<br/>log, a pass is in its step" as r1s94
-      state "told once, the counter is<br/>past it" as r1s95
-      state "told once, the home's<br/>thread changed" as r1s96
-      state "told once, the home's<br/>thread changed, a pass is<br/>in its step" as r1s97
-      state "told once, the outbox<br/>dropped it" as r1s98
-      state "told once, the outbox held<br/>it" as r1s99
-      state "told once, the outbox held<br/>it, a pass is in its step" as r1s100
-      state "told once, word-sends.json<br/>says it waits" as r1s101
-      state "told once, word-sends.json<br/>says it waits, a pass is<br/>in its step" as r1s102
-      state "told once, word-sends.json<br/>says it waits, the home's<br/>thread changed" as r1s103
-      state "told once, word-sends.json<br/>says it waits, the home's<br/>thread changed, a pass is<br/>in its step" as r1s104
-      state "told once, word-sends.json<br/>says it waits, the outbox<br/>held it" as r1s105
-      state "told once, word-sends.json<br/>says it waits, the outbox<br/>held it, a pass is in its<br/>step" as r1s106
-      state "told once, word-sends.json<br/>says it waits, the outbox<br/>held it, the home's thread<br/>changed" as r1s107
-      state "told once, word-sends.json<br/>says it waits, the outbox<br/>held it, the home's thread<br/>changed, a pass is in its<br/>step" as r1s108
-      state "told once, word-sends.json<br/>says sent" as r1s109
-      state "told once, word-sends.json<br/>says sent, the home's<br/>thread changed" as r1s110
-      state "told twice, account.json<br/>keeps the newer question,<br/>main's tip moved" as r1s111
-      state "told twice, main's tip<br/>moved" as r1s112
-      state "told twice, main's tip<br/>moved, a pass is in its<br/>step" as r1s113
-      state "told twice, reload.json<br/>owes it" as r1s114
-      state "told twice, reload.json<br/>owes it, a pass is in its<br/>step" as r1s115
-      state "told twice, reload.json<br/>owes it, sent.json has its<br/>key" as r1s116
-      state "told twice, reload.json<br/>owes it, sent.json has its<br/>key, a pass is in its step" as r1s117
-      state "told twice, reload.json<br/>owes it, the outbox held<br/>it" as r1s118
-      state "told twice, reload.json<br/>owes it, the outbox held<br/>it, a pass is in its step" as r1s119
-      state "told twice, sent.json has<br/>its key" as r1s120
-      state "told twice, the body waits<br/>in the outbox" as r1s121
-      state "told twice, the body waits<br/>in the outbox, a pass is<br/>in its step" as r1s122
-      state "told twice, the home's<br/>thread changed" as r1s123
-      state "told twice, the home's<br/>thread changed, a pass is<br/>in its step" as r1s124
-      state "told twice, the outbox<br/>dropped it" as r1s125
-      state "told twice,<br/>word-sends.json says it<br/>waits, the home's thread<br/>changed" as r1s126
-      state "told twice,<br/>word-sends.json says it<br/>waits, the home's thread<br/>changed, a pass is in its<br/>step" as r1s127
-      state "told twice,<br/>word-sends.json says it<br/>waits, the outbox held it,<br/>the home's thread changed" as r1s128
-      state "told twice,<br/>word-sends.json says it<br/>waits, the outbox held it,<br/>the home's thread changed,<br/>a pass is in its step" as r1s129
-      state "told twice,<br/>word-sends.json says sent,<br/>the home's thread changed" as r1s130
+      state "not told, expedite.json<br/>counts" as r1s2
+      state "not told, expedite.json<br/>counts, a pass is in its<br/>step" as r1s3
+      state "not told, expedite.json<br/>counts, the outbox held it" as r1s4
+      state "not told, expedite.json<br/>counts, the outbox held<br/>it, a pass is in its step" as r1s5
+      state "not told, held.json waits" as r1s6
+      state "not told, held.json waits,<br/>a pass is in its step" as r1s7
+      state "not told, held.json waits,<br/>the outbox held it" as r1s8
+      state "not told, held.json waits,<br/>the outbox held it, a pass<br/>is in its step" as r1s9
+      state "not told, reload.json owes<br/>it" as r1s10
+      state "not told, reload.json owes<br/>it, a pass is in its step" as r1s11
+      state "not told, reload.json owes<br/>it, the outbox held it" as r1s12
+      state "not told, reload.json owes<br/>it, the outbox held it, a<br/>pass is in its step" as r1s13
+      state "not told, sent.json says<br/>told" as r1s14
+      state "not told, sent.json says<br/>told, the outbox held it" as r1s15
+      state "not told, the clock is<br/>counting" as r1s16
+      state "not told, the clock is<br/>counting, the outbox held<br/>it" as r1s17
+      state "not told, the clock is due" as r1s18
+      state "not told, the clock is<br/>due, a pass is in its step" as r1s19
+      state "not told, the clock is<br/>due, the outbox held it" as r1s20
+      state "not told, the clock is<br/>due, the outbox held it, a<br/>pass is in its step" as r1s21
+      state "not told, the home's<br/>thread changed" as r1s22
+      state "not told, the home's<br/>thread changed, a pass is<br/>in its step" as r1s23
+      state "not told, the outbox held<br/>it" as r1s24
+      state "not told, the outbox held<br/>it, a pass is in its step" as r1s25
+      state "not told, word-sends.json<br/>says it waits, the outbox<br/>held it" as r1s26
+      state "not told, word-sends.json<br/>says it waits, the outbox<br/>held it, a pass is in its<br/>step" as r1s27
+      state "not told, word-sends.json<br/>says it waits, the outbox<br/>held it, the home's thread<br/>changed" as r1s28
+      state "not told, word-sends.json<br/>says it waits, the outbox<br/>held it, the home's thread<br/>changed, a pass is in its<br/>step" as r1s29
+      state "nothing owed yet" as r1s30
+      state "told once" as r1s31
+      state "told once, a pass is in<br/>its step" as r1s32
+      state "told once, expedite.json<br/>counts" as r1s33
+      state "told once, expedite.json<br/>counts, a pass is in its<br/>step" as r1s34
+      state "told once, expedite.json<br/>counts, sent.json has its<br/>key" as r1s35
+      state "told once, expedite.json<br/>counts, sent.json has its<br/>key, a pass is in its step" as r1s36
+      state "told once, expedite.json<br/>counts, the outbox held it" as r1s37
+      state "told once, expedite.json<br/>counts, the outbox held<br/>it, a pass is in its step" as r1s38
+      state "told once, expedite.json<br/>says told, sent.json has<br/>its key" as r1s39
+      state "told once, held.json says<br/>its home woke, sent.json<br/>has its key" as r1s40
+      state "told once, held.json waits" as r1s41
+      state "told once, held.json<br/>waits, a pass is in its<br/>step" as r1s42
+      state "told once, held.json<br/>waits, sent.json has its<br/>key" as r1s43
+      state "told once, held.json<br/>waits, sent.json has its<br/>key, a pass is in its step" as r1s44
+      state "told once, held.json<br/>waits, the outbox held it" as r1s45
+      state "told once, held.json<br/>waits, the outbox held it,<br/>a pass is in its step" as r1s46
+      state "told once, reload.json<br/>owes it" as r1s47
+      state "told once, reload.json<br/>owes it, a pass is in its<br/>step" as r1s48
+      state "told once, reload.json<br/>owes it, sent.json has its<br/>key" as r1s49
+      state "told once, reload.json<br/>owes it, sent.json has its<br/>key, a pass is in its step" as r1s50
+      state "told once, reload.json<br/>owes it, the outbox held<br/>it" as r1s51
+      state "told once, reload.json<br/>owes it, the outbox held<br/>it, a pass is in its step" as r1s52
+      state "told once, sent.json has<br/>its key" as r1s53
+      state "told once, sent.json says<br/>told" as r1s54
+      state "told once, sent.json says<br/>told, the outbox held it" as r1s55
+      state "told once, the clock is<br/>due" as r1s56
+      state "told once, the clock is<br/>due, a pass is in its step" as r1s57
+      state "told once, the clock is<br/>due, sent.json has its key" as r1s58
+      state "told once, the clock is<br/>due, sent.json has its<br/>key, a pass is in its step" as r1s59
+      state "told once, the clock is<br/>due, the outbox held it" as r1s60
+      state "told once, the clock is<br/>due, the outbox held it, a<br/>pass is in its step" as r1s61
+      state "told once, the clock says<br/>its home was told,<br/>sent.json has its key, the<br/>stall's key is written" as r1s62
+      state "told once, the clock says<br/>its home was told,<br/>sent.json has its key, the<br/>stall's key is written, no<br/>stall in the log" as r1s63
+      state "told once, the clock says<br/>jbus acted, counting<br/>again, sent.json has its<br/>key" as r1s64
+      state "told once, the clock says<br/>jbus acted, counting<br/>again, sent.json has its<br/>key, the stall's key is<br/>written" as r1s65
+      state "told once, the clock says<br/>jbus acted, counting<br/>again, sent.json has its<br/>key, the stall's key is<br/>written, a pass is in its<br/>step" as r1s66
+      state "told once, the clock says<br/>jbus acted, counting<br/>again, sent.json has its<br/>key, the stall's key is<br/>written, no stall in the<br/>log" as r1s67
+      state "told once, the clock says<br/>jbus acted, counting<br/>again, sent.json has its<br/>key, the stall's key is<br/>written, no stall in the<br/>log, a pass is in its step" as r1s68
+      state "told once, the home's<br/>thread changed" as r1s69
+      state "told once, the home's<br/>thread changed, a pass is<br/>in its step" as r1s70
+      state "told once, the outbox held<br/>it" as r1s71
+      state "told once, the outbox held<br/>it, a pass is in its step" as r1s72
+      state "told once, word-sends.json<br/>says it waits" as r1s73
+      state "told once, word-sends.json<br/>says it waits, a pass is<br/>in its step" as r1s74
+      state "told once, word-sends.json<br/>says it waits, the home's<br/>thread changed" as r1s75
+      state "told once, word-sends.json<br/>says it waits, the home's<br/>thread changed, a pass is<br/>in its step" as r1s76
+      state "told once, word-sends.json<br/>says it waits, the outbox<br/>held it" as r1s77
+      state "told once, word-sends.json<br/>says it waits, the outbox<br/>held it, a pass is in its<br/>step" as r1s78
+      state "told once, word-sends.json<br/>says it waits, the outbox<br/>held it, the home's thread<br/>changed" as r1s79
+      state "told once, word-sends.json<br/>says it waits, the outbox<br/>held it, the home's thread<br/>changed, a pass is in its<br/>step" as r1s80
+      state "told once, word-sends.json<br/>says sent" as r1s81
+      state "told once, word-sends.json<br/>says sent, the home's<br/>thread changed" as r1s82
+      state "told twice, reload.json<br/>owes it" as r1s83
+      state "told twice, reload.json<br/>owes it, a pass is in its<br/>step" as r1s84
+      state "told twice, reload.json<br/>owes it, sent.json has its<br/>key" as r1s85
+      state "told twice, reload.json<br/>owes it, sent.json has its<br/>key, a pass is in its step" as r1s86
+      state "told twice, reload.json<br/>owes it, the outbox held<br/>it" as r1s87
+      state "told twice, reload.json<br/>owes it, the outbox held<br/>it, a pass is in its step" as r1s88
+      state "told twice, sent.json has<br/>its key" as r1s89
+      state "told twice, the home's<br/>thread changed" as r1s90
+      state "told twice, the home's<br/>thread changed, a pass is<br/>in its step" as r1s91
+      state "told twice,<br/>word-sends.json says it<br/>waits, the home's thread<br/>changed" as r1s92
+      state "told twice,<br/>word-sends.json says it<br/>waits, the home's thread<br/>changed, a pass is in its<br/>step" as r1s93
+      state "told twice,<br/>word-sends.json says it<br/>waits, the outbox held it,<br/>the home's thread changed" as r1s94
+      state "told twice,<br/>word-sends.json says it<br/>waits, the outbox held it,<br/>the home's thread changed,<br/>a pass is in its step" as r1s95
+      state "told twice,<br/>word-sends.json says sent,<br/>the home's thread changed" as r1s96
       r1s0 --> r1s1 : a pass reaches it and reads<br/>its marks
-      r1s0 --> r1s34 : the key the next try names<br/>changes [when The user's word]
-      %% when r0s10
-      r1s0 --> r1s18 : the key the next try names<br/>changes [when CI that starts<br/>no job]
-      %% when r0s8
-      r1s0 --> r1s24 : the revert's pull request is<br/>no longer open: marked, not<br/>told [when A revert's crew]
+      r1s0 --> r1s22 : the key the next try names<br/>changes [when The user's word]
       %% when r0s4
-      r1s1 --> r1s3 : closed.json lists what to<br/>archive [when A project<br/>closed]
-      %% when r0s3
-      r1s1 --> r1s38 : the outbox holds the message<br/>[when The user's word]
-      %% when r0s10
-      r1s1 --> r1s36 : the outbox holds the message<br/>[when A revert's crew]
-      %% when r0s4
-      r1s1 --> r1s44 : the receiver takes it [unless<br/>A project closed]
-      %% when not r0s3
-      r1s2 --> r1s3 : a pass reaches it and reads<br/>its marks
-      r1s3 --> r1s2 : the pass dies
-      r1s3 --> r1s49 : the receiver takes it
-      r1s4 --> r1s5 : a pass reaches it and reads<br/>its marks
-      r1s5 --> r1s6 : the outbox holds the message
-      r1s5 --> r1s52 : the receiver takes it
-      r1s6 --> r1s7 : a pass reaches it and reads<br/>its marks
-      r1s7 --> r1s56 : the receiver takes it
-      r1s8 --> r1s9 : a pass reaches it and reads<br/>its marks
-      r1s9 --> r1s13 : the row is held
-      r1s11 --> r1s10 : the pass dies
-      r1s11 --> r1s59 : the receiver takes it
-      r1s13 --> r1s11 : the page's key is written
-      r1s13 --> r1s12 : the pass dies
-      r1s14 --> r1s15 : a pass reaches it and reads<br/>its marks
-      r1s15 --> r1s16 : the outbox holds the message
-      r1s15 --> r1s63 : the receiver takes it
-      r1s16 --> r1s17 : a pass reaches it and reads<br/>its marks
-      r1s17 --> r1s67 : the receiver takes it
-      r1s18 --> r1s19 : a pass reaches it and reads<br/>its marks
-      r1s19 --> r1s69 : the receiver takes it
-      r1s20 --> r1s21 : a pass reaches it and reads<br/>its marks
-      r1s21 --> r1s22 : the outbox holds the message
-      r1s21 --> r1s71 : the receiver takes it
-      r1s22 --> r1s23 : a pass reaches it and reads<br/>its marks
-      r1s23 --> r1s75 : the receiver takes it
-      r1s26 --> r1s27 : a pass reaches it and reads<br/>its marks
-      r1s27 --> r1s81 : the receiver takes it
-      r1s28 --> r1s30 : a pass counts on its clock
-      r1s29 --> r1s32 : a pass counts on its clock
-      r1s30 --> r1s31 : a pass reaches it and reads<br/>its marks
-      r1s30 --> r1s28 : the wait is a new one
-      r1s31 --> r1s32 : the outbox holds the message
-      r1s31 --> r1s83 : the receiver takes it
-      r1s32 --> r1s33 : a pass reaches it and reads<br/>its marks
-      r1s32 --> r1s29 : the wait is a new one
-      r1s33 --> r1s32 : the outbox holds the message
-      r1s34 --> r1s35 : a pass reaches it and reads<br/>its marks
-      r1s35 --> r1s97 : the receiver takes it
-      r1s36 --> r1s37 : a pass reaches it and reads<br/>its marks
-      r1s36 --> r1s25 : the revert's pull request is<br/>no longer open: marked, not<br/>told
-      r1s37 --> r1s36 : the outbox holds the message
-      r1s38 --> r1s39 : a pass reaches it and reads<br/>its marks
-      r1s38 --> r1s40 : the key the next try names<br/>changes
-      r1s39 --> r1s106 : the receiver takes it
-      r1s40 --> r1s41 : a pass reaches it and reads<br/>its marks
-      r1s41 --> r1s108 : the receiver takes it
-      r1s42 --> r1s28 : what calls for it comes to<br/>hold [when The wait clock]
-      %% when r0s11
-      r1s42 --> r1s14 : what calls for it comes to<br/>hold [when A hold nobody works<br/>on]
-      %% when r0s1
-      r1s42 --> r1s26 : what calls for it comes to<br/>hold [when The second target's<br/>body]
-      %% when r0s9
-      r1s42 --> r1s0 : what calls for it comes to<br/>hold [when A cancelled check<br/>or A project closed or A<br/>revert's crew or A work item<br/>proposed or CI that starts no<br/>job or The user's word]
-      %% when r0s0, r0s3, r0s4, r0s7, r0s8, r0s10
-      r1s42 --> r1s4 : what calls for it comes to<br/>hold [when A short pull<br/>request's crew]
-      %% when r0s6
-      r1s42 --> r1s8 : what calls for it comes to<br/>hold [when A row red at two<br/>heads]
-      %% when r0s5
-      r1s42 --> r1s20 : what calls for it comes to<br/>hold [when A merge that<br/>changed a skill]
+      r1s0 --> r1s14 : the revert's pull request is<br/>no longer open: marked, not<br/>told [when A revert's crew]
       %% when r0s2
-      r1s43 --> r1s96 : the key the next try names<br/>changes [when The user's word]
-      %% when r0s10
-      r1s43 --> r1s68 : the key the next try names<br/>changes [when CI that starts<br/>no job]
-      %% when r0s8
-      r1s44 --> r1s77 : its key goes in sent.json<br/>[when A cancelled check]
+      r1s1 --> r1s26 : the outbox holds the message<br/>[when The user's word]
+      %% when r0s4
+      r1s1 --> r1s24 : the outbox holds the message<br/>[when A revert's crew]
+      %% when r0s2
+      r1s1 --> r1s32 : the receiver takes it
+      r1s2 --> r1s3 : a pass reaches it and reads<br/>its marks
+      r1s3 --> r1s4 : the outbox holds the message
+      r1s3 --> r1s34 : the receiver takes it
+      r1s4 --> r1s5 : a pass reaches it and reads<br/>its marks
+      r1s5 --> r1s38 : the receiver takes it
+      r1s6 --> r1s7 : a pass reaches it and reads<br/>its marks
+      r1s7 --> r1s8 : the outbox holds the message
+      r1s7 --> r1s42 : the receiver takes it
+      r1s8 --> r1s9 : a pass reaches it and reads<br/>its marks
+      r1s9 --> r1s46 : the receiver takes it
+      r1s10 --> r1s11 : a pass reaches it and reads<br/>its marks
+      r1s11 --> r1s12 : the outbox holds the message
+      r1s11 --> r1s48 : the receiver takes it
+      r1s12 --> r1s13 : a pass reaches it and reads<br/>its marks
+      r1s13 --> r1s52 : the receiver takes it
+      r1s16 --> r1s18 : a pass counts on its clock
+      r1s17 --> r1s20 : a pass counts on its clock
+      r1s18 --> r1s19 : a pass reaches it and reads<br/>its marks
+      r1s18 --> r1s16 : the wait is a new one
+      r1s19 --> r1s20 : the outbox holds the message
+      r1s19 --> r1s57 : the receiver takes it
+      r1s20 --> r1s21 : a pass reaches it and reads<br/>its marks
+      r1s20 --> r1s17 : the wait is a new one
+      r1s21 --> r1s20 : the outbox holds the message
+      r1s22 --> r1s23 : a pass reaches it and reads<br/>its marks
+      r1s23 --> r1s70 : the receiver takes it
+      r1s24 --> r1s25 : a pass reaches it and reads<br/>its marks
+      r1s24 --> r1s15 : the revert's pull request is<br/>no longer open: marked, not<br/>told
+      r1s25 --> r1s24 : the outbox holds the message
+      r1s26 --> r1s27 : a pass reaches it and reads<br/>its marks
+      r1s26 --> r1s28 : the key the next try names<br/>changes
+      r1s27 --> r1s78 : the receiver takes it
+      r1s28 --> r1s29 : a pass reaches it and reads<br/>its marks
+      r1s29 --> r1s80 : the receiver takes it
+      r1s30 --> r1s16 : what calls for it comes to<br/>hold [when The wait clock]
+      %% when r0s5
+      r1s30 --> r1s6 : what calls for it comes to<br/>hold [when A hold nobody works<br/>on]
       %% when r0s0
-      r1s44 --> r1s95 : its own file says done [when A<br/>work item proposed]
-      %% when r0s7
-      r1s44 --> r1s46 : its own file says done [when<br/>CI that starts no job]
-      %% when r0s8
-      r1s44 --> r1s109 : its own file says done [when<br/>The user's word]
-      %% when r0s10
-      r1s44 --> r1s78 : its own file says done [when A<br/>revert's crew]
+      r1s30 --> r1s0 : what calls for it comes to<br/>hold [when A revert's crew or<br/>The user's word]
+      %% when r0s2, r0s4
+      r1s30 --> r1s2 : what calls for it comes to<br/>hold [when A short pull<br/>request's crew]
+      %% when r0s3
+      r1s30 --> r1s10 : what calls for it comes to<br/>hold [when A merge that<br/>changed a skill]
+      %% when r0s1
+      r1s31 --> r1s69 : the key the next try names<br/>changes [when The user's word]
       %% when r0s4
-      r1s44 --> r1s105 : the outbox holds the message<br/>[when The user's word]
-      %% when r0s10
-      r1s44 --> r1s99 : the outbox holds the message<br/>[when A revert's crew]
+      r1s32 --> r1s81 : its own file says done [when<br/>The user's word]
       %% when r0s4
+      r1s32 --> r1s54 : its own file says done [when A<br/>revert's crew]
+      %% when r0s2
+      r1s32 --> r1s77 : the outbox holds the message<br/>[when The user's word]
+      %% when r0s4
+      r1s32 --> r1s71 : the outbox holds the message<br/>[when A revert's crew]
+      %% when r0s2
+      r1s32 --> r1s31 : the pass dies
+      r1s33 --> r1s34 : a pass reaches it and reads<br/>its marks
+      r1s34 --> r1s36 : its key goes in sent.json
+      r1s34 --> r1s37 : the outbox holds the message
+      r1s34 --> r1s33 : the pass dies
+      r1s35 --> r1s36 : a pass reaches it and reads<br/>its marks
+      r1s36 --> r1s39 : its own file says done
+      r1s36 --> r1s35 : the pass dies
+      r1s37 --> r1s38 : a pass reaches it and reads<br/>its marks
+      r1s38 --> r1s34 : the outbox logs it sent
+      r1s41 --> r1s42 : a pass reaches it and reads<br/>its marks
+      r1s42 --> r1s44 : its key goes in sent.json
+      r1s42 --> r1s45 : the outbox holds the message
+      r1s42 --> r1s41 : the pass dies
+      r1s43 --> r1s44 : a pass reaches it and reads<br/>its marks
+      r1s44 --> r1s40 : its own file says done
       r1s44 --> r1s43 : the pass dies
-      r1s48 --> r1s49 : a pass reaches it and reads<br/>its marks
-      r1s49 --> r1s50 : its own file says done
-      r1s49 --> r1s48 : the pass dies
+      r1s45 --> r1s46 : a pass reaches it and reads<br/>its marks
+      r1s46 --> r1s42 : the pass writes its next step
+      r1s47 --> r1s48 : a pass reaches it and reads<br/>its marks
+      r1s48 --> r1s50 : its key goes in sent.json
+      r1s48 --> r1s51 : the outbox holds the message
+      r1s48 --> r1s47 : the pass dies
+      r1s48 --> r1s84 : the receiver takes it
+      r1s49 --> r1s50 : a pass reaches it and reads<br/>its marks
+      r1s50 --> r1s53 : its own file says done
+      r1s50 --> r1s49 : the pass dies
       r1s51 --> r1s52 : a pass reaches it and reads<br/>its marks
-      r1s52 --> r1s54 : its key goes in sent.json
-      r1s52 --> r1s55 : the outbox holds the message
-      r1s52 --> r1s51 : the pass dies
-      r1s53 --> r1s54 : a pass reaches it and reads<br/>its marks
-      r1s54 --> r1s57 : its own file says done
-      r1s54 --> r1s53 : the pass dies
-      r1s55 --> r1s56 : a pass reaches it and reads<br/>its marks
-      r1s56 --> r1s52 : the outbox logs it sent
-      r1s59 --> r1s60 : its own file says done
+      r1s52 --> r1s88 : the receiver takes it
+      r1s56 --> r1s57 : a pass reaches it and reads<br/>its marks
+      r1s57 --> r1s59 : its key goes in sent.json
+      r1s57 --> r1s60 : the outbox holds the message
+      r1s57 --> r1s56 : the pass dies
+      r1s58 --> r1s59 : a pass reaches it and reads<br/>its marks
+      r1s59 --> r1s64 : its own file says done
       r1s59 --> r1s58 : the pass dies
-      r1s62 --> r1s63 : a pass reaches it and reads<br/>its marks
-      r1s63 --> r1s65 : its key goes in sent.json
-      r1s63 --> r1s66 : the outbox holds the message
-      r1s63 --> r1s62 : the pass dies
-      r1s64 --> r1s65 : a pass reaches it and reads<br/>its marks
-      r1s65 --> r1s61 : its own file says done
-      r1s65 --> r1s64 : the pass dies
-      r1s66 --> r1s67 : a pass reaches it and reads<br/>its marks
-      r1s67 --> r1s63 : the pass writes its next step
-      r1s68 --> r1s69 : a pass reaches it and reads<br/>its marks
-      r1s69 --> r1s45 : its own file says done
-      r1s69 --> r1s113 : the receiver takes it
-      r1s70 --> r1s71 : a pass reaches it and reads<br/>its marks
-      r1s71 --> r1s73 : its key goes in sent.json
-      r1s71 --> r1s74 : the outbox holds the message
-      r1s71 --> r1s70 : the pass dies
-      r1s71 --> r1s115 : the receiver takes it
-      r1s72 --> r1s73 : a pass reaches it and reads<br/>its marks
-      r1s73 --> r1s72 : the pass dies
-      r1s74 --> r1s75 : a pass reaches it and reads<br/>its marks
-      r1s75 --> r1s119 : the receiver takes it
-      r1s76 --> r1s77 : a pass reaches it and reads<br/>its marks [when A cancelled<br/>check]
-      %% when r0s0
-      r1s77 --> r1s47 : its own file says done
-      r1s77 --> r1s76 : the pass dies
-      r1s80 --> r1s81 : a pass reaches it and reads<br/>its marks
-      r1s81 --> r1s98 : its own file says done
-      r1s81 --> r1s80 : the pass dies
-      r1s81 --> r1s122 : the receiver takes it
-      r1s82 --> r1s83 : a pass reaches it and reads<br/>its marks
-      r1s83 --> r1s85 : its key goes in sent.json
-      r1s83 --> r1s86 : the outbox holds the message
-      r1s83 --> r1s82 : the pass dies
-      r1s84 --> r1s85 : a pass reaches it and reads<br/>its marks
-      r1s85 --> r1s90 : its own file says done
-      r1s85 --> r1s84 : the pass dies
-      r1s86 --> r1s87 : a pass reaches it and reads<br/>its marks
-      r1s87 --> r1s86 : the outbox holds the message
-      r1s88 --> r1s28 : the wait is a new one
-      r1s89 --> r1s28 : the wait is a new one
-      r1s90 --> r1s94 : the pass writes the stall's<br/>key
-      r1s91 --> r1s92 : the pass writes the stall's<br/>key
-      r1s92 --> r1s88 : the clock writes that its home<br/>was told
-      r1s92 --> r1s91 : the pass dies
-      r1s93 --> r1s94 : the pass writes the stall's<br/>key
-      r1s94 --> r1s89 : the clock writes that its home<br/>was told
-      r1s94 --> r1s93 : the pass dies
-      r1s94 --> r1s92 : the stall's line goes in the<br/>log
-      r1s96 --> r1s97 : a pass reaches it and reads<br/>its marks
-      r1s97 --> r1s110 : its own file says done
-      r1s97 --> r1s124 : the receiver takes it
-      r1s99 --> r1s100 : a pass reaches it and reads<br/>its marks
-      r1s99 --> r1s79 : the revert's pull request is<br/>no longer open: marked, not<br/>told
-      r1s100 --> r1s99 : the outbox holds the message
-      r1s101 --> r1s103 : the key the next try names<br/>changes
-      r1s102 --> r1s101 : the pass dies
-      r1s103 --> r1s104 : a pass reaches it and reads<br/>its marks
-      r1s104 --> r1s127 : the receiver takes it
-      r1s105 --> r1s106 : a pass reaches it and reads<br/>its marks
-      r1s105 --> r1s107 : the key the next try names<br/>changes
-      r1s106 --> r1s102 : the outbox logs it sent
-      r1s107 --> r1s108 : a pass reaches it and reads<br/>its marks
-      r1s108 --> r1s104 : the outbox logs it sent
-      r1s108 --> r1s129 : the receiver takes it
-      r1s112 --> r1s113 : a pass reaches it and reads<br/>its marks
-      r1s113 --> r1s111 : its own file says done
-      r1s113 --> r1s112 : the pass dies
-      r1s114 --> r1s115 : a pass reaches it and reads<br/>its marks
-      r1s115 --> r1s117 : its key goes in sent.json
-      r1s115 --> r1s118 : the outbox holds the message
-      r1s115 --> r1s114 : the pass dies
-      r1s116 --> r1s117 : a pass reaches it and reads<br/>its marks
-      r1s117 --> r1s120 : its own file says done
-      r1s117 --> r1s116 : the pass dies
-      r1s118 --> r1s119 : a pass reaches it and reads<br/>its marks
-      r1s119 --> r1s115 : the outbox logs it sent
-      r1s121 --> r1s122 : a pass reaches it and reads<br/>its marks
-      r1s122 --> r1s125 : its own file says done
-      r1s122 --> r1s121 : the pass dies
-      r1s123 --> r1s124 : a pass reaches it and reads<br/>its marks
-      r1s124 --> r1s130 : its own file says done
-      r1s124 --> r1s128 : the outbox holds the message
-      r1s124 --> r1s123 : the pass dies
-      r1s126 --> r1s127 : a pass reaches it and reads<br/>its marks
-      r1s127 --> r1s126 : the pass dies
-      r1s128 --> r1s129 : a pass reaches it and reads<br/>its marks
-      r1s129 --> r1s127 : the outbox logs it sent
+      r1s60 --> r1s61 : a pass reaches it and reads<br/>its marks
+      r1s61 --> r1s60 : the outbox holds the message
+      r1s62 --> r1s16 : the wait is a new one
+      r1s63 --> r1s16 : the wait is a new one
+      r1s64 --> r1s68 : the pass writes the stall's<br/>key
+      r1s65 --> r1s66 : the pass writes the stall's<br/>key
+      r1s66 --> r1s62 : the clock writes that its home<br/>was told
+      r1s66 --> r1s65 : the pass dies
+      r1s67 --> r1s68 : the pass writes the stall's<br/>key
+      r1s68 --> r1s63 : the clock writes that its home<br/>was told
+      r1s68 --> r1s67 : the pass dies
+      r1s68 --> r1s66 : the stall's line goes in the<br/>log
+      r1s69 --> r1s70 : a pass reaches it and reads<br/>its marks
+      r1s70 --> r1s82 : its own file says done
+      r1s70 --> r1s91 : the receiver takes it
+      r1s71 --> r1s72 : a pass reaches it and reads<br/>its marks
+      r1s71 --> r1s55 : the revert's pull request is<br/>no longer open: marked, not<br/>told
+      r1s72 --> r1s71 : the outbox holds the message
+      r1s73 --> r1s75 : the key the next try names<br/>changes
+      r1s74 --> r1s73 : the pass dies
+      r1s75 --> r1s76 : a pass reaches it and reads<br/>its marks
+      r1s76 --> r1s93 : the receiver takes it
+      r1s77 --> r1s78 : a pass reaches it and reads<br/>its marks
+      r1s77 --> r1s79 : the key the next try names<br/>changes
+      r1s78 --> r1s74 : the outbox logs it sent
+      r1s79 --> r1s80 : a pass reaches it and reads<br/>its marks
+      r1s80 --> r1s76 : the outbox logs it sent
+      r1s80 --> r1s95 : the receiver takes it
+      r1s83 --> r1s84 : a pass reaches it and reads<br/>its marks
+      r1s84 --> r1s86 : its key goes in sent.json
+      r1s84 --> r1s87 : the outbox holds the message
+      r1s84 --> r1s83 : the pass dies
+      r1s85 --> r1s86 : a pass reaches it and reads<br/>its marks
+      r1s86 --> r1s89 : its own file says done
+      r1s86 --> r1s85 : the pass dies
+      r1s87 --> r1s88 : a pass reaches it and reads<br/>its marks
+      r1s88 --> r1s84 : the outbox logs it sent
+      r1s90 --> r1s91 : a pass reaches it and reads<br/>its marks
+      r1s91 --> r1s96 : its own file says done
+      r1s91 --> r1s94 : the outbox holds the message
+      r1s91 --> r1s90 : the pass dies
+      r1s92 --> r1s93 : a pass reaches it and reads<br/>its marks
+      r1s93 --> r1s92 : the pass dies
+      r1s94 --> r1s95 : a pass reaches it and reads<br/>its marks
+      r1s95 --> r1s93 : the outbox logs it sent
     }
   }
   class r0s0 plain
@@ -420,140 +309,100 @@ stateDiagram-v2
   class r0s3 plain
   class r0s4 plain
   class r0s5 plain
-  class r0s6 plain
-  class r0s7 plain
-  class r0s8 plain
-  class r0s9 plain
-  class r0s10 plain
-  class r0s11 plain
-  class r1s0 group1
-  class r1s1 group2
-  class r1s2 group1
-  class r1s3 group2
-  class r1s4 group1
+  class r1s0 group0
+  class r1s1 group1
+  class r1s2 group0
+  class r1s3 group1
+  class r1s4 group2
   class r1s5 group2
-  class r1s6 group3
-  class r1s7 group3
-  class r1s8 group1
+  class r1s6 group0
+  class r1s7 group1
+  class r1s8 group2
   class r1s9 group2
-  class r1s10 group4Wrong
-  class r1s11 group4
-  class r1s12 group4Wrong
-  class r1s13 group4
+  class r1s10 group0
+  class r1s11 group1
+  class r1s12 group2
+  class r1s13 group2
   class r1s14 group1
-  class r1s15 group2
-  class r1s16 group3
-  class r1s17 group3
-  class r1s18 group1
-  class r1s19 group2
-  class r1s20 group1
+  class r1s15 group1
+  class r1s16 group0
+  class r1s17 group2
+  class r1s18 group0
+  class r1s19 group1
+  class r1s20 group2
   class r1s21 group2
-  class r1s22 group3
-  class r1s23 group3
-  class r1s24 group4
-  class r1s25 group4
-  class r1s26 group1
+  class r1s22 group0
+  class r1s23 group1
+  class r1s24 group2
+  class r1s25 group2
+  class r1s26 group2
   class r1s27 group2
-  class r1s28 group1
-  class r1s29 group3
-  class r1s30 group1
-  class r1s31 group2
-  class r1s32 group3
+  class r1s28 group2
+  class r1s29 group2
+  class r1s30 group0
+  class r1s31 group3
+  class r1s32 group4
   class r1s33 group3
-  class r1s34 group1
-  class r1s35 group2
-  class r1s36 group3
-  class r1s37 group3
-  class r1s38 group3
-  class r1s39 group3
-  class r1s40 group3
+  class r1s34 group4
+  class r1s35 group6
+  class r1s36 group6
+  class r1s37 group5
+  class r1s38 group5
+  class r1s39 group7
+  class r1s40 group7
   class r1s41 group3
-  class r1s42 group0
-  class r1s43 group5
+  class r1s42 group4
+  class r1s43 group6
   class r1s44 group6
-  class r1s45 group9
-  class r1s46 group9
-  class r1s47 group9
-  class r1s48 group5
+  class r1s45 group5
+  class r1s46 group5
+  class r1s47 group3
+  class r1s48 group4
   class r1s49 group6
-  class r1s50 group9
+  class r1s50 group6
   class r1s51 group5
-  class r1s52 group6
-  class r1s53 group8
-  class r1s54 group8
+  class r1s52 group5
+  class r1s53 group7
+  class r1s54 group7
   class r1s55 group7
-  class r1s56 group7
-  class r1s57 group9
-  class r1s58 group8
-  class r1s59 group8
-  class r1s60 group9
-  class r1s61 group9
-  class r1s62 group5
-  class r1s63 group6
-  class r1s64 group8
-  class r1s65 group8
+  class r1s56 group3
+  class r1s57 group4
+  class r1s58 group6
+  class r1s59 group6
+  class r1s60 group5
+  class r1s61 group5
+  class r1s62 group7
+  class r1s63 group7Wrong
+  class r1s64 group7
+  class r1s65 group7
   class r1s66 group7
   class r1s67 group7
-  class r1s68 group5
-  class r1s69 group6
-  class r1s70 group5
-  class r1s71 group6
-  class r1s72 group8
-  class r1s73 group8
-  class r1s74 group7
-  class r1s75 group7
-  class r1s76 plain
-  class r1s77 group8
-  class r1s78 group9
-  class r1s79 group9
+  class r1s68 group7
+  class r1s69 group3
+  class r1s70 group4
+  class r1s71 group5
+  class r1s72 group5
+  class r1s73 group3
+  class r1s74 group4
+  class r1s75 group3
+  class r1s76 group4
+  class r1s77 group5
+  class r1s78 group5
+  class r1s79 group5
   class r1s80 group5
-  class r1s81 group6
-  class r1s82 group5
-  class r1s83 group6
-  class r1s84 group8
-  class r1s85 group8
-  class r1s86 group7
-  class r1s87 group7
-  class r1s88 group10
-  class r1s89 group10Wrong
-  class r1s90 group9
-  class r1s91 group10
-  class r1s92 group10
-  class r1s93 group10
-  class r1s94 group10
-  class r1s95 group9
-  class r1s96 group5
-  class r1s97 group6
-  class r1s98 group9
-  class r1s99 group7
-  class r1s100 group7
-  class r1s101 group5
-  class r1s102 group6
-  class r1s103 group5
-  class r1s104 group6
-  class r1s105 group7
-  class r1s106 group7
-  class r1s107 group7
-  class r1s108 group7
-  class r1s109 group9
-  class r1s110 group9
-  class r1s111 group11Wrong
-  class r1s112 group11Wrong
-  class r1s113 group12Wrong
-  class r1s114 group11Wrong
-  class r1s115 group12Wrong
-  class r1s116 group11Wrong
-  class r1s117 group12Wrong
-  class r1s118 group11Wrong
-  class r1s119 group12Wrong
-  class r1s120 group11Wrong
-  class r1s121 group11Wrong
-  class r1s122 group12Wrong
-  class r1s123 group11Wrong
-  class r1s124 group12Wrong
-  class r1s125 group11Wrong
-  class r1s126 group11Wrong
-  class r1s127 group12Wrong
-  class r1s128 group11Wrong
-  class r1s129 group12Wrong
-  class r1s130 group11Wrong
+  class r1s81 group7
+  class r1s82 group7
+  class r1s83 group8Wrong
+  class r1s84 group8Wrong
+  class r1s85 group8Wrong
+  class r1s86 group8Wrong
+  class r1s87 group8Wrong
+  class r1s88 group8Wrong
+  class r1s89 group8Wrong
+  class r1s90 group8Wrong
+  class r1s91 group8Wrong
+  class r1s92 group8Wrong
+  class r1s93 group8Wrong
+  class r1s94 group8Wrong
+  class r1s95 group8Wrong
+  class r1s96 group8Wrong
