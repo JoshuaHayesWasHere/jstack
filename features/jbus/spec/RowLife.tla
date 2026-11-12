@@ -229,7 +229,8 @@ Ask ==
 \* just now, read T3 Code and GitHub as they are at the verb, which the facts a pass last saw
 \* need not be (asks.py `def out(slug: str) -> str:`), so the spec does not guard on them.
 Remove ==
-  /\ status \notin Final \cup {"removed"}  \* queue.py `if work.over(row):`
+  /\ status \notin Final \cup {"removed"}
+     \* queue.py `{verb.slug} is {row['status']}, and a row that is over stays`
   /\ status' = "removed" /\ value' = "removed"  \* work.py `row=_set(Row.REMOVED)`
   /\ UNCHANGED <<go, facts>>
 
