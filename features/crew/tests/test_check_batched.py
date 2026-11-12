@@ -7,7 +7,16 @@ import re
 
 import test_room as room
 from crew_helpers import git
-from test_crew_check_command import a_brief, alone, checked, lanes, lint, selected, stubbed, touching
+from test_crew_check_command import (
+    a_brief,
+    alone,
+    checked,
+    lanes,
+    lint,
+    selected,
+    stubbed,
+    touching,
+)
 
 TOUCHED = tuple(f"tests/test_{one}.py" for one in "abcdef")
 GUARDS = tuple(f"features/repo-guards/tests/test_{one}.py" for one in "ghi")

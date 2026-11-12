@@ -369,11 +369,11 @@ cases = []
 for one in words.get("TESTS", "").split():
     dotted = one.removesuffix(".py").replace("/", ".")
     bad = '<failure message="it failed"/>' if one in failing else ""
-    cases.append(
-        f'<testcase classname="{dotted}" name="test_it" time="{seconds.get(one, 1)}">{bad}</testcase>'
-    )
+    time = seconds.get(one, 1)
+    cases.append(f'<testcase classname="{dotted}" name="test_it" time="{time}">{bad}</testcase>')
 with open(words["JUNIT"], "w") as report:
-    report.write('<testsuites><testsuite name="pytest">' + "".join(cases) + "</testsuite></testsuites>")
+    suite = "".join(cases)
+    report.write(f'<testsuites><testsuite name="pytest">{suite}</testsuite></testsuites>')
 """
 
 
