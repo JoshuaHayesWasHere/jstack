@@ -1408,9 +1408,7 @@ class Repo:
             say(f"refused {about}: its hold {held}, and its head is {one.head[:12]}")
             return 1
         text = "" if heard else _read(self.state / "tasks" / f"{first.slug}.md")
-        judged = text and ready.short_on_judged(
-            text, self.heard(text, first.slug), self.user.user
-        )
+        judged = text and ready.short_on_judged(text, self.heard(text, first.slug), self.user.user)
         if judged and not (message and (acting or check)):
             say(
                 f"refused {about}: {judged}: only the user's own message lifts it: jmerge "

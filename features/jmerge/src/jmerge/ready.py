@@ -1079,9 +1079,7 @@ def judged_waivers(text: str, user: str = "") -> tuple[meets.Waiver, ...]:
     return tuple(dict.fromkeys(found))
 
 
-def short_on_judged(
-    text: str, heard: Collection[meets.Waiver] = (), user: str = ""
-) -> str:
+def short_on_judged(text: str, heard: Collection[meets.Waiver] = (), user: str = "") -> str:
     """`USER_JUDGED` where a clause of `user_judged` stands, or nothing: each is lifted by a
     `Waived:` line in `heard`, whose word jbus checked, that names it (`judged_waivers`) or the
     `Done when` line it is on. The user's own message lifts the hold too, through
