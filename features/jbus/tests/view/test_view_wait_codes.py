@@ -157,3 +157,29 @@ def test_a_pull_request_in_jmerges_batch_is_in_the_check_lane_not_unknown(scene,
     scene.queue([row("po-crew-owes-ends", "pr", pr="#1574", checks="passed", why=why)])
     found = tasks(served.json("/state.json?project=demo"))["po-crew-owes-ends"]
     assert found["step"] == "check"
+
+
+def test_a_checked_wait_in_the_desk_checks_words_from_before_1715_is_in_the_result_lane(
+    scene, served
+):
+    """#1718's row, as jbus's view read it on 2026-11-11: a stale Checked: wait `jmerge` wrote
+    before #1715 reworded the desk check's words, beside the same wait in today's words. Both
+    are in the result lane, not Unknown."""
+    before = (
+        "its last Checked: line is of 2340e1f7de54, and its patch changed after it: the crew's "
+        "check block (features/crew/do-the-task.md), which runs `make check-fast PART=touched`, "
+        "the lint, the touched tests and the repo-guards tests, and writes its line (a "
+        "`PART=guards` line of an earlier head binds too), runs again at ba66f41642f6"
+    )
+    today = ready.CHECKED_STALE.format(at="2340e1f7de54", head="ba66f41642f6")
+    scene.queue(
+        [
+            row("st-code-conforms", "pr", pr="#1718", why=f"wait: {before}"),
+            row("st-code-today", "pr", pr="#1719", why=f"wait: {today}"),
+        ]
+    )
+    found = tasks(served.json("/state.json?project=demo"))
+    assert [found[slug]["step"] for slug in ("st-code-conforms", "st-code-today")] == [
+        "result",
+        "result",
+    ]

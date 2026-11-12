@@ -463,8 +463,9 @@ def run_tlc(tools, spec, cfg, base, dump=None, workers="1", first_only=False):
         os.path.abspath(f"{base}.cfg"),
         os.path.basename(spec),
     ]
+    held = in_test_slot(command)
     try:
-        r = run_in_own_group(in_test_slot(command), os.path.dirname(os.path.abspath(spec)))
+        r = run_in_own_group(held, os.path.dirname(os.path.abspath(spec)))
     except OSError as e:
         raise CannotFinish(f"cannot run TLC: {e.strerror or e}") from e
     finally:
@@ -473,6 +474,14 @@ def run_tlc(tools, spec, cfg, base, dump=None, workers="1", first_only=False):
     could_not_start = re.search(rf"^test-slot: {re.escape(tools.java)}: (.*)$", r.stderr, re.M)
     if r.returncode in (126, 127) and could_not_start:
         raise CannotFinish(f"cannot run TLC: {could_not_start[1]}")
+    # TLC prints its version before anything else, so a slot that ends in a fault with nothing on
+    # stdout never ran TLC to its first line: a jgauge that cannot run, such as a venv's shim
+    # whose package is gone. Its own words say why, where TLC's empty output would not.
+    if held is not command and r.returncode != 0 and not r.stdout:
+        raise CannotFinish(
+            f"cannot run TLC: {held[0]} test-slot exited {r.returncode} before TLC printed a"
+            f" line:\n{r.stderr.strip()}"
+        )
     stdout = f"{FIRST_ONLY}{r.stdout}" if first_only else r.stdout
     with open(f"{base}.out", "w", encoding="utf-8") as handle:
         handle.write(stdout)
@@ -1367,19 +1376,29 @@ def from_chart(given, flags):
     return in_work_folder(body, flags.get("keep-work"))
 
 
-SITE = """Usage: statechart site --out FILE [--root DIR] [--check]
+SITE = """Usage: statechart site --out FILE [--root DIR] [--flow MAP.toml] [--check]
 
 Writes one self-contained HTML page that explores every features/*/spec/*-statechart/chart.mmd
-under DIR, with the stories.md and summary.json beside each: pick a chart, pan and zoom it, tap a
+under DIR, with the stories.md and summary.json beside each. The page opens on an Overview tab, and
+each chart's tab shows the chart's overview (statechart overview --help) above the chart itself: a
+tap on an overview's box moves the chart to that group's states. Pan and zoom the chart, and tap a
 state for its whole label, the code line it cites and its steps in and out. The page fetches
 nothing when it is viewed.
 
   --out FILE   Where the page goes.
   --root DIR   The repo whose charts it draws. Default: the git repo of the current folder.
+  --flow MAP.toml
+               The map the Overview tab draws: one box per chart, in the order of its [[chart]]
+               tables, each with the chart's name, the thing it charts and, for a chart whose
+               title asks no question, its question; and one numbered arrow per [[handoff]], with
+               from = "Chart: Group", to = "Chart: Group" and the words it says. The command
+               stops when a hand-off names a chart or a group that is not there. Default: the
+               flow.toml beside FILE, where there is one. Without one, the tab draws the charts
+               in the order of their paths, with no hand-offs.
   --check      Writes nothing, and exits 1 when FILE is not the page the charts make now.
 
-Exit codes: 0 written (or current, with --check), 1 stale, 2 a chart it cannot read or a wrong
-argument."""
+Exit codes: 0 written (or current, with --check), 1 stale, 2 a chart or map it cannot read, a
+hand-off to a group that is not there, or a wrong argument."""
 
 
 def site_main(argv):
@@ -1394,7 +1413,7 @@ def site_main(argv):
             return 0
         if a == "--check":
             flags["check"] = True
-        elif a in ("--out", "--root"):
+        elif a in ("--out", "--root", "--flow"):
             if i + 1 == len(argv):
                 raise CannotFinish(f"{a} needs a value. Run statechart site --help for the flags.")
             i += 1
@@ -1405,9 +1424,12 @@ def site_main(argv):
     if "out" not in flags:
         raise CannotFinish(SITE.split("\n", 1)[0])
     root = flags.get("root") or site.repo_root(os.getcwd())
+    beside = os.path.join(os.path.dirname(flags["out"]), "flow.toml")
+    if "flow" not in flags and os.path.isfile(beside):
+        flags["flow"] = beside
     try:
         if flags.get("check"):
-            fresh = site.render(root, flags["out"])
+            fresh = site.render(root, flags["out"], flags.get("flow"))
             try:
                 with open(flags["out"], encoding="utf-8") as handle:
                     now = handle.read()
@@ -1418,11 +1440,81 @@ def site_main(argv):
                 return 1
             print(f"{flags['out']} is current")
             return 0
-        charts = site.build(root, flags["out"])
+        charts = site.build(root, flags["out"], flags.get("flow"))
     except ChartError as e:
         raise CannotFinish(str(e)) from e
     states = sum(len(r.states) for c in charts for r in c.regions)
     print(f"wrote {flags['out']}: {len(charts)} charts, {states} states")
+    return 0
+
+
+OVERVIEW = """Usage: statechart overview CHART.mmd [--out FILE.excalidraw]
+
+Draws the chart at the level of its groups, the groups its mapping's group() made and its Legend
+names: each region gives one box per group that has states in it, and one box for its states in no
+group. An arrow joins two boxes when a step of the chart leads from a state of one to a state of the
+other, and says how many steps do. A box says how many states it holds, and how many steps lead
+between two of them. The boxes hold every state of the chart, and the arrows and boxes every step.
+An overview of more than {MOST} boxes is no overview: the command warns, and the chart needs fewer
+groups.
+
+Without --out it prints the overview as a Mermaid stateDiagram-v2. With --out it writes it as an
+Excalidraw scene, laid out as statechart excalidraw lays out a chart; the same chart always writes
+the same bytes.
+
+Exit codes: 0 drawn, 2 a chart it cannot read, a file it cannot write, or a wrong argument."""
+
+
+def overview_main(argv):
+    from statechart import site
+    from statechart.overview import MOST, mermaid, overview_of
+
+    chart_file = out = None
+    i = 0
+    while i < len(argv):
+        a = argv[i]
+        if a in ("-h", "--help"):
+            print(OVERVIEW.replace("{MOST}", str(MOST)))
+            return 0
+        if a == "--out":
+            if i + 1 == len(argv):
+                raise CannotFinish("--out needs a value. Run statechart overview --help.")
+            out = argv[i + 1]
+            i += 2
+            continue
+        if a.startswith("-") or chart_file is not None:
+            raise CannotFinish(f"unknown argument {a}. Run statechart overview --help.")
+        chart_file = a
+        i += 1
+    if chart_file is None:
+        raise CannotFinish(OVERVIEW.split("\n", 1)[0])
+    try:
+        with open(chart_file, encoding="utf-8") as handle:
+            text = handle.read()
+    except OSError as e:
+        raise CannotFinish(f"cannot read {chart_file}: {e.strerror}") from e
+    name = os.path.basename(os.path.dirname(os.path.abspath(chart_file))).removesuffix(
+        "-statechart"
+    )
+    try:
+        ov = overview_of(site.read_text(text, name))
+        drawn = mermaid(ov)
+        if out is not None:
+            excalidraw.write(excalidraw.scene(drawn), out)
+    except ChartError as e:
+        raise CannotFinish(f"{chart_file}: {e}") from e
+    except OSError as e:
+        raise CannotFinish(f"cannot write {out}: {e.strerror}") from e
+    boxes = len(ov.boxes())
+    if boxes > MOST:
+        print(
+            f"warning: {boxes} boxes, more than {MOST}: the chart needs fewer groups",
+            file=sys.stderr,
+        )
+    if out is None:
+        print(drawn, end="")
+    else:
+        print(f"wrote {out}: {boxes} boxes")
     return 0
 
 
@@ -1433,6 +1525,8 @@ def main(argv=None):
     try:
         if argv and argv[0] == "site":
             return site_main(argv[1:])
+        if argv and argv[0] == "overview":
+            return overview_main(argv[1:])
         parsed = parse_args(argv)
         if "help" in parsed:
             print(parsed["help"])

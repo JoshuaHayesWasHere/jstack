@@ -1,0 +1,98 @@
+{
+  "view": "customer",
+  "modelStates": 344,
+  "modelTransitions": 964,
+  "chartStates": 70,
+  "chartTransitions": 90,
+  "allTransitions": 186,
+  "final": [
+    "A gate",
+    "A gate that holds",
+    "A gate that holds, asked by the home",
+    "A gate, asked by the home",
+    "Status: answered in gates-moved.md, its question answered, not on your list, settled",
+    "Status: answered in gates-moved.md, not on your list, settled",
+    "Status: done in gates-moved.md, its question answered, not on your list, settled",
+    "Status: done in gates-moved.md, not on your list, settled",
+    "Status: open in gates-moved.md, asked again as the catch-all's answered, not on your list, settled",
+    "Status: open in gates-moved.md, its question answered, asked again as the catch-all's answered, not on your list, settled",
+    "Status: open in gates-moved.md, its question answered, not on your list, settled"
+  ],
+  "chartStatus": {
+    "works": 70,
+    "fixed": 0,
+    "wrong": 0
+  },
+  "chartGroups": [
+    {
+      "name": "No gate yet",
+      "color": "#ffffff",
+      "states": 1
+    },
+    {
+      "name": "Open in gates.md",
+      "color": "#fdebd0",
+      "states": 7
+    },
+    {
+      "name": "Open, moved aside",
+      "color": "#fad7a0",
+      "states": 5
+    },
+    {
+      "name": "Open, asked again by the catch-all",
+      "color": "#f5b7b1",
+      "states": 5
+    },
+    {
+      "name": "Open, asked twice",
+      "color": "#fdedec",
+      "states": 12
+    },
+    {
+      "name": "Answered in gates.md",
+      "color": "#d1f2eb",
+      "states": 9
+    },
+    {
+      "name": "Answered, moved aside",
+      "color": "#a3e4d7",
+      "states": 9
+    },
+    {
+      "name": "Done in gates.md",
+      "color": "#d6eaf8",
+      "states": 9
+    },
+    {
+      "name": "Done, moved aside",
+      "color": "#aed6f1",
+      "states": 9
+    }
+  ],
+  "mixedGroups": [],
+  "regions": {
+    "drawn": true,
+    "states": [
+      4,
+      66
+    ],
+    "transitions": 90,
+    "all": 186,
+    "flat": {
+      "states": 172,
+      "transitions": 412
+    }
+  },
+  "classes": [],
+  "codeLike": [],
+  "drawnFrom": {
+    "command": "statechart from-spec OneList.tla --config OneList.chart.cfg --title 'Does a gate reach my list, and leave it once I answer?' --expect-broken AnsweredLeaves,ListIsTrue --png",
+    "inputs": {
+      "OneList.chart.cfg": "6298662483d005cc078ade9d2c441114b07b0808368ccb1b290802611455e8cb",
+      "OneList.map.py": "dd8a4233af90a287899d3968869ce8b02089fc610f4db3fce2a03e202a8c2c79",
+      "OneList.tla": "a5c3770b14fdd6ba1b207847bf088b6ef793c9c59f28638c606752e5256b215f"
+    },
+    "chart": "2e293075f31332a6dffc4f8e0ce4863708adea51d18454898a7ac6bac17c5667"
+  }
+}

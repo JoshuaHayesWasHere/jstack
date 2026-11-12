@@ -17,7 +17,7 @@ from jbus import crewtree, leftover, threads
 from jgauge import holders, slot
 from test_jbus_kitchen import NOW, RESULT, TOKEN, Kitchen, asks, review, sends
 from test_jbus_leftover import home
-from test_jbus_queue import add, gates, go
+from test_jbus_queue import add, gates, go, rows
 from testing.paths import skills
 
 THREAD = "mcp:thread-1"
@@ -458,6 +458,38 @@ def test_a_crew_carried_on_in_place_is_not_launched_again_for_the_same_rows(left
     crew_of(left, "three").update(status="completed")
     for minute in (6, 9):
         left.poll(NOW + timedelta(minutes=minute))
+    assert relaunches(left) == []
+
+
+DESK_LEFT = (
+    "the branch on origin is at 8b5559efe, the old base; the rebased 12e5bd99c is local until "
+    "its desk check passes"
+)
+
+
+def test_a_left_row_carried_on_in_place_runs_once_its_thread_does_with_its_why_whole(left):
+    """The replay of outbox.jsonl:21025 on 2026-11-11: st-desk-check-words paused on
+    ev-benchmark-until-second with the `Left:` line here, its thread ended but stayed listed, and
+    its row read `left` with that line as its why. At 22:27:27Z `pausedon.tell` carried it on in
+    place, and its thread's run 3 started at 22:28:17Z, 50 s later, yet the row still read `left`,
+    with its why cut at `de[cut]`. `NOW` stands for 22:27:27Z."""
+    path = left.home / "tasks" / "three.md"
+    path.write_text(path.read_text().replace("Left: waits on one and two", f"Left: {DESK_LEFT}"))
+    thread = crew_of(left, "three")
+    thread["settled"] = False
+    left.poll(NOW - timedelta(minutes=20))
+    row = rows(left)["three"]
+    assert (row["status"], row["why"]) == ("left", f"left: {DESK_LEFT}")
+
+    landed(left)
+    left.poll(NOW)
+    (told,) = [ask for ask in asks(left) if ask["clientRequestId"].startswith("paused-on|")]
+    assert told["threadId"] == thread["threadId"]
+
+    thread.update(status="running", latestRunId="run-3")
+    left.t3.at_work.add(thread["threadId"])
+    left.poll(NOW + timedelta(seconds=50))
+    assert rows(left)["three"]["status"] == "running"
     assert relaunches(left) == []
 
 

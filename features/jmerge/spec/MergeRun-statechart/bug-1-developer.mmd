@@ -1,0 +1,59 @@
+---
+title: "jbus's pass starts a run of jmerge: does what it said reach you?, bug 1"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group0Path fill:#d1f2eb,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group1 fill:#a3e4d7,stroke:#52726c,color:#1b2631
+  classDef group1Path fill:#a3e4d7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group2 fill:#eaf2f8,stroke:#75797c,color:#1b2631
+  classDef group2Path fill:#eaf2f8,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group3 fill:#fadbd8,stroke:#7d6e6c,color:#1b2631
+  classDef group3Wrong fill:#fadbd8,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  state "Legend" as legend {
+    state "Lines heard, no run out" as legendGroup0
+    state "Lines heard, a run is out" as legendGroup1
+    state "Lines on their way" as legendGroup2
+    state "Lines lost" as legendGroup3
+    state "Breaks a rule" as legendWrong
+  }
+  class legendGroup0 group0
+  class legendGroup1 group1
+  class legendGroup2 group2
+  class legendGroup3 group3
+  class legendWrong plainWrong
+  state "run 1 done; stamp by run<br/>1; going.lock run 1;<br/>unread []; no read.json;<br/>judged [0]; told []; pass<br/>reading; run lock free; P<br/>open, no restart record,<br/>handed open; batch none,<br/>read none out, CI none,<br/>rerun none, again False,<br/>most 12 (START), suspects<br/>False, kind alone, branch<br/>none, draft False, main<br/>moved False, merged 0; W<br/>open, spell False, logged<br/>0" as s0
+  state "run 1 going; stamp by run<br/>1; going.lock run 1;<br/>unread []; no read.json;<br/>judged [0]; told []; pass<br/>reading; run lock free; P<br/>open, no restart record,<br/>handed open; batch none,<br/>read none out, CI none,<br/>rerun none, again False,<br/>most 12 (START), suspects<br/>False, kind alone, branch<br/>none, draft False, main<br/>moved False, merged 0; W<br/>open, spell False, logged<br/>0" as s1
+  state "run 1 jmerge; stamp by run<br/>1; going.lock run 1;<br/>unread []; no read.json;<br/>judged [0]; told []; pass<br/>reading; run lock 1,<br/>jmerge at open; P open, no<br/>restart record, handed<br/>open; batch none, read<br/>none out, CI none, rerun<br/>none, again False, most 12<br/>(START), suspects False,<br/>kind alone, branch none,<br/>draft False, main moved<br/>False, merged 0; W open,<br/>spell False, logged 0" as s2
+  state "run 1 kept; stamp by run<br/>1; going.lock run 1;<br/>unread [1]; no read.json;<br/>judged [0]; told []; pass<br/>reading; run lock free; P<br/>open, no restart record,<br/>handed open; batch none,<br/>read none out, CI none,<br/>rerun none, again False,<br/>most 12 (START), suspects<br/>False, kind alone, branch<br/>none, draft False, main<br/>moved False, merged 0; W<br/>open, spell False, logged<br/>0" as s3
+  state "run 1 kept; stamp by run<br/>1; going.lock run 1;<br/>unread []; read.json run<br/>1; judged [0]; told [];<br/>pass idle; run lock free;<br/>P open, no restart record,<br/>handed open; batch none,<br/>read none out, CI none,<br/>rerun none, again False,<br/>most 12 (START), suspects<br/>False, kind alone, branch<br/>none, draft False, main<br/>moved False, merged 0; W<br/>open, spell False, logged<br/>0" as s4
+  state "run 1 kept; stamp by run<br/>1; going.lock run 1;<br/>unread []; read.json run<br/>1; judged [0]; told [];<br/>pass judging; run lock<br/>free; P open, no restart<br/>record, handed open; batch<br/>none, read none out, CI<br/>none, rerun none, again<br/>False, most 12 (START),<br/>suspects False, kind<br/>alone, branch none, draft<br/>False, main moved False,<br/>merged 0; W open, spell<br/>False, logged 0" as s5
+  state "run 1 none; no stamp;<br/>going.lock free; unread<br/>[]; no read.json; judged<br/>[0]; told []; pass idle;<br/>run lock free; P open, no<br/>restart record, handed<br/>open; batch none, read<br/>none out, CI none, rerun<br/>none, again False, most 12<br/>(START), suspects False,<br/>kind alone, branch none,<br/>draft False, main moved<br/>False, merged 0; W open,<br/>spell False, logged 0" as s6
+  state "run 1 none; no stamp;<br/>going.lock run 3; unread<br/>[]; no read.json; judged<br/>[0]; told []; pass<br/>stamping; run lock free; P<br/>open, no restart record,<br/>handed open; batch none,<br/>read none out, CI none,<br/>rerun none, again False,<br/>most 12 (START), suspects<br/>False, kind alone, branch<br/>none, draft False, main<br/>moved False, merged 0; W<br/>open, spell False, logged<br/>0" as s7
+  state "run 1 none; stamp by run<br/>1; going.lock free; unread<br/>[]; no read.json; judged<br/>[0]; told []; pass<br/>spawning; run lock free; P<br/>open, no restart record,<br/>handed open; batch none,<br/>read none out, CI none,<br/>rerun none, again False,<br/>most 12 (START), suspects<br/>False, kind alone, branch<br/>none, draft False, main<br/>moved False, merged 0; W<br/>open, spell False, logged<br/>0" as s8
+  state "run 1 spawned; stamp by<br/>run 1; going.lock free;<br/>unread []; no read.json;<br/>judged [0]; told []; pass<br/>reading; run lock free; P<br/>open, no restart record,<br/>handed open; batch none,<br/>read none out, CI none,<br/>rerun none, again False,<br/>most 12 (START), suspects<br/>False, kind alone, branch<br/>none, draft False, main<br/>moved False, merged 0; W<br/>open, spell False, logged<br/>0" as s9
+  [*] --> s6
+  s6 --> s7 : 1. a pass looks at the runs<br/>folder [PassStarts]
+  s7 --> s8 : 2. the pass writes the start<br/>stamp [PassStamps]
+  s8 --> s9 : 3. the pass starts a run of<br/>jmerge in the background<br/>[PassSpawns]
+  s9 --> s1 : 4. the run takes going.lock<br/>[TakesGoing]
+  s1 --> s2 : 5. the run starts jmerge<br/>[RunsJmerge]
+  s2 --> s0 : 6. jmerge ends or dies [Stops]
+  s0 --> s3 : 7. the run writes its record<br/>[Keeps]
+  s3 --> s5 : 8. the pass takes the oldest<br/>unread record [PassReads]
+  s5 --> s4 : 9. the pass dies [PassDies]
+  class s0 group1Path
+  class s1 group1Path
+  class s2 group1Path
+  class s3 group2Path
+  class s4 group3Wrong
+  class s5 group2Path
+  class s6 group0Path
+  class s7 group0Path
+  class s8 group0Path
+  class s9 group1Path

@@ -1,0 +1,77 @@
+{
+  "view": "customer",
+  "modelStates": 191,
+  "modelTransitions": 639,
+  "chartStates": 32,
+  "chartTransitions": 50,
+  "allTransitions": 67,
+  "final": [
+    "no run out, a run was said to have left no record",
+    "no run out, a run's lines are lost",
+    "no run out, every record written was sent"
+  ],
+  "chartStatus": {
+    "works": 27,
+    "fixed": 0,
+    "wrong": 5
+  },
+  "chartGroups": [
+    {
+      "name": "Lines heard, no run out",
+      "color": "#d1f2eb",
+      "states": 7
+    },
+    {
+      "name": "Lines heard, a run is out",
+      "color": "#a3e4d7",
+      "states": 6
+    },
+    {
+      "name": "Lines on their way",
+      "color": "#eaf2f8",
+      "states": 11
+    },
+    {
+      "name": "Lines lost",
+      "color": "#fadbd8",
+      "states": 5
+    }
+  ],
+  "mixedGroups": [],
+  "regions": {
+    "drawn": true,
+    "states": [
+      4,
+      28
+    ],
+    "transitions": 50,
+    "all": 67,
+    "flat": {
+      "states": 34,
+      "transitions": 76
+    }
+  },
+  "classes": [
+    {
+      "n": 1,
+      "end": "Between passes: a run is out, a start stamp under a minute old; a run's lines are lost",
+      "invariant": "RunHeard",
+      "rule": "Every run's lines are judged once: a run that wrote its record has its lines sent, or the record is still on disk for the next pass, or the pass holds it on its way to `_judged`.",
+      "cause": "the pass marked a record read and died before it sent its lines, so what jmerge said of those pull requests never reaches anyone",
+      "readerSteps": 5,
+      "modelSteps": 10,
+      "counterexamples": 6,
+      "fix": null
+    }
+  ],
+  "codeLike": [],
+  "drawnFrom": {
+    "command": "statechart from-spec MergeRun.tla --config MergeRun.chart.cfg --title 'jbus'\"'\"'s pass starts a run of jmerge: does what it said reach you?' --png",
+    "inputs": {
+      "MergeRun.chart.cfg": "1efbb7086e6d552d866afc77f12fa38e519682f33a4584bbc5d333d01c24126b",
+      "MergeRun.map.py": "4b3998c92e55eec0c5f07a6ec28c70b3b21f506feba8357de19cccd6fd31eb08",
+      "MergeRun.tla": "29357cbfaf2c85c93329b68e614755d98121157e7328ad8dfe24c280a4fe39f0"
+    },
+    "chart": "6b34249ff309c0ff6e99a3fbaa291749132964e89b7074f3fdba7505450d17dc"
+  }
+}

@@ -450,7 +450,9 @@ def judged(kitchen, slug):
 def test_a_scout_row_in_work_json_is_queued_then_scouting_then_report_in(kitchen):
     """The tree reads a scout row's `scout` from `work.json`: queued until it launches, scouting
     while its thread works or its Report does not say done, and report in once its Report says
-    `Status: done`. The row's other fields, which jview and the digest read, say what they did."""
+    `Status: done`. A Report that does not say done is the row's leftover only once its thread
+    ended: while the thread works, the scout is at work. The row's other fields, which jview and
+    the digest read, say what they did."""
     add(kitchen, "look")
     kitchen.poll()
     line = judged(kitchen, "look")
@@ -470,11 +472,18 @@ def test_a_scout_row_in_work_json_is_queued_then_scouting_then_report_in(kitchen
     assert rows(kitchen)["look"]["status"] == "running"
 
     reported(kitchen, "look", status="not done")
+    kitchen.poll(NOW + timedelta(minutes=8))
+    line = judged(kitchen, "look")
+    assert (line["scout"], line["value"], line["who"]) == ("scouting", "working", "scout")
+    assert rows(kitchen)["look"]["status"] == "running"
+
+    scout_thread(kitchen, "look")["status"] = "completed"
     kitchen.poll(NOW + timedelta(minutes=9))
     line = judged(kitchen, "look")
     assert (line["scout"], line["value"], line["who"]) == ("scouting", "leftover", "home")
     assert rows(kitchen)["look"]["status"] == "left"
 
+    scout_thread(kitchen, "look")["status"] = "running"
     reported(kitchen, "look")
     kitchen.poll(NOW + timedelta(minutes=12))
     line = judged(kitchen, "look")
@@ -495,7 +504,7 @@ def test_a_scout_row_whose_followup_report_says_done_is_done_and_report_in(kitch
     add(kitchen, "look")
     assert go(kitchen, "look")[0] == 0
     kitchen.poll()
-    scout_thread(kitchen, "look")["status"] = "running"
+    scout_thread(kitchen, "look")["status"] = "completed"
     reported(kitchen, "look", status="blocked, the bench is down")
     kitchen.poll(NOW + timedelta(minutes=3))
     assert (judged(kitchen, "look")["scout"], rows(kitchen)["look"]["status"]) == (
@@ -504,7 +513,6 @@ def test_a_scout_row_whose_followup_report_says_done_is_done_and_report_in(kitch
     )
 
     reported(kitchen, "look", heading="## Report, follow-up (2026-11-08, the bench is back)")
-    scout_thread(kitchen, "look")["status"] = "completed"
     kitchen.poll(NOW + timedelta(minutes=6))
     line = judged(kitchen, "look")
     assert (line["scout"], line["value"], line["who"]) == ("report in", "done", "ok")

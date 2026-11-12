@@ -1,0 +1,114 @@
+---
+title: "Does the gh budget hold, and does the call log keep each full log?"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plain fill:#f4f6f7,stroke:#566573,color:#1b2631
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group1 fill:#d6eaf8,stroke:#6b757c,color:#1b2631
+  classDef group2 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group2Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  state "Legend" as legend {
+    state "Budget kept" as legendGroup0
+    state "A pass held" as legendGroup1
+    state "A call under the floor" as legendGroup2
+    state "Breaks a rule today" as legendWrong
+  }
+  class legendGroup0 group0
+  class legendGroup1 group1
+  class legendGroup2 group2
+  class legendWrong plainWrong
+  state "At the same time" as regions {
+    [*] --> r0s0
+    state "The API budget above the<br/>floor" as r0s0
+    state "The API budget at the<br/>floor" as r0s1
+    state "The API budget spent" as r0s2
+    r0s0 --> r0s1 : the API answers the call and<br/>counts it [when a call under<br/>way, the call log has room, no<br/>old log or a call under way,<br/>the call log past its size, no<br/>old log]
+    %% when r1s5, r1s7
+    r0s1 --> r0s2 : the API answers the call and<br/>counts it [unless a call under<br/>way, the call log has room, no<br/>old log or a pass held, the<br/>call log has room, the old log<br/>keeps the last full log or a<br/>pass held, the call log past<br/>its size, no old log or no<br/>call, the call log has room,<br/>the old log keeps the last<br/>full log or no call, the call<br/>log past its size, no old log]
+    %% when not r1s5, r1s10, r1s11, r1s15, r1s16
+    --
+    [*] --> r1s13
+    state "a call starts at the<br/>floor, no call log, the<br/>old log keeps the last<br/>full log" as r1s0
+    state "a call starts at the<br/>floor, the call log has<br/>room, the old log keeps<br/>the last full log" as r1s1
+    state "a call starts at the<br/>floor, the call log past<br/>its size, no old log" as r1s2
+    state "a call under way, no call<br/>log, no old log" as r1s3
+    state "a call under way, no call<br/>log, the old log keeps the<br/>last full log" as r1s4
+    state "a call under way, the call<br/>log has room, no old log" as r1s5
+    state "a call under way, the call<br/>log has room, the old log<br/>keeps the last full log" as r1s6
+    state "a call under way, the call<br/>log past its size, no old<br/>log" as r1s7
+    state "a pass held, no call log,<br/>no old log" as r1s8
+    state "a pass held, the call log<br/>has room, no old log" as r1s9
+    state "a pass held, the call log<br/>has room, the old log<br/>keeps the last full log" as r1s10
+    state "a pass held, the call log<br/>past its size, no old log" as r1s11
+    state "a pass held, the call log<br/>past its size, the old log<br/>keeps the last full log" as r1s12
+    state "no call, no call log, no<br/>old log" as r1s13
+    state "no call, the call log has<br/>room, no old log" as r1s14
+    state "no call, the call log has<br/>room, the old log keeps<br/>the last full log" as r1s15
+    state "no call, the call log past<br/>its size, no old log" as r1s16
+    state "no call, the call log past<br/>its size, the old log<br/>keeps the last full log" as r1s17
+    r1s0 --> r1s4 : the API answers the call and<br/>counts it
+    r1s0 --> r1s1 : the call's line goes in the<br/>log
+    r1s1 --> r1s6 : the API answers the call and<br/>counts it
+    r1s2 --> r1s7 : the API answers the call and<br/>counts it
+    r1s2 --> r1s0 : the process renames the log to<br/>the old log
+    r1s3 --> r1s14 : the call's line goes in the<br/>log
+    r1s3 --> r1s5 : the call's line goes in the<br/>log
+    r1s3 --> r1s9 : the call's line goes in the<br/>log
+    r1s4 --> r1s15 : the call's line goes in the<br/>log
+    r1s4 --> r1s6 : the call's line goes in the<br/>log
+    r1s4 --> r1s10 : the call's line goes in the<br/>log
+    r1s5 --> r1s16 : the call's line goes in the<br/>log [when The API budget above<br/>the floor]
+    %% when r0s0
+    r1s5 --> r1s7 : the call's line goes in the<br/>log
+    r1s5 --> r1s11 : the call's line goes in the<br/>log [when The API budget above<br/>the floor]
+    %% when r0s0
+    r1s6 --> r1s17 : the call's line goes in the<br/>log [when The API budget<br/>spent]
+    %% when r0s2
+    r1s6 --> r1s12 : the call's line goes in the<br/>log [when The API budget<br/>spent]
+    %% when r0s2
+    r1s7 --> r1s2 : a pass starts a gh call in a<br/>free slot [when The API budget<br/>at the floor]
+    %% when r0s1
+    r1s7 --> r1s4 : the process renames the log to<br/>the old log [unless The API<br/>budget above the floor]
+    %% when not r0s0
+    r1s8 --> r1s13 : a pass reads the budget above<br/>the floor and goes on
+    r1s8 --> r1s13 : another pass's answer is<br/>there, and the pass takes it
+    r1s8 --> r1s13 : the pass asks the API what is<br/>left and keeps the answer
+    r1s9 --> r1s14 : a pass reads the budget above<br/>the floor and goes on
+    r1s10 --> r1s15 : a pass reads the budget above<br/>the floor and goes on [when<br/>The API budget at the floor]
+    %% when r0s1
+    r1s11 --> r1s16 : a pass reads the budget above<br/>the floor and goes on
+    r1s12 --> r1s17 : a pass reads the budget above<br/>the floor and goes on
+    r1s13 --> r1s3 : a pass starts a gh call in a<br/>free slot
+    r1s13 --> r1s8 : the pass reads the budget at<br/>the floor, or the API gives no<br/>answer, and it holds
+    r1s14 --> r1s5 : a pass starts a gh call in a<br/>free slot
+    r1s15 --> r1s10 : a pass reads the budget at the<br/>floor and holds
+    r1s16 --> r1s11 : a pass reads the budget at the<br/>floor and holds [when The API<br/>budget at the floor]
+    %% when r0s1
+    r1s17 --> r1s12 : a pass reads the budget at the<br/>floor and holds
+  }
+  class r0s0 plain
+  class r0s1 plain
+  class r0s2 plain
+  class r1s0 group2Wrong
+  class r1s1 group2Wrong
+  class r1s2 group2Wrong
+  class r1s3 group0
+  class r1s4 group0
+  class r1s5 group0
+  class r1s6 group0
+  class r1s7 group0
+  class r1s8 group1
+  class r1s9 group1
+  class r1s10 group1
+  class r1s11 group1
+  class r1s12 group1
+  class r1s13 group0
+  class r1s14 group0
+  class r1s15 group0
+  class r1s16 group0
+  class r1s17 group0

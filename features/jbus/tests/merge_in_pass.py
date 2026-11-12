@@ -9,7 +9,9 @@ from jbus import merge
 
 
 def start(run):
-    merge.keep(merge.runs(run), run.project.checkout, *merge.handed(run))
+    where = merge.runs(run)
+    stamp = (where / merge.STARTED).read_text().strip()
+    merge.keep(where, run.project.checkout, *merge.handed(run), stamp=stamp)
     return ""
 
 

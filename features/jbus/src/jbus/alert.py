@@ -200,14 +200,24 @@ def _log(config: jbus.Config, owner: str, kind: str, line: str) -> None:
         wake.Box(config.state(project), project).send("", kind, line)
 
 
-def open_items(state: Path, now: datetime) -> list[Streak]:
-    """Every alert that is open now, the items of the one list."""
-    found = [Streak(**one) for one in streaks(state).values()]
+def open_items(config: jbus.Config, now: datetime) -> list[Streak]:
+    """Every alert that is open now, the items of the one list. An alert about a closed project
+    is not one: no pass of it runs to end the alert, so no home could clear it. Its streak stays
+    in `streaks.json`, and `jbus project open` lists it again while its cause holds."""
+    found = [Streak(**one) for one in streaks(config.state_dir).values()]
     return [
         one
         for one in found
-        if one.alerted and (not one.ends or datetime.fromisoformat(one.ends) > now)
+        if one.alerted
+        and (not one.ends or datetime.fromisoformat(one.ends) > now)
+        and not any(_about(one, project.name) for project in config.closed)
     ]
+
+
+def _about(one: Streak, project: str) -> bool:
+    """Say whether the streak is about the project: the project owns it, or it is under a key of
+    the project's that the machine owns, or that a record from before owners were kept has."""
+    return one.owner == project or one.key in (home(project), blocking(project), jmerge(project))
 
 
 def opened(config: jbus.Config, key: str, line: str, *, now: datetime) -> str | None:

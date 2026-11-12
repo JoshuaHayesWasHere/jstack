@@ -358,6 +358,40 @@ def test_record_heads_the_evidence_with_what_a_stand_in_set_up(sandbox):
     assert runs.count("hello\n") == 3
 
 
+def test_fake_gh_cancels_and_reruns_a_run_and_lists_its_jobs(tmp_path):
+    gh = tmp_path / "gh"
+    (gh / "jobs").mkdir(parents=True)
+    run = {"id": 7, "status": "in_progress", "conclusion": None, "run_attempt": 1}
+    other = {"id": 8, "status": "in_progress", "conclusion": None, "run_attempt": 1}
+    (gh / "runs.json").write_text(json.dumps({"workflow_runs": [run, other]}))
+    jobs = {"total_count": 1, "jobs": [{"id": 70, "status": "in_progress"}]}
+    (gh / "jobs" / "7.json").write_text(json.dumps(jobs))
+
+    def fake_gh(*args):
+        env = {**os.environ, "VERIFY_JSTACK_SANDBOX": str(tmp_path)}
+        ran = subprocess.run([SCRIPTS / "fake-gh", *args], env=env, capture_output=True, text=True)
+        assert ran.returncode == 0, (args, ran.stderr)
+        return ran.stdout
+
+    def runs():
+        return {r["id"]: r for r in json.loads((gh / "runs.json").read_text())["workflow_runs"]}
+
+    fake_gh("run", "cancel", "7")
+    assert (runs()[7]["status"], runs()[7]["conclusion"]) == ("completed", "cancelled")
+    assert runs()[8] == other
+
+    fake_gh("run", "rerun", "7")
+    assert (runs()[7]["status"], runs()[7]["conclusion"]) == ("queued", None)
+    assert runs()[8] == other
+
+    path = "repos/{owner}/{repo}/actions/runs/%s/jobs?per_page=100"
+    assert json.loads(fake_gh("api", path % 7)) == jobs
+    assert json.loads(fake_gh("api", path % 8)) == {"total_count": 0, "jobs": []}
+
+    calls = (gh / "calls.log").read_text().splitlines()
+    assert calls[:2] == ["run cancel 7", "run rerun 7"]
+
+
 SKILL = REPO / "features" / "verify-jstack" / "project-skill" / "SKILL.md"
 FENCE = re.compile(r"^```sh\n(.*?)^```$", re.M | re.S)
 

@@ -82,7 +82,15 @@
               fi
               echo "$step: exit $said in $(($(date +%s) - started)) s, $lane lane"
               case $said in
-              0) [ -n "$clean" ] || echo "passed $step" >> "$steps" ;;
+              0)
+                  if [ -z "$clean" ] && [ -z "$(git status --porcelain)" ] && [ "$(git rev-parse HEAD)" = "$head" ]; then
+                      echo "passed $step" >> "$steps"
+                  elif [ -z "$clean" ]; then
+                      echo "$step: passed over work that $head does not have, so it is not kept"
+                      ran=76
+                      break
+                  fi
+                  ;;
               76)
                   ran=76
                   break
@@ -134,6 +142,8 @@
   The steps after the guards are the test files CI failed on that the block of "The failed files" kept in the worktree's `crew-failed-files` and that are in the worktree, so a fix head's `Checked:` line says exit 0 only once they pass there.
   A name leaves that list once its step passed at a committed head.
   A step that passed at a committed head is kept in the worktree's `crew-check-steps` (`git rev-parse --git-path crew-check-steps`), and a run of the block at the same head and base skips it, so a wait for a slot, or a call cut at its time limit, never starts the check over.
+  A step is kept only where the worktree was clean when the block began and is still clean at that head when the step ends: a call moved to the background lets the crew edit while a step runs, and a step that passed over such an edit is no pass at the head.
+  The block prints `<step>: passed over work that <head> does not have, so it is not kept`, starts no further step, and ends 76 with no `Checked:` line and no `running:` line: commit or drop the work first, then run the block again.
   `jmerge` merges a pull request only once its last `Checked:` line says the desk's check (`PART=touched`, a `PART=guards` line of an earlier head, or another repo's `jgauge check`) exited 0 at its head, or at a head whose patch the head carries unchanged (`ready.short_on_checked`): a missing line, a failure, a 124 and a line of a head whose patch changed since each hold it, until this block runs again at the head.
   Give the call a time limit of 10 minutes (`timeout: 600000` in Claude Code), and never send it to the background: a call that outlives 10 minutes is moved to the background, and each step's end then wakes the thread.
   So the block counts the time since it began and starts no step with less than `reserve` (120 s, the short lane's limit) left of its `budget` (540 s).
@@ -163,17 +173,17 @@
   Claude Code holds a command that has `rm` in it, in a trap or an inner shell too, for an approval, even in full access ("This shell -c script runs rm and could not be checked"), and no crew can give its own: on 2026-11-07 five crews stalled for hours on the trap that removed the copy.
   Run the script as the block does, never its steps pasted into a call.
   Give the call a time limit of 10 minutes (`timeout: 600000` in Claude Code), and never send it to the background: a side that falls back to a full slot can take minutes on a busy machine.
-  The head's tests run at the head, then laid over a copy of the base's files with a venv of its own, so the base run imports the base's code and not the head's.
+  The head's tests run in a copy of the head the block began at, then laid over a copy of the base's files, each copy with a venv of its own, so the base run imports the base's code and not the head's, and an edit or a commit made in the worktree while the call runs reaches neither run.
   The head run and the base run share the one short slot the block gets, since a side that gave its slot back would find every slot taken on a busy machine when it asked again; a side the short lane stops at its limit (exit 124) runs again alone in a full slot, which has none, as a step of the check block does, and the block ends 76 only where it gets no slot.
   Each runs on pytest's workers where the tree's venv has pytest-xdist, on one process where it has not: the short lane's count (`SHORT_WORKERS` in `jgauge.sizes`) in a short slot, and a quarter of the processors, at least two, in a full one, never `-n auto`, which takes every processor beside the other slots' runs.
-  The copy is a clone of this repo in a temp directory, checked out at the base and sharing this repo's objects, not a git worktree: it is a repository of its own, so a test that runs git there reads the base, and it leaves `git worktree list` here as it was, whether the tests pass, fail or the call is cut off.
+  Each copy is a clone of this repo in a temp directory, checked out at its commit and sharing this repo's objects, not a git worktree: it is a repository of its own, so a test that runs git there reads that commit, and it leaves `git worktree list` here as it was, whether the tests pass, fail or the call is cut off.
   The block needs no `git worktree remove`, which the door hook refuses as a deletion of data (`deletes data`), refusing the whole call with it.
-  The script removes its copy when it exits, after a pass, a failure, a slot's 124 or a TERM that stops the call alike (a trap on `EXIT`), so no copy is left in the temp directory; a call killed outright, with KILL, leaves its copy there, as other scratch is left.
-  Where no copy can be made, as when the thread's `TMPDIR` is gone, it prints `no proof: no copy of the base could be made in <the directory>`, ends 1, and leaves the worktree on its branch.
+  The script removes both copies when it exits, after a pass, a failure, a slot's 124 or a TERM that stops the call alike (a trap on `EXIT`), so no copy is left in the temp directory; a call killed outright, with KILL, leaves its copies there, as other scratch is left.
+  Where a copy cannot be made, as when the thread's `TMPDIR` is gone, it prints `no proof: no copy of the base could be made in <the directory>` or `no proof: no copy of the head could be made in <the directory>`, ends 1, and leaves the worktree on its branch: run the block again with `TMPDIR` on a directory that exists (`TMPDIR=/tmp bash "$T/proved.sh" ...`).
   The files laid over it are the tests and what they lean on: every changed file under a `tests/` or `test/` directory, each `test_*.py` or `*_test.py`, and each `conftest.py`.
   A branch whose every changed file, a deleted one too, is such a file or of a kind `jbriefs.proved.EXEMPT` names (docs, config, listed below) changes no code: the base's code is the head's own, so its tests pass there as well and a base run proves nothing.
   A test made faster, split or cleaned up is such a branch, and so is a removal of tests with the doc that named them.
-  For it the block prints `tests only:`, makes no copy, runs the tests at the head alone, and prints `Proved: <tests> head exit <n> at <head>, tests only`; its `exempt` pattern matches the files `EXEMPT` covers.
+  For it the block prints `tests only:`, makes no copy of the base, runs the tests in the head's copy alone, and prints `Proved: <tests> head exit <n> at <head>, tests only`; its `exempt` pattern matches the files `EXEMPT` covers.
   `jmerge` takes that line only where every file the pull request changes is such a file, or of a kind `jbriefs.proved.EXEMPT` names (docs, config), and the head exit is 0 (`jbriefs.proved.TEST_FILE`): a change to code still needs its base run to fail.
   At the base a test that cannot import what the change adds counts as failed, not as a collection error (`--continue-on-collection-errors`).
   A slot run that ends 76 got no slot, as in "test slots": after a short-lane 76 run the block again at once, and after a full-lane 76 end the turn and wait for jbus's message.
@@ -181,6 +191,7 @@
   A side that ends 124 in the short lane prints `<side>: stopped at the short lane's limit, no verdict: it runs again alone in a full slot`, and the `Proved:` line is of the full slot's run; one that ends 124 there too reached no verdict, the run after it does not start, and the block prints `no proof: the slot's run ended 124`: run it again.
   It proves the change where the base run exits 1 and the head run exits 0, and only then: an exit 2, 4 or 5 at the base (an error, a usage fault, no test collected) or a 124 proves nothing.
   On anything else, fix the tests until they fail without the change, commit, and run it again.
+  A commit made, or an edit left in the worktree, while the call runs ends it with no `Proved:` line and exit 1, on `no proof: the head or the worktree moved while it ran: HEAD <head> is now <commit>` or `no proof: the head or the worktree moved while it ran: the worktree has changes: <files>`: commit the edit or drop it, then run the block again at the head as it is now.
   The `Proved:` line it prints goes, as printed, on the Result between `Proof:` and `Branch:`; once the brief has a Result, the block appends it itself.
   The line is of the head it ran at: a rebase or a merge of the base keeps it, and a push that changes the patch, a fix for a finding among them, runs the block again; the last `Proved:` line is the one `jmerge` reads.
   `jmerge` waits on a pull request that changes tests and whose Result has no `Proved:` line, one that does not name each test file it changes, one with a base exit other than 1 or a head exit other than 0, a `tests only` line, which has no base exit, where the pull request changes a file that is no test, docs or config, or one of a head whose patch the pull request's head no longer carries unchanged (`ready.short_on_proved`).
@@ -253,6 +264,60 @@
 
   On `label cross-cutting`, open it with `--label cross-cutting` too.
   A pull request already open whose diff a later push makes touch two features gets it with `gh pr edit --add-label cross-cutting`, and the borders check reruns when it is labelled.
+  The pull request opens only on a head that merges cleanly into today's base: one opened on a base hours old is in conflict the moment it opens, and then waits on a rebase that races the next merge, as #1725 did, opened three hours behind main.
+  Run this in this worktree right before you open it, with the block at the top and `<branch>` the base it printed, and open it only where it prints `open it`:
+
+  ```sh
+  G=$(git rev-parse --git-dir)
+  B="$H/tasks/<slug>.md"
+  base='<branch>'
+  branch=$(git branch --show-current)
+  if [ -d "$G/rebase-merge" ] || [ -d "$G/rebase-apply" ]; then
+      echo "the rebase stopped: resolve these as A conflict says, then git rebase --continue"
+      git diff --name-only --diff-filter=U
+  elif [ -f "$G/crew-before-rebase" ]; then
+      echo "a rebase is not pushed yet: prove it and push it as A conflict says, then run this again"
+  elif stacked=$(uv run --project "$T/../source" jbriefs line stacked "$B" 2> /dev/null) && [ "$stacked" != none ] && { [ "${stacked% at *}" = "$stacked" ] || ! git merge-base --is-ancestor "${stacked##* }" HEAD 2> /dev/null; }; then
+      echo "open it: a link of a stack, jbus moves it onto its base's merge"
+  elif [ "origin/$base" != "$(git symbolic-ref -q --short refs/remotes/origin/HEAD)" ]; then
+      echo "open it: $base is the base of a link, and jbus moves a link"
+  elif ! git fetch -q origin "$base"; then
+      echo "not opened: could not fetch origin/$base"
+  else
+      tip=$(git rev-parse --short=12 "origin/$base")
+      said=$(git merge-tree --write-tree --name-only "origin/$base" HEAD)
+      merged=$?
+      files=$(printf '%s\n' "$said" | sed -n '2,/^$/p' | sed '/^$/d' | paste -sd' ' -)
+      pushed=$(git ls-remote origin "refs/heads/$branch" | cut -f 1)
+      if [ "$merged" -eq 0 ]; then
+          echo "open it: $(git rev-parse --short=12 HEAD) merges cleanly into origin/$base at $tip"
+      elif [ "$merged" -ne 1 ]; then
+          echo "not opened: git merge-tree could not merge origin/$base with the head"
+      elif [ -z "$pushed" ]; then
+          echo "not opened: origin has no $branch, so a rebase has no lease: push it with the first push block, then run this again"
+      elif ! git update-ref "refs/jstack/pre-rebase/<slug>/$(git rev-parse --short=12 HEAD)" HEAD; then
+          echo "not opened: could not keep the head under refs/jstack/pre-rebase, so no rebase"
+      else
+          echo "not opened: the head conflicts with origin/$base at $tip in $files: rebasing onto it first"
+          echo "$(git rev-parse HEAD) $base $pushed" > "$G/crew-before-rebase"
+          if out=$(git rebase -q "origin/$base" 2>&1); then
+              echo "rebased onto origin/$base: prove it and push it as A conflict says, then run this again"
+          elif [ -d "$G/rebase-merge" ] || [ -d "$G/rebase-apply" ]; then
+              echo "the rebase stopped: resolve these as A conflict says, then git rebase --continue"
+              git diff --name-only --diff-filter=U
+          else
+              uv run --project "$T/../source" jbus forget "$G/crew-before-rebase" > /dev/null
+              echo "the rebase did not start: $out"
+          fi
+      fi
+  fi
+  ```
+
+  It fetches the base each time, so it reads main as it is now and not as the worktree last saw it, and asks `git merge-tree` what GitHub's merge would: exit 0 is a head that merges cleanly, exit 1 a conflict.
+  On a conflict it starts the rebase of "A conflict", with its record and its `refs/jstack/pre-rebase` ref, so the rest is that section's: resolve the files with `jmerge --remake` for the generated ones, prove no line was lost, run the check block at the new head, and push with its lease.
+  Then run this again: main may have moved once more while you rebased, and the pull request opens on the first run that prints `open it`.
+  A link of a stack opens at once, since jbus moves it once its base merged ("A link that moved").
+  So does a link jbus already moved onto main, whose `Stacked on:` line ends `at <merge>`, until its head holds that merge: until then its branch holds its base's commits too, and a rebase onto main would replay them, as "A conflict" says, so the block reads the line by the same rule that section does.
   The first push of the branch is this block's, run in this worktree with the block at the top and the brief's slug in place of the words in angle brackets, before the pull request opens:
 
   ```sh

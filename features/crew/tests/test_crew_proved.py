@@ -82,9 +82,21 @@ case " $* " in
         sleep 60
     fi
     if [ -n "$SLOW" ]; then sleep "$SLOW"; fi
-    case $PWD in "$TMPDIR"/base.*) if [ -n "$BASE_SLOW" ]; then sleep "$BASE_SLOW"; fi ;; esac
+    case $PWD in
+    "$TMPDIR"/base.*) if [ -n "$BASE_SLOW" ]; then sleep "$BASE_SLOW"; fi ;;
+    *) if [ -n "$DURING" ]; then (cd "$WORKTREE" && bash -c "$DURING"); fi ;;
+    esac
     shift 2
     echo "$*" >> "$TMPDIR/pytest-args"
+    case $PWD in
+    "$TMPDIR"/base.*) ;;
+    *) if [ -n "$AFTER" ]; then
+        {sys.executable} -m pytest "$@"
+        code=$?
+        (cd "$WORKTREE" && bash -c "$AFTER")
+        exit $code
+    fi ;;
+    esac
     exec {sys.executable} -m pytest "$@"
     ;;
 esac
@@ -94,7 +106,10 @@ exit 64
 the short lane stops one at its limit, and a full one at `FULL_LIMIT` seconds; each pytest run
 takes `SLOW` seconds more, and one in the copy of the base `BASE_SLOW` seconds more, `NO_XDIST`
 stands for a repo whose venv has no pytest-xdist, and with `SLOTS` set only that many test-slot
-calls get a slot, and every one after them finds every slot taken, exit 76."""
+calls get a slot, and every one after them finds every slot taken, exit 76. `DURING` is a
+command the head side's pytest run starts with, and `AFTER` one it ends with, both in the
+crew's worktree `WORKTREE`, as a crew's edit, commit or dropped edit while the proof call sits
+in the background."""
 BSD_WC = """#!/bin/sh
 REAL "$@" | awk '{ $1 = sprintf("%8s", $1); print }'
 """
@@ -160,20 +175,25 @@ def environ(tree, **more):
         "T": str(assembled() / "templates"),
         "TMPDIR": str(tree.parent),
         "PYTEST_XDIST_AUTO_NUM_WORKERS": "2",
+        "WORKTREE": str(tree),
         **more,
     }
 
 
-def worktrees(tree):
-    return git(tree, "worktree", "list", "--porcelain")
+def worktrees(tree, head=True):
+    listed = git(tree, "worktree", "list", "--porcelain")
+    return listed if head else re.sub(r"(?m)^HEAD .*\n?", "", listed)
 
 
 def copies(tree):
-    return sorted(path.name for kind in ("base", "fork") for path in tree.parent.glob(f"{kind}.*"))
+    kinds = ("base", "head", "fork")
+    return sorted(path.name for kind in kinds for path in tree.parent.glob(f"{kind}.*"))
 
 
-def proof(tree, shell="", **more):
-    before = worktrees(tree)
+def proof(tree, shell="", moves_head=False, **more):
+    """The script's run, which leaves the worktree list as it found it, its HEAD too unless the
+    run commits (`moves_head`)."""
+    before = worktrees(tree, head=not moves_head)
     ran = subprocess.run(
         ["bash", "-c", shell + script()],
         cwd=tree,
@@ -182,7 +202,7 @@ def proof(tree, shell="", **more):
         timeout=60,
         env=environ(tree, **more),
     )
-    assert worktrees(tree) == before
+    assert worktrees(tree, head=not moves_head) == before
     assert copies(tree) == []
     home = tree.parent / "home"
     return ran.stdout, proved.proved((home / "tasks" / "a-task.md").read_text())
@@ -209,6 +229,18 @@ def test_a_test_that_fails_without_the_fix_is_proved(repo):
     said, line = proof(repo)
     assert "head exit 0: 2 passed" in said
     assert "base exit 1: 1 failed, 1 passed" in said
+    assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
+
+
+def test_a_browser_test_that_fails_on_both_sides_leaves_the_exits_to_the_others(repo):
+    """`make check` and CI run pytest with `-m "not browser"`. In st-tellonce-groups a test
+    file's browser tests failed on both sides, since headless Chromium here exits with the probe
+    unrun, and the proof printed head exit 1 for a change whose other tests pass."""
+    browser = "\n\nimport pytest\n\n\n@pytest.mark.browser\ndef test_page():\n    assert False\n"
+    base = git(repo, "rev-parse", "HEAD")
+    head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE + browser})
+    said, line = proof(repo)
+    assert "head exit 0: 2 passed" in said
     assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
 
 
@@ -308,6 +340,52 @@ def test_a_run_stopped_mid_test_leaves_no_copy_of_the_base(repo):
             os.killpg(running.pid, signal.SIGKILL)
             running.wait()
     assert copies(repo) == []
+
+
+def test_a_commit_made_while_the_head_side_runs_gets_no_proved_line(repo):
+    """The proof call can sit in the background while the crew goes on: a commit made while the
+    head side runs leaves a run over files that are not the head's, so the script writes no
+    `Proved:` line for the head it began at, names the head it moved to, and ends 1
+    (`spec/CrewProof.tla`'s ProvedAtHead)."""
+    head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(
+        repo, moves_head=True, DURING="echo '# moved' >> calc.py && git commit -qam moved"
+    )
+    moved = git(repo, "rev-parse", "HEAD")
+    assert moved != head
+    assert "Proved:" not in said
+    assert (
+        f"no proof: the head or the worktree moved while it ran: HEAD {head} is now {moved}\n"
+        in said
+    )
+    assert line is None
+
+
+def test_an_edit_left_uncommitted_while_the_head_side_runs_gets_no_proved_line(repo):
+    commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(repo, DURING="echo '# edited' >> calc.py")
+    assert "Proved:" not in said
+    assert (
+        "no proof: the head or the worktree moved while it ran:"
+        " the worktree has changes: M calc.py\n" in said
+    )
+    assert line is None
+
+
+def test_an_edit_dropped_while_the_head_side_runs_leaves_the_proof_of_the_head(repo):
+    """An edit made and dropped while the head side runs leaves HEAD and the worktree as they
+    were at the start, so no look at them at the end can tell: the head side runs in a checkout
+    of the head, and its line is of the head's files, not the edit's (`spec/CrewProof.tla`'s
+    ProvedAtHead, whose trace was `Edit ProveSide Undo ProveEnd`)."""
+    base = git(repo, "rev-parse", "HEAD")
+    head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(
+        repo,
+        DURING=f"printf {shlex.quote(BUGGY)} > calc.py",
+        AFTER="git checkout -q calc.py",
+    )
+    assert "head exit 0: 2 passed" in said
+    assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
 
 
 def test_a_temp_directory_that_is_gone_leaves_the_branch_checked_out(repo):

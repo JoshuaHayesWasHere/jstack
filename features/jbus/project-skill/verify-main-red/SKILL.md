@@ -52,8 +52,8 @@ Run it by hand anyway when you change the contract on purpose: what it prints is
 uv run pytest features/jbus/tests/test_main_red_model.py -q
 ```
 
-It takes a few seconds (6,183 states in the widest world).
-On the code as it is today it prints `9 passed`.
+It takes a few seconds (6,818 states in the widest world).
+On the code as it is today it prints `10 passed`.
 To print every world:
 
 ```sh
@@ -61,7 +61,7 @@ uv run python features/jbus/tests/main_red_model.py
 ```
 
 It prints both worlds, how many states each walks, and for each property `holds` or the number of states that break it with a trace.
-On the code as it is today, every order walks 6,183 states and one tip at a time walks 1,154, and S1 to S4 hold in both.
+On the code as it is today, every order walks 6,818 states and one tip at a time walks 1,210, and S1 to S4 hold in both.
 
 The model has two worlds:
 
@@ -81,6 +81,7 @@ The tests and the world each walks:
 | `test_s3_the_tests_kept_are_the_red_tip_s_own_in_every_order` | every order | passes |
 | `test_s4_each_red_tip_has_one_line_in_the_ledger_one_at_a_time` | one tip at a time | passes |
 | `test_s4_each_red_tip_has_one_line_in_the_ledger_in_every_order` | every order | passes |
+| `test_the_skill_states_the_counts_the_walk_walks` | both | passes: the counts stated equal the counts walked |
 
 Each finding's world is cut from a world that passes, so a break there points at that finding's cause.
 S1 holds one tip at a time, so S1 breaking over every order needs a tip no pass saw (F2).
@@ -107,10 +108,10 @@ The line numbers below are of the code before the fix (`fa810ec`).
 
 A trace is the shortest order of events to the first state that breaks the property, numbered from `start`.
 Tips are `M0` (green, there from the start) to `M3`; a record is printed with its commits as those names and without `at`.
-For example, with the scratch break `green, waiting, unrun = tip, [], ""` for `green, broken, waiting, unrun = tip, "", [], ""` in `tell`'s `check == "green"` branch, every order prints:
+For example, with the scratch break `green, waiting, unrun, under = tip, [], "", tip` for `green, broken, waiting, unrun, under = tip, "", [], "", tip` in `tell`'s `check == "green"` branch, every order prints:
 
 ```
-S2 breaks in 56 of 3831 states (Options(one_at_a_time=False)), against "Main is not red" in features/jmerge/docs/jmerge.md
+S2 breaks in 172 of 7247 states (Options(one_at_a_time=False)), against "Main is not red" in features/jmerge/docs/jmerge.md
   1. start: M0 is green, no main.json
   2. M1 lands: a merge
   3. M1's check settles: failed
@@ -152,7 +153,7 @@ When every step is backed, the trace is a real bug: report it with the trace, in
 - **A module moves** (as unit 6 moved `jbus.mainstate` to `jmerge.mainjson`): change the model's imports and the stub targets to the new module, rerun, and expect the same counts.
   Different counts after a pure move mean the move changed behavior.
 - **The property changes.**
-  Change `s1`, `s2`, `s3` or `s4` and the sentence in the docstring and here, and show the new property failing on a scratch break before trusting a pass: break the line it guards in your own worktree, uncommitted, run the check, see the trace, `git restore` the file, and see the check back at `9 passed` (or the new count).
+  Change `s1`, `s2`, `s3` or `s4` and the sentence in the docstring and here, and show the new property failing on a scratch break before trusting a pass: break the line it guards in your own worktree, uncommitted, run the check, see the trace, `git restore` the file, and see the check back at `10 passed` (or the new count).
 
 Two breaks it was shown to catch on the code before the fix, on 2026-10-20: `if False:` for `if check == "failed":` in `mainmoved.py` breaks S1 in the one-tip-at-a-time world (a failed M1 seen by a pass, then M2 lands pending and the pass drops the red), and `if broken:` in `mainmoved.py` breaks S2 (the pass at green M2 keeps `broken: M1`, and the pass at pending M3 reads red again).
 On the fixed code, dropping `broken, waiting, unrun = tip, [], ""` for `waiting, unrun = [], ""` in `mainmoved.py` breaks S1 one tip at a time and over every order.

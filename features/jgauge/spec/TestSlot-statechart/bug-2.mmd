@@ -1,0 +1,40 @@
+---
+title: "Who holds a test slot, who waits on one, and what the ledger keeps?, bug 2"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group1 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group1Wrong fill:#d1f2eb,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group1Path fill:#d1f2eb,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  state "Legend" as legend {
+    state "Short lane" as legendGroup1
+    state "Breaks a rule" as legendWrong
+  }
+  class legendGroup1 group1
+  class legendWrong plainWrong
+  state "Short lane" as g0 {
+    state "the slot free" as s0
+    state "the slot free, the crew<br/>waits in the line" as s1
+    state "the slot held by a crew's<br/>run" as s2
+    state "the slot held by a crew's<br/>run, its run on file as<br/>running" as s3
+    state "the slot held by a crew's<br/>run, its run on file with<br/>no end, its command gone" as s4
+    state "the slot held by a crew's<br/>run, its run's end written<br/>after jbus forgot it" as s5
+  }
+  [*] --> s0
+  s0 --> s1 : 2. the crew takes a place in<br/>the line
+  s1 --> s2 : 3. the first in the line looks<br/>for a slot
+  s2 --> s3 : 4. the run goes on the holders<br/>file
+  s3 --> s4 : 5. the command ends
+  s4 --> s2 : 6. the jbus pass forgets the<br/>runs that are over
+  s2 --> s5 : 7. the run's end goes on the<br/>holders file
+  s0 --> s0 : 1. a call to test-slot starts
+  class s0 group1Path
+  class s1 group1Path
+  class s2 group1Path
+  class s3 group1Path
+  class s4 group1Path
+  class s5 group1Wrong
