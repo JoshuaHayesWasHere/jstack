@@ -420,10 +420,11 @@ ProveStart ==
                         !.ok = ~(same /\ runs.sides)]
     /\ UNCHANGED <<proved, bg>> /\ Unchanged_proof
 
-\* A side runs under the slot: the head's in the worktree as it is at that moment
-\* (crew/templates/proved.sh `PROOF_HEAD=$PWD`), the base's in the copy made at the start.
-\* Exit 0 is kept in crew-proof-sides. A side the full lane too gave no verdict ends the run
-\* with no line: crew/templates/proved.sh
+\* A side runs under the slot, each in a copy of its commit made at the start, the head's
+\* (crew/templates/proved.sh `git -C "$tip" checkout -q --detach "$head"`) as the base's, so
+\* what the crew does in the worktree meanwhile is not what it runs. Exit 0 is kept in
+\* crew-proof-sides. A side the full lane too gave no verdict ends the run with no line:
+\* crew/templates/proved.sh
 \* `if [ "$ran" != 0 ] || [ -z "$at_head" ] || { [ -z "$only" ] && [ -z "$at_base" ]; }; then echo "no proof: the slot's run ended $ran"`.
 ProveSide ==
     /\ pc = "proving"
@@ -431,23 +432,21 @@ ProveSide ==
          /\ call[s] = -1
          /\ s = "base" => call.head /= -1
          /\ \/ \E e \in {0, 1}:
-                 LET on == IF s = "head" THEN Tree ELSE call.at IN
-                 /\ call' = [call EXCEPT ![s] = e, !.ok = @ /\ on = call.at]
+                 /\ call' = [call EXCEPT ![s] = e]
                  /\ sides' = IF e = 0 THEN [sides EXCEPT !.ok = @ \cup {s}] ELSE sides
-                 /\ runs' = IF e = 0 /\ on /= sides.at THEN [runs EXCEPT !.sides = TRUE]
-                            ELSE runs
                  /\ pc' = "proving"
-            \/ pc' = "proveEnd" /\ UNCHANGED <<call, sides, runs>>
-    /\ UNCHANGED <<proved, bg>> /\ Unchanged_proof
+            \/ pc' = "proveEnd" /\ UNCHANGED <<call, sides>>
+    /\ UNCHANGED <<proved, bg, runs>> /\ Unchanged_proof
 
 AllSides == \A s \in Owed: call[s] /= -1
 
-\* The line, of the head the block read at its start, with no look at HEAD or the worktree
-\* since: printed, and appended once the brief has a Result.
+\* The line, of the head the block read at its start: printed, and appended once the brief has
+\* a Result, only where HEAD is still that head and the worktree clean: crew/templates/proved.sh
+\* `echo "no proof: the head or the worktree moved while it ran: HEAD $head is now $now"`.
 ProveEnd ==
     /\ \/ pc = "proving" /\ AllSides
        \/ pc = "proveEnd"
-    /\ IF AllSides /\ result
+    /\ IF AllSides /\ result /\ head = call.at /\ ~dirty
          THEN /\ proved' = Line(IF kind = "tests" THEN "tests only" ELSE "base/head",
                                 call.at, call.head, call.base)
               /\ runs' = [runs EXCEPT !.proved = call.ok]

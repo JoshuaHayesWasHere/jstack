@@ -33,11 +33,11 @@ Today's code breaks `ProofAtHead`, and `CrewProof.cfg` keeps the trace TLC print
 
 - `CheckedAtHead`: the check block starts on a clean head, its call goes to the background, the crew edits, a step passes over the edit and is kept as passed at the head, the crew drops the edit, and the block writes `Checked: ... exit 0` for that head.
   Its guard reads the worktree when the block begins and when it ends, never while a step runs.
-- `ProvedAtHead`: `proved.sh` reads the head at its start and runs the head's side on the worktree as it is then (`PROOF_HEAD=$PWD`), with no look at HEAD or the worktree before it writes the line: an edit while the proof runs in the background gives a `Proved:` line of the head over files that are not the head's.
 - `RecordGoes`: the rebase's push lands and the block is killed before `jbus forget`: `crew-before-rebase` stays, and jbus's `_busy` (`jbus/stack.py`) refuses to move the link of a stack over it, "has a rebase of its own not finished", until a run of the push block, which git takes as up to date, removes it.
 - `OneScopedReviewer`: the crew launches the scoped reviewer and is killed before its `Scoped reviewer:` line, and the next run of the block launches a second one for the same round.
 
-`ReviewHeld` and `RecordKept` hold over 1,451,992 distinct states with MaxHead 2.
+`ReviewHeld` and `RecordKept` hold over 836,904 distinct states with MaxHead 2.
+`ProvedAtHead` holds there too, with calls in the background: `proved.sh` runs the head's side in a checkout of the head it began at, as it runs the base's in a copy, and writes no `Proved:` line where HEAD moved or the worktree is dirty at its end.
 With `Background = FALSE` no call goes to the background, and `ProofAtHead` holds over 607,169 distinct states.
 The canary, `Fault = "line-before-run"`, writes a `Checked:` line before its run ends: the check block with no `done:` test on `jgauge check`'s last line and no exit 76 for steps left, and `ProofAtHead` breaks in two steps, a `jgauge check` that says `running` and exits 0.
 The test runs TLC on the cfg, on each rule alone, and on the canary, and skips where no Java runs TLC.

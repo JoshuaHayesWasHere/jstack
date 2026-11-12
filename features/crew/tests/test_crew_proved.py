@@ -84,10 +84,19 @@ case " $* " in
     if [ -n "$SLOW" ]; then sleep "$SLOW"; fi
     case $PWD in
     "$TMPDIR"/base.*) if [ -n "$BASE_SLOW" ]; then sleep "$BASE_SLOW"; fi ;;
-    *) if [ -n "$DURING" ]; then bash -c "$DURING"; fi ;;
+    *) if [ -n "$DURING" ]; then (cd "$WORKTREE" && bash -c "$DURING"); fi ;;
     esac
     shift 2
     echo "$*" >> "$TMPDIR/pytest-args"
+    case $PWD in
+    "$TMPDIR"/base.*) ;;
+    *) if [ -n "$AFTER" ]; then
+        {sys.executable} -m pytest "$@"
+        code=$?
+        (cd "$WORKTREE" && bash -c "$AFTER")
+        exit $code
+    fi ;;
+    esac
     exec {sys.executable} -m pytest "$@"
     ;;
 esac
@@ -98,8 +107,9 @@ the short lane stops one at its limit, and a full one at `FULL_LIMIT` seconds; e
 takes `SLOW` seconds more, and one in the copy of the base `BASE_SLOW` seconds more, `NO_XDIST`
 stands for a repo whose venv has no pytest-xdist, and with `SLOTS` set only that many test-slot
 calls get a slot, and every one after them finds every slot taken, exit 76. `DURING` is a
-command the head side's pytest run starts with, in the worktree, as a crew's edit or commit while
-the proof call sits in the background."""
+command the head side's pytest run starts with, and `AFTER` one it ends with, both in the
+crew's worktree `WORKTREE`, as a crew's edit, commit or dropped edit while the proof call sits
+in the background."""
 BSD_WC = """#!/bin/sh
 REAL "$@" | awk '{ $1 = sprintf("%8s", $1); print }'
 """
@@ -165,6 +175,7 @@ def environ(tree, **more):
         "T": str(assembled() / "templates"),
         "TMPDIR": str(tree.parent),
         "PYTEST_XDIST_AUTO_NUM_WORKERS": "2",
+        "WORKTREE": str(tree),
         **more,
     }
 
@@ -175,7 +186,7 @@ def worktrees(tree, head=True):
 
 
 def copies(tree):
-    return sorted(path.name for kind in ("base", "fork") for path in tree.parent.glob(f"{kind}.*"))
+    return sorted(path.name for kind in ("base", "head", "fork") for path in tree.parent.glob(f"{kind}.*"))
 
 
 def proof(tree, shell="", moves_head=False, **more):
@@ -346,6 +357,22 @@ def test_an_edit_left_uncommitted_while_the_head_side_runs_gets_no_proved_line(r
         in said
     )
     assert line is None
+
+
+def test_an_edit_dropped_while_the_head_side_runs_leaves_the_proof_of_the_head(repo):
+    """An edit made and dropped while the head side runs leaves HEAD and the worktree as they
+    were at the start, so no look at them at the end can tell: the head side runs in a checkout
+    of the head, and its line is of the head's files, not the edit's (`spec/CrewProof.tla`'s
+    ProvedAtHead, whose trace was `Edit ProveSide Undo ProveEnd`)."""
+    base = git(repo, "rev-parse", "HEAD")
+    head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(
+        repo,
+        DURING=f"printf {shlex.quote(BUGGY)} > calc.py",
+        AFTER="git checkout -q calc.py",
+    )
+    assert "head exit 0: 2 passed" in said
+    assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
 
 
 def test_a_temp_directory_that_is_gone_leaves_the_branch_checked_out(repo):
