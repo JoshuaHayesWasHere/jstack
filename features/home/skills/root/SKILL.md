@@ -103,4 +103,5 @@ T=$(realpath ~/.claude/skills/root/../../templates)
    Ask the user for no new go, and tell the child nothing for the move: it meets the row on its next wake.
    On `refused:` nothing moved: the root is never a target, and a name that is no scope needs one made first (step 3).
 10. **Read the scopes** on every wake, never only when asked: read `$T/../skills/root/reading-the-scopes.md` now.
-11. **Status, needs and the turn's end** are the home skill's: "When a thread sends a message", "What waits on the user" and "How a turn ends".
+11. **Run the engine** on `/engine`, which the root's scheduled task sends: read `$T/../skills/engine/SKILL.md` now.
+12. **Status, needs and the turn's end** are the home skill's: "When a thread sends a message", "What waits on the user" and "How a turn ends".

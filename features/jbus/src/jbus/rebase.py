@@ -1,12 +1,12 @@
-"""This module tells a crew to rebase. A launch no longer holds back a brief that shares a file with
-another brief, and this message is the safety that replaces that hold.
+"""This module tells a crew to rebase. A launch holds back a brief for another brief's file only
+where that file is hot (`jbus.hotfiles`), and this message is the safety for every other file.
 
-No row waits for another brief's files, so two crews may change the same file, each in its own
-worktree. The merge decides which change goes in. `jmerge` waits on a pull request when the default
-branch moved under the pull request or when the pull request conflicts with its base. `jmerge` says
-so on a `wait` line. `tell` reads those lines and sends the crew one message for each head. The
-message names a backup ref for the head that the rebase rewrites, and a lease that names that head.
-With the backup ref and the lease, a rebase never loses what was on the branch.
+Two crews may change the same file, each in its own worktree. The merge decides which change goes
+in. `jmerge` waits on a pull request when the default branch moved under the pull request or when
+the pull request conflicts with its base. `jmerge` says so on a `wait` line. `tell` reads those
+lines and sends the crew one message for each head. The message names a backup ref for the head
+that the rebase rewrites, and a lease that names that head. With the backup ref and the lease, a
+rebase never loses what was on the branch.
 
 The key of the message is `rebase|<slug>|<head 12>`. T3 Code uses the key to retry, and jbus writes
 the key in `sent.json` as a mark of the send. So a pass that got no answer tries again, and jbus

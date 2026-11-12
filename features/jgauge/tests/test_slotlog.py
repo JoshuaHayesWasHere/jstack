@@ -5,6 +5,7 @@ be written stops no run, and the report reads only what is a row. `test_slot.py`
 import json
 import os
 import subprocess
+import sys
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -45,6 +46,7 @@ def test_the_log_keeps_the_last_29_days_once_its_first_row_is_over_30_days_old(t
         "hold": release["hold"],
         "cpu_user": release["cpu_user"],
         "cpu_system": release["cpu_system"],
+        "left": 0,
     }
     assert 0 <= release["hold"] < 5
 
@@ -206,3 +208,88 @@ def test_the_report_sums_the_cpu_of_the_holds_released_in_the_span_by_lane_and_b
 
     log.write_text("".join(json.dumps(row) + "\n" for row in hold("old", "short", "", 3, 5)))
     assert not any("CPU" in line for line in slotlog.report(log, start, until, until))
+
+
+SPIN = "import time\nwhile time.process_time() < 0.25: pass\ntime.sleep(0.2)"
+LEAVES_A_SPIN = '(setsid "$1" -c "$2" &)'
+
+
+def test_a_release_counts_a_detached_child_that_burns_after_the_command_exits(tmp_path):
+    """The command's shell starts a Python in a session of its own and exits at once, so no
+    process the holder waits for ever reaps it. The Python then spins until it has used 0.25 s
+    of CPU, and that quarter second is the take's: the release row says so, to the two clock
+    ticks `/proc` loses to rounding where the machine gives the take no cgroup. It idles a moment
+    before it ends, so a release that reads the CPU of what still runs sees all of it."""
+    env = {**os.environ, "JGAUGE_LOCKS_DIR": str(tmp_path / "locks"), "TMPFS": str(tmp_path)}
+    env.pop("JGAUGE_TEST_SLOT", None)
+    ran = subprocess.run(
+        [BIN / "jgauge", "test-slot", "--short", "--", "sh", "-c", LEAVES_A_SPIN, "sh"]
+        + [sys.executable, SPIN],
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert ran.returncode == 0, ran.stderr
+    _take, release = rows(slotlog.path(tmp_path / "locks"))
+    assert release["cpu_user"] + release["cpu_system"] >= 0.25 - 2 / os.sysconf("SC_CLK_TCK")
+
+
+def test_with_no_cgroup_a_release_counts_a_detached_child_that_carries_the_take(
+    tmp_path, monkeypatch
+):
+    """Where the take can have no cgroup of its own, the processes that carry it in their
+    environment make its CPU: the same detached spin is counted from them, to the two clock
+    ticks `/proc` loses to rounding."""
+    monkeypatch.setattr(slotlog, "CGROUPS", tmp_path / "no cgroups")
+    log = slotlog.path(tmp_path / "locks")
+
+    taken = slotlog.take(log, "short", 1, 3, "", ["sh"], 0)
+    subprocess.run(["sh", "-c", LEAVES_A_SPIN, "sh", sys.executable, SPIN], check=True)
+    slotlog.release(taken, 0)
+
+    _take, release = rows(log)
+    assert release["cpu_user"] + release["cpu_system"] >= 0.25 - 2 / os.sysconf("SC_CLK_TCK")
+
+
+def a_cgroup_tree(tmp_path, monkeypatch):
+    """A stand-in for `/sys/fs/cgroup` that has the holder's own cgroup, so a take makes its
+    cgroup there whatever the machine's cgroups allow; returns the holder's cgroup."""
+    (line,) = (slotlog.PROCS / "self" / "cgroup").read_text().splitlines()
+    home = tmp_path / "cgroups" / line.removeprefix("0::/").strip("/")
+    home.mkdir(parents=True)
+    monkeypatch.setattr(slotlog, "CGROUPS", tmp_path / "cgroups")
+    return home
+
+
+def test_a_release_records_the_cgroup_s_cpu_and_the_processes_left(tmp_path, monkeypatch):
+    """The release's CPU is the take's cgroup's `cpu.stat`, `left` counts the processes still in
+    it after the drain, and a take clears the cgroup an earlier take left behind."""
+    home = a_cgroup_tree(tmp_path, monkeypatch)
+    (home / f"{slotlog.PREFIX}stale").mkdir()
+    monkeypatch.setattr(slotlog, "DRAIN_SECONDS", 0.1)
+    log = slotlog.path(tmp_path / "locks")
+
+    taken = slotlog.take(log, "short", 1, 3, "", ["sh"], 0)
+    (own,) = home.glob(f"{slotlog.PREFIX}*")
+    (own / "cgroup.procs").write_text(f"{os.getpid()}\n1\n")
+    (own / "cpu.stat").write_text("usage_usec 2000000\nuser_usec 1500000\nsystem_usec 500000\n")
+    slotlog.release(taken, 0)
+
+    _take, release = rows(log)
+    assert (release["cpu_user"], release["cpu_system"], release["left"]) == (1.5, 0.5, 1)
+    assert own.name != f"{slotlog.PREFIX}stale"
+
+
+def test_a_release_whose_cgroup_cannot_be_read_writes_its_row_with_no_cpu(tmp_path, monkeypatch):
+    """A take's cgroup gone under it (here, one with no `cpu.stat`) costs the row its CPU, and
+    the release still writes the row and returns, so the run keeps its exit code."""
+    a_cgroup_tree(tmp_path, monkeypatch)
+    log = slotlog.path(tmp_path / "locks")
+
+    slotlog.release(slotlog.take(log, "short", 1, 3, "", ["sh"], 0), 3)
+
+    _take, release = rows(log)
+    assert release["code"] == 3
+    assert "cpu_user" not in release and "left" not in release

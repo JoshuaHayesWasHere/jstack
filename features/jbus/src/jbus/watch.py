@@ -55,6 +55,7 @@ from jbus import (
     Refused,
     budget,
     conditional,
+    hotfiles,
     outcome,
     queue,
     read_json,
@@ -68,7 +69,7 @@ from jbus import (
 from jbus.judged import Said, parse
 from jbus.launches import records
 from jbus.mirror import PULL, last_result, sections, waits_on
-from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot, side_by_side
+from jbus.passes import Changed, Depends, Hot, Pass, Red, Rerun, Slot, side_by_side
 from jbus.pulls import OPEN
 from jbus.pulls import read as read_open
 from jbus.t3 import Client, T3Error
@@ -1297,6 +1298,8 @@ def why(run: Pass, row: dict[str, Any], found: dict[str, str], waits: Waits, unr
             return f"main is green again at {sha}, its own commit, so it has no red to fix"
         case Red():
             return "main is red: waits for green"
+        case Hot(file, slug):
+            return hotfiles.why(file, slug)
     if found["status"] == "gate":
         return GATED
     if not row.get("approved"):

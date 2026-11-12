@@ -7,19 +7,22 @@
 # `crew-proof-sides`, and a run at the same head and base runs only the side still owed. A test is
 # a `test_*.py` or `*_test.py`, run on pytest, which leaves out the tests marked `browser`, as
 # `make check` and CI do, or a `*.test.*` or `*.spec.*` of JavaScript or TypeScript, run on the
-# repo's own Vitest, or Playwright for a `*.spec.*` where the repo has a `playwright.config.*`.
+# Vitest of the nearest package.json above it, from the directory of the nearest `vitest.config.*`
+# between it and that package, the package's own the last, or for a `*.spec.*` on Playwright, from
+# the directory of the nearest `playwright.config.*` above it.
 # features/crew/do-the-task.md says what it proves and how.
 # A crew runs it by its path, `bash "$T/proved.sh" <brief> <thread id>`, from its worktree: the
 # command it sends then holds no `rm`, which Claude Code stops to ask about, even in full access.
 
 # One side's run of each runner's tests, in the slot: `bash proved.sh --sides`, with the copies,
-# the sides and the tests of each runner in PROOF_* variables. It prints `<side> exit <n>: <what
+# the sides and the tests of each runner in PROOF_* variables, the Node ones as lines of
+# `<directory it runs from>\t<its package>\t<its files from that directory>`. It prints `<side> exit <n>: <what
 # each runner said>`, the worst exit of its runners. Vitest and Playwright end 1 on a failed test
 # and on a run that never reached one alike (no file found, a web server that would not start),
 # and a base exit 1 is what proves the change: each one's JSON report says whether a test failed or
 # a test file did not load, and a run that ends 1 with neither is written 2.
 prove_sides() {
-    local side at more workers code worst said ran runner files out report failed
+    local side at more workers code worst said ran runner groups n run pkg files name out bin dir report failed
     for side in $PROOF_SIDES; do
         if [ "$side" = head ]; then at=$PROOF_HEAD more=; else at=$PROOF_BASE more=--continue-on-collection-errors; fi
         cd "$at" || exit
@@ -33,46 +36,64 @@ prove_sides() {
             said=$(tail -n 1 "$PROOF_BASE/.proof-$side")
         fi
         for runner in vitest playwright; do
-            if [ "$runner" = vitest ]; then files=$PROOF_VITEST; else files=$PROOF_PLAYWRIGHT; fi
-            [ -n "$files" ] || continue
-            out=$PROOF_BASE/.proof-$side-$runner
-            : > "$out.json"
-            if [ ! -f package.json ]; then
-                # A repo's first pull request: its base has no project for the tests to run on.
-                if [ "$side" = base ]; then code=1; else code=2; fi
-                ran="$runner: no package.json at the $side, so its tests have nothing of the project to run on"
-            else
-                if [ "$runner" = vitest ]; then
-                    CI=1 ./node_modules/.bin/vitest run --reporter=default --reporter=json --outputFile.json="$out.json" $files > "$out" 2>&1
-                    code=$?
-                    report=$(jq -r '(.testResults | map(select(.status == "failed"))) as $f
-                        | ($f | map(select((.assertionResults // []) | length == 0)) | length) as $unloaded
-                        | [($f | length), "vitest: \(.numPassedTests) passed, \(.numFailedTests) failed"
-                            + (if $unloaded > 0 then ", \($unloaded) files did not load" else "" end)] | @tsv' "$out.json" 2> /dev/null)
+            if [ "$runner" = vitest ]; then groups=$PROOF_VITEST; else groups=$PROOF_PLAYWRIGHT; fi
+            n=0
+            while IFS=$'\t' read -r -u 3 run pkg files; do
+                [ -n "$run" ] || continue
+                n=$((n + 1))
+                name=$runner
+                [ "$run" = . ] || name="$runner $run"
+                out=$PROOF_BASE/.proof-$side-$runner-$n
+                : > "$out.json"
+                if [ ! -f "$at/$pkg/package.json" ]; then
+                    # A repo's or a package's first pull request: its base has no project for the
+                    # tests to run on.
+                    if [ "$side" = base ]; then code=1; else code=2; fi
+                    ran="$name: no package.json at the $side, so its tests have nothing of the project to run on"
                 else
-                    CI=1 PLAYWRIGHT_JSON_OUTPUT_NAME=$out.json ./node_modules/.bin/playwright test --reporter=list,json $files > "$out" 2>&1
-                    code=$?
-                    report=$(jq -r '(.errors | map(select(.location != null)) | length) as $unloaded
-                        | ([.errors[] | select(.location == null) | .message | split("\n")[0]] | first // "") as $error
-                        | [.stats.unexpected + $unloaded, "playwright: \(.stats.expected) passed, \(.stats.unexpected) failed"
-                            + (if $unloaded > 0 then ", \($unloaded) files did not load" else "" end)
-                            + (if $error != "" then ", \($error)" else "" end)] | @tsv' "$out.json" 2> /dev/null)
+                    # The package's own runner, or the one a workspace's install put further up.
+                    bin=./node_modules/.bin/$runner
+                    dir=$run
+                    while :; do
+                        if [ -x "$at/$dir/node_modules/.bin/$runner" ]; then
+                            bin=$at/$dir/node_modules/.bin/$runner
+                            break
+                        fi
+                        [ "$dir" != . ] || break
+                        dir=$(dirname "$dir")
+                    done
+                    if [ "$runner" = vitest ]; then
+                        (cd "$at/$run" && CI=1 "$bin" run --reporter=default --reporter=json --outputFile.json="$out.json" $files) > "$out" 2>&1 < /dev/null
+                        code=$?
+                        report=$(jq -r --arg name "$name" '(.testResults | map(select(.status == "failed"))) as $f
+                            | ($f | map(select((.assertionResults // []) | length == 0)) | length) as $unloaded
+                            | [($f | length), "\($name): \(.numPassedTests) passed, \(.numFailedTests) failed"
+                                + (if $unloaded > 0 then ", \($unloaded) files did not load" else "" end)] | @tsv' "$out.json" 2> /dev/null)
+                    else
+                        (cd "$at/$run" && CI=1 PLAYWRIGHT_JSON_OUTPUT_NAME=$out.json "$bin" test --reporter=list,json $files) > "$out" 2>&1 < /dev/null
+                        code=$?
+                        report=$(jq -r --arg name "$name" '(.errors | map(select(.location != null)) | length) as $unloaded
+                            | ([.errors[] | select(.location == null) | .message | split("\n")[0]] | first // "") as $error
+                            | [.stats.unexpected + $unloaded, "\($name): \(.stats.expected) passed, \(.stats.unexpected) failed"
+                                + (if $unloaded > 0 then ", \($unloaded) files did not load" else "" end)
+                                + (if $error != "" then ", \($error)" else "" end)] | @tsv' "$out.json" 2> /dev/null)
+                    fi
+                    if [ -z "$report" ]; then
+                        ran="$name: $(tail -n 1 "$out")"
+                        failed=0
+                    else
+                        failed=${report%%$'\t'*}
+                        ran=${report#*$'\t'}
+                    fi
+                    if [ "$code" != 0 ] && [ "$failed" -gt 0 ]; then
+                        code=1
+                    elif [ "$code" = 1 ]; then
+                        code=2
+                    fi
                 fi
-                if [ -z "$report" ]; then
-                    ran="$runner: $(tail -n 1 "$out")"
-                    failed=0
-                else
-                    failed=${report%%$'\t'*}
-                    ran=${report#*$'\t'}
-                fi
-                if [ "$code" != 0 ] && [ "$failed" -gt 0 ]; then
-                    code=1
-                elif [ "$code" = 1 ]; then
-                    code=2
-                fi
-            fi
-            [ "$code" -gt "$worst" ] && worst=$code
-            said="${said:+$said, }$ran"
+                [ "$code" -gt "$worst" ] && worst=$code
+                said="${said:+$said, }$ran"
+            done 3<<< "$groups"
         done
         echo "$side exit $worst: $said"
     done
@@ -92,30 +113,68 @@ js_test='(^|/)[^/]*\.(test|spec)\.[cm]?[jt]sx?$'
 # it: a file under a `tests/`, `test/`, `__tests__/` or `__snapshots__/` directory, each test and
 # each `conftest.py`.
 kept='(^|/)(tests?|__tests__|__snapshots__)/|(^|/)(test_[^/]*|[^/]*_test|conftest)\.py$|'$js_test
-# Each copy installs what its tests run on: a venv where pytest runs them, and the node_modules
-# its lockfile gives where Vitest or Playwright does. A copy with no package.json installs none.
+# Each copy installs what its tests run on: a venv where pytest runs them, and where Vitest or
+# Playwright does, the node_modules each test's package gets from its lockfile, or from the
+# lockfile of the workspace above it. A package with no package.json in the copy installs none.
+lockfile='pnpm-lock.yaml yarn.lock bun.lock bun.lockb package-lock.json'
+locked() {
+    local file
+    for file in $lockfile; do [ -f "$1/$file" ] && return 0; done
+    return 1
+}
 install() {
-    local at=$1 side=$2
+    local at=$1 side=$2 pkg dir installed=
     if [ -n "$pytests" ]; then (cd "$at" && env -u VIRTUAL_ENV uv sync -q); fi
-    if [ -z "$vitests$specs" ] || [ ! -f "$at/package.json" ]; then return 0; fi
-    if (
-        cd "$at" || exit
-        if [ -f pnpm-lock.yaml ]; then
-            pnpm install --frozen-lockfile
-        elif [ -f yarn.lock ]; then
-            yarn install --frozen-lockfile
-        elif [ -f bun.lock ] || [ -f bun.lockb ]; then
-            bun install --frozen-lockfile
-        elif [ -f package-lock.json ]; then
-            npm ci --no-audit --no-fund
-        else
-            npm install --no-audit --no-fund
+    : > "$tree/.install-$side"
+    for pkg in $packages; do
+        [ -f "$at/$pkg/package.json" ] || continue
+        dir=$pkg
+        while [ "$dir" != . ] && ! locked "$at/$dir"; do dir=$(dirname "$dir"); done
+        locked "$at/$dir" || dir=$pkg
+        case " $installed " in *" $dir "*) continue ;; esac
+        installed="$installed $dir"
+        if (
+            cd "$at/$dir" || exit
+            if [ -f pnpm-lock.yaml ]; then
+                pnpm install --frozen-lockfile
+            elif [ -f yarn.lock ]; then
+                yarn install --frozen-lockfile
+            elif [ -f bun.lock ] || [ -f bun.lockb ]; then
+                bun install --frozen-lockfile
+            elif [ -f package-lock.json ]; then
+                npm ci --no-audit --no-fund
+            else
+                npm install --no-audit --no-fund
+            fi
+        ) >> "$tree/.install-$side" 2>&1; then
+            continue
         fi
-    ) > "$tree/.install-$side" 2>&1; then
-        return 0
-    fi
-    echo "no proof: the $side's install failed: $(tail -n 1 "$tree/.install-$side")"
-    exit 1
+        if [ "$dir" = . ]; then dir=; else dir=" in $dir"; fi
+        echo "no proof: the $side's install$dir failed: $(tail -n 1 "$tree/.install-$side")"
+        exit 1
+    done
+}
+# A test's package: the directory of the nearest package.json above it at the head, `.` for the
+# root's, or for none.
+package_of() {
+    local dir
+    dir=$(dirname "$1")
+    while [ "$dir" != . ] && ! git cat-file -e "$head:$dir/package.json" 2> /dev/null; do dir=$(dirname "$dir"); done
+    echo "$dir"
+}
+# Lines of `<directory>\t<file>`, sorted, as one line a directory, `<directory>\t<its files from it>`.
+by_package() {
+    local pkg file at= files=
+    while IFS=$'\t' read -r pkg file; do
+        [ -n "$pkg" ] || continue
+        if [ "$pkg" != "$at" ] && [ -n "$files" ]; then
+            printf '%s\t%s\n' "$at" "$files"
+            files=
+        fi
+        at=$pkg
+        files="${files:+$files }$file"
+    done
+    [ -z "$files" ] || printf '%s\t%s\n' "$at" "$files"
 }
 # A Proved: line of a head the branch has left, or with work not committed, is no proof of the
 # branch as it is: a commit or an edit made while the call sat in the background ends the run
@@ -245,13 +304,57 @@ elif [ -z "$tests" ]; then
     fi
 else
     pytests=$(printf '%s\n' "$tests" | command grep -E "$py_test" | paste -sd ' ' -)
-    nodes=$(printf '%s\n' "$tests" | command grep -E "$js_test")
+    # Each Node test runs on its package's own install, from the directory of the nearest config of
+    # its runner above it, so that config's `include` or `testDir` reaches it: a `vitest.config.*`
+    # between it and its package, or the package's directory where none is, and a `*.spec.*` on
+    # Playwright where a directory above it has a `playwright.config.*`.
+    config_in() {
+        local path=$2
+        [ "$path" != . ] || path=
+        git ls-tree --name-only "$head:$path" 2> /dev/null | command grep -qE "^$1\.config\.[cm]?[jt]s$"
+    }
+    vitests=
     specs=
-    if git ls-tree --name-only "$head" | command grep -qE '^playwright\.config\.[cm]?[jt]s$'; then
-        specs=$(printf '%s\n' "$nodes" | command grep -E '\.spec\.[^/]*$' | paste -sd ' ' -)
-        nodes=$(printf '%s\n' "$nodes" | command grep -vE '\.spec\.[^/]*$')
-    fi
-    vitests=$(printf '%s\n' "$nodes" | paste -sd ' ' -)
+    while read -r file; do
+        [ -n "$file" ] || continue
+        pkg=$(package_of "$file")
+        runner=
+        dir=$(dirname "$file")
+        if [[ $file =~ \.spec\.[^/]*$ ]]; then
+            while :; do
+                if config_in playwright "$dir"; then
+                    runner=specs
+                    break
+                fi
+                [ "$dir" != . ] || break
+                dir=$(dirname "$dir")
+            done
+        fi
+        if [ -z "$runner" ]; then
+            runner=vitests
+            dir=$(dirname "$file")
+            while [ "$dir" != "$pkg" ] && [ "$dir" != . ] && ! config_in vitest "$dir"; do dir=$(dirname "$dir"); done
+        fi
+        if [ "$dir" = . ]; then rel=$file; else rel=${file#"$dir"/}; fi
+        if [ "$runner" = specs ]; then
+            specs="$specs$dir"$'\t'"$rel"$'\n'
+        else
+            vitests="$vitests$dir"$'\t'"$rel"$'\n'
+        fi
+    done <<< "$(printf '%s\n' "$tests" | command grep -E "$js_test")"
+    # Each directory's group with the package it runs on: `<directory>\t<package>\t<files>`.
+    with_package() {
+        local run files
+        while IFS=$'\t' read -r run files; do
+            [ -n "$run" ] || continue
+            printf '%s\t%s\t%s\n' "$run" "$(package_of "$run/-")" "$files"
+        done
+    }
+    vitests=$(printf '%s' "$vitests" | sort | by_package | with_package)
+    specs=$(printf '%s' "$specs" | sort | by_package | with_package)
+    packages=$(printf '%s\n%s\n' "$vitests" "$specs" | while IFS=$'\t' read -r _ pkg _; do
+        [ -z "$pkg" ] || echo "$pkg"
+    done | sort -u | paste -sd ' ' -)
     if ! tree=$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX"); then
         echo "no proof: no copy of the base could be made in ${TMPDIR:-/tmp}"
         exit 1

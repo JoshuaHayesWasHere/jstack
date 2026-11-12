@@ -201,11 +201,13 @@ class Repo:
 
     def heard(self, text: str, slug: str) -> frozenset[meets.Waiver]:
         """The brief's `Waived:` lines whose word jbus checked as the user's own, or the bot's,
-        of this row, waiving the line each names (`rows.heard`), each asked once a run."""
-        for one in meets.waivers(text):
+        of this row, waiving the line each names (`rows.heard`), or the clause the user judges
+        (`ready.judged_waivers`), each asked once a run."""
+        waivers = (*meets.waivers(text), *ready.judged_waivers(text, self.user.user))
+        for one in waivers:
             if (one, slug) not in self.words:
                 self.words[(one, slug)] = not rows.heard(self.main, one, slug)
-        return frozenset(one for one in meets.waivers(text) if self.words[(one, slug)])
+        return frozenset(one for one in waivers if self.words[(one, slug)])
 
     @functools.cached_property
     def reverts(self) -> dict[str, reverting.Revert]:
@@ -1103,6 +1105,9 @@ class Repo:
         if kind:
             return Judgement(brief.stem, kind, why, note, None)
         hold = self.lift(ready.needs_the_user(one, self.protected, left, user=self.user), lifted)
+        hold = hold or self.lift(
+            ready.short_on_judged(text, self.heard(text, brief.stem), self.user.user), lifted
+        )
         if hold:
             return Judgement(brief.stem, "hold", hold, note, None)
         if red and re.fullmatch(ready.NO_RUN.pattern, red):
@@ -1403,6 +1408,13 @@ class Repo:
             say(f"refused {about}: its hold {held}, and its head is {one.head[:12]}")
             return 1
         text = "" if heard else _read(self.state / "tasks" / f"{first.slug}.md")
+        judged = text and ready.short_on_judged(text, self.heard(text, first.slug), self.user.user)
+        if judged and not (message and (acting or check)):
+            say(
+                f"refused {about}: {judged}: only the user's own message lifts it: jmerge "
+                f"--accept {one.number} --as user --message <thread id>/<message id>"
+            )
+            return 1
         at = self.proven_at(one, text)
         proven = None if heard else proof.fact(text, at)
         unreviewed = ready.said_of(text).mode == ready.NONE
