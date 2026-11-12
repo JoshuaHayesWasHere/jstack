@@ -13,8 +13,12 @@ from datetime import timedelta
 import pytest
 
 from crew_branches import pushed, started_on
+from test_jbus_github import launched, passes
 from test_jbus_kitchen import KEY, NOW, REFUSED, RESULT, Kitchen
-from test_jbus_queue import add, brief, go, sha12, widened
+from test_jbus_queue import add, brief, go, rows, sha12, widened
+from test_jbus_twice import A, B, red_at
+
+__all__ = ["launched"]
 from test_jbus_wake_failing import refusing
 
 URL = "https://example.test/pull/286"
@@ -322,3 +326,29 @@ def test_a_home_thread_whose_last_wake_failed_has_each_root_in_the_journal_each_
     assert MERGE not in kitchen.poll(later(30))
     assert kitchen.poll(later(61)).count(MERGE) == 1
     assert kitchen.wakes.said == [] and waits(kitchen) == [MERGE, MERGE]
+
+
+def test_a_red_pull_request_held_twice_with_no_crew_at_work_is_told_to_its_home_each_hour(
+    launched,
+):
+    """Alpha's #7 failed its required check at two heads, so jbus held the row (`check failed
+    twice`), and jmerge says `check has failed`. Alpha's crew ended its turn and nothing else
+    works on it: the red pull request is a root its home hears of at once and again each hour."""
+    launched.set("jmerge.txt", "wait 7 https://example.test/pull/7: check has failed\n")
+    red_at(launched, A, "11")
+    passes(launched, 0)
+    red_at(launched, B, "12")
+    passes(launched, 3)
+    assert rows(launched)["alpha"]["held"] is True
+    assert launched.t3.threads[0]["status"] == "completed"
+    assert [event["slug"] for event in launched.events("waiting-on-user")] == ["held:alpha"]
+    passes(launched, 30)
+    assert len(launched.events("waiting-on-user")) == 1
+    passes(launched, 64)
+    told = launched.events("waiting-on-user")
+    assert [event["slug"] for event in told] == ["held:alpha", "held:alpha"]
+    assert told[1]["line"] == (
+        "waiting-on-user demo: pick up #7 https://example.test/pull/7: check has failed, alpha is "
+        "held by check failed twice and no thread is at work on it · unblocks alpha · since "
+        "11:03 ET"
+    )
