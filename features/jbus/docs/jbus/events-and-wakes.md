@@ -116,6 +116,7 @@ It is in the log, which `jbus events` prints and the view shows.
 - `prereview-refused`
 - `prereviewed`
 - `queue`
+- `queued`
 - `rebase`
 - `recovered`
 - `refailed`
