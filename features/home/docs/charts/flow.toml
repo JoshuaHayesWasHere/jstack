@@ -42,6 +42,10 @@ thing = "A thing jbus does once"
 name = "MainFix"
 thing = "The fix and revert jbus files"
 
+[[chart]]
+name = "CrewProof"
+thing = "A crew's proof on its brief"
+
 [[handoff]]
 from = "HomeTreeToday: No pull request yet"
 to = "RowLife: Not launched"
@@ -96,3 +100,8 @@ says = "Main is green again, and the pull requests it broke run their checks aga
 from = "MainRed: Red, nothing open yet"
 to = "MainFix: In a pass"
 says = "jbus files the fix row and the revert in a pass, one write at a time."
+
+[[handoff]]
+from = "CrewProof: Nothing owed"
+to = "PrVerdict: Waits on jmerge, GitHub or a check"
+says = "With its proof on the brief and nothing owed, the pull request waits on jmerge."
