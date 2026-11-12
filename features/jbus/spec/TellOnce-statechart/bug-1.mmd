@@ -1,5 +1,5 @@
 ---
-title: "Does jbus tell anyone twice, or drop a tell, when a pass dies?, bug 1"
+title: "Does jbus tell a thread twice, or drop a tell, when a pass dies?, bug 1"
 config:
   markdownAutoWrap: false
   state:
@@ -7,14 +7,14 @@ config:
 ---
 stateDiagram-v2
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef group0 fill:#ffffff,stroke:#808080,color:#1b2631
-  classDef group0Path fill:#ffffff,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group0 fill:#fef5e7,stroke:#7f7b74,color:#1b2631
+  classDef group0Path fill:#fef5e7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
   classDef group1 fill:#fdebd0,stroke:#7f7668,color:#1b2631
   classDef group1Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group1Path fill:#fdebd0,stroke:#1f3a93,stroke-width:4px,color:#1b2631
   state "Legend" as legend {
-    state "Nothing owed" as legendGroup0
-    state "Owed" as legendGroup1
+    state "Not told: nothing marked" as legendGroup0
+    state "Not told: a pass in its step or a mark written" as legendGroup1
     state "Breaks a rule" as legendWrong
   }
   class legendGroup0 group0
@@ -32,7 +32,7 @@ stateDiagram-v2
   s0 --> s1 : 2. a pass reaches it and reads<br/>its marks
   s1 --> s3 : 3. its key goes in sent.json
   s3 --> s2 : 4. the pass dies
-  class s0 group1Path
+  class s0 group0Path
   class s1 group1Path
   class s2 group1Wrong
   class s3 group1Path

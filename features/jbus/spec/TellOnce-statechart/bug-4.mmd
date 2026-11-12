@@ -1,5 +1,5 @@
 ---
-title: "Does jbus tell anyone twice, or drop a tell, when a pass dies?, bug 4"
+title: "Does jbus tell a thread twice, or drop a tell, when a pass dies?, bug 4"
 config:
   markdownAutoWrap: false
   state:
@@ -7,44 +7,61 @@ config:
 ---
 stateDiagram-v2
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef group0 fill:#ffffff,stroke:#808080,color:#1b2631
-  classDef group0Path fill:#ffffff,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group0 fill:#fef5e7,stroke:#7f7b74,color:#1b2631
+  classDef group0Path fill:#fef5e7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
   classDef group1 fill:#fdebd0,stroke:#7f7668,color:#1b2631
   classDef group1Path fill:#fdebd0,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group2 fill:#d1f2eb,stroke:#697976,color:#1b2631
-  classDef group2Path fill:#d1f2eb,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group3 fill:#f5b7b1,stroke:#7b5c59,color:#1b2631
-  classDef group3Wrong fill:#f5b7b1,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group4 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group4Path fill:#d1f2eb,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group6 fill:#d4efdf,stroke:#6a7870,color:#1b2631
+  classDef group6Path fill:#d4efdf,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group7 fill:#a9dfbf,stroke:#557060,color:#1b2631
+  classDef group7Wrong fill:#a9dfbf,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group7Path fill:#a9dfbf,stroke:#1f3a93,stroke-width:4px,color:#1b2631
   state "Legend" as legend {
-    state "Nothing owed" as legendGroup0
-    state "Owed" as legendGroup1
-    state "Told" as legendGroup2
-    state "Told twice" as legendGroup3
+    state "Not told: nothing marked" as legendGroup0
+    state "Not told: a pass in its step or a mark written" as legendGroup1
+    state "Told once: a pass in its step" as legendGroup4
+    state "Told once: sent.json has its key" as legendGroup6
+    state "Told once: its file says done" as legendGroup7
     state "Breaks a rule" as legendWrong
   }
   class legendGroup0 group0
   class legendGroup1 group1
-  class legendGroup2 group2
-  class legendGroup3 group3
+  class legendGroup4 group4
+  class legendGroup6 group6
+  class legendGroup7 group7
   class legendWrong plainWrong
-  state "The second target's body" as g0 {
-    state "not told, the body waits<br/>in the outbox" as s0
-    state "not told, the body waits<br/>in the outbox, a pass is<br/>in its step" as s1
-    state "nothing owed yet" as s2
-    state "told once, the body waits<br/>in the outbox" as s3
-    state "told once, the body waits<br/>in the outbox, a pass is<br/>in its step" as s4
-    state "told twice, the body waits<br/>in the outbox, a pass is<br/>in its step" as s5
+  state "The wait clock" as g0 {
+    state "not told, the clock is<br/>counting" as s0
+    state "not told, the clock is due" as s1
+    state "not told, the clock is<br/>due, a pass is in its step" as s2
+    state "nothing owed yet" as s3
+    state "told once, the clock is<br/>due, a pass is in its step" as s4
+    state "told once, the clock is<br/>due, sent.json has its<br/>key, a pass is in its step" as s5
+    state "told once, the clock says<br/>its home was told,<br/>sent.json has its key, the<br/>stall's key is written, no<br/>stall in the log" as s6
+    state "told once, the clock says<br/>jbus acted, counting<br/>again, sent.json has its<br/>key" as s7
+    state "told once, the clock says<br/>jbus acted, counting<br/>again, sent.json has its<br/>key, the stall's key is<br/>written, no stall in the<br/>log" as s8
+    state "told once, the clock says<br/>jbus acted, counting<br/>again, sent.json has its<br/>key, the stall's key is<br/>written, no stall in the<br/>log, a pass is in its step" as s9
   }
-  [*] --> s2
-  s2 --> s0 : 1. what calls for it comes to<br/>hold
-  s0 --> s1 : 2. a pass reaches it and reads<br/>its marks
-  s1 --> s4 : 3. the receiver takes it
-  s4 --> s3 : 4. the pass dies
-  s3 --> s4 : 5. a pass reaches it and reads<br/>its marks
-  s4 --> s5 : 6. the receiver takes it
-  class s0 group1Path
-  class s1 group1Path
-  class s2 group0Path
-  class s3 group2Path
-  class s4 group2Path
-  class s5 group3Wrong
+  [*] --> s3
+  s3 --> s0 : 1. what calls for it comes to<br/>hold
+  s0 --> s1 : 2. a pass counts on its clock
+  s1 --> s2 : 3. a pass reaches it and reads<br/>its marks
+  s2 --> s4 : 4. the receiver takes it
+  s4 --> s5 : 5. its key goes in sent.json
+  s5 --> s7 : 6. its own file says done
+  s7 --> s9 : 7. the pass writes the stall's<br/>key
+  s9 --> s8 : 8. the pass dies
+  s8 --> s9 : 9. the pass writes the stall's<br/>key
+  s9 --> s6 : 10. the clock writes that its<br/>home was told
+  class s0 group0Path
+  class s1 group0Path
+  class s2 group1Path
+  class s3 group0Path
+  class s4 group4Path
+  class s5 group6Path
+  class s6 group7Wrong
+  class s7 group7Path
+  class s8 group7Path
+  class s9 group7Path
