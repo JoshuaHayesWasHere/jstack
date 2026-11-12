@@ -5,6 +5,8 @@ import shlex
 import subprocess
 import sys
 
+import pytest
+
 import test_room as room
 from crew_helpers import PullRequest, block, git
 from testing.layouts import assembled
@@ -12,15 +14,20 @@ from testing.layouts import assembled
 ABOUT = "a rebase is not pushed yet"
 
 
-def pushes(pr):
-    """What the block prints in the crewmate's worktree."""
+def pushed_with(pr):
+    """The run of the block in the crewmate's worktree, with what git's hook said."""
     return subprocess.run(
         ["sh", "-c", block("The review", ABOUT)],
         capture_output=True,
         text=True,
         cwd=pr.work,
         env=os.environ,
-    ).stdout
+    )
+
+
+def pushes(pr):
+    """What the block prints in the crewmate's worktree."""
+    return pushed_with(pr).stdout
 
 
 def origin(pr):
@@ -149,6 +156,81 @@ def checks(pr, tmp_path, red):
     ).returncode
 
 
+def hooked(pr, tmp_path, monkeypatch, lines=""):
+    """Give the crewmate's worktree a brief with a `Thread:` line and `lines`, and jleak's crew
+    rule (`jleak.crewpush`) as the `pre-push` hook of its repo. It returns the brief."""
+    homes = tmp_path / "homes"
+    monkeypatch.setenv("JBUS_HOME_DIR", str(homes))
+    tasks = tmp_path / "state" / "tasks"
+    tasks.mkdir(parents=True)
+    brief = tasks / "a-task.md"
+    brief.write_text("# a-task: a task\nThread: mcp:thread-1\n\n## Result\n" + lines)
+    (homes / "main").mkdir(parents=True)
+    (homes / "main" / "tasks").symlink_to(tasks)
+    hooks = tmp_path / "main" / ".git" / "hooks"
+    (hooks / "pre-push").write_text(HOOK.format(python=shlex.quote(sys.executable)))
+    (hooks / "pre-push").chmod(0o755)
+    return brief
+
+
+def full(head, base="0" * 40):
+    return f"Checked: make check-fast BASE={base} PART=touched exit 0 at {head}\n"
+
+
+def light(head, base="0" * 40):
+    return f"Checked: make check-fast BASE={base} PART=guards exit 0 at {head}\n"
+
+
+def test_a_merge_of_the_base_with_the_guards_and_the_lint_is_pushed(tmp_path, monkeypatch):
+    """#1729: a pull request in conflict merges main over the head its desk's check passed at.
+    That merge is pushed on a `Checked:` line of the guards and the lint alone, and CI runs the
+    rest at the pushed head, so a main that moves faster than the whole check cannot outrun it."""
+    pr = PullRequest(tmp_path, None, "other.txt")
+    checked = pr.head()
+    brief = hooked(pr, tmp_path, monkeypatch, full(checked))
+    git(pr.work, "fetch", "-q", "origin")
+    git(pr.work, "merge", "-q", "--no-edit", "origin/main")
+    with brief.open("a") as lines:
+        lines.write(light(pr.head(), pr.landed))
+    assert pushes(pr) == f"pushed {pr.head()}\n"
+    assert origin(pr) == pr.head()
+
+
+@pytest.mark.parametrize("merged", [False, True], ids=["a fix", "a merge of the base, then a fix"])
+def test_the_guards_and_the_lint_push_no_other_change(merged, tmp_path, monkeypatch):
+    """A head that adds a commit of its own over the checked head is more than a merge of the
+    base: the guards and the lint do not bind it, and the hook refuses it."""
+    pr = PullRequest(tmp_path, None, "other.txt")
+    checked = pr.head()
+    brief = hooked(pr, tmp_path, monkeypatch, full(checked))
+    if merged:
+        git(pr.work, "fetch", "-q", "origin")
+        git(pr.work, "merge", "-q", "--no-edit", "origin/main")
+    pr.commit(pr.work, "fix.txt", "the fix\n", "the fix")
+    with brief.open("a") as lines:
+        lines.write(light(pr.head(), pr.landed))
+    ran = pushed_with(pr)
+    assert ran.stdout == "the push was refused: origin did not take a plain push of a-task\n"
+    assert f"its last Checked: line, the guards and the lint at {pr.head()[:12]}" in ran.stderr
+    assert origin(pr) == checked
+
+
+def test_the_guards_and_the_lint_alone_push_no_head(tmp_path, monkeypatch):
+    """With no line of the desk's whole check before it, a line of the guards and the lint has
+    no checked head to be a merge of the base over."""
+    pr = PullRequest(tmp_path, None, "other.txt")
+    was = pr.head()
+    brief = hooked(pr, tmp_path, monkeypatch)
+    git(pr.work, "fetch", "-q", "origin")
+    git(pr.work, "merge", "-q", "--no-edit", "origin/main")
+    with brief.open("a") as lines:
+        lines.write(light(pr.head(), pr.landed))
+    ran = pushed_with(pr)
+    assert ran.stdout == "the push was refused: origin did not take a plain push of a-task\n"
+    assert "no line of the desk's whole check" in ran.stderr
+    assert origin(pr) == was
+
+
 def test_a_fix_whose_failed_file_is_still_red_is_not_pushed(tmp_path, monkeypatch):
     """CI failed on `tests/test_ci.py`, which the fix only reaches, and the block of "The failed
     files" kept its name. The check block at the fix head runs it, and while it fails the
@@ -156,16 +238,7 @@ def test_a_fix_whose_failed_file_is_still_red_is_not_pushed(tmp_path, monkeypatc
     the fix. Once it passes at the head, the same fix goes out."""
     pr = PullRequest(tmp_path, None, "other.txt")
     was = pr.head()
-    homes = tmp_path / "homes"
-    monkeypatch.setenv("JBUS_HOME_DIR", str(homes))
-    tasks = tmp_path / "state" / "tasks"
-    tasks.mkdir(parents=True)
-    (tasks / "a-task.md").write_text("# a-task: a task\nThread: mcp:thread-1\n\n## Result\n")
-    (homes / "main").mkdir(parents=True)
-    (homes / "main" / "tasks").symlink_to(tasks)
-    hooks = tmp_path / "main" / ".git" / "hooks"
-    (hooks / "pre-push").write_text(HOOK.format(python=shlex.quote(sys.executable)))
-    (hooks / "pre-push").chmod(0o755)
+    hooked(pr, tmp_path, monkeypatch)
     (pr.work / "scripts").mkdir()
     (pr.work / "scripts" / "select_tests.py").write_text(SELECTOR)
     (pr.work / "tests").mkdir()
