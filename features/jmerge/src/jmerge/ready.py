@@ -1102,17 +1102,20 @@ def short_on_proved(
     too, proves nothing (`proved.outside_fork`). A line of another head holds where the head
     carries that head's patch unchanged (`carries`, the range-diff `jmerge` reads after a rebase
     or a merge of the base): a push that changed the patch, a fix for a review's finding most of
-    all, may have changed the tests too."""
+    all, may have changed the tests too. A line that names tests, on a pull request that changes
+    no test and no fork patch, counts as none: it was written at a head that still changed them,
+    as a stacked link's head that carried the link below it, before jbus moved it onto main, and
+    no line the proof block writes binds the head that is left."""
     tests = changed_tests(one)
+    gone = set(one.removed)
+    fork = [
+        path
+        for path in one.files
+        if path not in gone and proved.FORK_FILE.search(path) and path.endswith(".patch")
+    ]
+    unproved = (*tests, *fork)
     said = proved.proved(text)
-    if said is None:
-        gone = set(one.removed)
-        fork = [
-            path
-            for path in one.files
-            if path not in gone and proved.FORK_FILE.search(path) and path.endswith(".patch")
-        ]
-        unproved = (*tests, *fork)
+    if said is None or (not unproved and said.tests and not said.fault):
         return PROVED_MISSING.format(tests=", ".join(unproved)) if unproved else ""
     if said.fault:
         return PROVED_UNREAD.format(fault=said.fault)
