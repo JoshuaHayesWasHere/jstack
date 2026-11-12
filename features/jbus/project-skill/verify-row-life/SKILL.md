@@ -1,7 +1,7 @@
 ---
 name: verify-row-life
 description: Check RowLife.tla, a queue row's status and go; use when changing work.status, queue.MOVES, queue.derive or the go verbs.
-paths: "features/jbus/spec/RowLife.tla, features/jbus/src/jbus/work.py, features/jbus/src/jbus/queue.py, features/jbus/src/jbus/restated.py, features/jbus/src/jbus/dispatch.py"
+paths: "features/jbus/spec/RowLife.tla, features/jbus/src/jbus/work.py, features/jbus/src/jbus/queue.py, features/jbus/src/jbus/restated.py, features/jbus/src/jbus/dispatch.py, features/jbus/src/jbus/watch.py"
 ---
 
 # verify-row-life
@@ -10,20 +10,27 @@ paths: "features/jbus/spec/RowLife.tla, features/jbus/src/jbus/work.py, features
 
 - **The rule, `FinalStays`:** a row that is over stays over; a `done` row may only become `merged`, and a `merged` one stays so.
 - **The harm if it breaks:** the queue, `watch.final` and jmerge all read `work.over`, so a row seen over and then not is launched, merged or judged again.
+- **The second rule, `MovesKnown`:** each move of the status is one of `queue.MOVES`, so a pass marks `"legal": false` only a fault.
 
 It holds because `queue.derive` keeps the status of a row that is over (`work.kept`), so the check is of the code's derive and not only of the table.
 
 ## The record
 
 Model: `features/jbus/spec/RowLife.tla`
-Sync: `228c1436cc6fe94de479d333c7aab7b007460462`
+Sync: `d3f642c80a2c52ebbf134aa981d95894e892201a`
 Covers:
 - `features/jbus/src/jbus/work.py`: `status`, `kept`, `over`, `FINAL`, `PATTERNS`, `VALUES`
 - `features/jbus/src/jbus/queue.py`: `MOVES`, `derive`, `_grant`, `_hold`, `_lift`, `_void`, `_take_out`
 - `features/jbus/src/jbus/restated.py`: `restate`
 - `features/jbus/src/jbus/dispatch.py`: `Turns.take`
+- `features/jbus/src/jbus/watch.py`: `gone`, `unwritten`, `KNOWN`
 
-At the sync commit the model was read against each of these, step by step: every pattern of `ValueOf` against `work.PATTERNS` in order, `StatusOf` against `work.status`, `Kept` against `work.kept`, the go verbs, and the launch's `approved` and depends guards in `Turns.take`.
+The first sync, 228c1436c, read the model against each of these, step by step: every pattern of `ValueOf` against `work.PATTERNS` in order, `StatusOf` against `work.status`, `Kept` against `work.kept`, the go verbs, and the launch's `approved` and depends guards in `Turns.take`.
+At this sync, main's tip when this branch last took main in, the four covered changes since were read against the model.
+#1720 (7e68838af) and #1759 (d3f642c80) changed the model with the code: `Moves` is `queue.MOVES` move for move, `StatusOf` gives a launched row whose thread is none, missing or settled `stale` and an unlaunched one `queued`, as `work.status` and `_THREAD` do, and a launch derives with a `starting` thread, as `watch.gone` leaves it.
+#1726 (ee2657c3a) changed only the order a pass launches in (`queue.order`, `Turns.take`'s ranking), which the model does not follow.
+#1724 (1bf7b41df) changed `work.PATTERNS` and not the model, which is drift (below).
+`features/jbus/tests/test_rowlife_spec.py` passed there (6 passed).
 `features/repo-guards/tests/test_model_sync.py` fails when a file or name above is gone.
 Move `Sync:` forward only after you read every change to these files since it against the model, as `/maintain-formal-verification-skill` says, and never because the check passes.
 
@@ -38,11 +45,11 @@ Rerun it when the diff touches a file of the record, a new writer of a row's sta
 uv run pytest features/jbus/tests/test_rowlife_spec.py -q
 ```
 
-It runs TLC in a copy of the spec folder and prints `5 passed` in a few seconds; it skips where no Java runs TLC.
+It runs TLC in a copy of the spec folder and prints `6 passed` in a few seconds; it skips where no Java runs TLC.
 The bare TLC command is in `features/jbus/spec/README.md`, "Check the rule"; run it in a copy of the folder, since TLC writes `states/` where it runs.
 
-- **Bounds:** one row, `Fault = "none"`, 2450 distinct states, `TypeOK` and `FinalStays`.
-- **The canary:** `Fault = "no-latch"` takes `work.kept` out, and `FinalStays` breaks (`test_a_derive_that_writes_over_a_final_status_breaks_the_rule`).
+- **Bounds:** one row, `Fault = "none"`, 2445 distinct states, `TypeOK`, `FinalStays` and `MovesKnown`.
+- **The canaries:** `Fault = "no-latch"` takes `work.kept` out, and `FinalStays` breaks (`test_a_derive_that_writes_over_a_final_status_breaks_the_rule`); `Fault = "settled-queued"` gives a settled thread's row `queued` again, and `MovesKnown` breaks.
 - **Assumptions:** a fact's change and the pass that sees it are one step (no restate drift between passes, no one-source pass); the facts are folded (an open pull request's eight steps are `check`, `quiet` is `working`); no clock, so `watch.unwritten`'s stale to left is out; no scout row and no `merge_after`.
   The rest is in the README's "What the model leaves out".
 
@@ -62,7 +69,11 @@ When every step is backed, it is a bug: tell it as the row's moves in the code's
 
 ## Drift at the sync commit
 
-Neither breaks the rule as modeled; `/maintain-formal-verification-skill` fixes them.
+None breaks a rule as modeled; `/maintain-formal-verification-skill` fixes them.
+
+- **A thread at work with a leftover:** #1724 made `work.WORKING` take any `written` and gave the `leftover` pattern `apart=(("thread", AT_WORK), ("pull", _set(Pull.NONE)))`, so a row whose thread is at work with no pull request reads `working` whatever its Result says.
+  The model's `ValueOf` still gives such a row `leftover` and gives `working` only with `written` none or clean.
+  Both values have the status `running`, so the status region and its rules are unchanged; the value is what differs.
 
 - **Remove's guard:** the model lets Remove happen only from `queued`, `left` and `pr`, through `Moves`.
   The code's remove (`queue._do`) refuses only a row whose thread is at work, whose pull request is open or merged, whose launch is under way, or that others depend on, and `_take_out` then removes a row of any other status, `done` included; `withdraw` also removes a `gate` row.
