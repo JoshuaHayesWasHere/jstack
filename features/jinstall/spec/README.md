@@ -37,18 +37,29 @@ Each rule alone, over the part it reads, which changes apart from the others:
 | `RecordLevelsRecorded`: the record's folder and the levels above it are recorded | install | breaks |
 | `MadePathsRecorded`: each path the install makes for its own use is recorded | install | holds, 609 states |
 | `MirrorKept`: the mirror's own entry is at its name or in its backup | mirror | holds, 10 states |
-| `OneWebhook`: an expert has at most one live webhook, and once a start has ended, its record names it | expert | breaks |
-| `UrlNamesWebhook`: once a start has ended, the address kept is the kept webhook's | expert | breaks |
+| `OneWebhook`: an expert has at most one live webhook, and once a start has ended, its record names it | expert | holds |
+| `UrlNamesWebhook`: once a start has ended, the address kept is the kept webhook's | expert | holds |
 
 The canary, `Fault = "note-after"`, has `make_dirs` make a folder before it records it.
 It breaks `MadePathsRecorded`, which today's code holds, and `UninstallComplete` at the folder (Begin, Make).
+
+The expert has three canaries, each one fault of the text before expert-webhook-survives-a-stop put back:
+
+| Fault | What it puts back | Breaks |
+|---|---|---|
+| `purge-own` | the purge deletes only the webhooks bound to this thread | `OneWebhook`, at Create |
+| `record-first` | the record is written before the address, and a webhook with no address file is kept | `UrlNamesWebhook`, at Look |
+| `no-mend` | a record that names another thread than its webhook's is kept as it is | `OneWebhook`, at Look |
 
 ## The findings
 
 The brief expected the canary's order, make then note, to be today's.
 It is not: `make_dirs`, `write_object`, `seed` and `add_repo` each write their record before the path.
-`UninstallComplete` still breaks, through `_note` itself, and both expert rules break, in three ways.
-None of these is fixed here: each is a follow-up.
+`UninstallComplete` still breaks, through `_note` itself, and both expert rules broke, in three ways.
+Finding 1 is a follow-up.
+Findings 2 to 4 are fixed by expert-webhook-survives-a-stop: step 4 of the expert's start now lists T3 Code's tasks on each start and compares them with the record.
+It deletes every webhook of this expert that the record does not keep, writes the address before the record, deletes a kept webhook whose address file is missing, and writes the record before a takeover's call and mends a record whose thread is not the webhook's.
+The expert's canaries above put each fault back.
 
 1. **The record's own folder is made before a record names it.**
    `_note` makes `~/.local/state/jstack`, and any missing level above it, before it writes `created`.
@@ -94,12 +105,12 @@ S=../../skill-library/skills/statechart/scripts
 cd features/jinstall/spec
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
     statechart from-spec Setup.tla --config Setup.chart.cfg \
-    --expect-broken UninstallComplete,OneWebhook,UrlNamesWebhook \
+    --expect-broken UninstallComplete \
     --title "Does an uninstall or an expert's takeover leave anything behind?"
 ```
 
-It takes about ten minutes, over 189,399 model states.
-It writes `Setup-statechart/`, labelled by `Setup.map.py`: 58 chart states and 65 arrows, with four bug charts, in two regions:
+It runs over 119,973 model states.
+It writes `Setup-statechart/`, labelled by `Setup.map.py`: 28 chart states and 46 arrows, with one bug chart, the install's, in two regions:
 
 - What an uninstall would leave.
 - The expert's webhook.
@@ -123,4 +134,5 @@ Its `tlc/` folder holds TLC's output, which is not committed.
   - a create that returns no address (T3 Connect off);
   - a webhook in another project;
   - the pin;
-  - more than two threads and two webhooks.
+  - more than two threads and two webhooks;
+  - two threads that start the expert at once: the model runs one start at a time.

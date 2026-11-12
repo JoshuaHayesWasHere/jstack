@@ -19,5 +19,8 @@
   ],
   "statusLine": {
     "script": "hooks/limits.sh"
-  }
+  },
+  "projectSkills": [
+    "project-skill/verify-test-slot"
+  ]
 }

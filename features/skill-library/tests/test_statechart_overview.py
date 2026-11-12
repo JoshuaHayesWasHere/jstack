@@ -9,7 +9,7 @@ import re
 
 import pytest
 
-from statechart_support import node, read, statechart_cli
+from statechart_support import node, read, statechart_cli, write
 from testing.paths import REPO
 
 site = importlib.import_module("statechart.site")
@@ -60,3 +60,19 @@ def test_each_overview_file_is_a_scene_with_a_box_per_group(chart, tmp_path):
     assert len(boxes) == len(BOX.findall(out))
     arrows = [e for e in scene["elements"] if e["type"] == "arrow"]
     assert len(arrows) == len(ARROW.findall(out)) + out.count("[*] -->")
+
+
+@pytest.mark.parametrize("border", ["Wrong", "Fixed", "Path"])
+def test_a_state_drawn_with_a_border_stays_in_its_group(tmp_path, border):
+    """A state's class is its group's with the border it is drawn with after it, for one that
+    breaks a rule, one fixed in the open pull request, or one on a bug path: it is in its group's
+    box, as with no border, and in no box for states in no group."""
+    chart = REPO / "features/jmerge/spec/FlowToday-statechart/chart.mmd"
+    text = read(chart)
+    first = re.search(r"^  class s\d+ group0$", text, re.M)[0]
+    bordered = tmp_path / "chart.mmd"
+    write(bordered, text.replace(first, first + border, 1))
+    plain = node("statechart", ["overview", str(chart)], REPO)
+    drawn = node("statechart", ["overview", str(bordered)], REPO)
+    assert drawn.returncode == 0, drawn.stderr
+    assert BOX.findall(drawn.stdout) == BOX.findall(plain.stdout)

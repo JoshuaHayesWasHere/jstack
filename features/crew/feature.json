@@ -4,5 +4,8 @@
   "description": "The crewmate: does the one task of a brief in its own worktree and opens its pull request.",
   "hidden": [
     "crew"
+  ],
+  "projectSkills": [
+    "project-skill/verify-crew-proof"
   ]
 }
