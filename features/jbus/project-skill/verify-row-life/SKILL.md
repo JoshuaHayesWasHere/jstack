@@ -20,7 +20,8 @@ Model: `features/jbus/spec/RowLife.tla`
 Sync: `d3f642c80a2c52ebbf134aa981d95894e892201a`
 Covers:
 - `features/jbus/src/jbus/work.py`: `status`, `kept`, `over`, `FINAL`, `PATTERNS`, `VALUES`
-- `features/jbus/src/jbus/queue.py`: `MOVES`, `derive`, `_grant`, `_hold`, `_lift`, `_void`, `_take_out`
+- `features/jbus/src/jbus/queue.py`: `MOVES`, `derive`, `_grant`, `_hold`, `_lift`, `_void`, `_take_out`, `_launching`
+- `features/jbus/src/jbus/asks.py`: `_asks`
 - `features/jbus/src/jbus/restated.py`: `restate`
 - `features/jbus/src/jbus/dispatch.py`: `Turns.take`
 - `features/jbus/src/jbus/watch.py`: `gone`, `unwritten`, `KNOWN`
@@ -67,7 +68,7 @@ When every step is backed, it is a bug: tell it as the row's moves in the code's
 - A new writer of the status: model it as a step, or say in the README why it moves nothing.
 - Show a changed rule failing on a scratch break before you trust a pass: take the guard out in your own worktree, uncommitted, see the trace, `git restore` the file.
 
-## Drift at the sync commit
+## The last upkeep
 
 None breaks a rule as modeled; `/maintain-formal-verification-skill` fixes them.
 
@@ -75,8 +76,8 @@ None breaks a rule as modeled; `/maintain-formal-verification-skill` fixes them.
   The model's `ValueOf` still gives such a row `leftover` and gives `working` only with `written` none or clean.
   Both values have the status `running`, so the status region and its rules are unchanged; the value is what differs.
 
-- **Remove's guard:** the model lets Remove happen only from `queued`, `left` and `pr`, through `Moves`.
-  The code's remove (`queue._do`) refuses only a row whose thread is at work, whose pull request is open or merged, whose launch is under way, or that others depend on, and `_take_out` then removes a row of any other status, `done` included; `withdraw` also removes a `gate` row.
-  A removed `done` row would break `FinalStays` if modeled, and the README's "leaves out" names neither path.
-- **Restate between approved values:** the model's `Restated` recomputes the value on every change of the go; `restated.restate` keeps an approved facet beside another approved one, so `behind` to `ready` waits for the next pass.
-  It moves `value` only, never the status.
+- **Remove's guard** followed `Moves`, which names the removals seen and guards none; it now follows `out` in `asks._asks`: no thread at work, no open or merged pull request.
+  A `done` row may be removed, so `FinalStays` lets a `done` row leave for good as `removed` (queue.py's doc: "`remove` takes a row out for good"; `rows.remove(row)`), and a removed row stays removed.
+  Old: `status \in Final => status' \in Final`; new: `status \in Final => status' \in Final \cup {"removed"}`, and `removed` stays.
+  The break: dropping the merged guard lets a merged row be removed, and `FinalStays` fails.
+- **An add's new depends:** `Depends` moves an approved row between free and behind with its line unchanged (`restated.restate` keeps an approved facet beside another), and `Pass` writes the line again with no fact changed.

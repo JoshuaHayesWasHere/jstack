@@ -8,7 +8,7 @@ One row of jbus's queue, from `jbus queue add` to its end, in two regions at the
   The eight steps of an open pull request are one value, `check`, and `quiet` is `working`; `test_rowlife_spec.py` fails when `work.VALUES` gains a value the spec neither has nor names as joined.
   `Moves` in `RowLife.tla` is `queue.MOVES`, move for move, and `features/jbus/tests/test_rowlife_spec.py` fails when the two differ.
   `removed` is the line the `remove` verb writes, and no pass judges it.
-  `remove` refuses only a thread at work and an open or merged pull request (`asks.out`), so a `done` row may be removed; `Moves` names the removals seen and guards none.
+  `remove` refuses only a thread at work and an open or merged pull request (`out` in `asks._asks`), so a `done` row may be removed; `Moves` names the removals seen and guards none.
 - The go, which verbs and rules of `queue.py` move: an approve or a rule's go (`_grant`), a hold that may keep the go it took (`_hold`), a lift that puts a kept go back (`_lift`), and a go taken back from an unlaunched row (`_void`).
   An approved row whose `depends` are not all over is `behind` until they are (`Ahead`), and jbus launches it stacked all the same.
   An `add` that changes an approved row's depends moves it between free and behind (`Depends`), and its line keeps its value until the next pass (`Pass`), since `restated.restate` keeps an approved facet beside another.
@@ -54,7 +54,7 @@ Its `tlc/` folder holds TLC's output, which is not committed.
 - The faults the table leaves out, which a pass marks `"legal": false` in `transitions.jsonl` and writes all the same: a pull request that leaves GitHub's open list unmerged and unclosed, a thread, Result or pull request of a row with no launch record, and a `Branch:` line that loses the address of a closed pull request.
   So the model never makes `pr` to `done` either, a move of the table.
 - The scout's row, which `work.scouting` reads, and a row's `merge_after`.
-- A launch under way with no answer yet, which `remove` also refuses (`asks.launched`): the launch is one step.
+- A launch under way with no answer yet, which `remove` also refuses (`launched` in `asks._asks`): the launch is one step.
 
 ## A crew thread, as a TLA+ spec
 
