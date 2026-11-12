@@ -11,7 +11,7 @@ from jbriefs import status
 from jbriefs.status import Status
 
 REPO = Path(__file__).resolve().parents[3]
-SCOPED_HOMES = REPO / "features" / "home" / "skills" / "home" / "scoped-homes.md"
+SCOPED_HOMES = REPO / "features" / "home" / "skills" / "root" / "reading-the-scopes.md"
 
 CASES = [
     ("Status: done", Status.DONE),

@@ -420,7 +420,7 @@
 <div class="map">
 <div class="tile"><b>Run the pipeline</b><div class="names">
 <!-- built: skill links, Run the pipeline -->
-<a href="#skill-home">home</a><a href="#skill-crew">crew</a><a href="#skill-scout">scout</a><a href="#skill-pr-review">pr-review</a><a href="#skill-expert">expert</a><a href="#skill-handoff">handoff</a><a href="#skill-nohome">nohome</a><a href="#skill-new-home">new-home</a><a href="#skill-poteto-help">poteto-help</a><a href="#skill-setup-pstack">setup-pstack</a><a href="#skill-make-bot-ui">make-bot-ui</a>
+<a href="#skill-home">home</a><a href="#skill-root">root</a><a href="#skill-crew">crew</a><a href="#skill-scout">scout</a><a href="#skill-pr-review">pr-review</a><a href="#skill-expert">expert</a><a href="#skill-handoff">handoff</a><a href="#skill-nohome">nohome</a><a href="#skill-new-home">new-home</a><a href="#skill-poteto-help">poteto-help</a><a href="#skill-setup-pstack">setup-pstack</a><a href="#skill-make-bot-ui">make-bot-ui</a>
 <!-- built: end -->
 </div></div>
 <div class="tile"><b>Settle the shape before code</b><div class="names">
@@ -457,11 +457,12 @@
 <div class="group"><h3>Run the pipeline <small>Five make a thread a role: <code>home</code>, <code>crew</code>, <code>scout</code>, the reviewer of <code>pr-review</code>, and <code>expert</code>. Each is the full text of what that thread does. The others close a home, set one up or switch it off, answer a help question, set up the machine, and make a bot's page.</small></h3><div class="cards">
 <!-- built: skill cards, Run the pipeline -->
 <article class="card" id="skill-home"><h4>/home</h4><p>Makes this thread the repo's home. It reads what jbus holds, plans with the operator, writes each brief and launches its crewmate. It does none of the work.</p><p class="when">Reach for it when you start or continue work in a repo.</p><div class="who"><span class="chip op">the operator</span><span class="chip cmd">the start hook</span></div></article>
+<article class="card" id="skill-root"><h4>/root</h4><p>The root home's own steps: it supplies every child home its rows, gives an entry's go on the user's standing word, tells and answers its children through jbus, and judges each waiver. It builds nothing.</p><p class="when">It loads by itself when /home starts the root home.</p><div class="who"><span class="chip cmd">/home</span></div></article>
 <article class="card" id="skill-crew"><h4>/crew</h4><p>Makes a thread a crewmate. It does the one task of one brief in its own worktree, opens the pull request, writes its Result into the brief and stays on the pull request.</p><p class="when">Reach for it when a brief is written and approved. It is typed as <code>/crew &lt;slug&gt;</code>.</p><div class="who"><span class="chip model">a home</span><span class="chip cmd">jbus</span></div></article>
 <article class="card scout" id="skill-scout"><h4>/scout</h4><p>Makes a thread a scout. It answers one question with read-only tool calls, writes its report, and writes a crewmate's brief or a visual when asked.</p><p class="when">Reach for it when a question has to be answered before a task can be briefed.</p><div class="who"><span class="chip model">a home</span></div></article>
 <article class="card rev" id="skill-pr-review"><h4>/pr-review</h4><p>Starts one review thread per pull request. It reads the diff itself, judges what it found, and one command proves the fact the change is safe because of. It fixes nothing, and jbus archives it when the pull request merges or closes.</p><p class="when">Reach for it when a pull request opens. The crewmate does this by itself.</p><div class="who"><span class="chip model">a crewmate</span><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-expert"><h4>/expert</h4><p>Makes a thread an expert: the always-on subject matter expert of one subject. It answers asks from its sources and its notes, in four parts, and writes down what it learns in its own folder. It writes no code and decides nothing.</p><p class="when">Reach for it when a question about that subject needs an answer with its sources. It is typed as <code>/expert &lt;name&gt;</code>.</p><div class="who"><span class="chip op">the operator</span></div></article>
-<article class="card" id="skill-handoff"><h4>/handoff</h4><p>Archives a home. It keeps a note of ten lines at most in the home's log, hands what the home has out to the root home, closes its scope and starts no next home.</p><p class="when">Reach for it when a home's work is over, or from the tree's Archive item.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a home</span></div></article>
+<article class="card" id="skill-handoff"><h4>/handoff</h4><p>Archives a home. It keeps a note of ten lines at most in the home's log, hands what the home has out to the uncategorized home, closes its scope and starts no next home.</p><p class="when">Reach for it when a home's work is over, or from the tree's Archive item.</p><div class="who"><span class="chip op">the operator</span><span class="chip model">a home</span></div></article>
 <article class="card" id="skill-nohome"><h4>/nohome</h4><p>Opts this thread, or every new thread in the repo, out of the automatic home. With <code>merge</code> it switches the repo's automatic merge off or on.</p><p class="when">Reach for it when a thread should just do the work itself, or merges should wait.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-new-home"><h4>/new-home</h4><p>Sets up a repo's first home in five steps: its state directory, its T3 Code project, its table in jbus's config, what it lacks for a merge, and its home thread.</p><p class="when">Reach for it when a repo gets its first home, or one was started by hand.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-poteto-help"><h4>/poteto-help</h4><p>Answers a help question with the skill to type and the file it came from: the role that takes the work, its playbook, and the skills its words call for. It starts no work.</p><p class="when">Reach for it when you do not know which skill, playbook or role fits a brief, a request or a question.</p><div class="who"><span class="chip op">the operator</span></div></article>
@@ -519,8 +520,8 @@
 </div></div>
 <div class="group"><h3>House standards for text and code <small>Loaded by name, before or after an edit.</small></h3><div class="cards">
 <!-- built: skill cards, House standards for text and code -->
-<article class="card" id="skill-technical-writing"><h4>/technical-writing</h4><p>A layered writing standard: structure, sentence style, instruction rules and syntax that reads well in translation.</p><p class="when">Reach for it when you write or review a doc, a pull request description or a commit message.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a step of <code>opening-a-pr</code></span></div></article>
-<article class="card" id="skill-unslop"><h4>/unslop</h4><p>Cuts the tells of machine writing from any text.</p><p class="when">Reach for it when a text is about to be read by a person.</p><div class="who"><span class="chip op">the operator</span><span class="chip plain">a step of <code>opening-a-pr</code></span></div></article>
+<article class="card" id="skill-technical-writing"><h4>/technical-writing</h4><p>A layered writing standard: structure, sentence style, instruction rules and syntax that reads well in translation.</p><p class="when">Reach for it when you write or review a doc, a pull request description or a commit message.</p><div class="who"><span class="chip op">the operator</span></div></article>
+<article class="card" id="skill-unslop"><h4>/unslop</h4><p>Cuts the tells of machine writing from any text.</p><p class="when">Reach for it when a text is about to be read by a person.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-no-comments"><h4>/no-comments</h4><p>A comment hunter condemns every comment that has no exception. The thread deletes what it accepts and fixes the code a comment was excusing.</p><p class="when">Reach for it when comments have piled up in a scope.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <article class="card" id="skill-typescript-best-practices"><h4>/typescript-best-practices</h4><p>TypeScript practices a thread loads before it reads or edits <code>.ts</code> and <code>.tsx</code> files.</p><p class="when">Reach for it when the task touches TypeScript.</p><div class="who"><span class="chip op">the operator</span></div></article>
 <!-- built: end -->
@@ -563,7 +564,7 @@
 <div class="tile"><b>A crewmate runs it</b>
 <small>Build and change</small><div class="names">
 <!-- built: playbook links, Build and change -->
-<a href="#playbook-feature">feature</a><a href="#playbook-bug-fix">bug-fix</a><a href="#playbook-refactoring">refactoring</a><a href="#playbook-perf-issue">perf-issue</a><a href="#playbook-visual-parity">visual-parity</a>
+<a href="#playbook-feature">feature</a><a href="#playbook-bug-fix">bug-fix</a><a href="#playbook-refactoring">refactoring</a><a href="#playbook-perf-issue">perf-issue</a><a href="#playbook-visual-parity">visual-parity</a><a href="#playbook-operations">operations</a>
 <!-- built: end -->
 </div>
 <small>Decide by building</small><div class="names">
@@ -573,7 +574,7 @@
 </div>
 <small>Diagnose, fix nothing</small><div class="names">
 <!-- built: playbook links, Diagnose, fix nothing -->
-<a href="#playbook-runtime-forensics">runtime-forensics</a>
+<a href="#playbook-runtime-forensics">runtime-forensics</a><a href="#playbook-measurement">measurement</a>
 <!-- built: end -->
 </div>
 <small>Long or wide runs</small><div class="names">
@@ -645,6 +646,7 @@
 <article class="card" id="playbook-refactoring"><h4>refactoring</h4><p>For: A change to structure or shape that keeps behaviour: rename, extract, inline, dedupe, move.</p></article>
 <article class="card" id="playbook-perf-issue"><h4>perf-issue</h4><p>For: One thing that is too slow, fixed once and proved with a number before and after.</p></article>
 <article class="card" id="playbook-visual-parity"><h4>visual-parity</h4><p>For: One component moved to a new implementation that has to look exactly as it did. One component to a brief.</p></article>
+<article class="card" id="playbook-operations"><h4>operations</h4><p>For: An operation on the machine that changes no tracked file and opens no pull request: a cleanup, a tag, a setting.</p></article>
 <!-- built: end -->
 </div>
 <p class="sub">Decide by building</p>
@@ -658,6 +660,7 @@
 <div class="cards">
 <!-- built: playbook cards, Diagnose, fix nothing -->
 <article class="card" id="playbook-runtime-forensics"><h4>runtime-forensics</h4><p>For: A symptom that shows only in a running process: a spinning CPU, a leak, a visual glitch, a loop firing without input.</p><div class="who"><span class="chip plain"><code>Pull request: ask first</code></span></div></article>
+<article class="card" id="playbook-measurement"><h4>measurement</h4><p>For: A probe, a shot or a count whose product is a number or an answer: no fix, no target, no change to the code.</p></article>
 <!-- built: end -->
 </div>
 <p class="sub">Long or wide runs</p>
@@ -745,7 +748,7 @@
 <div id="principle-principle-laziness-protocol"><b>principle-laziness-protocol</b><small>Bias toward deletion and the smallest change that solves the problem.</small><div class="leans"><code>opening-a-pr</code><code>bug-fix</code><code>arena</code></div></div>
 <div id="principle-principle-minimize-reader-load"><b>principle-minimize-reader-load</b><small>Maintainability is the work a reader must do: the layers to trace and the state to hold.</small><div class="leans"><code>refactoring</code></div></div>
 <div id="principle-principle-migrate-callers-then-delete-legacy-apis"><b>principle-migrate-callers-then-delete-legacy-apis</b><small>When a new API is right, move its callers and delete the old one in the same wave.</small><div class="leans"><code>refactoring</code><code>feature</code><code>correct</code></div></div>
-<div id="principle-principle-experience-first"><b>principle-experience-first</b><small>Where convenience for the builder conflicts with delight for the user, choose delight. Fewer features, polished.</small><div class="leans"><span>no skill or playbook names it yet</span></div></div>
+<div id="principle-principle-experience-first"><b>principle-experience-first</b><small>Where convenience for the builder conflicts with delight for the user, choose delight. Fewer features, polished.</small><div class="leans"><code>prototype</code></div></div>
 <!-- built: end -->
 </div></div>
 <div class="group"><h3>Prove it</h3><div class="principles">

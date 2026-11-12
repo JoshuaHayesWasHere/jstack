@@ -38,7 +38,7 @@ VARIABLES
   \* C-066, the legacy `Status:` line of a plan from before Stage:: "absent", "done" (first word
   \* done or done.) or "other". No code writes it, a home typed it; jbus/plan.py reads it,
   \* jbus/plan.py `elif line.startswith("Status:") and not found[-1].typed:`, and so does
-  \* home/scoped-homes.md `if ($(2) == "done" || $(2) == "done.") done = 1`.
+  \* root/reading-the-scopes.md `if ($(2) == "done" || $(2) == "done.") done = 1`.
   typed,
   \* C-067, the entry's `Builds on:` line: "none", "waiting" (it names work not merged yet) or
   \* "merged". No code writes it, the home does by hand; it is read over the whole section,
@@ -72,7 +72,7 @@ VARIABLES
   lock,
   \* C-095, each brief's `Home:` head line: "s", "u", or "id", the legacy thread id of s's home
   \* (146 real briefs name one). The home writes it, which
-  \* home/scoped-homes.md `why="$B has Home: ${named:-nothing}, not $child: write Home: $child in it"`
+  \* root/queueing-a-row-in-a-child.md `why="$B has Home: ${named:-nothing}, not $child: write Home: $child in it"`
   \* checks, and a move rewrites it, jbus/queue.py `lines[number] = f"Home: {scope}\n"`.
   home,
   \* C-099, each fix brief's `Fix of:` and `When green:` head lines: "fix" (both) or "no-green"

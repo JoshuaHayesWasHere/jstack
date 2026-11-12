@@ -53,7 +53,8 @@ It prints `kept: <project>, not posted, ..., word <id>`.
 `jbus queue approve --word` takes that id.
 jbus carries each word to the one home that owns its subject: the home of the briefs, requests and rows its words name by slug, else the home it was said in (`--message`) or recorded by (`--from`), else the root home.
 So a word with no slug that this home records with `--from "$ME"` stays here.
-The root carries the user's word to scoped homes it names with `--scope <scope>`, given again for each or once as `--scope every`, in place of `--from`, and only with `--message`: it writes no words of its own into a scope.
+The root carries the user's own word to scoped homes it names with `--scope <scope>`, given again for each or once as `--scope every`, in place of `--from`, and only with `--message`.
+Its own words go to a scope by `jbus tell`, which jbus signs as the root's (the root's skill, "Tell a child").
 That prints `sent: <project>, to the <scope> home at <thread>, word <id>` for each scope it reached, or `held: ...` for a scope that holds the word already, which gets nothing again.
 A fault found in another home's work is no word: it is a queued row of that home's ("Scoped homes").
 jbus posts a word that any other thread records to this home once, in the form the block above prints.
@@ -99,9 +100,10 @@ A brief that holds for a door is opened by a pick only when the user's own pick 
 
 ### A plan entry's go
 
-The user gives the go for work once per plan entry, never per row.
+An entry gets one go, and no row of it is asked a go of its own.
 No row is queued outside an entry: a task that fits no open entry gets an entry of its own first, one heading and its `Done when:` list, and `jbus queue add --from` refuses a new row with no open entry of its home's plan and no `Follows:` line.
-This home asks the user for the entry's go once, in one message that names the entry and the rows it plans.
+The root home gives it on the user's standing word for goes with `jbus plan go <entry> --standing --from "$ME"` (its skill, "Give an entry its go"), and a scoped home asks the root for it with `jbus stop --kind go --entry <entry>` ("Scoped homes").
+Where only the user can give it, for a new goal or an entry with a row that holds a case of `gates.md`, the root asks the user once, in one message that names the entry and the rows it plans.
 When the user's word is a go for an entry, record it at once with the reference of their own message, before the entry has a row, then brief the entry and queue its first row: until a row is queued, each jbus pass wakes this home with the entry and the time since the go.
 
 ```sh
@@ -113,9 +115,9 @@ jbus refuses a message that is not the user's own and an entry the plan does not
 It binds the go to the entry's head, its heading and its `Done when:` lines, and `jbus plan` shows the go on the entry's line.
 Under the setting `go = "entry"`, the default, jbus approves each row queued with `--entry <entry>` while that go holds, as the row is queued, on each pass, and again after an edit of its brief.
 Its line reads `your go for the plan entry <entry>, <time>, in <where>; run <time> by <who>`.
-So ask the user for no row's go where the row's entry has a go: queue it with `--entry`, and it is approved in the same write.
+So ask nobody for a row's go where the row's entry has a go: queue it with `--entry`, and it is approved in the same write.
 The go stops holding when the entry's heading or `Done when:` lines change, when the entry closes, or when the user's word stops it, which this home runs as `jbus plan stop <entry>`.
-A row not yet launched then waits for the user's go, and a launched one goes on.
+A row not yet launched then waits for a go, and a launched one goes on.
 A brief that is a case of `gates.md` names the case on a `Holds: <case>` line in its head, and its row waits for the user's word under every setting, as does one whose `Done when:` or `Proves it:` runs a door's command.
 
 Under the setting `go = "silence"`, a home parks its pick for a new row as a gate with `Default: approve`, piped to `jbus gate <slug>` as "Gates" says, instead of asking.
@@ -143,7 +145,7 @@ A fix jbus filed from a red check that no row's merge turned red (a red main, br
 The follow-up rule approves it all the same, as its filer queues it and on each pass, with the red run its brief's `Task:` line quotes as the ground of its go.
 Its line reads `the follow-up rule, jbus filed it from the red run "<the run>"; run <time> by jbus's pass; you did not speak of this row`.
 What makes it jbus's is who queued it, which the queue keeps for each row, so a filer jbus adds later is covered with no list of slugs to extend.
-The same brief, or any row with a red check's slug, queued by a home or a person is not jbus's: it waits for the user's go like other new work.
+The same brief, or any row with a red check's slug, queued by a home or a person is not jbus's: it waits for a go like other new work.
 `jbus queue add` checks the rule when it queues the row, and approves a row that meets it in the same write.
 It also checks the waiting rows that name P when P gets its go.
 It prints one line for each row it approved, and one for each row that names a parent and still waits, with why.
@@ -151,7 +153,7 @@ It prints one line for each row it approved, and one for each row that names a p
 To queue a follow-up, write `Follows: <parent>` in its brief's head and queue it: no `--entry` is needed.
 A row that carries the work of a row closed with no merge names that row with `Follows:`, new or already queued: a row closed `done` and kept in the queue is a parent whatever its status, and the line is how the store joins the two.
 A row queued again with the line added keeps the go it had: jbus judges a go by what the brief asks for, and the line changes none of it.
-A row that names no parent, or whose parent has no approval of the user's own, or whose parent was removed before it merged, is new work, and it waits for the user's go, or for its plan entry's ("A plan entry's go" above).
+A row that names no parent, or whose parent has no approval of the user's own, or whose parent was removed before it merged, is new work, and it waits for a go: its plan entry's ("A plan entry's go" above) or the user's.
 The one exception is a fix jbus's own pass filed from a red check, which names no parent and is approved by the rule on its red run, as above.
 A row queued again keeps what it had: a row that waited for the user is not approved by rule because a later add named a parent, and a held row stays held.
 A follow-up of a follow-up is approved on its parent's go, so a chain goes back to the user's word one go at a time.

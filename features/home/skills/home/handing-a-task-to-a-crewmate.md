@@ -1,6 +1,6 @@
 ## Handing a task to a crewmate
 
-The root home does step 1 and no other: it queues the brief by "Queueing a row in a child" (`scoped-homes.md`), and jbus's pass launches it.
+The root home does step 1 and no other: it queues the brief by "Queueing a row in a child" in its own skill, and jbus's pass launches it.
 
 1. Write the brief, `tasks/<slug>.md`, from the plan entry, in the shape of `$T/brief.md`: read it first.
    Its `Home:` line names a home and never a thread.

@@ -74,7 +74,7 @@ command grep -E '^(decision|stop) local ' "${M:?run the block that finds this ho
     echo "no local decision or stop is open"
 ```
 
-The root home then runs the block of "Scoped homes" that reads the scopes.
+The root home then reads the scopes, by "Reading the scopes" in its own skill.
 Do not read a crewmate's timeline unless the user asks what it is doing.
 To see what a thread last said, after a jbus wake or when the user asks, run `jbus thread <slug>`: it prints the thread's status, its last run, its pull requests and its last message, cut at 2,000 characters, from T3 Code's own store, in place of `t3_thread_read`.
 
