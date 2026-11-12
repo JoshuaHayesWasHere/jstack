@@ -3,7 +3,9 @@
   "modelStates": 11175,
   "modelTransitions": 24651,
   "chartStates": 22,
-  "chartTransitions": 24,
+  "chartTransitions": 28,
+  "allTransitions": 2618,
+  "final": [],
   "chartStatus": {
     "works": 18,
     "wrong": 4,
@@ -77,22 +79,7 @@
       "fix": null
     }
   ],
-  "codeLike": [
-    "Main red, after a pass that died: a revert open on GitHub, not on record; main: no fix brief",
-    "Main red, between passes: a revert open on GitHub, not on record; main: its fix row queued",
-    "Main red, jbus in a pass: a revert open on GitHub, not on record; main: a fix brief with no row",
-    "Main red, jbus in a pass: a revert open on GitHub, not on record; main: no fix brief",
-    "Main red, then green again, after a pass that died: a revert open on GitHub, not on record",
-    "Main red, then green again, between passes: a revert open on GitHub, not on record",
-    "Main red, then green again, jbus in a pass: a revert open on GitHub, not on record",
-    "Main's Mac red, after a pass that died: a revert open on GitHub, not on record; main's Mac: no fix brief",
-    "Main's Mac red, between passes: a revert open on GitHub, not on record; main's Mac: a fix brief with no row",
-    "Main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, not on record; main's Mac: no fix brief",
-    "Main's Mac red, jbus in a pass: a revert open on GitHub, not on record; main's Mac: a fix brief with no row",
-    "Main's Mac red, jbus in a pass: a revert open on GitHub, not on record; main's Mac: no fix brief",
-    "jbus opens the revert on GitHub",
-    "GitHub did not answer, and the pass filed a row in place of recording the revert"
-  ],
+  "codeLike": [],
   "drawnFrom": {
     "command": "statechart from-spec MainFix.tla --config MainFix.chart.cfg --title 'Main went red: what has jbus filed when a pass dies?' --expect-broken FiledWhole,RevertKnown,RevertSaid --png",
     "inputs": {
@@ -100,6 +87,6 @@
       "MainFix.map.py": "3c77ffe4ea11a5c6a0428e7cc5777c06afced3e15267bd9fd59916431f462ba3",
       "MainFix.tla": "f98e65162942ac27f4a30afa814add5106aac05ee2c578a25a2268aa6269949a"
     },
-    "chart": "3567fd2cda0ab195fcb4ad433a283ae3bbfc59afd2233bbdd1de8e8068ec0f00"
+    "chart": "567720db3f540d82141da14699e0de70b3d47860d135e522f29f496155b7c2bf"
   }
 }

@@ -362,16 +362,31 @@ def _worktree(run: Pass, branch: str) -> Path | None:
 
 def _busy(run: Pass, tree: Path, head: str) -> str:
     """What in the crew's worktree a move would lose or disturb, or nothing: a head other than
-    the pushed one, a change not committed, or a rebase of its own not finished."""
+    the pushed one, `head`, origin's, a change not committed, or a rebase of its own not finished.
+    A crew's `crew-before-rebase` record whose rebase moved its head off the one it names as before
+    the rebase, to the head origin's branch is at, is a rebase whose push landed and whose crew
+    stopped before it forgot the record: it is forgotten here, and holds nothing."""
     at = run.run("git", "-C", str(tree), "rev-parse", "HEAD").stdout.strip()
     if at != head:
         return f"is at {at[:12] or 'no commit'}, not at {head[:12]}"
     if run.run("git", "-C", str(tree), "status", "--porcelain").stdout.strip():
         return "has changes not committed"
     gitdir = run.run("git", "-C", str(tree), "rev-parse", "--absolute-git-dir").stdout.strip()
-    for left in ("rebase-merge", "rebase-apply", "crew-before-rebase"):
-        if not gitdir or (Path(gitdir) / left).exists():
-            return "has a rebase of its own not finished"
+    unfinished = "has a rebase of its own not finished"
+    if not gitdir or any(
+        (Path(gitdir) / left).exists() for left in ("rebase-merge", "rebase-apply")
+    ):
+        return unfinished
+    record = Path(gitdir) / "crew-before-rebase"
+    try:
+        before = record.read_text().split()[:1]
+    except FileNotFoundError:
+        return ""
+    except OSError:
+        return unfinished
+    if before in ([], [at]):
+        return unfinished
+    record.unlink(missing_ok=True)
     return ""
 
 

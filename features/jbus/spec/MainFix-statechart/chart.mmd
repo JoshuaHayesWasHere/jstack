@@ -71,13 +71,17 @@ stateDiagram-v2
   s18 --> s3 : a pass starts
   s19 --> s21 : a pass starts
   s11 --> s5 : the pass dies
+  s20 --> s21 : a pass starts
   s5 --> s11 : a pass starts
   s15 --> s13 : jbus opens the revert on<br/>GitHub
   s21 --> s20 : jbus finds main green
   s3 --> s2 : jbus writes the fix brief
   s11 --> s8 : jbus finds main green
   s13 --> s9 : jbus finds main green
+  s0 --> s20 : you run a red check again, and<br/>it passes or a pull request<br/>merges, a fix row's or one you<br/>merge, and main turns green
   s2 --> s0 : jbus queues the fix row
+  s8 --> s11 : a pass starts
+  s9 --> s13 : a pass starts
   class s17 group0
   class s18 group2
   class s0 group0Wrong

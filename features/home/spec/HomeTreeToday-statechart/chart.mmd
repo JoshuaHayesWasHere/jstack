@@ -109,6 +109,8 @@ stateDiagram-v2
       %% when r1s1, r1s2, r1s11, r1s12, r1s20, r1s21
       r0s12 --> r0s9 : you get child a going again<br/>[when a call for you, a is on<br/>your list of what needs you or<br/>a call for you, a is on your<br/>list of what needs you, jbus<br/>merging child a's pull request<br/>or a call on its way, a is on<br/>your list of what needs you or<br/>a call on its way, a is on<br/>your list of what needs you,<br/>jbus merging child a's pull<br/>request or a is on your list<br/>of what needs you or a is on<br/>your list of what needs you,<br/>jbus merging child a's pull<br/>request]
       %% when r1s1, r1s2, r1s11, r1s12, r1s20, r1s21
+      r0s15 --> r0s0 : you retire child a [unless<br/>nothing for you]
+      %% when not r1s25
       r0s16 --> r0s17 : the root's check nudges a<br/>quiet child
       r0s17 --> r0s29 : you get child a going again<br/>[when a call for you, a is on<br/>your list of what needs you or<br/>a call on its way, a is on<br/>your list of what needs you or<br/>a is on your list of what<br/>needs you]
       %% when r1s1, r1s11, r1s20
@@ -190,6 +192,7 @@ stateDiagram-v2
       r0s41 --> r0s45 : you archive the catch-all's<br/>thread
       r0s42 --> r0s46 : the catch-all's start ends<br/>with no home-id
       r0s43 --> r0s48 : the catch-all's start ends<br/>with no home-id
+      r0s44 --> r0s41 : the catch-all's start writes<br/>its home-id
       r0s45 --> r0s42 : jbus launches the catch-all's<br/>home
       r0s46 --> r0s43 : jbus launches the catch-all's<br/>home
       r0s47 --> r0s44 : jbus launches the catch-all's<br/>home
@@ -201,6 +204,7 @@ stateDiagram-v2
       r0s53 --> r0s50 : the catch-all's start ends<br/>with no home-id
       r0s53 --> r0s41 : the catch-all's start writes<br/>its home-id
       r0s54 --> r0s52 : the catch-all's start ends<br/>with no home-id
+      r0s55 --> r0s41 : the catch-all's start writes<br/>its home-id
     }
     --
     state "What reaches you" as region1 {

@@ -2,7 +2,7 @@
 reader_actions = ["Approve", "MergeOn", "Accept", "AcceptOther"]
 
 SAID = {
-    "none": "opened, not judged yet",
+    "none": "jmerge judges it next",
     "merged": "merged",
     "no-review": "waits on its review",
     "not-passed": "waits on its check",
@@ -23,6 +23,19 @@ SAID = {
 HOLDS = {"row-held", "declines", "touches", "merge-off"}
 CREW = {"no-review", "check-failed", "conflicts", "merged-tree-fails"}
 
+# The steps of jmerge's run. Once one can be taken, the verdict jmerge last said no longer holds:
+# what it waited on came (the check ended, the review landed, the crew pushed, GitHub merged main
+# in, you approved), and jmerge judges it next. A batch whose check runs still holds it.
+RUN = {"Judge", "Merge", "GuardsFail", "JoinBatch"}
+
+
+def _lifted(v, facts):
+    return v["said"] not in ("none", "merged") and v["batch"] != "pending" and facts.enabled & RUN
+
+
+def _said(v, facts):
+    return "none" if _lifted(v, facts) else v["said"]
+
 
 def _main(v):
     if v["mainRed"]:
@@ -33,7 +46,7 @@ def _main(v):
 
 
 def state(v, facts):
-    return f"{_main(v)}: {SAID[v['said']]}"
+    return f"{_main(v)}: {SAID[_said(v, facts)]}"
 
 
 region_names = ["Main", "What jmerge says"]
@@ -42,11 +55,12 @@ region_names = ["Main", "What jmerge says"]
 def group(v, facts):
     if v["st"] == "merged":
         return "Merged"
-    if v["said"] in HOLDS:
+    said = _said(v, facts)
+    if said in HOLDS:
         return "Waits on your word"
     if getattr(facts, "settled", False):
         return "Stuck"
-    if v["said"] in CREW:
+    if said in CREW:
         return "Waits on its crew"
     return "Waits on jmerge, GitHub or a check"
 
