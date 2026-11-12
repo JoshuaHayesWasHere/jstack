@@ -14,7 +14,7 @@ from datetime import timedelta
 
 import pytest
 
-from jbus import daywarnings, queue
+from jbus import Refused, daywarnings, queue
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import rows
 
@@ -132,6 +132,34 @@ def test_a_days_warnings_under_the_bar_carry_to_the_next_days_row(kitchen):
     assert "kept 2026-10-12 to 2026-10-13" in brief
     for line in ("alpha F2", "alpha F3", "beta F2"):
         assert f"\n- {line} warning " in brief
+
+
+def test_a_days_row_the_queue_refuses_keeps_its_copy_and_is_filed_on_a_later_pass(
+    kitchen, monkeypatch
+):
+    """A day's row the queue refuses is a condition, and its brief's copy is still written to
+    tasks/ for the condition that names it; its warnings stay kept, so the pass that finds the
+    queue taking it again files the row."""
+    reviewed(kitchen, "alpha", 7, (WARNING,))
+    reviewed(kitchen, "beta", 8, (WARNING, CONSIDERED))
+    merged(kitchen, ("alpha", 7), ("beta", 8))
+    kitchen.poll()
+    real = queue.add
+
+    def refuses(state, slug, *args, **kwargs):
+        if slug.startswith(daywarnings.PREFIX):
+            raise Refused("the queue is held")
+        return real(state, slug, *args, **kwargs)
+
+    monkeypatch.setattr(queue, "add", refuses)
+    kitchen.poll(NOW + DAY)
+    name = f"{daywarnings.PREFIX}{TODAY}"
+    assert filed(kitchen) == []
+    assert (kitchen.home / "tasks" / f"{name}.md").exists()
+    assert any(name in line and "not queued" in line for line in kitchen.lines("condition"))
+    monkeypatch.setattr(queue, "add", real)
+    kitchen.poll(NOW + DAY + timedelta(minutes=5))
+    assert filed(kitchen) == [name]
 
 
 def test_the_days_rows_own_review_an_open_pull_request_and_one_before_since_keep_nothing(
