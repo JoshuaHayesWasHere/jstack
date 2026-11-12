@@ -50,7 +50,11 @@ def record(v):
         return f"the clock is {due}" if v["clockKind"] != "none" else "no wait yet"
     return {
         "held": {"none": "", "waiting": "held.json waits", "woke": "held.json says its home woke"},
-        "heldlift": {"none": "", "waiting": "held.json waits", "woke": "held.json says you were told"},
+        "heldlift": {
+            "none": "",
+            "waiting": "held.json waits",
+            "woke": "held.json says you were told",
+        },
         "blocking": {
             "none": "",
             "queued": "the body waits in the outbox",
