@@ -197,7 +197,12 @@ The answers say what became of each finding, and the `Fixed:` line says once, fo
 The pull request does not merge while the last round's line says `no`, or a section of that round has no line of the template's shape, or a count that is not the brief's (`jbriefs --meets <brief>` prints what `jmerge` reads).
 A `no` owes you a fix for each unmet line and a scoped review whose own line says `yes`: the block of "A second pass" gives that review, whatever the fix changed, also after a scoped pass, until a round says `yes`.
 Never write a review's line yourself, and never rewrite one: the judgement is the reviewer's.
-The only other way out is a line `Waived: <the Done when line>, <thread>/<message>` in the brief that rests on the user's own message, or the bot's word, that names this row, says it waives and quotes that line, which jbus checks: your own message, the home's, or the user's go waives nothing.
+The only other way out is a line `Waived: <the Done when line>, <ref>` in the brief, which jbus checks, and its `<ref>` names one of two waivers:
+- `<thread>/<message>`: the user's own message, or the bot's word, that names this row, says it waives and quotes that line.
+- `root/<act id>`: the root home's own waiver, which `jbus waive <slug> <n> --as root --from <root thread> --reason <why> --undo <how>` logs and writes with no word of the user's.
+  Only the root home's thread gives one: jbus refuses a `--from` that is not the thread in the root's `home-id`, and a brief that holds for a one-way door, whose lines stay the user's to waive.
+
+Your own message, the home's, or the user's go waives nothing.
 
 A fix is one or more new commits on the head GitHub has, never an amend, a squash or a rebase: a rewritten head is a force-push, which costs a new run and a new look at what the review saw, and a default branch that moved is no reason for one ("A conflict").
 Run the check block of "Do the task" at the fix's head first: jleak's `pre-push` hook asks `jmerge`'s rule (`ready.short_on_checked`) of each head a crew's worktree pushes, as the first push block does, and refuses one whose last `Checked:` line does not bind it with `crew-push: refused: <why>`.
