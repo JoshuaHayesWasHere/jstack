@@ -54,13 +54,17 @@ stateDiagram-v2
       state "queued (no thread yet)" as r1s7
       state "removed (queue.py<br/>`remove`, no pass sets it)" as r1s8
       state "running (the thread at<br/>work, a Result or not, or<br/>its pull request opening)" as r1s9
-      state "stale (the thread ended<br/>with nothing written)" as r1s10
+      state "stale (the turn hung, or<br/>the thread ended or was<br/>settled with nothing<br/>written)" as r1s10
       state "waiting (the thread asks<br/>you)" as r1s11
       r1s0 --> r1s5 : the pull request of a done row<br/>merges on your accept
       r1s1 --> r1s0 : a Result says done after the<br/>thread failed
       r1s1 --> r1s4 : the failed thread leaves its<br/>work to its home
       r1s1 --> r1s9 : the failed thread works again
       r1s2 --> r1s11 : the question closes
+      r1s2 --> r1s1 : the question closes
+      r1s2 --> r1s9 : the question closes
+      r1s2 --> r1s10 : the question closes
+      r1s2 --> r1s4 : the question closes
       r1s2 --> r1s7 : the question closes, and the<br/>row's launch has no record
       r1s2 --> r1s3 : the question closes, and the<br/>row's launch has no thread yet
       r1s2 --> r1s6 : the question closes, and the<br/>row's pull request is open
@@ -68,10 +72,15 @@ stateDiagram-v2
       r1s2 --> r1s0 : the question closes, and the<br/>row's Result says done
       r1s3 --> r1s2 : jbus opens a question
       r1s3 --> r1s9 : T3 Code lists the thread at<br/>work
-      r1s3 --> r1s7 : T3 Code settles the thread
+      r1s3 --> r1s10 : T3 Code settles the thread
+      r1s3 --> r1s5 : the pull request merges
+      r1s3 --> r1s6 : the pull request opens
+      r1s3 --> r1s11 : the thread asks for an answer
+      r1s3 --> r1s10 : the thread ends
       r1s3 --> r1s0 : the thread ends with a clean<br/>Result before a pass sees it<br/>at work
       r1s3 --> r1s4 : the thread ends with work left<br/>before a pass sees it at work
       r1s3 --> r1s1 : the thread fails before a pass<br/>sees it at work
+      r1s3 --> r1s10 : the thread's turn hangs
       r1s4 --> r1s0 : a follow-up Result says done
       r1s4 --> r1s6 : a pull request opens for what<br/>was left
       r1s4 --> r1s3 : jbus launches the row again<br/>for what was left
@@ -81,18 +90,9 @@ stateDiagram-v2
       r1s6 --> r1s2 : jbus opens a question on the<br/>row with its pull request open
       r1s6 --> r1s4 : the pull request closes<br/>unmerged
       r1s6 --> r1s8 : you remove the row from pr
-      r1s7 --> r1s3 : a launch record names a thread<br/>for the row
+      r1s7 --> r1s3 : a launch record names a thread<br/>for the row [when Approved or<br/>Approved, behind a row it<br/>depends on]
+      %% when r0s0, r0s1
       r1s7 --> r1s2 : jbus opens a question on the<br/>row
-      r1s7 --> r1s9 : the crew is on its way to its<br/>pull request after its review
-      r1s7 --> r1s0 : the crew writes a clean Result
-      r1s7 --> r1s4 : the crew writes a Result that<br/>leaves work
-      r1s7 --> r1s5 : the pull request merges
-      r1s7 --> r1s6 : the pull request opens
-      r1s7 --> r1s11 : the thread asks for an answer
-      r1s7 --> r1s10 : the thread ends
-      r1s7 --> r1s1 : the thread fails
-      r1s7 --> r1s9 : the thread works
-      r1s7 --> r1s10 : the thread's turn hangs
       r1s7 --> r1s8 : you remove the row from queued
       r1s9 --> r1s6 : a pull request opens
       r1s9 --> r1s3 : the crew opens nothing after<br/>its review
@@ -100,7 +100,9 @@ stateDiagram-v2
       r1s9 --> r1s4 : the Result leaves work, or the<br/>pull request closes
       r1s9 --> r1s11 : the thread asks for an answer<br/>to its request
       r1s9 --> r1s0 : the thread ends with a clean<br/>Result and no pull request
-      r1s9 --> r1s10 : the turn hangs, or the thread<br/>ends with nothing written
+      r1s9 --> r1s1 : the thread fails
+      r1s9 --> r1s10 : the turn hangs, or the thread<br/>ends or is settled with<br/>nothing written
+      r1s10 --> r1s0 : the crew writes a clean Result
       r1s10 --> r1s4 : the thread stays quiet with<br/>nothing written, or writes a<br/>leftover
       r1s10 --> r1s9 : the thread works again
       r1s11 --> r1s3 : T3 Code lists no thread

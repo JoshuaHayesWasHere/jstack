@@ -779,7 +779,7 @@ def test_the_names_part_of_an_edit_of_a_skill_file_prints_the_test_that_reads_it
 
     assert ran.returncode == 0, ran.stderr
     assert ran.stdout.split() == [READER]
-    assert READER in repo.run("--pull-request", repo.base, head).stdout.split()
+    assert READER in repo.run(repo.base, head).stdout.split()
 
 
 @pytest.mark.parametrize(

@@ -58,27 +58,33 @@ queue hold`, or `check failed twice`) has no `check` wait, and the outbox holds 
 holds any fix message (`outbox.FIXES`) and any line to a capped instance.
 
 `held` watches the waits no clock above takes, by their reason. Rows whose pull requests `jmerge`
-holds on one reason, with no thread at work on the cause, wake the home that owns them once the
-hold is older than `HOLD_MINUTES`, once for the hold, with the reason, the rows and how long they
-have been held. A thread is at work on the cause when it is a held row's crew or reviewer, or when
-the reason names its slug. A wait on the merge runner (`RUNNER`), a wait on a row ahead (`AHEAD`)
-whose pull request is open, since that row's own wait is what holds it, a hold that is the user's
-(a `wait` or `hold` on step `hold`, such as a queue row held for `check failed twice`, which
-`waiting.holds` lists from its first pass) and a wait with its own clock above are no such hold.
+holds on one reason, with no thread at work on the cause, wake the home that owns them once the hold
+is older than `HOLD_MINUTES`, once for the hold, with the reason, the rows and how long they have
+been held. A thread is at work on the cause when the reason's code is a crew's (`aged.BOUNDS`) and
+the thread is a held row's crew or reviewer, or the reason names its slug. A thread at work on a
+code a crew cannot clear, as a run GitHub keeps queued (`ready.NO_RUN`), is at work on something
+else, so it keeps no hold from waking the home. A wait on the merge runner (`RUNNER`), a wait on a
+row ahead (`AHEAD`) whose pull request is open, since that row's own wait is what holds it, a hold
+that is the user's (a `wait` or `hold` on step `hold`, such as a queue row held for `check failed
+twice`, which `waiting.holds` lists from its first pass) and a wait with its own clock above are no
+such hold.
 A required check with no run at the head (`ready.NO_RUN`) is no wait on the merge runner: no
 runner is at work on it, so it is a hold. One whose workflow GitHub runs there (`ready.LIVE_RUN`)
 is such a wait.
 A row ahead with no open pull request, closed with no merge or not opened yet, holds its rows
-with nothing watching it, so that wait is a hold. `held.json`
-keeps each hold, from the first pass that saw it with nobody at work: a pass with a thread at work
-on it, or in which no row waits on it, drops it, and the next one starts afresh. From the wake
-on, `waiting.keep` lists the hold on what waits on the user (`waiting.held`).
+with nothing watching it, so that wait is a hold. `held.json` keeps each hold, from the first pass
+that saw it with nobody at work on its cause: a pass with a thread at work on its cause, or in
+which no row waits on it, drops it, and the next one starts afresh. From the wake on,
+`waiting.keep` lists the hold on what waits on the user (`waiting.held`).
 
 Each hold in `held.json` names who owns it, `who`. It is `crew` where `expedite.tell` owns the wait
 of every row it holds: a row of `expedite.TABLE` that `tell` counts at the row's head and has not
 given to the user (`_tells_left`). It is `user` for the rest. A `crew` hold wakes the home
 only once `tell` has sent each row every message it owes at that head, two for a `proved-` or
 `checked-` wait, and the hold is older than `HOLD_MINUTES` with nobody at work on it after that.
+
+What a thread at work counts for reads the owner of the hold's code (`jbus.aged.BOUNDS`), and
+`jbus.aged` is the backstop that escalates a wait no step here moves.
 
 A `user` hold that a word of the user's lifts (`judgement.accepted`: `jmerge --accept`) names that
 word as its `lift`. Its crew had its turns and gave it to the user (`expedite.tell`), or no crew of
@@ -101,6 +107,7 @@ from jbriefs import below, findings, reviewers
 from jbriefs.home import home_of, thread_of
 from jbus import (
     END_TURN,
+    aged,
     crewthread,
     dispatch,
     expedite,
@@ -157,7 +164,7 @@ RESTART = (
 RESTARTS = 2
 """The restarts at one head a crew gets before its next idle spell goes to its home."""
 RESTARTED = "restart"
-HOLD_MINUTES = 30
+HOLD_MINUTES = aged.HOME_MINUTES
 """The minutes rows may be held by one reason with no thread at work on it before jbus wakes their
 home and lists the hold on what waits on the user."""
 HELD_FILE = "held.json"
@@ -180,16 +187,7 @@ and the one restart of a run GitHub kept queued at the head of the line, with th
 reopen `jmerge` tries again for `ready.RESTART_MINUTES`. A run still queued after that restart
 (`ready.QUEUED_GAVE_UP`), a restart that never took (`ready.QUEUED_UNRESTARTED`) and a reopen
 `jmerge` asks no more (`ready.QUEUED_UNREOPENED`) are holds: nothing at work moves them."""
-AHEAD = (
-    (ready.MERGES_AFTER, "slug"),
-    (ready.STACKED_ON, "slug"),
-    (ready.CARRIES_AFTER, "slug"),
-    (ready.MIGRATION_REBASING, "number"),
-    (ready.IN_LINE, "number"),
-)
-"""The waits on a row ahead, each with the field that names that row. While its pull request is
-open, what holds it is its own wait, which the merge runner, a thread, `held` or a clock above is
-on, so the rows behind it are no hold of their own."""
+AHEAD = aged.AHEAD
 HELD_HOME = (
     "jbus: {rows} of this home's have been held {minutes} minutes by one reason, {reason}, and "
     "no thread is at work on it. Nobody picks it up by itself: pick it up as the home skill's "
@@ -605,7 +603,8 @@ def held(
     busy = [one["slug"] for one in out if one.get("live") in AT_WORK and one.get("slug")]
     kept: dict[str, Any] = {}
     for key, group in groups.items():
-        if any(_on(slug, group["reason"], group["rows"]) for slug in busy):
+        crews = aged.bound(group["reason"]).owner == aged.CREW
+        if crews and any(_on(slug, group["reason"], group["rows"]) for slug in busy):
             continue
         hold = {"since": run.now.isoformat(), "woke": False} | was.get(key, {}) | group
         minutes = int((run.now - datetime.fromisoformat(hold["since"])).total_seconds() // 60)

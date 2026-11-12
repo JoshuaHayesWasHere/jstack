@@ -3,7 +3,7 @@
 # table), and `removed` the verb that writes it. A row that is over keeps its status (`work.kept`).
 # The line's value in work.json (`value`) is not drawn: each status node joins the values that give
 # it, as work.status projects them (running: working, opening, launching; stale: hung, lost;
-# left: leftover, closed; queued: unapproved, behind, ready, lost; launched: lost, unknown), and
+# left: leftover, closed; queued: unapproved, behind, ready; launched: lost, unknown), and
 # the value of a row that is over may say otherwise than its kept status, as a pull request that
 # opens on a done row shows `check`. The facts are joined too: a step names the one that changed.
 reader_actions = ["Grant", "Hold", "Lift", "Remove"]
@@ -13,7 +13,7 @@ STATUS = {
     "launched": "launched (a launch with no thread yet)",
     "running": "running (the thread at work, a Result or not, or its pull request opening)",
     "waiting": "waiting (the thread asks you)",
-    "stale": "stale (the thread ended with nothing written)",
+    "stale": "stale (the turn hung, or the thread ended or was settled with nothing written)",
     "failed": "failed (the thread failed)",
     "gate": "gate (a question is open)",
     "pr": "pr (its pull request is open)",
@@ -56,7 +56,8 @@ group_colors = {
     "Removed": "#e5e8e8",
 }
 
-# queue.MOVES, the change of facts that makes each move, in the words of the table.
+# queue.MOVES, the change of facts that makes each move, in the words of the table. A move not
+# named here is labelled by the fact that changed, as `step` says it.
 QUESTION_CLOSED = "the question closes, and the row's"
 MOVES = {
     ("queued", "launched"): "a launch record names a thread for the row",
@@ -77,7 +78,7 @@ MOVES = {
     ("running", "left"): "the Result leaves work, or the pull request closes",
     ("running", "done"): "the thread ends with a clean Result and no pull request",
     ("running", "waiting"): "the thread asks for an answer to its request",
-    ("running", "stale"): "the turn hangs, or the thread ends with nothing written",
+    ("running", "stale"): "the turn hangs, or the thread ends or is settled with nothing written",
     ("running", "failed"): "the thread fails",
     ("running", "merged"): "the pull request opens and merges between two passes",
     ("waiting", "running"): "the request is answered and the thread works again",

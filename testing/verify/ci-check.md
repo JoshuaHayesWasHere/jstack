@@ -1,6 +1,6 @@
 # The check CI runs
 
-On every pull request the check workflow's job `reuse` runs `scripts/select_tests.py --pull-request --parts 8 HEAD^1 HEAD` once, where an import reaches only the tests near the change, the job `lint` beside it runs the prose lint and `make lint`, and eight parts, `check 1 of 8` to `check 8 of 8`, each run `make test` on the test files it dealt them. On main it runs `make check`. Neither runs the tests marked `browser`, which `.github/workflows/browser.yml` runs as `make check-browser` nightly and on a release. `scripts/green_tree.py` skips the suite for a tree that already passed, and `scripts/select_tests.py` turns a diff into the test files it needs, from the imports of the tree and this map, and writes what it chose to the job summary.
+On every pull request the check workflow's job `reuse` runs `scripts/select_tests.py --parts 8 HEAD^1 HEAD` once, by the rule a push to main selects by, the job `lint` beside it runs the prose lint and `make lint`, and eight parts, `check 1 of 8` to `check 8 of 8`, each run `make test` on the test files it dealt them. On main it runs `make check`. Neither runs the tests marked `browser`, which `.github/workflows/browser.yml` runs as `make check-browser` nightly and on a release. `scripts/green_tree.py` skips the suite for a tree that already passed, and `scripts/select_tests.py` turns a diff into the test files it needs, from the imports of the tree and this map, and writes what it chose to the job summary.
 
 Paths:
 - `scripts/`

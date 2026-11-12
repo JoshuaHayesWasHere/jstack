@@ -1,6 +1,8 @@
 """The row's life as a TLA+ spec, `features/jbus/spec/RowLife.tla`: its table of moves is
 `queue.MOVES`, move for move, and TLC finds that a row that merged or is done never leaves, as the
-facts `work.status` reads change and `queue.derive` keeps a final status (`work.kept`).
+facts `work.status` reads change and `queue.derive` keeps a final status (`work.kept`), and that
+each move of the status is in the table (`MovesKnown`), so a pass marks `"legal": false` only a
+fault.
 The TLC runs skip where no Java runs TLC."""
 
 import importlib
@@ -80,8 +82,9 @@ def tlc(cfg: str) -> subprocess.CompletedProcess:
 
 
 @pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
-def test_tlc_finds_that_merged_and_done_never_leave():
-    """TLC checks the spec's own config, and every rule in it holds."""
+def test_tlc_finds_that_merged_and_done_never_leave_and_every_move_is_in_the_table():
+    """TLC checks the spec's own config, and every rule in it holds: `FinalStays` and
+    `MovesKnown`."""
     ran = tlc((SPEC / "RowLife.cfg").read_text())
     assert ran.returncode == 0, ran.stdout[-4000:]
     assert "No error has been found" in ran.stdout
@@ -92,7 +95,21 @@ def test_a_derive_that_writes_over_a_final_status_breaks_the_rule():
     """The canary: the spec with `work.kept` taken out of derive (`Fault = "no-latch"`) breaks
     `FinalStays`, so the facts can leave a final row, and the rule holds by the code's latch."""
     cfg = (SPEC / "RowLife.cfg").read_text().replace('Fault = "none"', 'Fault = "no-latch"')
+    cfg = cfg.replace("PROPERTY FinalStays MovesKnown", "PROPERTY FinalStays")
     assert 'Fault = "no-latch"' in cfg
     ran = tlc(cfg)
     assert ran.returncode != 0
     assert "FinalStays is violated" in ran.stdout, ran.stdout[-4000:]
+
+
+@pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
+def test_a_settled_thread_that_queues_its_row_again_makes_a_move_the_table_lacks():
+    """The canary: the spec with a settled thread's row `queued` again (`Fault = "settled-queued"`),
+    as `work._THREAD` had it, breaks `MovesKnown`, so the table holds every move by `work.status`
+    giving that row `stale`."""
+    cfg = (SPEC / "RowLife.cfg").read_text().replace('Fault = "none"', 'Fault = "settled-queued"')
+    assert 'Fault = "settled-queued"' in cfg
+    cfg = cfg.replace("PROPERTY FinalStays MovesKnown", "PROPERTY MovesKnown")
+    ran = tlc(cfg)
+    assert ran.returncode != 0
+    assert "MovesKnown is violated" in ran.stdout, ran.stdout[-4000:]
