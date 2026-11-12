@@ -443,7 +443,8 @@ def fake_gh(stub, args, cwd):
 
     `gh-down` is a GitHub that does not answer, and `gh-down-<checkout>` is one that does not answer
     for that one project. `gh-view-down` is one that does not answer a `pr view`, and
-    `gh-list-down` one that does not answer a `pr list`. Each of these
+    `gh-list-down` one that does not answer a `pr list`, and `gh-head-down` one that does not
+    answer a `pr list` of one branch (`--head`). Each of these
     files holds what `gh` says on stderr. `gh-code` is its exit code (1 when there is none), and
     `gh-out` is what it prints.
 
@@ -492,6 +493,8 @@ def fake_gh(stub, args, cwd):
         down.append(stub / "gh-view-down")
     if args[:2] == ["pr", "list"]:
         down.append(stub / "gh-list-down")
+        if "--head" in args:
+            down.append(stub / "gh-head-down")
     for failing in down:
         if failing.exists():
             code = (stub / "gh-code").read_text() if (stub / "gh-code").exists() else "1"

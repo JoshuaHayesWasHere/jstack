@@ -240,13 +240,16 @@ def test_a_named_revert_waits_while_github_does_not_answer_and_is_kept_once_it_d
     (opened,) = json.loads((kitchen.stub / "open.json").read_text())
     kitchen.set("open.json", [{**opened, "old": True}])
     green_fix(kitchen)
-    kitchen.set("gh-list-down", "gh: Bad Gateway")
+    kitchen.set("gh-head-down", "gh: Bad Gateway")
     kitchen.set("gh-code", code)
     kitchen.set("gh-out", out)
+    ask = "pr list --state open --head revert-7-alpha"
+    before = len(asked(kitchen, ask))
     kitchen.poll(NOW + timedelta(minutes=30))
+    assert len(asked(kitchen, ask)) > before
     assert kept.read(kitchen.state) == {}
     assert list(json.loads((kitchen.state / reverts.OPENING).read_text())) == [red]
-    (kitchen.stub / "gh-list-down").unlink()
+    (kitchen.stub / "gh-head-down").unlink()
     kitchen.poll(NOW + timedelta(minutes=33))
     assert len(said(kitchen, "alpha")) == 1
     assert json.loads((kitchen.state / reverts.OPENING).read_text()) == {}
