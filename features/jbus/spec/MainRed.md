@@ -39,10 +39,10 @@ It also checks that the spec states each property `features/jbus/tests/main_red_
 ## Check the rules of main's red
 
 The command below is the brief's check.
-Run it from this folder, with the pinned jar copied in:
+Run it in a copy of the folder, since TLC writes `states/` where it runs:
 
 ```sh
-cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar . && java -cp tla2tools.jar tlc2.TLC -config MainRed.cfg MainRed.tla; rm -rf tla2tools.jar states
+java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -config MainRed.cfg MainRed.tla
 ```
 
 It exits 0: every rule holds over 147,834 distinct states (MaxTips 4), in a few seconds.
