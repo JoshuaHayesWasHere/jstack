@@ -29,7 +29,7 @@ The scene `a` is child a alone with both its calls and a home thread that can fa
 The scene `siblings` is both children, with no calls of their own and a home thread that never fails.
 One call never waits on another, and what the siblings share is main, the merge lock and the home thread, so the siblings' scene checks what they share.
 Of the properties, only `ReadyMerges` reads what the siblings share, so their scene checks it and every invariant: they raise no call and their notices never wait on the home thread, one pass works out each child's watch from that child alone, and the scenes `a` and `b` check the other properties for each child.
-The catch-all's thread shares nothing with what the siblings share, so in their scene it moves only before the root makes a child (`CatchallFirst`), and the scenes `a` and `b` check it beside every step of a child.
+The catch-all's thread shares nothing with what the siblings share, so in their scene it moves only before the root makes a child (`CatchallFirst`), and the runs of every invariant in the scenes `a` and `b` check it beside every step of a child: a run of a property has it move first in every scene, as below.
 The failed route, `RouteFails` and `RouteMends`, steps only where `MayFail` is `TRUE`, which is the scenes `a` and `b` of `canaries.py` and not `HomeTreeToday.cfg`.
 The canary `keep-on-fail` breaks `CallsReachJosh` in scene `a` only after a post to the home thread fails, so it shows the failed route steps there.
 The run of every invariant checks `SceneStill` on the whole model: no child, call or notice outside the scene ever leaves its start.

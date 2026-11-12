@@ -28,7 +28,7 @@ tools = importlib.import_module("statechart.tools")
 # thread may fail, and whether the catch-all's thread moves only before the root makes a child.
 # Two siblings that both raise calls are too many states for one run. The catch-all's thread
 # shares nothing with what the siblings share, so their scene keeps it out of their steps, and
-# the scenes a and b check it beside every step of a child.
+# the runs of every invariant in the scenes a and b check it beside every step of a child.
 SCENES = {
     "a": ('{"a"}', '{"a1", "a2"}', "TRUE", "FALSE"),
     "b": ('{"b"}', '{"b1", "b2"}', "TRUE", "FALSE"),
