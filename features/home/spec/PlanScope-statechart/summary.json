@@ -1,15 +1,15 @@
 {
   "view": "customer",
-  "modelStates": 1215,
-  "modelTransitions": 4131,
-  "chartStates": 79,
-  "chartTransitions": 119,
-  "allTransitions": 199,
+  "modelStates": 1443,
+  "modelTransitions": 5258,
+  "chartStates": 75,
+  "chartTransitions": 113,
+  "allTransitions": 213,
   "final": [],
   "chartStatus": {
-    "works": 70,
+    "works": 69,
     "fixed": 0,
-    "wrong": 9
+    "wrong": 6
   },
   "chartGroups": [
     {
@@ -20,12 +20,12 @@
     {
       "name": "Archiving",
       "color": "#fdebd0",
-      "states": 5
+      "states": 6
     },
     {
       "name": "Archived, still clearing",
       "color": "#fadbd8",
-      "states": 2
+      "states": 9
     },
     {
       "name": "Retired",
@@ -42,14 +42,14 @@
   "regions": {
     "drawn": true,
     "states": [
-      10,
-      69
+      12,
+      63
     ],
-    "transitions": 119,
-    "all": 199,
+    "transitions": 113,
+    "all": 213,
     "flat": {
-      "states": 395,
-      "transitions": 1219
+      "states": 428,
+      "transitions": 1441
     }
   },
   "classes": [
@@ -61,29 +61,18 @@
       "cause": "jbus queue move rewrote the fix's Home: line and died before blockers.rehome carried its try, which only a move run again carries",
       "readerSteps": 3,
       "modelSteps": 4,
-      "counterexamples": 72,
-      "fix": null
-    },
-    {
-      "n": 2,
-      "end": "Scope s's plan archived, its home-id still there: the entry proposed or planned (in plan-archived.md); the fix counted in s, not where its home reads it",
-      "invariant": "FixCountedWhereRead",
-      "rule": "A counted fix is in the ledger admit reads for it, the one of its brief's home, once no move runs. (A rule this model adds to the brief's three: today's code breaks it.)",
-      "cause": "the archive moved plan.md aside, so the fix's brief is the catch-all's, but no step moves blockers.json: the try stays in s's ledger, which admit no longer reads",
-      "readerSteps": 7,
-      "modelSteps": 8,
-      "counterexamples": 36,
+      "counterexamples": 84,
       "fix": null
     }
   ],
   "codeLike": [],
   "drawnFrom": {
-    "command": "statechart from-spec PlanScope.tla --config PlanScope.chart.cfg --title 'A plan entry and a scope'\"'\"'s retire: is any work lost?' --expect-broken FixCountedWhereRead",
+    "command": "statechart from-spec PlanScope.tla --config PlanScope.chart.cfg --title 'A plan entry and a scope'\"'\"'s retire: is any work lost?' --expect-broken FixCountedWhereRead --png",
     "inputs": {
-      "PlanScope.chart.cfg": "8a811a11d7b1332da55b3ee92f42995ceef21da92b7919fec08b3314069ef380",
-      "PlanScope.map.py": "e99abd7fde0acc9d92bac3360156fff62ed061fce6e53ff65888a50beb545411",
-      "PlanScope.tla": "4fd62773f00d9f861b651cdd24e6650cc5d2a08a6462d3e88151d487ffac76c4"
+      "PlanScope.chart.cfg": "8b65c7cc82241bd7b83ce6fdfe7aef7e517e32901a560babb021ab6cd7b2f80c",
+      "PlanScope.map.py": "48827a4a1190748e04c82b56cf118c02eaa20e8ebaf907ef1cee73fe8b630f68",
+      "PlanScope.tla": "0c2cc41da896a0ff9f6d6c3de4cb8467c14703aea53177aeb032379082a24aca"
     },
-    "chart": "b92f44406275ac45041a1a12ff85c8c251b63dadbc0767c09d42706d465d3655"
+    "chart": "cb2be0b6d25fc3e77fef1dfff139b98c16514d9564f6e4020b90990066656b9e"
   }
 }

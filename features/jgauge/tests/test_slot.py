@@ -33,7 +33,7 @@ def slots(tmp_path):
     tmpfs.mkdir()
     proc = fake_proc(tmp_path / "proc", 24, 62)
     env = {**os.environ, "HOME": str(home), "D": str(state), "PROC": str(proc), "TMPFS": str(tmpfs)}
-    for name in ("TEST_SLOTS", "XDG_CONFIG_HOME", "JGAUGE_TEST_SLOT"):
+    for name in ("TEST_SLOTS", "XDG_CONFIG_HOME", "JGAUGE_TEST_SLOT", "JGAUGE_LOCKS_DIR"):
         env.pop(name, None)
     going, taken = [], []
 
@@ -297,7 +297,9 @@ def test_a_short_job_past_its_limit_is_stopped_and_says_so(slots, tmp_path):
         "import sys; from jgauge import cli, slot; slot.SHORT_LIMIT_SECONDS = 0.5;"
         " sys.exit(cli.main(sys.argv[1:]))"
     )
-    env = {**os.environ, "HOME": str(tmp_path / "home"), "D": str(tmp_path)}
+    home = tmp_path / "home"
+    env = {**os.environ, "HOME": str(home), "D": str(tmp_path)}
+    env["JGAUGE_LOCKS_DIR"] = str(home / ".local" / "state" / "locks")
     began = time.monotonic()
     ran = subprocess.run(
         [sys.executable, "-c", limited, "test-slot", "--short", "--"]
@@ -339,7 +341,9 @@ def test_a_short_job_stopped_at_its_limit_takes_what_it_started_with_it(tmp_path
         " slot.STOP_GRACE_SECONDS = 0.5; sys.exit(cli.main(sys.argv[1:]))"
     )
     started = 'sh -c "trap \\"\\" TERM; echo \\$\\$ > \\"$D/pid\\"; exec sleep 30" & wait'
-    env = {**os.environ, "HOME": str(tmp_path / "home"), "D": str(tmp_path)}
+    home = tmp_path / "home"
+    env = {**os.environ, "HOME": str(home), "D": str(tmp_path)}
+    env["JGAUGE_LOCKS_DIR"] = str(home / ".local" / "state" / "locks")
     ran = subprocess.run(
         [sys.executable, "-c", limited, "test-slot", "--short", "--", "sh", "-c", started],
         env=env,
@@ -391,7 +395,9 @@ def test_a_short_job_whose_group_is_left_with_a_zombie_still_stops_and_says_so(t
         "import sys; from jgauge import cli, slot; slot.SHORT_LIMIT_SECONDS = 0.5;"
         " sys.exit(cli.main(sys.argv[1:]))"
     )
-    env = {**os.environ, "HOME": str(tmp_path / "home"), "D": str(tmp_path)}
+    home = tmp_path / "home"
+    env = {**os.environ, "HOME": str(home), "D": str(tmp_path)}
+    env["JGAUGE_LOCKS_DIR"] = str(home / ".local" / "state" / "locks")
     try:
         ran = subprocess.run(
             [sys.executable, "-c", limited, "test-slot", "--short", "--"]
@@ -600,11 +606,12 @@ def test_a_run_with_a_thread_is_its_threads_holder_until_it_ends(slots):
     assert not holders.running(over) and holders.holding(slots.locks) == []
 
 
-def test_the_holder_names_the_pid_of_its_command(slots):
-    slots("--short", "--thread", THREAD, command=["sh", "-c", 'echo $$ > "$D/pid"; sleep 5'])
+def test_the_holder_names_the_pid_of_its_command_and_of_its_test_slot(slots):
+    run = slots("--short", "--thread", THREAD, command=["sh", "-c", 'echo $$ > "$D/pid"; sleep 5'])
     assert slots.waits(lambda: (slots.state / "pid").exists() and held(slots))
     (one,) = held(slots)
     assert one.lane == "short" and one.pid == int((slots.state / "pid").read_text())
+    assert one.keeper == run.pid
 
 
 def test_a_run_killed_by_sigterm_drops_its_holder_record(slots):
@@ -625,9 +632,18 @@ def test_a_run_with_no_thread_is_nobodys_holder(slots):
 def test_a_holder_whose_pid_is_gone_is_not_counted(tmp_path):
     gone = subprocess.Popen(["true"])
     gone.wait()
-    holders.hold(tmp_path, THREAD, "full", gone.pid, ["make", "check"], NOW)
+    holders.hold(tmp_path, THREAD, "full", gone.pid, ["make", "check"], NOW, keeper=gone.pid)
     (one,) = holders.read(tmp_path)
     assert not holders.running(one) and holders.holding(tmp_path) == []
+
+
+def test_a_holder_whose_command_is_gone_holds_its_slot_while_its_test_slot_lives(tmp_path):
+    """Once its command ends, `jgauge test-slot`, here this process, has yet to record the end."""
+    gone = subprocess.Popen(["true"])
+    gone.wait()
+    holders.hold(tmp_path, THREAD, "full", gone.pid, ["make", "check"], NOW)
+    (one,) = holders.read(tmp_path)
+    assert one.keeper == os.getpid() and holders.running(one)
 
 
 def slot_log(slots):

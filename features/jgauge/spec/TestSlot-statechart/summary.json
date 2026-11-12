@@ -1,16 +1,16 @@
 {
   "view": "customer",
-  "modelStates": 104116,
-  "modelTransitions": 309101,
-  "chartStates": 28,
-  "chartTransitions": 32,
-  "allTransitions": 1981,
+  "modelStates": 101086,
+  "modelTransitions": 298590,
+  "chartStates": 24,
+  "chartTransitions": 26,
+  "allTransitions": 1928,
   "final": [
     "Review pool: no wait on file, the crew's second wait"
   ],
   "chartStatus": {
-    "works": 18,
-    "wrong": 10,
+    "works": 15,
+    "wrong": 9,
     "fixed": 0
   },
   "chartGroups": [
@@ -22,7 +22,7 @@
     {
       "name": "Short lane",
       "color": "#d1f2eb",
-      "states": 6
+      "states": 2
     },
     {
       "name": "Usage ledger",
@@ -38,7 +38,7 @@
   "mixedGroups": [],
   "regions": {
     "drawn": false,
-    "why": "721 region states are not fewer than the 719 flat states"
+    "why": "708 region states are not fewer than the 706 flat states"
   },
   "classes": [
     {
@@ -54,17 +54,6 @@
     },
     {
       "n": 2,
-      "end": "Short lane: the slot held by a crew's run, its run's end written after jbus forgot it",
-      "invariant": "EndNotLost",
-      "rule": "EndNotLost: a run whose `jgauge test-slot` lives to its end has that end on file for jbus to tell its thread, so a thread that ended its turn on \"my run holds a slot\" is woken.",
-      "cause": "jbus forgot a run whose command had ended before test-slot wrote its end, so the end has no one to tell",
-      "readerSteps": 7,
-      "modelSteps": 17,
-      "counterexamples": 30,
-      "fix": null
-    },
-    {
-      "n": 3,
       "end": "Full lane: the slot held by a desk's run, the crew is woken, its claim holds, the woken crew found its slot taken",
       "invariant": "WokenGetsSlot",
       "rule": "WokenGetsSlot: a woken waiter gets the slot or its claim lapses at HOLDS. A crew jbus woke, that runs its command again while the wake's claim holds, finds its slot free.",
@@ -77,12 +66,12 @@
   ],
   "codeLike": [],
   "drawnFrom": {
-    "command": "statechart from-spec TestSlot.tla --config TestSlot.chart.cfg --title 'Who holds a test slot, who waits on one, and what the ledger keeps?' --expect-broken LedgerNoLostUpdate,WokenGetsSlot,EndNotLost --png",
+    "command": "statechart from-spec TestSlot.tla --config TestSlot.chart.cfg --title 'Who holds a test slot, who waits on one, and what the ledger keeps?' --expect-broken LedgerNoLostUpdate,WokenGetsSlot",
     "inputs": {
       "TestSlot.chart.cfg": "3ff159a439518f9a7f4e451a979e922326a5cc2a58e81902efbd3c690ed7a504",
       "TestSlot.map.py": "ec66d90505b6117e6d3844379edadb3a46aa56013ae698c1aac440b3befa66f7",
-      "TestSlot.tla": "06d112e35cd8ea7b01d46fc64a6a94a9b971b452e00778db8c4f804c87848045"
+      "TestSlot.tla": "da64bba58cb458d31e084adb60b2fc199c7f9a4e1a7552a1c33623968fb8bfe0"
     },
-    "chart": "dee5e69e2a76c362bb514b224d10a818ab54837b7c799cc5051f7ae70694f413"
+    "chart": "59c91b0504c81f1e8579ae559bb43c366609f768dfb831594394c489c7c66653"
   }
 }

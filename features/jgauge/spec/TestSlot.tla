@@ -23,16 +23,15 @@
 \* by id, so the "full" and "short" rooms each check their own entries.
 \*
 \* Fault = "today" is the code as it is: slotwait.wake counts `spare` outside the waiters lock
-\* and records the wake after its send, slotwait.wake_ended forgets a holder with no end whose
-\* pid is gone while its `jgauge test-slot` still lives to write the end, and the ledger's
-\* writers read, merge and replace it with no lock. A command ends with the `jgauge test-slot`
-\* that holds its slot today too. Fault = "none" is the mode that passes:
-\* the wake is counted and recorded under one hold of the waiters lock before the send, a holder
-\* with no end is forgotten only once its `jgauge test-slot` is gone too, and the ledger is read
-\* and written under a lock, and a command ends with the `jgauge test-slot` that holds its slot.
-\* The canaries "spare-outside-lock", "forget-unended" and "no-ledger-lock" each put one of
-\* today's three faults back into the mode that passes, and "orphan-command" puts back the one
-\* that is closed: a command that lives on after its `jgauge test-slot` died.
+\* and records the wake after its send, and the ledger's writers read, merge and replace it with
+\* no lock. A holder with no end is forgotten only once its `jgauge test-slot` is gone too, and a
+\* command ends with the `jgauge test-slot` that holds its slot. Fault = "none" is the mode that
+\* passes: the wake is counted and recorded under one hold of the waiters lock before the send,
+\* and the ledger is read and written under a lock.
+\* The canaries "spare-outside-lock" and "no-ledger-lock" each put one of today's two faults
+\* back into the mode that passes, and "forget-unended" and "orphan-command" put back the ones
+\* that are closed: a holder with no end forgotten while its `jgauge test-slot` lives to write
+\* the end, and a command that lives on after its `jgauge test-slot` died.
 \* PidReuse lets another process take the pid of a holder's dead command. Mortal is the set of
 \* the processes that can be killed: TestSlot.cfg has every one, "bus" for jbus's slot pass,
 \* "writers" for the ledger's writers and "pool" for the pool's crew and jbus; the chart's
@@ -50,7 +49,7 @@ FullSlots == 1..1
 ShortSlots == 1..1
 Writers == {"limits", "hook", "jbus"}
 WaitIds == {1, 2}
-TodayFaults == {"spare-outside-lock", "forget-unended", "no-ledger-lock"}
+TodayFaults == {"spare-outside-lock", "no-ledger-lock"}
 Has(f) == Fault = f \/ (Fault = "today" /\ f \in TodayFaults)
 
 VARIABLES
@@ -225,8 +224,10 @@ Holding == "crew" \in waiters /\ woken = "holds"
 \* jgauge/waiters.py `return sum(one.lane == lane and one.thread != but and holding(one, now)
 \* for one in held)`
 Claims(but) == IF Holding /\ but /= "crew" THEN 1 ELSE 0
-\* jgauge/holders.py `if one.ended:` and jgauge/holders.py `os.kill(one.pid, 0)`: a holder runs
-\* while its end is not on record and a process has its pid.
+\* jgauge/holders.py `return not one.ended and (_alive(one.pid) or _alive(one.keeper))` and
+\* jgauge/holders.py `os.kill(pid, 0)`: a holder runs while its end is not on record and a
+\* process has its command's pid, or its `jgauge test-slot`'s. Running is the command's half,
+\* which NoLostHolder judges; the `jgauge test-slot`'s half is Over's `pc[p] = "off"`.
 Running(p) == p \in holders /\ p \notin ended /\ (child[p] = "alive" \/ p \in reused)
 \* The steps of a call during which `jgauge test-slot` holds its slot.
 \* The processes whose run goes on the holders file: a call with --thread.
@@ -581,9 +582,9 @@ EndedRead ==
   /\ UNCHANGED <<BusFrame, waiters, woken, waitersLock, holdersLock, waitId, wsnap>>
 
 \* jbus/slotwait.py `if told or (not one.ended and not holders.running(one)):` with `one` as
-\* read: an ended run is told (or owed nothing) and goes, and a run with no end on record
-\* whose pid is gone goes too, also where its `jgauge test-slot` still lives to write the end.
-\* The mode that passes lets such a run go only once its `jgauge test-slot` is gone too.
+\* read: an ended run is told (or owed nothing) and goes, and a run with no end on record goes
+\* once its command's pid and its `jgauge test-slot`'s, `one.keeper`, are both gone.
+\* The canary "forget-unended" lets it go while its `jgauge test-slot` still lives to write the end.
 Over == {p \in hsnap.in :
            \/ p \in hsnap.ended
            \/ /\ p \notin hsnap.ended /\ child[p] /= "alive" /\ p \notin reused

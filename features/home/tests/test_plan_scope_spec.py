@@ -169,12 +169,30 @@ def test_a_move_cut_before_its_carry_leaves_the_fix_where_its_home_does_not_read
 
 
 @JAVA
+def test_the_archive_before_jbus_retire_strands_a_fix_admitted_in_the_scope():
+    """The story the brief found: a fix admitted in s, then the plan archived with no carry."""
+    code, out = tlc("FixCountedWhereReadOrMoveAgain", "retire-no-carry")
+    assert code != 0
+    found = steps(out)
+    assert found.index("Admit") < found.index("ArchivePlan") == len(found) - 1, found
+
+
+@JAVA
 @pytest.mark.parametrize(
-    ("fault", "rule"), [("close-twice", "EntryOnce"), ("move-one-lock", "FixCountedOnce")]
+    ("fault", "rule"),
+    [
+        ("close-twice", "EntryOnce"),
+        ("move-one-lock", "FixCountedOnce"),
+        ("retire-no-carry", "FixCountedWhereReadOrMoveAgain"),
+        ("carry-then-unlock", "FixCountedWhereReadOrMoveAgain"),
+    ],
 )
 def test_each_canary_breaks_its_rule(fault, rule):
     """`close-twice` appends again after a close cut short; `move-one-lock` takes only the lock
-    of the ledger it carries to, so a fix admit counts in the other is lost."""
+    of the ledger it carries to, so a fix admit counts in the other is lost; `retire-no-carry`
+    archives the plan and leaves the scope's tries behind, as the archive did before `jbus
+    retire`; `carry-then-unlock` lets a fix be counted in the scope between the carry and the
+    archive, where no step carries it."""
     code, out = tlc(rule, fault)
     assert code != 0
     assert f"Invariant {rule} is violated" in out, out[-4000:]

@@ -198,9 +198,22 @@ def in_test_slot(command):
     """`command` under one of jgauge's machine-wide test slots, so only so many TLC runs go at
     once. A run in a slot already held, a suite's under `jgauge test-slot`, which sets
     JGAUGE_TEST_SLOT, takes no second one, and cannot wait on its own. Where there is no jgauge,
-    as where the skill is installed alone, the command runs as it is."""
+    as where the skill is installed alone, the command runs as it is.
+
+    A pytest run points `JGAUGE_LOCKS_DIR` at lock files of its own, `JGAUGE_RUN_LOCKS_DIR`
+    (testing/jstack_fixtures.py). A TLC run a test starts there still takes one of the
+    machine's slots: the slot's call names the machine's lock files, `JGAUGE_MACHINE_LOCKS_DIR`,
+    and is no test, so jgauge does not refuse them. A test that sets lock files of its own keeps
+    them."""
     jgauge = None if os.environ.get("JGAUGE_TEST_SLOT") else shutil.which("jgauge")
-    return [jgauge, "test-slot", "--", *command] if jgauge else command
+    if not jgauge:
+        return command
+    held = [jgauge, "test-slot", "--", *command]
+    run = os.environ.get("JGAUGE_RUN_LOCKS_DIR")
+    if not run or os.environ.get("JGAUGE_LOCKS_DIR", run) != run:
+        return held
+    machine = os.environ["JGAUGE_MACHINE_LOCKS_DIR"]
+    return [shutil.which("env"), "-u", "PYTEST_CURRENT_TEST", f"JGAUGE_LOCKS_DIR={machine}", *held]
 
 
 def rerun_in_test_slot():
