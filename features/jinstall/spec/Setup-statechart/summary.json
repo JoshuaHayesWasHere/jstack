@@ -11,7 +11,13 @@
     "fixed": 0,
     "wrong": 0
   },
-  "chartGroups": [],
+  "chartGroups": [
+    {
+      "name": "Installed",
+      "color": "#d5f5e3",
+      "states": 1
+    }
+  ],
   "mixedGroups": [],
   "regions": {
     "drawn": true,
@@ -32,9 +38,9 @@
     "command": "statechart from-spec Setup.tla --config Setup.chart.cfg --title 'Does an uninstall or an expert'\"'\"'s takeover leave anything behind?'",
     "inputs": {
       "Setup.chart.cfg": "82184ec43abcd894a521d66e4615837a8661c1e90eee0806b14b6547a7565dfd",
-      "Setup.map.py": "48ea7fe0b24ca970d9398e2e56006e070aa4835ff4147a052f6cb7da54a4bf6f",
+      "Setup.map.py": "1bab336da5c080a588e5549845a9071ab62868f9de25cf0046734f5ad818b457",
       "Setup.tla": "960af2a253312c6208a5fdcfa60bde3717d75488cae7413a5ce4a500c37fa5e9"
     },
-    "chart": "785e8d36e5792835be1083a685d47e8791c52269bebeebf38f00f34b25796ebd"
+    "chart": "9cfbe34be91fa0f621d361279083471997f379a156258705580df5b9d6e0a7ee"
   }
 }

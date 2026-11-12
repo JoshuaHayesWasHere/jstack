@@ -7,6 +7,11 @@ config:
 ---
 stateDiagram-v2
   classDef plain fill:#f4f6f7,stroke:#566573,color:#1b2631
+  classDef group0 fill:#d5f5e3,stroke:#6b7b72,color:#1b2631
+  state "Legend" as legend {
+    state "Installed" as legendGroup0
+  }
+  class legendGroup0 group0
   state "At the same time" as regions {
     state "What an uninstall would<br/>leave" as region0 {
       [*] --> r0s2
@@ -75,7 +80,7 @@ stateDiagram-v2
       r1s18 --> r1s12 : you start the expert in thread<br/>2
     }
   }
-  class r0s0 plain
+  class r0s0 group0
   class r0s1 plain
   class r0s2 plain
   class r1s0 plain

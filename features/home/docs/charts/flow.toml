@@ -159,9 +159,9 @@ to = "TestSlot: Review pool"
 says = "Where the review pool is capped, the crew waits, and jbus wakes it once the pool frees."
 
 [[handoff]]
-from = "Setup: Leaves something behind"
+from = "Setup: Installed"
 to = "GreenMove: Settled"
-says = "install.sh makes the green copy and puts its units to work, and jbus's passes move it from there. Today such an install leaves its state folders out of the record uninstall reads."
+says = "install.sh makes the green copy and puts its units to work, and jbus's passes move it from there. Each folder such an install makes is in the record uninstall reads."
 
 [[handoff]]
 from = "GhBudget: A pass held"

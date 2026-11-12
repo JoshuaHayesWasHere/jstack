@@ -109,10 +109,14 @@ region_names = ["What an uninstall would leave", "The expert's webhook"]
 
 
 def group(v, facts):
-    return "Leaves something behind" if left(v) else None
+    if left(v):
+        return "Leaves something behind"
+    if v["op"] == "none" and v["disk"]:
+        return "Installed"
+    return None
 
 
-group_colors = {"Leaves something behind": "#fdebd0"}
+group_colors = {"Leaves something behind": "#fdebd0", "Installed": "#d5f5e3"}
 
 MAKES = {
     "dir": "the install makes a folder",
