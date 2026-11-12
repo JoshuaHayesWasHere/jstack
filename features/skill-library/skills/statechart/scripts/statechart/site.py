@@ -1169,7 +1169,6 @@ def page(charts, out_dir, flow):
             f'<span class="tab-name">{esc(chart.name)}</span>'
             f'<span class="tab-q">{esc(chart.question)}</span></button>'
         )
-        png = os.path.relpath(chart.folder / "chart.png", out_dir)
         spec = os.path.relpath(chart.folder.parent / "README.md", out_dir)
         named = [f"<em>{esc(r.name)}</em>" for r in chart.regions if r.name]
         at_once = (
@@ -1195,7 +1194,8 @@ def page(charts, out_dir, flow):
             f"<h2>{esc(chart.question)}</h2>"
             f'<p class="sub">{sizes}{at_once}{model_note}'
             f' Spec: <a href="{esc(spec)}">README</a> &middot;'
-            f' <a href="{esc(png)}">chart.png</a></p>{covers}</header>'
+            f' <a href="{esc(chart.name)}.png">PNG</a> &middot;'
+            f' <a href="{esc(chart.name)}.excalidraw">Excalidraw</a></p>{covers}</header>'
             f"{parts[chart.name]}"
             '<div class="stage"><div class="viewport" tabindex="0"'
             ' aria-label="chart, drag or scroll to move, pinch or ctrl and scroll to zoom">'
@@ -1249,15 +1249,6 @@ def read_all(root, flow):
         except ChartError as e:
             raise ChartError(f"{path.relative_to(root)}: {e}") from e
     return root, charts
-
-
-def render(root, out, flow=None):
-    """The page the charts under `root` and the map in `flow` make, for a page written at
-    `out`."""
-    flow = load_flow(flow)
-    root, charts = read_all(root, flow)
-    check_uncharted(root, charts, flow)
-    return page(charts, Path(out).resolve().parent, flow)
 
 
 def build(root, out, flow=None):

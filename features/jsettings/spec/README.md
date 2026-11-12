@@ -47,7 +47,7 @@ The code the model was first drawn from broke both rules, and today's code break
    Its own calls and another pass's take the budget to the floor, and the pass goes on calling.
    A per-call gate would not close it either: the reading is the log, and the log has a call's `remaining` only once the call has ended.
 
-The chart's story (`GhBudget-statechart/stories.md`, `bug-1.png`) tells the call at the floor in the user's words; the chart is drawn on today's code, so the lost log is in none of its states.
+The chart's story (`GhBudget-statechart/stories.md`, `bug-1.mmd`) tells the call at the floor in the user's words; the chart is drawn on today's code, so the lost log is in none of its states.
 
 Read off the model, not checked by TLC: `budget._lowest` reads only `gh-calls.jsonl`, so right after a rotation the last minute's lines are in the old log, which `logged` does not read, and for up to `WITHIN` seconds the reading can come from the kept answer, which may be higher.
 
@@ -58,7 +58,7 @@ S=features/skill-library/skills/statechart/scripts
 cd features/jsettings/spec
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
     statechart from-spec GhBudget.tla --expect-broken HeldWhenLow \
-    --title "Does the gh budget hold, and does the call log keep each full log?" --png
+    --title "Does the gh budget hold, and does the call log keep each full log?"
 ```
 
 It writes `GhBudget-statechart/`, labelled by `GhBudget.map.py`, which reads the floor and `KEPT` from `GhBudget.cfg`.
