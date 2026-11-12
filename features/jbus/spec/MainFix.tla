@@ -4,7 +4,7 @@
 \* takes jbus.reverts.revert and watch._file as one step each; here each write is its own step,
 \* and a pass can die between any two of them (a timeout, a reboot, an OOM kill): the disk and
 \* GitHub keep what was written, and the next pass starts at the top.
-\* One pass, in the order of its slots (poll.py `steps(half, "tellers")`, then
+\* One pass, in the order of its slots (jbus/poll.py `steps(half, "tellers")`, then
 \* `steps(half, "after-expedite")`): watch.watch (tellers, 40), which reads each nightly in the
 \* order watched gives, browser.yml, macos-nightly.yml, then each other scheduled workflow; then
 \* reverts.macos (after-expedite, 9) and culprits.judge (after-expedite, 12).
