@@ -18,9 +18,11 @@ import test_pr_review_skill as reviews
 from jbus import rebase
 from test_home_merge import FENCED, git, review
 from test_home_thread import as_read
+from test_pr_review_skill import reviewer
 from testing.layouts import assembled
 
 SKILL = reviews.SKILL
+__all__ = ["reviewer"]
 
 
 SECTION = as_read(SKILL).split("\n### A scoped pass\n")[-1].split("\n## ")[0]
@@ -112,6 +114,41 @@ def test_a_head_that_moved_since_jbus_asked_stops_the_pass(tmp_path):
     assert scoped(branch.main, old, new) == [
         f"stop: this worktree is at {pushed}, and the scoped pass is of {branch.head}"
     ]
+
+
+def test_a_stopped_scoped_pass_is_told_to_write_the_section_a_stop_gives(tmp_path, reviewer):
+    """A scoped reviewer that read only step 1, as #1710's and #1708's did, ended on its "no
+    section" and left its seat open and the brief `reviewing` for hours. Its stop line sends it
+    to "A stop", no line of the skill tells it to write none, and that block writes the section."""
+    (said,) = [line for line in SECTION.splitlines() if line.strip().startswith("On `stop`")][:1]
+    assert 'write the section "A stop" says' in said
+    whole = as_read(SKILL).splitlines()
+    assert [
+        line
+        for line in whole
+        if all(word in line for word in ("stop", "scoped pass", "no section"))
+    ] == []
+    assert "no section" not in said
+    (tmp_path / "repo").mkdir()
+    branch = rebases.Branch(tmp_path / "repo")
+    branch.theirs({11: "theirs 11"})
+    verdict = branch.rebase({11: "the task 11, and theirs"})
+    git(branch.main, "checkout", "-q", "alpha")
+    rebases.commit(branch.main, "one more", {30: "one more"})
+    _, _, old, new = asked(7, verdict.command).groups()
+    (stop,) = scoped(branch.main, old, new)
+    fill = {
+        "<the head the review was to be of>": new.split("..")[1],
+        "<the stop line the step printed>": stop,
+        "<the By: line Start printed>": "By: inherit #1",
+        "scope=''": f"scope='Scope: range-diff {old} {new}'",
+    }
+    assert reviewer.output("### A stop", fill=fill) == [
+        f"written: ## Review with Verdict: not run, in {reviewer.brief}"
+    ]
+    written = reviewer.brief.read_text().split("\n## Review\n")[-1]
+    assert f"Scope: range-diff {old} {new}\n" in written
+    assert f"Head: {branch.head}   Unchanged by the review: not checked" in written
 
 
 def test_ranges_git_cannot_compare_stop_the_pass(tmp_path):
