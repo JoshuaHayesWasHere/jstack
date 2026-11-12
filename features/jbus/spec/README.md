@@ -20,7 +20,8 @@ The rule is `FinalStays`: a row that is over stays over, so the queue, `watch.fi
 A `done` row may only become `merged`, and a `merged` one stays so.
 The facts can still leave a final row: a pull request opens after a `done`, or a question opens on a `merged` row.
 The rule holds because `queue.derive` keeps the status (`work.kept`), and so checks the code's derive and not only the table.
-`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where the rule holds over 2450 distinct states, and on a canary that takes `work.kept` out (`Fault = "no-latch"`), where it breaks.
+The second rule is `MovesKnown`: each move of the status is in `Moves`, so the table is the one `work.status` makes, and a pass marks `"legal": false` only on a fault the model leaves out (a pull request read in neither of GitHub's lists, a row with no launch record, a `Branch:` line that loses the address of a closed pull request), each of which `test_jbus_queue_moves.py` names.
+`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where both rules hold over 2445 distinct states, on a canary that takes `work.kept` out (`Fault = "no-latch"`), where `FinalStays` breaks, and on one that gives a settled thread's row `queued` again (`Fault = "settled-queued"`), where `MovesKnown` breaks.
 Its TLC runs skip where no Java runs TLC.
 By hand, in a copy of this folder:
 
@@ -40,7 +41,7 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --p
 
 It writes `RowLife-statechart/`: `chart.mmd` and `chart.png`, `stories.md` and `summary.json`, labelled by `RowLife.map.py`.
 Each status on the chart says what in `work.py` sets it, and each step that moves the status is labelled by its row of `queue.MOVES`.
-The regions draw 63 of their 125 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
+The regions draw 64 of their 112 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
 Its `tlc/` folder holds TLC's output, which is not committed.
 
 ## What the model leaves out
@@ -48,8 +49,8 @@ Its `tlc/` folder holds TLC's output, which is not committed.
 - The facts behind a status, past the folds above (a Result that owes its pull request, each step of an open pull request): `test_jbus_queue_moves.py` walks every combination.
 - A restate between passes (`restated.restate`) that the next pass corrects, the `work-drift` event: here a fact's change and the pass that sees it are one step.
   So is a pass that heard from GitHub or T3 Code alone, which keeps the last value unconfirmed.
-- The moves a pass saw that the table leaves out: a pass marks each one `"legal": false` in `transitions.jsonl` and writes it all the same.
-  The model makes 49 moves the table lacks, most of them a launched row whose thread T3 Code settled going back to `queued` (`work._THREAD`), the `queued` to `done`, `running` and `pr` moves seen marked illegal on disk.
+- The faults the table leaves out, which a pass marks `"legal": false` in `transitions.jsonl` and writes all the same: a pull request that leaves GitHub's open list unmerged and unclosed, a thread, Result or pull request of a row with no launch record, and a `Branch:` line that loses the address of a closed pull request.
+  So the model never makes `pr` to `done` either, a move of the table.
 - The scout's row, which `work.scouting` reads, and a row's `merge_after`.
 
 ## A crew thread, as a TLA+ spec
