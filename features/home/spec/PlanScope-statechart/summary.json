@@ -66,13 +66,29 @@
     }
   ],
   "codeLike": [],
+  "map": {
+    "runs": [
+      "PlanScope.chart.cfg"
+    ],
+    "states": 428,
+    "arrows": 1441
+  },
+  "checked": {
+    "cfg": "PlanScope.cfg",
+    "modelStates": 850500
+  },
   "drawnFrom": {
-    "command": "statechart from-spec PlanScope.tla --config PlanScope.chart.cfg --title 'A plan entry and a scope'\"'\"'s retire: is any work lost?' --expect-broken FixCountedWhereRead --png",
+    "command": "statechart from-spec PlanScope.tla --config PlanScope.chart.cfg --count-config PlanScope.cfg --title 'A plan entry and a scope'\"'\"'s retire: is any work lost?' --expect-broken FixCountedWhereRead --png",
     "inputs": {
+      "PlanScope.cfg": "2909646733d346423de0f677203cf668cdd8b8fe2310b80c052404b137dc1aa7",
       "PlanScope.chart.cfg": "8b65c7cc82241bd7b83ce6fdfe7aef7e517e32901a560babb021ab6cd7b2f80c",
       "PlanScope.map.py": "48827a4a1190748e04c82b56cf118c02eaa20e8ebaf907ef1cee73fe8b630f68",
       "PlanScope.tla": "0c2cc41da896a0ff9f6d6c3de4cb8467c14703aea53177aeb032379082a24aca"
     },
-    "chart": "cb2be0b6d25fc3e77fef1dfff139b98c16514d9564f6e4020b90990066656b9e"
+    "chart": "cb2be0b6d25fc3e77fef1dfff139b98c16514d9564f6e4020b90990066656b9e",
+    "tables": {
+      "states.tsv": "403c587709792cc4f06b71eb28303ffb53659fcc7a3dcc1e624a2ccad14ee5a3",
+      "arrows.tsv": "7fade94686210453b3387db15eb6725bb76300349fade6324f363d01881eb5a7"
+    }
   }
 }
