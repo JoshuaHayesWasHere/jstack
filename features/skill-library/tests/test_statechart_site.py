@@ -235,24 +235,7 @@ def test_a_model_the_flow_file_neither_charts_nor_explains_stops_the_page(tmp_pa
 GROUP_MOST = 15
 
 
-REGROUP_IN = {"TellOnce-statechart": "st-tellonce-groups"}
-"""A chart still to be regrouped, with the queued row that regroups it: strict, so the entry
-goes once the chart passes."""
-
-
-@pytest.mark.parametrize(
-    "chart",
-    [
-        pytest.param(
-            chart,
-            marks=pytest.mark.xfail(strict=True, reason=f"regrouped in {REGROUP_IN[name]}")
-            if (name := chart.parent.name) in REGROUP_IN
-            else (),
-        )
-        for chart in CHARTS
-    ],
-    ids=lambda chart: chart.parent.name,
-)
+@pytest.mark.parametrize("chart", CHARTS, ids=lambda chart: chart.parent.name)
 def test_each_charts_groups_hold_few_enough_states_to_find_one_and_none_is_mixed(chart):
     """A reader finds a state by its group's color: a group of more than GROUP_MOST states says
     little about where a state sits, and a mixed state is gray, in no group at all."""

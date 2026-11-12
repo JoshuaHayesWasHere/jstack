@@ -68,7 +68,7 @@ def test_a_crews_result_that_says_done_with_a_note_leaves_nothing():
 
 def test_a_paused_result_with_a_note_waits_on_its_rows():
     result = "## Result\nStatus: paused (until a-b merges)\nWaits on: a-b\n"
-    assert mirror.paused_on(result, {"a-b"}) == ("a-b",)
+    assert mirror.waits_on(result, {"a-b"}) == ("a-b",)
 
 
 def test_a_home_marks_a_merged_result_done_with_a_note_read_without_showing_it(
