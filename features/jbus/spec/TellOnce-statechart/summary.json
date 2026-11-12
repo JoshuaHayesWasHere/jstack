@@ -1,56 +1,103 @@
 {
   "view": "customer",
-  "modelStates": 1489,
-  "modelTransitions": 3212,
-  "chartStates": 233,
-  "chartTransitions": 224,
+  "modelStates": 890,
+  "modelTransitions": 2364,
+  "chartStates": 115,
+  "chartTransitions": 151,
+  "allTransitions": 218,
+  "final": [
+    "A hold nobody works on",
+    "A merge that changed a skill",
+    "A revert's crew",
+    "A short pull request's crew",
+    "not told, sent.json says told",
+    "not told, sent.json says told, the outbox held it",
+    "The user's word",
+    "The wait clock",
+    "told once, expedite.json says told, sent.json has its key",
+    "told once, held.json says its home woke, sent.json has its key",
+    "told once, reload.json keeps the thread tried, sent.json has its key",
+    "told once, reload.json keeps the thread tried, sent.json has its key, a merge was kept since",
+    "told once, sent.json says told",
+    "told once, sent.json says told, the outbox held it",
+    "told once, word-sends.json says sent, word-sends.json keeps the thread tried",
+    "told once, word-sends.json says sent, word-sends.json keeps the thread tried, the home's thread changed"
+  ],
   "chartStatus": {
-    "works": 233,
+    "works": 115,
     "fixed": 0,
     "wrong": 0
   },
   "chartGroups": [
     {
-      "name": "Nothing owed",
-      "color": "#ffffff",
-      "states": 40
+      "name": "Not told: nothing marked",
+      "color": "#fef5e7",
+      "states": 13
     },
     {
-      "name": "Owed",
+      "name": "Not told: a pass in its step or a mark written",
       "color": "#fdebd0",
-      "states": 76
+      "states": 13
     },
     {
-      "name": "Told",
+      "name": "Not told: the outbox held it",
+      "color": "#fad7a0",
+      "states": 13
+    },
+    {
+      "name": "Not told: the outbox held it, a pass in its step",
+      "color": "#f8c471",
+      "states": 12
+    },
+    {
+      "name": "Told once: no key kept yet",
+      "color": "#e8f8f5",
+      "states": 8
+    },
+    {
+      "name": "Told once: its key kept",
       "color": "#d1f2eb",
-      "states": 103
+      "states": 14
+    },
+    {
+      "name": "Told once: its key kept, a pass in its step",
+      "color": "#a3e4d7",
+      "states": 14
+    },
+    {
+      "name": "Told once: sent.json has its key",
+      "color": "#d4efdf",
+      "states": 10
+    },
+    {
+      "name": "Told once: its file says done",
+      "color": "#a9dfbf",
+      "states": 12
     }
   ],
-  "mixedGroups": [
-    "A revert's crew: told once, sent.json says told"
-  ],
+  "mixedGroups": [],
   "regions": {
     "drawn": true,
     "states": [
-      13,
-      220
+      6,
+      109
     ],
-    "transitions": 224,
-    "all": 381,
+    "transitions": 151,
+    "all": 218,
     "flat": {
-      "states": 246,
-      "transitions": 402
+      "states": 116,
+      "transitions": 221
     }
   },
   "classes": [],
   "codeLike": [],
   "drawnFrom": {
-    "command": "statechart from-spec TellOnce.tla --title 'Does jbus tell anyone twice, or drop a tell, when a pass dies?' --png",
+    "command": "statechart from-spec TellOnce.tla --config TellOnce.chart.cfg --title 'Does jbus tell a thread twice, or drop a tell, when a pass dies?'",
     "inputs": {
-      "TellOnce.cfg": "016e63d0f3504086d7224317337e5d864bebb469e81c13dd91c3558aaab1e952",
-      "TellOnce.map.py": "d7d05532a95aca1aa569bb00c39b9de301fb1bc25cabbf68cca97ef133668d42",
-      "TellOnce.tla": "f8c1e9a63bece406010434e7e9b450671e634250f44d6ec4945e4148f3266013"
+      "TellOnce.chart.cfg": "78c1a795ec882f3f814c6906a338bc587724d491c528721063ded07324e297f5",
+      "TellOnce.map.py": "31d8587344a6030e5b45073d5e839eeabd2e38ae7cb8229d0d14ca3bf8a4b4be",
+      "TellOnce.tla": "7f9636b9b51fd35f763a9bc3bb646d303ec905cad479c4bea8a63b24aa75e253"
     },
-    "chart": "1282340c090c7aafa510f2ca2121fc92f11b7960d96dace4e6e503699185dd4b"
+    "chart": "c7ff41241eec932254cc92ce7afb6becb275a7a3d76b6d649e3df16b9bd47b01"
   }
 }

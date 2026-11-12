@@ -191,10 +191,12 @@ BEGUN = "Not told: a pass in its step or a mark written"
 def group(v, facts):
     """Where the tell stands, by what the state's label shows: the hue is how many times the
     receiver took it, and the shade where it is short of done. The overview draws a box for each
-    group, ten at most, so the groups are few: the start is with what is not told and marked
-    nothing, a mark written with a pass in its step, and the clock's stall with the marks it
-    has. The ask owed after a limit is a chart of its own (TellOnceOwed.chart.cfg), split by
-    whether the ask is still owed and by its try."""
+    group, ten at most, the act's own box among them, so the groups are few: the start is with
+    what is not told and marked nothing, a mark written with a pass in its step, and the outbox's
+    hold with a pass in its step or none. A tell that went is split by whether the next try keeps
+    its key, the try's key written before the act or the outbox holding the message under it, so
+    the receiver takes a repeat as the same tell. The ask owed after a limit is a chart of its own
+    (TellOnceOwed.chart.cfg), split by whether the ask is still owed and by its try."""
     told = "Told twice" if v["took"] >= 2 or v["again"] else TOOK[v["took"]].capitalize()
     if v["on"] == "owed":
         if not v["due"] or (v["askState"] == "owed" and not v["took"]):
@@ -209,22 +211,25 @@ def group(v, facts):
         return f"{told}: its file says done" if v["took"] else BEGUN
     if v["box"] or v["rowHeld"]:
         return f"{told}: sent.json has its key" if v["took"] else BEGUN
-    if v["went"] == "held":
-        return f"{told}: the outbox held it"
-    if v["pc"]:
-        return BEGUN if not v["took"] else f"{told}: a pass in its step"
-    return f"{told}: nothing marked"
+    if not v["took"]:
+        if v["went"] == "held":
+            return "Not told: the outbox held it" + (", a pass in its step" if v["pc"] else "")
+        return BEGUN if v["pc"] else "Not told: nothing marked"
+    if v["pinned"] or v["went"] == "held":
+        return f"{told}: its key kept" + (", a pass in its step" if v["pc"] else "")
+    return f"{told}: no key kept yet"
 
 
 group_colors = {
     "Not told: nothing marked": "#fef5e7",
     "Not told: a pass in its step or a mark written": "#fdebd0",
     "Not told: the outbox held it": "#fad7a0",
+    "Not told: the outbox held it, a pass in its step": "#f8c471",
     "Not told: the ask owed or not yet due": "#fdebd0",
     "Not told: the ask closed": "#fad7a0",
-    "Told once: nothing marked": "#e8f8f5",
-    "Told once: a pass in its step": "#d1f2eb",
-    "Told once: the outbox held it": "#a3e4d7",
+    "Told once: no key kept yet": "#e8f8f5",
+    "Told once: its key kept": "#d1f2eb",
+    "Told once: its key kept, a pass in its step": "#a3e4d7",
     "Told once: sent.json has its key": "#d4efdf",
     "Told once: its file says done": "#a9dfbf",
     "Told once: the ask owed": "#e8f8f5",
