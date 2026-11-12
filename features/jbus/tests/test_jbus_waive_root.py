@@ -12,8 +12,9 @@ from datetime import timedelta
 
 import pytest
 
+import jbus
 from jbriefs import meets
-from jbus import acts, verbs
+from jbus import acts, needs, verbs
 from jmerge import ready, rows
 from test_jbus_kitchen import NOW
 
@@ -200,3 +201,44 @@ def test_the_users_own_waive_still_needs_their_message(homes):
 def test_the_two_paths_take_no_word_of_the_other(homes, argv, said):
     assert homes.main("waive", "alpha", "2", "--to", "demo", *argv) == (1, said)
     assert "Waived:" not in brief(homes)
+
+
+def test_a_home_reads_the_root_waivers_of_its_own_rows_and_the_root_reads_every_one(homes):
+    """`needs.waived`, which `jbus needs --home` and the catch-up print: a scope reads the waivers
+    of its own rows, the root reads its scopes' with its own, and a row whose brief is gone is
+    the catch-all's, named by its line numbers alone."""
+    homes.brief(
+        "beta", BRIEF.replace("# alpha", "# beta").replace("Size: S\n", "Size: S\nHome: scope\n")
+    )
+    assert waive(homes, "--reason", REASON, "--undo", UNDO)[0] == 0
+    code, _ = homes.main(
+        "waive",
+        "beta",
+        "2",
+        "--to",
+        "demo",
+        "--as",
+        "root",
+        "--from",
+        ROOT,
+        "--reason",
+        REASON,
+        "--undo",
+        UNDO,
+    )
+    assert code == 0
+    config = jbus.load()
+    project = config.project("demo")
+    soon = NOW + timedelta(minutes=5)
+
+    def rows_of(home=None):
+        return [line.split(":")[0] for line in needs.waived(config, project, soon, home)]
+
+    assert rows_of() == ["demo root waived alpha", "demo root waived beta"]
+    assert rows_of(homes.home) == ["demo root waived alpha", "demo root waived beta"]
+    assert rows_of(homes.home / "scope") == ["demo root waived beta"]
+    (homes.home / "tasks" / "beta.md").unlink()
+    assert needs.waived(config, project, soon, homes.home / "scope") == []
+    assert needs.waived(config, project, soon)[1:] == [
+        f"demo root waived beta: line 2, because {REASON}; undo: {UNDO}; nothing to answer"
+    ]
