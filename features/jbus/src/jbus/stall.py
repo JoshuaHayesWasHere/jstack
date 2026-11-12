@@ -52,7 +52,7 @@ none goes out at a third head. The row's `why` says `check failed twice` while i
 pass that sees every required check passed at the head, `twice` lifts its own hold and puts back the
 go it took (`lifted`, `queue.lift`), where the row's brief is still the one that go was for; a row
 held again since, by anyone, or whose brief changed since, stays held until an approve. Either way
-the count starts again from none. A counted head of a row not held, whose every required check
+the count starts again from none. A counted head, of a held row or not, whose every required check
 then passes at that same head, as on a rerun, leaves the count: its red was not the row's to keep
 (#1708, 2026-11-11).
 
