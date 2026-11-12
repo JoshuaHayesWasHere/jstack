@@ -1,159 +1,143 @@
 state	group	status	start	chart	states in TestSlot.chart.cfg	within in TestSlot.chart.cfg	states in TestSlot.cfg	within in TestSlot.cfg
-Full lane: the slot free	Full lane	works	yes	s0	3548	0	32703	0
-Full lane: the slot free, its run on file as ended	Full lane				0	0	8642	24384
-Full lane: the slot free, its run on file as ended, the log has a take with no release	Full lane				0	0	10210	29400
-Full lane: the slot free, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	3984	11841
-Full lane: the slot free, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	3984	11841
-Full lane: the slot free, jbus sends a wake for a slot it counted free	Full lane	works			512	864	3332	8612
-Full lane: the slot free, jbus sends a wake for a slot it counted free, its run on file as ended	Full lane				0	0	696	1200
-Full lane: the slot free, jbus sends a wake for a slot it counted free, its run on file as ended, the log has a take with no release	Full lane				0	0	840	1488
-Full lane: the slot free, jbus sends a wake for a slot it counted free, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	384	720
-Full lane: the slot free, jbus sends a wake for a slot it counted free, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	384	720
-Full lane: the slot free, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	764	1496
-Full lane: the slot free, jbus sends a wake for a slot it counted free, the woken crew found its slot taken	Full lane	wrong			512	864	3332	8612
-Full lane: the slot free, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, its run on file as ended	Full lane				0	0	696	1200
-Full lane: the slot free, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, its run on file as ended, the log has a take with no release	Full lane				0	0	840	1488
-Full lane: the slot free, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	384	720
-Full lane: the slot free, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	384	720
-Full lane: the slot free, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	764	1496
-Full lane: the slot free, the crew is woken, its claim holds	Full lane	works			780	1692	6356	25424
-Full lane: the slot free, the crew is woken, its claim holds, the log has a take with no release	Full lane				0	0	1236	3982
-Full lane: the slot free, the crew is woken, its claim holds, the woken crew found its slot taken	Full lane	wrong			780	1692	6356	25424
-Full lane: the slot free, the crew is woken, its claim holds, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	1236	3982
-Full lane: the slot free, the crew is woken, its claim is past	Full lane	works			1248	2436	9924	37392
-Full lane: the slot free, the crew is woken, its claim is past, the log has a take with no release	Full lane				0	0	1932	5964
-Full lane: the slot free, the crew is woken, its claim is past, the woken crew found its slot taken	Full lane	wrong			1248	2436	9924	37392
-Full lane: the slot free, the crew is woken, its claim is past, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	1932	5964
-Full lane: the slot free, the crew waits, not woken	Full lane	works		s1	4124	0	34336	0
-Full lane: the slot free, the crew waits, not woken, jbus sends a wake for a slot it counted free	Full lane	works		s2	640	1160	3562	9582
-Full lane: the slot free, the crew waits, not woken, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	790	1614
-Full lane: the slot free, the crew waits, not woken, jbus sends a wake for a slot it counted free, the woken crew found its slot taken	Full lane	wrong			640	1160	3562	9582
-Full lane: the slot free, the crew waits, not woken, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	790	1614
-Full lane: the slot free, the crew waits, not woken, the log has a take with no release	Full lane				0	0	6936	21842
-Full lane: the slot free, the crew waits, not woken, the woken crew found its slot taken	Full lane	wrong			4124	8284	34336	130584
-Full lane: the slot free, the crew waits, not woken, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	6936	21842
-Full lane: the slot free, the crew was woken over an hour ago	Full lane	works			1476	2748	12600	46248
-Full lane: the slot free, the crew was woken over an hour ago, the log has a take with no release	Full lane				0	0	2496	7488
-Full lane: the slot free, the crew was woken over an hour ago, the woken crew found its slot taken	Full lane	wrong			1476	2748	12600	46248
-Full lane: the slot free, the crew was woken over an hour ago, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	2496	7488
-Full lane: the slot free, the log has a take with no release	Full lane				0	0	6769	20644
-Full lane: the slot free, the woken crew found its slot taken	Full lane	wrong			3476	6520	32414	119580
-Full lane: the slot free, the woken crew found its slot taken, its run on file as ended	Full lane				0	0	8528	24040
-Full lane: the slot free, the woken crew found its slot taken, its run on file as ended, the log has a take with no release	Full lane				0	0	10096	29056
-Full lane: the slot free, the woken crew found its slot taken, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	3936	11696
-Full lane: the slot free, the woken crew found its slot taken, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	3936	11696
-Full lane: the slot free, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	6730	20526
-Full lane: the slot held by a crew's run	Full lane	works			5600	15266	47396	190819
-Full lane: the slot held by a crew's run, its run on file as ended	Full lane				0	0	15500	57766
-Full lane: the slot held by a crew's run, its run on file as ended, the log has a take with no release	Full lane				0	0	1408	3200
-Full lane: the slot held by a crew's run, its run on file as running	Full lane				0	0	3206	10354
-Full lane: the slot held by a crew's run, its run on file as running, the log has a take with no release	Full lane				0	0	292	524
-Full lane: the slot held by a crew's run, its run on file with no end, its command gone	Full lane				0	0	9618	36805
-Full lane: the slot held by a crew's run, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	876	2096
-Full lane: the slot held by a crew's run, its run on file with no end, its pid taken by another process	Full lane				0	0	9618	36805
-Full lane: the slot held by a crew's run, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	876	2096
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free	Full lane	works			864	2064	5146	14670
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, its run on file as ended	Full lane				0	0	1392	3480
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, its run on file as ended, the log has a take with no release	Full lane				0	0	144	168
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, its run on file as running	Full lane				0	0	348	696
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, its run on file as running, the log has a take with no release	Full lane				0	0	36	24
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, its run on file with no end, its command gone	Full lane				0	0	1044	2784
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	108	144
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, its run on file with no end, its pid taken by another process	Full lane				0	0	1044	2784
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	108	144
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	550	874
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, the woken crew found its slot taken	Full lane	wrong			864	2064	5146	14670
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, its run on file as ended	Full lane				0	0	1392	3480
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, its run on file as ended, the log has a take with no release	Full lane				0	0	144	168
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, its run on file as running	Full lane				0	0	348	696
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, its run on file as running, the log has a take with no release	Full lane				0	0	36	24
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, its run on file with no end, its command gone	Full lane				0	0	1044	2784
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	108	144
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, its run on file with no end, its pid taken by another process	Full lane				0	0	1044	2784
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	108	144
-Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	550	874
-Full lane: the slot held by a crew's run, the crew is woken, its claim holds	Full lane	works			300	588	2628	8592
-Full lane: the slot held by a crew's run, the crew is woken, its claim holds, the log has a take with no release	Full lane				0	0	292	622
-Full lane: the slot held by a crew's run, the crew is woken, its claim holds, the woken crew found its slot taken	Full lane	wrong			300	588	2628	8592
-Full lane: the slot held by a crew's run, the crew is woken, its claim holds, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	292	622
-Full lane: the slot held by a crew's run, the crew is woken, its claim is past	Full lane	works			480	948	4104	13482
-Full lane: the slot held by a crew's run, the crew is woken, its claim is past, the log has a take with no release	Full lane				0	0	456	978
-Full lane: the slot held by a crew's run, the crew is woken, its claim is past, the woken crew found its slot taken	Full lane	wrong			480	948	4104	13482
-Full lane: the slot held by a crew's run, the crew is woken, its claim is past, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	456	978
-Full lane: the slot held by a crew's run, the crew waits, not woken	Full lane	works			1580	3060	14242	46554
-Full lane: the slot held by a crew's run, the crew waits, not woken, jbus sends a wake for a slot it counted free	Full lane	works			240	400	1462	3094
-Full lane: the slot held by a crew's run, the crew waits, not woken, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	170	170
-Full lane: the slot held by a crew's run, the crew waits, not woken, jbus sends a wake for a slot it counted free, the woken crew found its slot taken	Full lane	wrong			240	400	1462	3094
-Full lane: the slot held by a crew's run, the crew waits, not woken, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	170	170
-Full lane: the slot held by a crew's run, the crew waits, not woken, the log has a take with no release	Full lane				0	0	1590	3392
-Full lane: the slot held by a crew's run, the crew waits, not woken, the woken crew found its slot taken	Full lane	wrong			1580	3060	14242	46554
-Full lane: the slot held by a crew's run, the crew waits, not woken, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	1590	3392
-Full lane: the slot held by a crew's run, the crew was woken over an hour ago	Full lane	works			564	1056	5202	16560
-Full lane: the slot held by a crew's run, the crew was woken over an hour ago, the log has a take with no release	Full lane				0	0	582	1194
-Full lane: the slot held by a crew's run, the crew was woken over an hour ago, the woken crew found its slot taken	Full lane	wrong			564	1056	5202	16560
-Full lane: the slot held by a crew's run, the crew was woken over an hour ago, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	582	1194
-Full lane: the slot held by a crew's run, the log has a take with no release	Full lane				0	0	4578	12398
-Full lane: the slot held by a crew's run, the woken crew found its slot taken	Full lane	wrong			5456	14872	46750	188122
-Full lane: the slot held by a crew's run, the woken crew found its slot taken, its run on file as ended	Full lane				0	0	15296	56976
-Full lane: the slot held by a crew's run, the woken crew found its slot taken, its run on file as ended, the log has a take with no release	Full lane				0	0	1408	3200
-Full lane: the slot held by a crew's run, the woken crew found its slot taken, its run on file as running	Full lane				0	0	3164	10212
-Full lane: the slot held by a crew's run, the woken crew found its slot taken, its run on file as running, the log has a take with no release	Full lane				0	0	292	524
-Full lane: the slot held by a crew's run, the woken crew found its slot taken, its run on file with no end, its command gone	Full lane				0	0	9492	36304
-Full lane: the slot held by a crew's run, the woken crew found its slot taken, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	876	2096
-Full lane: the slot held by a crew's run, the woken crew found its slot taken, its run on file with no end, its pid taken by another process	Full lane				0	0	9492	36304
-Full lane: the slot held by a crew's run, the woken crew found its slot taken, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	876	2096
-Full lane: the slot held by a crew's run, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	4578	12398
-Full lane: the slot held by a desk's run	Full lane	works		s3	6785	17840	42360	169427
-Full lane: the slot held by a desk's run, its run on file as ended	Full lane				0	0	9446	25928
-Full lane: the slot held by a desk's run, its run on file as ended, the log has a take with no release	Full lane				0	0	9446	25928
-Full lane: the slot held by a desk's run, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	4000	11036
-Full lane: the slot held by a desk's run, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	4000	11036
-Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free	Full lane	works			1040	2400	4560	12768
-Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free, its run on file as ended	Full lane				0	0	864	1440
-Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free, its run on file as ended, the log has a take with no release	Full lane				0	0	864	1440
-Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	432	720
-Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	432	720
-Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	432	720
-Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free, the woken crew found its slot taken	Full lane	wrong			1040	2400	4560	12768
-Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, its run on file as ended	Full lane				0	0	864	1440
-Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, its run on file as ended, the log has a take with no release	Full lane				0	0	864	1440
-Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	432	720
-Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	432	720
-Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	432	720
-Full lane: the slot held by a desk's run, the crew is woken, its claim holds	Full lane	works		s4	1500	3660	8208	31248
-Full lane: the slot held by a desk's run, the crew is woken, its claim holds, the log has a take with no release	Full lane				0	0	552	1512
-Full lane: the slot held by a desk's run, the crew is woken, its claim holds, the woken crew found its slot taken	Full lane	wrong		s5	1500	3960	8208	33000
-Full lane: the slot held by a desk's run, the crew is woken, its claim holds, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	552	1512
-Full lane: the slot held by a desk's run, the crew is woken, its claim is past	Full lane	works			2400	6360	12816	51696
-Full lane: the slot held by a desk's run, the crew is woken, its claim is past, the log has a take with no release	Full lane				0	0	864	2376
-Full lane: the slot held by a desk's run, the crew is woken, its claim is past, the woken crew found its slot taken	Full lane	wrong			2400	6360	12816	51696
-Full lane: the slot held by a desk's run, the crew is woken, its claim is past, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	864	2376
-Full lane: the slot held by a desk's run, the crew waits, not woken	Full lane	works			8090	22698	45024	186582
-Full lane: the slot held by a desk's run, the crew waits, not woken, jbus sends a wake for a slot it counted free	Full lane	works		s6	1300	3200	4872	14256
-Full lane: the slot held by a desk's run, the crew waits, not woken, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	432	720
-Full lane: the slot held by a desk's run, the crew waits, not woken, jbus sends a wake for a slot it counted free, the woken crew found its slot taken	Full lane	wrong			1300	3200	4872	14256
-Full lane: the slot held by a desk's run, the crew waits, not woken, jbus sends a wake for a slot it counted free, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	432	720
-Full lane: the slot held by a desk's run, the crew waits, not woken, the log has a take with no release	Full lane				0	0	3290	9072
-Full lane: the slot held by a desk's run, the crew waits, not woken, the woken crew found its slot taken	Full lane	wrong		s7	8000	22440	44640	184968
-Full lane: the slot held by a desk's run, the crew waits, not woken, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	3264	9000
-Full lane: the slot held by a desk's run, the crew was woken over an hour ago	Full lane	works			2880	7320	16416	64584
-Full lane: the slot held by a desk's run, the crew was woken over an hour ago, the log has a take with no release	Full lane				0	0	1152	3096
-Full lane: the slot held by a desk's run, the crew was woken over an hour ago, the woken crew found its slot taken	Full lane	wrong			2880	7320	16416	64584
-Full lane: the slot held by a desk's run, the crew was woken over an hour ago, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	1152	3096
-Full lane: the slot held by a desk's run, the log has a take with no release	Full lane				0	0	3277	9108
-Full lane: the slot held by a desk's run, the woken crew found its slot taken	Full lane	wrong		s8	6740	17720	42168	168648
-Full lane: the slot held by a desk's run, the woken crew found its slot taken, its run on file as ended	Full lane				0	0	9408	25824
-Full lane: the slot held by a desk's run, the woken crew found its slot taken, its run on file as ended, the log has a take with no release	Full lane				0	0	9408	25824
-Full lane: the slot held by a desk's run, the woken crew found its slot taken, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	3984	10992
-Full lane: the slot held by a desk's run, the woken crew found its slot taken, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	3984	10992
-Full lane: the slot held by a desk's run, the woken crew found its slot taken, the log has a take with no release	Full lane				0	0	3264	9072
-Review pool: no wait on file	Review pool	works	yes	s9	81	111	91	249
-Review pool: no wait on file, the crew's second wait	Review pool	works		s10	244	408	284	904
+Full lane: the slot free	Full lane	works	yes	s0	3968	7162	35127	127553
+Full lane: the slot free, its run on file as ended	Full lane				0	0	9326	26214
+Full lane: the slot free, its run on file as ended, the log has a take with no release	Full lane				0	0	11086	31854
+Full lane: the slot free, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	4374	12960
+Full lane: the slot free, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	4374	12960
+Full lane: the slot free, jbus gives back the claim of a wake that did not go	Full lane	works			1216	1664	7840	17504
+Full lane: the slot free, jbus gives back the claim of a wake that did not go, its run on file as ended	Full lane				0	0	1728	2496
+Full lane: the slot free, jbus gives back the claim of a wake that did not go, its run on file as ended, the log has a take with no release	Full lane				0	0	2112	3168
+Full lane: the slot free, jbus gives back the claim of a wake that did not go, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	960	1536
+Full lane: the slot free, jbus gives back the claim of a wake that did not go, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	960	1536
+Full lane: the slot free, jbus gives back the claim of a wake that did not go, the log has a take with no release	Full lane				0	0	1888	3152
+Full lane: the slot free, jbus sends a wake for a slot it counted free	Full lane	works			832	960	5488	11456
+Full lane: the slot free, jbus sends a wake for a slot it counted free, its run on file as ended	Full lane				0	0	1056	1248
+Full lane: the slot free, jbus sends a wake for a slot it counted free, its run on file as ended, the log has a take with no release	Full lane				0	0	1248	1536
+Full lane: the slot free, jbus sends a wake for a slot it counted free, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	576	768
+Full lane: the slot free, jbus sends a wake for a slot it counted free, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	576	768
+Full lane: the slot free, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	1168	1664
+Full lane: the slot free, the crew is woken, its claim holds	Full lane	works			1476	3060	12268	48208
+Full lane: the slot free, the crew is woken, its claim holds, jbus gives back the claim of a wake that did not go	Full lane	works			912	1392	4464	10896
+Full lane: the slot free, the crew is woken, its claim holds, jbus gives back the claim of a wake that did not go, the log has a take with no release	Full lane				0	0	1008	1776
+Full lane: the slot free, the crew is woken, its claim holds, jbus sends a wake for a slot it counted free	Full lane	works			624	864	3120	7392
+Full lane: the slot free, the crew is woken, its claim holds, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	624	984
+Full lane: the slot free, the crew is woken, its claim holds, the log has a take with no release	Full lane				0	0	2412	7640
+Full lane: the slot free, the crew is woken, its claim is past	Full lane	works			1704	3120	13384	49248
+Full lane: the slot free, the crew is woken, its claim is past, jbus gives back the claim of a wake that did not go	Full lane	works			912	1248	4464	10128
+Full lane: the slot free, the crew is woken, its claim is past, jbus gives back the claim of a wake that did not go, the log has a take with no release	Full lane				0	0	1008	1680
+Full lane: the slot free, the crew is woken, its claim is past, jbus sends a wake for a slot it counted free	Full lane	works			624	720	3120	6624
+Full lane: the slot free, the crew is woken, its claim is past, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	624	888
+Full lane: the slot free, the crew is woken, its claim is past, the log has a take with no release	Full lane				0	0	2664	8064
+Full lane: the slot free, the crew waits, not woken	Full lane	works			4916	9020	37984	139908
+Full lane: the slot free, the crew waits, not woken, jbus gives back the claim of a wake that did not go	Full lane	works			1520	2240	8384	19496
+Full lane: the slot free, the crew waits, not woken, jbus gives back the claim of a wake that did not go, the log has a take with no release	Full lane				0	0	1952	3392
+Full lane: the slot free, the crew waits, not woken, jbus sends a wake for a slot it counted free	Full lane	works			1040	1360	5864	12968
+Full lane: the slot free, the crew waits, not woken, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	1208	1856
+Full lane: the slot free, the crew waits, not woken, the log has a take with no release	Full lane				0	0	7800	23606
+Full lane: the slot free, the crew was woken over an hour ago	Full lane	works			1932	3432	16060	58104
+Full lane: the slot free, the crew was woken over an hour ago, jbus gives back the claim of a wake that did not go	Full lane	works			912	1248	4464	10128
+Full lane: the slot free, the crew was woken over an hour ago, jbus gives back the claim of a wake that did not go, the log has a take with no release	Full lane				0	0	1008	1680
+Full lane: the slot free, the crew was woken over an hour ago, jbus sends a wake for a slot it counted free	Full lane	works			624	720	3120	6624
+Full lane: the slot free, the crew was woken over an hour ago, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	624	888
+Full lane: the slot free, the crew was woken over an hour ago, the log has a take with no release	Full lane				0	0	3228	9588
+Full lane: the slot free, the log has a take with no release	Full lane				0	0	7501	22725
+Full lane: the slot held by a crew's run	Full lane	works		s1	6460	16702	52072	204345
+Full lane: the slot held by a crew's run, its run on file as ended	Full lane				0	0	16868	61582
+Full lane: the slot held by a crew's run, its run on file as ended, the log has a take with no release	Full lane				0	0	1600	3680
+Full lane: the slot held by a crew's run, its run on file as running	Full lane				0	0	3548	11137
+Full lane: the slot held by a crew's run, its run on file as running, the log has a take with no release	Full lane				0	0	340	620
+Full lane: the slot held by a crew's run, its run on file with no end, its command gone	Full lane				0	0	10644	39838
+Full lane: the slot held by a crew's run, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	1020	2480
+Full lane: the slot held by a crew's run, its run on file with no end, its pid taken by another process	Full lane				0	0	10644	39838
+Full lane: the slot held by a crew's run, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	1020	2480
+Full lane: the slot held by a crew's run, jbus gives back the claim of a wake that did not go	Full lane	works			2208	4576	12704	31744
+Full lane: the slot held by a crew's run, jbus gives back the claim of a wake that did not go, its run on file as ended	Full lane				0	0	3456	7488
+Full lane: the slot held by a crew's run, jbus gives back the claim of a wake that did not go, its run on file as ended, the log has a take with no release	Full lane				0	0	384	384
+Full lane: the slot held by a crew's run, jbus gives back the claim of a wake that did not go, its run on file as running	Full lane				0	0	864	1440
+Full lane: the slot held by a crew's run, jbus gives back the claim of a wake that did not go, its run on file as running, the log has a take with no release	Full lane				0	0	96	48
+Full lane: the slot held by a crew's run, jbus gives back the claim of a wake that did not go, its run on file with no end, its command gone	Full lane				0	0	2592	6048
+Full lane: the slot held by a crew's run, jbus gives back the claim of a wake that did not go, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	288	336
+Full lane: the slot held by a crew's run, jbus gives back the claim of a wake that did not go, its run on file with no end, its pid taken by another process	Full lane				0	0	2592	6048
+Full lane: the slot held by a crew's run, jbus gives back the claim of a wake that did not go, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	288	336
+Full lane: the slot held by a crew's run, jbus gives back the claim of a wake that did not go, the log has a take with no release	Full lane				0	0	1440	1968
+Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free	Full lane	works			1376	2624	8112	19520
+Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, its run on file as ended	Full lane				0	0	2112	4320
+Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, its run on file as ended, the log has a take with no release	Full lane				0	0	192	96
+Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, its run on file as running	Full lane				0	0	528	816
+Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, its run on file as running, the log has a take with no release	Full lane				0	0	48	0
+Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, its run on file with no end, its command gone	Full lane				0	0	1584	3504
+Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	144	96
+Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, its run on file with no end, its pid taken by another process	Full lane				0	0	1584	3504
+Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	144	96
+Full lane: the slot held by a crew's run, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	784	784
+Full lane: the slot held by a crew's run, the crew is woken, its claim holds	Full lane	works			564	1044	5058	16158
+Full lane: the slot held by a crew's run, the crew is woken, its claim holds, jbus gives back the claim of a wake that did not go	Full lane	works			336	432	1800	3096
+Full lane: the slot held by a crew's run, the crew is woken, its claim holds, jbus gives back the claim of a wake that did not go, the log has a take with no release	Full lane				0	0	216	144
+Full lane: the slot held by a crew's run, the crew is woken, its claim holds, jbus sends a wake for a slot it counted free	Full lane	works			240	288	1296	2160
+Full lane: the slot held by a crew's run, the crew is woken, its claim holds, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	144	72
+Full lane: the slot held by a crew's run, the crew is woken, its claim holds, the log has a take with no release	Full lane				0	0	566	1172
+Full lane: the slot held by a crew's run, the crew is woken, its claim is past	Full lane	works			648	1176	5508	17508
+Full lane: the slot held by a crew's run, the crew is woken, its claim is past, jbus gives back the claim of a wake that did not go	Full lane	works			336	432	1800	3096
+Full lane: the slot held by a crew's run, the crew is woken, its claim is past, jbus gives back the claim of a wake that did not go, the log has a take with no release	Full lane				0	0	216	144
+Full lane: the slot held by a crew's run, the crew is woken, its claim is past, jbus sends a wake for a slot it counted free	Full lane	works			240	288	1296	2160
+Full lane: the slot held by a crew's run, the crew is woken, its claim is past, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	144	72
+Full lane: the slot held by a crew's run, the crew is woken, its claim is past, the log has a take with no release	Full lane				0	0	620	1280
+Full lane: the slot held by a crew's run, the crew waits, not woken	Full lane	works			1860	3288	15626	49188
+Full lane: the slot held by a crew's run, the crew waits, not woken, jbus gives back the claim of a wake that did not go	Full lane	works			560	720	3400	5848
+Full lane: the slot held by a crew's run, the crew waits, not woken, jbus gives back the claim of a wake that did not go, the log has a take with no release	Full lane				0	0	408	272
+Full lane: the slot held by a crew's run, the crew waits, not woken, jbus sends a wake for a slot it counted free	Full lane	works			400	480	2448	4080
+Full lane: the slot held by a crew's run, the crew waits, not woken, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	272	136
+Full lane: the slot held by a crew's run, the crew waits, not woken, the log has a take with no release	Full lane				0	0	1774	3630
+Full lane: the slot held by a crew's run, the crew was woken over an hour ago	Full lane	works			732	1284	6606	20586
+Full lane: the slot held by a crew's run, the crew was woken over an hour ago, jbus gives back the claim of a wake that did not go	Full lane	works			336	432	1800	3096
+Full lane: the slot held by a crew's run, the crew was woken over an hour ago, jbus gives back the claim of a wake that did not go, the log has a take with no release	Full lane				0	0	216	144
+Full lane: the slot held by a crew's run, the crew was woken over an hour ago, jbus sends a wake for a slot it counted free	Full lane	works			240	288	1296	2160
+Full lane: the slot held by a crew's run, the crew was woken over an hour ago, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	144	72
+Full lane: the slot held by a crew's run, the crew was woken over an hour ago, the log has a take with no release	Full lane				0	0	746	1496
+Full lane: the slot held by a crew's run, the log has a take with no release	Full lane				0	0	5234	14106
+Full lane: the slot held by a desk's run	Full lane	works			7814	19555	46488	181643
+Full lane: the slot held by a desk's run, its run on file as ended	Full lane				0	0	10604	29402
+Full lane: the slot held by a desk's run, its run on file as ended, the log has a take with no release	Full lane				0	0	10604	29402
+Full lane: the slot held by a desk's run, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	4579	12773
+Full lane: the slot held by a desk's run, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	4579	12773
+Full lane: the slot held by a desk's run, jbus gives back the claim of a wake that did not go	Full lane	works			2560	5120	11136	27456
+Full lane: the slot held by a desk's run, jbus gives back the claim of a wake that did not go, its run on file as ended	Full lane				0	0	2304	3456
+Full lane: the slot held by a desk's run, jbus gives back the claim of a wake that did not go, its run on file as ended, the log has a take with no release	Full lane				0	0	2304	3456
+Full lane: the slot held by a desk's run, jbus gives back the claim of a wake that did not go, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	1152	1728
+Full lane: the slot held by a desk's run, jbus gives back the claim of a wake that did not go, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	1152	1728
+Full lane: the slot held by a desk's run, jbus gives back the claim of a wake that did not go, the log has a take with no release	Full lane				0	0	1152	1728
+Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free	Full lane	works			1600	2880	7104	16512
+Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free, its run on file as ended	Full lane				0	0	1152	1152
+Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free, its run on file as ended, the log has a take with no release	Full lane				0	0	1152	1152
+Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free, its run on file with no end, its command gone, the log has a take with no release	Full lane				0	0	576	576
+Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free, its run on file with no end, its pid taken by another process, the log has a take with no release	Full lane				0	0	576	576
+Full lane: the slot held by a desk's run, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	576	576
+Full lane: the slot held by a desk's run, the crew is woken, its claim is past	Full lane	works			3360	8520	17568	69456
+Full lane: the slot held by a desk's run, the crew is woken, its claim is past, jbus gives back the claim of a wake that did not go	Full lane	works			1920	3840	6336	15840
+Full lane: the slot held by a desk's run, the crew is woken, its claim is past, jbus gives back the claim of a wake that did not go, the log has a take with no release	Full lane				0	0	576	864
+Full lane: the slot held by a desk's run, the crew is woken, its claim is past, jbus sends a wake for a slot it counted free	Full lane	works			1200	2160	4032	9504
+Full lane: the slot held by a desk's run, the crew is woken, its claim is past, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	288	288
+Full lane: the slot held by a desk's run, the crew is woken, its claim is past, the log has a take with no release	Full lane				0	0	1248	3456
+Full lane: the slot held by a desk's run, the crew waits, not woken	Full lane	works			9908	26408	50832	205998
+Full lane: the slot held by a desk's run, the crew waits, not woken, jbus gives back the claim of a wake that did not go	Full lane	works			3200	6800	11904	30624
+Full lane: the slot held by a desk's run, the crew waits, not woken, jbus gives back the claim of a wake that did not go, the log has a take with no release	Full lane				0	0	1152	1728
+Full lane: the slot held by a desk's run, the crew waits, not woken, jbus sends a wake for a slot it counted free	Full lane	works			2000	4000	7584	18816
+Full lane: the slot held by a desk's run, the crew waits, not woken, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	576	576
+Full lane: the slot held by a desk's run, the crew waits, not woken, the log has a take with no release	Full lane				0	0	3872	10818
+Full lane: the slot held by a desk's run, the crew was woken over an hour ago	Full lane	works			3840	9480	21168	82344
+Full lane: the slot held by a desk's run, the crew was woken over an hour ago, jbus gives back the claim of a wake that did not go	Full lane	works			1920	3840	6336	15840
+Full lane: the slot held by a desk's run, the crew was woken over an hour ago, jbus gives back the claim of a wake that did not go, the log has a take with no release	Full lane				0	0	576	864
+Full lane: the slot held by a desk's run, the crew was woken over an hour ago, jbus sends a wake for a slot it counted free	Full lane	works			1200	2160	4032	9504
+Full lane: the slot held by a desk's run, the crew was woken over an hour ago, jbus sends a wake for a slot it counted free, the log has a take with no release	Full lane				0	0	288	288
+Full lane: the slot held by a desk's run, the crew was woken over an hour ago, the log has a take with no release	Full lane				0	0	1536	4176
+Full lane: the slot held by a desk's run, the log has a take with no release	Full lane				0	0	3856	10845
+Review pool: no wait on file	Review pool	works	yes	s2	81	111	91	249
+Review pool: no wait on file, the crew's second wait	Review pool	works		s3	244	408	284	904
 Review pool: the crew waits on file for the cap to end	Review pool	works			10	10	10	18
-Review pool: the crew waits on file for the cap to end, the crew's second wait	Review pool	works		s11	76	106	86	240
+Review pool: the crew waits on file for the cap to end, the crew's second wait	Review pool	works		s4	76	106	86	240
 Review pool: the crew's wait on file, its cap has ended	Review pool	works			46	74	66	204
 Review pool: the crew's wait on file, its cap has ended, the crew's second wait	Review pool	works			220	400	310	1038
-Short lane: the slot free	Short lane	works	yes	s12	234	543	351	1167
+Short lane: the slot free	Short lane	works	yes	s5	234	543	351	1167
 Short lane: the slot free, a dead caller's ticket in the line	Short lane	works			162	363	243	783
 Short lane: the slot free, a dead caller's ticket in the line, the log has a take with no release	Short lane	works			42	63	97	257
 Short lane: the slot free, its run on file as ended	Short lane	works			78	105	234	586
@@ -165,7 +149,7 @@ Short lane: the slot free, the crew waits in the line, a dead caller's ticket in
 Short lane: the slot free, the crew waits in the line, a dead caller's ticket in the line, the log has a take with no release	Short lane				0	0	17	27
 Short lane: the slot free, the crew waits in the line, the log has a take with no release	Short lane				0	0	23	37
 Short lane: the slot free, the log has a take with no release	Short lane	works			42	63	109	289
-Short lane: the slot held by a call with no thread	Short lane	works		s13	429	1210	507	1742
+Short lane: the slot held by a call with no thread	Short lane	works		s6	429	1210	507	1742
 Short lane: the slot held by a call with no thread, a dead caller's ticket in the line	Short lane	works			297	814	351	1170
 Short lane: the slot held by a call with no thread, a dead caller's ticket in the line, the log has a take with no release	Short lane	works			77	154	91	234
 Short lane: the slot held by a call with no thread, its run on file as ended	Short lane	works			143	264	338	884
@@ -185,26 +169,26 @@ Short lane: the slot held by a crew's run, its run on file with no end, its comm
 Short lane: the slot held by a crew's run, its run on file with no end, its pid taken by another process	Short lane				0	0	216	660
 Short lane: the slot held by a crew's run, its run on file with no end, its pid taken by another process, the log has a take with no release	Short lane				0	0	24	52
 Short lane: the slot held by a crew's run, the log has a take with no release	Short lane				0	0	81	204
-Usage ledger: the ledger keeps the records of jbus	Usage ledger	works		s14	2	1	8	8
-Usage ledger: the ledger keeps the records of jbus and jgauge limits	Usage ledger	works		s15	15	10	45	60
+Usage ledger: the ledger keeps the records of jbus	Usage ledger	works		s7	2	1	8	8
+Usage ledger: the ledger keeps the records of jbus and jgauge limits	Usage ledger	works		s8	15	10	45	60
 Usage ledger: the ledger keeps the records of jbus and jgauge limits, a retry file stands	Usage ledger	works			15	5	45	45
 Usage ledger: the ledger keeps the records of jbus and jgauge limits, a retry file stands, the last capped read is older than the ledger	Usage ledger	works			30	10	90	90
-Usage ledger: the ledger keeps the records of jbus and jgauge limits, jgauge limits merges into the copy it read, of jbus and jgauge limits	Usage ledger	works		s16	2	0	6	0
+Usage ledger: the ledger keeps the records of jbus and jgauge limits, jgauge limits merges into the copy it read, of jbus and jgauge limits	Usage ledger	works		s9	2	0	6	0
 Usage ledger: the ledger keeps the records of jbus and jgauge limits, jgauge limits merges into the copy it read, of jbus and jgauge limits, a retry file stands	Usage ledger	works			2	0	6	0
 Usage ledger: the ledger keeps the records of jbus and jgauge limits, jgauge limits merges into the copy it read, of jbus and jgauge limits, a retry file stands, the last capped read is older than the ledger	Usage ledger	works			4	0	12	0
 Usage ledger: the ledger keeps the records of jbus and jgauge limits, jgauge limits merges into the copy it read, of jbus and jgauge limits, the last capped read is older than the ledger	Usage ledger	works			4	0	12	0
-Usage ledger: the ledger keeps the records of jbus and jgauge limits, the last capped read is older than the ledger	Usage ledger	works		s17	30	20	90	120
+Usage ledger: the ledger keeps the records of jbus and jgauge limits, the last capped read is older than the ledger	Usage ledger	works		s10	30	20	90	120
 Usage ledger: the ledger keeps the records of jbus and jgauge limits, the status line merges into the copy it read, of jbus and jgauge limits	Usage ledger	works			15	10	15	20
 Usage ledger: the ledger keeps the records of jbus and jgauge limits, the status line merges into the copy it read, of jbus and jgauge limits, a retry file stands	Usage ledger	works			15	5	15	15
 Usage ledger: the ledger keeps the records of jbus and jgauge limits, the status line merges into the copy it read, of jbus and jgauge limits, a retry file stands, the last capped read is older than the ledger	Usage ledger	works			30	10	30	30
 Usage ledger: the ledger keeps the records of jbus and jgauge limits, the status line merges into the copy it read, of jbus and jgauge limits, the last capped read is older than the ledger	Usage ledger	works			30	20	30	40
 Usage ledger: the ledger keeps the records of jbus, a retry file stands	Usage ledger	works			2	1	8	8
 Usage ledger: the ledger keeps the records of jbus, a retry file stands, the last capped read is older than the ledger	Usage ledger	works			2	1	8	8
-Usage ledger: the ledger keeps the records of jbus, jgauge limits merges into the copy it read, of jbus	Usage ledger	works		s18	1	0	2	0
+Usage ledger: the ledger keeps the records of jbus, jgauge limits merges into the copy it read, of jbus	Usage ledger	works		s11	1	0	2	0
 Usage ledger: the ledger keeps the records of jbus, jgauge limits merges into the copy it read, of jbus, a retry file stands	Usage ledger	works			1	0	2	0
 Usage ledger: the ledger keeps the records of jbus, jgauge limits merges into the copy it read, of jbus, a retry file stands, the last capped read is older than the ledger	Usage ledger	works			1	0	2	0
 Usage ledger: the ledger keeps the records of jbus, jgauge limits merges into the copy it read, of jbus, the last capped read is older than the ledger	Usage ledger	works			1	0	2	0
-Usage ledger: the ledger keeps the records of jbus, the last capped read is older than the ledger	Usage ledger	works		s19	2	1	8	8
+Usage ledger: the ledger keeps the records of jbus, the last capped read is older than the ledger	Usage ledger	works		s12	2	1	8	8
 Usage ledger: the ledger keeps the records of jbus, the status line merges into the copy it read, of jbus	Usage ledger	works			2	1	4	4
 Usage ledger: the ledger keeps the records of jbus, the status line merges into the copy it read, of jbus, a retry file stands	Usage ledger	works			2	1	4	4
 Usage ledger: the ledger keeps the records of jbus, the status line merges into the copy it read, of jbus, a retry file stands, the last capped read is older than the ledger	Usage ledger	works			2	1	4	4
@@ -225,9 +209,9 @@ Usage ledger: the ledger keeps the records of jgauge limits, the status line mer
 Usage ledger: the ledger keeps the records of jgauge limits, the status line merges into the copy it read, of jgauge limits, a retry file stands	Usage ledger	works			6	2	12	12
 Usage ledger: the ledger keeps the records of jgauge limits, the status line merges into the copy it read, of jgauge limits, a retry file stands, the last capped read is older than the ledger	Usage ledger	works			6	2	12	12
 Usage ledger: the ledger keeps the records of jgauge limits, the status line merges into the copy it read, of jgauge limits, the last capped read is older than the ledger	Usage ledger	works			6	4	12	16
-Usage ledger: the ledger keeps the records of no one	Usage ledger	works	yes	s20	2	1	2	2
+Usage ledger: the ledger keeps the records of no one	Usage ledger	works	yes	s13	2	1	2	2
 Usage ledger: the ledger keeps the records of no one, a retry file stands	Usage ledger	works			2	1	2	2
-Usage ledger: the ledger keeps the records of no one, jbus merges into the copy it read, of no one	Usage ledger	works		s21	2	1	2	2
+Usage ledger: the ledger keeps the records of no one, jbus merges into the copy it read, of no one	Usage ledger	works		s14	2	1	2	2
 Usage ledger: the ledger keeps the records of no one, jbus merges into the copy it read, of no one, a retry file stands	Usage ledger	works			2	1	2	2
 Usage ledger: the ledger keeps the records of no one, jgauge limits merges into the copy it read, of no one	Usage ledger	works			1	0	1	0
 Usage ledger: the ledger keeps the records of no one, jgauge limits merges into the copy it read, of no one, a retry file stands	Usage ledger	works			1	0	1	0

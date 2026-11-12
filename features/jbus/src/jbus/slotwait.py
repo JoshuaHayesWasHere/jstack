@@ -14,11 +14,14 @@ Code resumes that thread, so each pass of `jbus poll` resumes it, in `wake`:
   with one line and wakes no one for it.
 - When the full lane has a slot free, `wake` wakes the oldest waiters on it, one for each free
   slot that a woken waiter has not claimed already (`jgauge.slot.spare`, the count every taker
-  of a full slot goes by too). A woken waiter claims its slot for
-  `waiters.HOLDS`: jbus has told the waiter, and the waiter has not taken the slot yet.
+  of a full slot goes by too). It counts and records the wakes in one change of the waiters
+  file, under its lock, before it sends them (`waiters.wake`), as `jgauge.slot` counts and
+  takes, so a taker that comes before the send finds the slot claimed. A woken waiter claims its
+  slot for `waiters.HOLDS`: jbus has told the waiter, and the waiter has not taken the slot yet.
 - A wake is one queued message (`jbus.outbox.send`), keyed by the wait, so a retry sends the same
-  message. jbus records the wait as woken only after T3 Code took the message. So jbus wakes
-  each wait once, and sends again a message that got no answer.
+  message. A message that T3 Code did not take gives its claim back (`waiters.unwake`), so the
+  next pass counts the wait again and sends the same message. So jbus wakes each wait once, and
+  sends again a message that got no answer.
 
 A thread can also end its turn while its own run holds a slot. `jgauge test-slot --thread`
 records the run in `test-slot-holders.json` (`jgauge.holders`), and its end and exit code once the
@@ -49,6 +52,7 @@ from __future__ import annotations
 
 import shlex
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
@@ -140,10 +144,23 @@ def wake(run: Pass, client: Client) -> None:
         lanes[one.lane, one.slots].append(one)
     for (kind, slots), queue in sorted(lanes.items()):
         lane = slot.lane_of(kind, slots)
-        room = slot.spare(lane, queue, run.now)
-        waiting = [one for one in queue if not one.woken]
-        for one in waiting[: max(room, 0)]:
+        for one in waiters.wake(locks, _oldest(lane, {one.id for one in queue}, run.now), run.now):
             tell(run, client, one)
+
+
+def _oldest(lane: slot.Lane, ids: set[str], now: datetime) -> Callable[[list[Waiter]], list[str]]:
+    """Choose, from the waiters read under their lock, the oldest waits of `ids` not woken yet,
+    one for each free slot of `lane` that no woken wait claims."""
+
+    def pick(held: list[Waiter]) -> list[str]:
+        room = slot.spare(lane, held, now)
+        waiting = sorted(
+            (one for one in held if one.id in ids and not one.woken),
+            key=lambda one: (one.since, one.id),
+        )
+        return [one.id for one in waiting[: max(room, 0)]]
+
+    return pick
 
 
 def wake_capped(run: Pass, client: Client) -> None:
@@ -222,13 +239,13 @@ def tell(run: Pass, client: Client, one: Waiter) -> None:
             waiters.forget(slot.locks_dir(), {one.id})
             return
         run.say(f"wait {one.thread}: it could not be told a slot is free ({error})")
-        return
+        went = False
     except T3Error as error:
         run.say(f"wait {one.thread}: it could not be told a slot is free ({error})")
-        return
+        went = False
     if not went:
+        waiters.unwake(slot.locks_dir(), one)
         return
-    waiters.woken(slot.locks_dir(), one.id, run.now)
     line = (
         f"slot-wake: woke {one.thread}, a {one.lane} slot is free for `{command}`,"
         f" after {waited(one, run.now)} min"

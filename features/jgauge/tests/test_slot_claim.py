@@ -50,7 +50,8 @@ def test_a_caller_with_no_thread_waits_while_a_woken_waiter_holds_the_free_slot(
 )
 def test_jbus_wakes_a_waiter_for_each_slot_a_take_finds_spare(machine, monkeypatch, held, claimed):
     """With `held` of two full slots taken and `claimed` woken waiters, jbus wakes as many of
-    three waiters as `spare` counts, and a take finds a slot exactly while `spare` counts one."""
+    three waiters as `spare` counts, and its wakes claim every spare slot, so a take after them
+    finds none."""
     lane = slot.full(2)
     fds = hold_full(machine)
     for fd in fds[held:]:
@@ -69,7 +70,7 @@ def test_jbus_wakes_a_waiter_for_each_slot_a_take_finds_spare(machine, monkeypat
         slotwait.wake(SimpleNamespace(now=now, say=lambda line: None), None)
         assert len(told) == max(spare, 0)
         took = slot.take(lane, "mcp:taker", ["echo"])
-        assert (took is not None) == (spare > 0)
+        assert took is None
         if took is not None:
             os.close(took[0])
     finally:

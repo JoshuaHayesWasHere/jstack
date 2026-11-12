@@ -1,7 +1,7 @@
 """The test slots' TLA+ spec, `features/jgauge/spec/TestSlot.tla`: each carrier of the machine
 room is a VARIABLE that cites the code that writes it, each quote of code stands once in its file,
-and TLC finds what the README says: today's code misses a woken crew's slot, the mode that passes
-holds every rule, and each canary, a fault put back, breaks its own rule. The TLC tests skip where
+and TLC finds what the README says: today's code, the mode that passes, holds every rule, and
+each canary, a fault the code has closed put back, breaks its own rule. The TLC tests skip where
 no Java runs TLC."""
 
 import importlib
@@ -119,23 +119,19 @@ def tlc(
 
 JAVA = pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
 TLC = pytest.mark.timeout(600)
-"""A TLC run comes near the 120 s bound on CI: the mode that passes took 86 s at 614,686 states."""
+"""A TLC run comes near the 120 s bound on CI: the mode that passes took 86 s at 614,686
+states, and has 694,283 now."""
 
 
-@JAVA
-@TLC
-def test_today_s_code_misses_a_woken_crew_s_slot():
-    """TestSlot.cfg is today's code, and TLC's first finding is the one its comment keeps: jbus
-    counts the slot spare outside the waiters lock, a desk takes it before the wake is recorded,
-    and the crew jbus woke finds no slot."""
-    code, out = tlc("today", workers="1")
-    assert code != 0
-    assert "Invariant WokenGetsSlot is violated" in out, out[-4000:]
-    steps = re.findall(r"^State \d+: <(\w+)", out, re.M)
-    taken = "Start Start ClaimLock ClaimCount ClaimLock ClaimCount Die"
-    waits = "Start WaitersLock Register Start BusStart WakeRead"
-    woken = "ClaimLock Spare ClaimCount Tell WakeLock Wake ClaimLock ClaimCount"
-    assert steps == ["Initial", *taken.split(), *waits.split(), *woken.split()], out[-4000:]
+def test_today_s_wake_is_counted_and_recorded_under_the_waiters_lock():
+    """slotwait.wake counts the free slot and records the wake in one hold of the waiters lock,
+    before its send, so today's code puts no fault back: `TodayFaults` is empty, and today's
+    mode is the mode that passes, whose one TLC run holds WokenGetsSlot over the whole machine
+    while the canary spare-outside-lock breaks it. A second TLC run of the same states, in
+    today's name, would hold a hosted runner's cores for 100 s more and check nothing new."""
+    spec = (SPEC / "TestSlot.tla").read_text()
+    assert re.search(r"^TodayFaults == \{\}$", spec, re.M)
+    assert 'Has(f) == Fault = f \\/ (Fault = "today" /\\ f \\in TodayFaults)' in spec
 
 
 @JAVA
@@ -174,7 +170,7 @@ def test_each_of_today_s_faults_breaks_its_rule(fault, rule):
 def test_a_killed_test_slot_takes_its_command_with_it_today(fault, code):
     """Today's code holds OneCommandPerSlot where a killed `jgauge test-slot` leaves the slot
     free, and the canary that lets its command live on breaks it there. The short lane's room
-    alone, since the whole of today's mode is 927,474 states."""
+    alone, since the whole of today's mode is 694,283 states."""
     ended, out = tlc(fault, ["OneCommandPerSlot"], room="short")
     assert ended == code, out[-4000:]
     assert ("Invariant OneCommandPerSlot is violated" in out) == bool(code), out[-4000:]

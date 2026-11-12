@@ -1,23 +1,23 @@
 {
   "view": "customer",
-  "modelStates": 96720,
-  "modelTransitions": 288233,
-  "chartStates": 22,
-  "chartTransitions": 24,
-  "allTransitions": 389,
+  "modelStates": 85439,
+  "modelTransitions": 255206,
+  "chartStates": 15,
+  "chartTransitions": 14,
+  "allTransitions": 409,
   "final": [
     "Review pool: no wait on file, the crew's second wait"
   ],
   "chartStatus": {
-    "works": 19,
-    "wrong": 3,
+    "works": 15,
+    "wrong": 0,
     "fixed": 0
   },
   "chartGroups": [
     {
       "name": "Full lane",
       "color": "#d6eaf8",
-      "states": 9
+      "states": 2
     },
     {
       "name": "Short lane",
@@ -40,47 +40,35 @@
     "drawn": false,
     "why": "160 region states are not fewer than the 158 flat states"
   },
-  "classes": [
-    {
-      "n": 1,
-      "end": "Full lane: the slot held by a desk's run, the crew is woken, its claim holds, the woken crew found its slot taken",
-      "invariant": "WokenGetsSlot",
-      "rule": "WokenGetsSlot: a woken waiter gets the slot or its claim lapses at HOLDS. A crew jbus woke, that runs its command again while the wake's claim holds, finds its slot free.",
-      "cause": "jbus counted the free slot outside the waiters' lock and recorded the wake after its message went, and a call with no thread took the slot in between",
-      "readerSteps": 11,
-      "modelSteps": 25,
-      "counterexamples": 300,
-      "fix": null
-    }
-  ],
+  "classes": [],
   "codeLike": [],
   "map": {
     "runs": [
       "TestSlot.chart.cfg",
       "TestSlot.cfg"
     ],
-    "states": 274,
-    "arrows": 1216
+    "states": 258,
+    "arrows": 1151
   },
   "also": {
     "cfg": "TestSlot.cfg",
-    "modelStates": 927474,
-    "modelTransitions": 4812286,
-    "states": 116,
-    "arrows": 786
+    "modelStates": 694283,
+    "modelTransitions": 3633465,
+    "states": 100,
+    "arrows": 732
   },
   "drawnFrom": {
-    "command": "statechart from-spec TestSlot.tla --config TestSlot.chart.cfg --also-config TestSlot.cfg --title 'Who holds a test slot, who waits on one, and what the ledger keeps?' --expect-broken WokenGetsSlot",
+    "command": "statechart from-spec TestSlot.tla --config TestSlot.chart.cfg --also-config TestSlot.cfg --title 'Who holds a test slot, who waits on one, and what the ledger keeps?'",
     "inputs": {
-      "TestSlot.cfg": "4709798983c2798b5696697cf6df805d32dbbc5262173629f06eb1b60e0011f0",
-      "TestSlot.chart.cfg": "eb416ae8adc8dad951dde3f3b1e82c87aaa56c07d2c1da0c296eaf5c3ffdbc1d",
-      "TestSlot.map.py": "ec66d90505b6117e6d3844379edadb3a46aa56013ae698c1aac440b3befa66f7",
-      "TestSlot.tla": "72147aa6024bd7862ac3fa526bf3ae4e910e5964b2f6ab181cb6ac63ae32f531"
+      "TestSlot.cfg": "a9ef93e9772355afac949ec29208b0dcc142e4b52dbabf2fd959e38c1eea5efb",
+      "TestSlot.chart.cfg": "ddade860458cb7d867f464b74ce9a784861aec20c71f9de053fc45c92ed80e8f",
+      "TestSlot.map.py": "221c86a9ef98bfde29c5f71984f867d509d0b7c72a651918ee936cc7e9d06400",
+      "TestSlot.tla": "1cb0100082db93c76a7757bcca45394c4beb1673a71fd474e515f4581dfd0ec5"
     },
-    "chart": "13e813262d418dd7ca9677c8522355a8eb66598708fdfe307740bf05aca51f03",
+    "chart": "679887cc3870485432737fb5414a3ee32d8792e888082baaed2e4b81897da0b0",
     "tables": {
-      "states.tsv": "23968a4c7f3efd3adc9b33881a1006e3b26988adb70c9dd76987ae53035a3235",
-      "arrows.tsv": "e2ba24128d059506a8877588c581bb7032a90f6135302d074a52279ccd695af3"
+      "states.tsv": "98e8042bce243b08ba5fcaa8bae1c50197b5220752acc3a1b536ebe20c3d3258",
+      "arrows.tsv": "ec504045c50e4d47df121f6e77ae1227f6144f19db380a7fc214c4a7b2f21665"
     }
   }
 }

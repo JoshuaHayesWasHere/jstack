@@ -19,14 +19,17 @@ reader never sees half a list. A waiter is one wait:
   back;
 - `id` names this wait. A retry of its wake is still one message, and the thread's next wait
   gets a message of its own;
-- `woken` is when jbus sent the wake, or nothing. jbus wakes a wait once.
+- `woken` is when jbus recorded the wake, just before it sent it, or nothing. jbus wakes a
+  wait once.
 
 Registering is idempotent: a thread that registers again for a wait it still has, on the same
 lane and not yet woken, changes nothing but the command it will run. A thread that takes a slot
 leaves the file (`drop`). A woken wait claims a slot of its lane for `HOLDS` (`holding`), and
 every other taker of the lane, with a thread or with none, takes only a free slot that no such
 claim holds (`claims`). It counts the claims and takes the slot under the waiters' lock
-(`locked`).
+(`locked`), and jbus counts the free slots and records the wakes they allow under the same lock,
+in one change, before it sends them (`wake`), so no take comes between jbus's count and its
+claim. A wake that did not go gives its claim back (`unwake`).
 
 A thread has one form of id, T3 Code's `mcp:<uuid>`, and `jsettings.thread_id` adds the prefix
 to an id given without it. A file written before this rule may hold two records for one thread. They
@@ -38,7 +41,7 @@ instead, with the older `since`. The next change writes the file in that form.
 from __future__ import annotations
 
 import secrets
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
@@ -139,6 +142,38 @@ def woken(locks: Path, wait: str, now: datetime) -> None:
         locks,
         lambda waiters: [
             replace(one, woken=stamp(now)) if one.id == wait and not one.woken else one
+            for one in waiters
+        ],
+    )
+
+
+def wake(locks: Path, pick: Callable[[list[Waiter]], list[str]], now: datetime) -> list[Waiter]:
+    """Record as woken the waits that `pick` chooses from every waiter, read under the waiters'
+    lock, in one change of the file, and return them as recorded, the oldest wait first. `pick`
+    counts under that lock, so no take comes between its count and the claims it makes."""
+    made: list[Waiter] = []
+
+    def how(held: list[Waiter]) -> list[Waiter]:
+        chosen = set(pick(held))
+        out = []
+        for one in held:
+            if one.id in chosen and not one.woken:
+                one = replace(one, woken=stamp(now))
+                made.append(one)
+            out.append(one)
+        return out
+
+    FILE.change(locks, how)
+    return sorted(made, key=lambda one: (one.since, one.id))
+
+
+def unwake(locks: Path, wait: Waiter) -> None:
+    """Take back the wake that `wake` recorded for `wait`, since its message did not go: the
+    wait claims no slot, and the next pass counts it and sends it again."""
+    FILE.change(
+        locks,
+        lambda waiters: [
+            replace(one, woken="") if one.id == wait.id and one.woken == wait.woken else one
             for one in waiters
         ],
     )
