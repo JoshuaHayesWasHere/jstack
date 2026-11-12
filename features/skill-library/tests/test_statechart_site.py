@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from statechart_support import lib, node, read, write
+from statechart_support import DOOR_MAP, lib, needs_tlc, node, read, run_door, write
 from testing.paths import REPO
 
 chart_site = importlib.import_module("statechart.site")
@@ -240,6 +240,25 @@ def test_a_chart_drawn_before_each_state_kept_a_way_out_is_told_to_draw_it_again
     assert stalls(folder / "chart.mmd") == ["Lamp-statechart draws no way out of: On"]
     write(folder / "summary.json", json.dumps({"final": ["On"], "drawnFrom": drawn}))
     assert stalls(folder / "chart.mmd") == []
+
+
+@needs_tlc
+@pytest.mark.timeout(300)
+def test_from_spec_draws_a_way_out_of_a_bug_state_the_model_can_leave_and_calls_one_it_cannot_final(
+    tmp_path,
+):
+    """A rule broken as expected stops TLC's check at the bug, yet from-spec draws the chart from
+    the whole model, so the bug state keeps its way out, or is final when the model has none."""
+    run = run_door(tmp_path, DOOR_MAP)
+    for rule, bug, leaves in [
+        ("NoShownWhileClosed", "Window closed: reply shown", True),
+        ("NoLostReply", "reply lost", False),
+    ]:
+        drawn = run(rule)
+        summary = json.loads(read(drawn["out"] / "summary.json"))
+        assert summary["classes"][0]["invariant"] == rule
+        assert (bug in summary["final"]) is not leaves, rule
+        assert stalls(drawn["out"] / "chart.mmd") == [], rule
 
 
 def test_the_page_says_how_many_steps_a_chart_draws_of_how_many_it_could(tmp_path):
