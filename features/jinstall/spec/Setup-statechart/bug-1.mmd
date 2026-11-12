@@ -1,0 +1,27 @@
+---
+title: "Does an uninstall or an expert's takeover leave anything behind?, bug 1"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef plainPath fill:#f4f6f7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group0 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group0Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  state "Legend" as legend {
+    state "Leaves something behind" as legendGroup0
+    state "Wrong today" as legendWrong
+  }
+  class legendGroup0 group0
+  class legendWrong plainWrong
+  state "Installing, uninstall<br/>leaves<br/>~/.local/state/jstack<br/>behind: No expert yet" as s0
+  state "Installing, uninstall<br/>removes it all: No expert<br/>yet" as s1
+  state "Nothing of jstack's on<br/>disk: No expert yet" as s2
+  [*] --> s2
+  s2 --> s1 : 1. you run install.sh: the<br/>install makes a folder
+  s1 --> s0 : 2. it makes<br/>~/.local/state/jstack
+  class s0 group0Wrong
+  class s1 plainPath
+  class s2 plainPath
