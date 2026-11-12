@@ -460,3 +460,37 @@ def test_a_paused_row_with_nothing_pushed_to_stack_on_is_left_as_it_is(tmp_path,
         assert held.depends() == [] and held.told() == []
     finally:
         kitchen.close()
+
+
+def test_a_stack_whose_message_is_refused_or_held_tells_its_crew_once_on_a_later_pass(held):
+    """T3 Code refuses the message, then the crew's turn runs, and the outbox holds it: the stack
+    stays written, and the crew hears of it once, on the first pass that can tell it."""
+    kitchen = held.kitchen
+    key = f"stacked|{HELD_ROW}|{BASE_ROW}|{held.base_head[:12]}"
+    kitchen.t3.refuse_send = True
+    said = kitchen.poll(NOW)
+    kitchen.t3.refuse_send = False
+    assert any(line.startswith(f"wait {HELD_ROW}: its crew could not be told") for line in said)
+    assert held.head_line() == stacks.Stacked(BASE_ROW, BASE_ROW)
+    (crew,) = [one for one in kitchen.t3.threads if one["title"] == f"crew: {HELD_ROW}"]
+    crew.update(status="running")
+    kitchen.t3.at_work.add(crew["threadId"])
+    passes(kitchen, 3)
+    assert key not in jbus.read_json(kitchen.state / "sent.json", [])
+    crew.update(status="completed")
+    kitchen.t3.at_work.discard(crew["threadId"])
+    passes(kitchen, 6, 9)
+    assert jbus.read_json(kitchen.state / "sent.json", []).count(key) == 1
+    assert [one["clientRequestId"] for one in held.told()].count(key) == 2
+
+
+def test_a_stack_whose_brief_cannot_be_written_is_made_on_a_later_pass(held):
+    held.path.chmod(0o444)
+    try:
+        said = held.kitchen.poll(NOW)
+    finally:
+        held.path.chmod(0o644)
+    assert any("its Stacked on: line could not be written" in line for line in said), said
+    assert held.head_line() is None and held.told() == []
+    passes(held.kitchen, 3)
+    assert held.head_line() == stacks.Stacked(BASE_ROW, BASE_ROW) and len(held.told()) == 1

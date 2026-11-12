@@ -193,7 +193,8 @@ def _adopted(run: Pass, world: World, slug: str) -> None:
     live = world.threads[slug]
     if len(live) != 1 or at_work(live) or world.awaits(live[0]):
         return
-    if slug in world.open or slug in world.merged or not crewthread.tended(run, slug):
+    made = records(run, slug, queue.CREW)
+    if slug in world.open or slug in world.merged or not made:
         return
     brief = task_brief(run, slug)
     result = world.result(run, slug)
@@ -210,20 +211,12 @@ def _adopted(run: Pass, world: World, slug: str) -> None:
         return
     branch = (below.line(result, "Branch:").split() or [slug])[0]
     head = pushed(run, branch) or _local(run, branch)
-    if not head:
-        return
     if run.run("git", "cat-file", "-e", f"{fork}^{{commit}}").returncode:
         run.run("git", "fetch", "-q", "origin", f"refs/pull/{pull['number']}/head")
     if not _holds(run, head, fork):
         return
-    if not _keep_fork(run, slug, on.slug, fork):
-        return
-    try:
-        if not queue.stack_on(run.state, slug, on.slug):
-            return
-    except queue.Refused as error:
-        run.say(f"wait {slug}: {on.slug} could not be added to its depends ({error})")
-        return
+    _keep_fork(made, on.slug, fork)
+    queue.stack_on(run.state, slug, on.slug)
     if not _rewrite(run, slug, on):
         return
     line = (
@@ -292,18 +285,12 @@ def _slugs(run: Pass) -> set[str]:
     return {row["slug"] for row in queue.load(run.state)}
 
 
-def _keep_fork(run: Pass, slug: str, base: str, fork: str) -> bool:
-    """Keep `fork`, the head of `base` the row was stacked at, in the row's newest launch record,
-    as `stacked`, where `_heads` reads it once the base's branch and its reflog are gone. Return
-    whether it is kept."""
-    made = records(run, slug, queue.CREW)
-    if not made:
-        run.say(f"wait {slug}: it has no launch record to keep where it was stacked")
-        return False
+def _keep_fork(made: list[tuple[Path, dict[str, Any]]], base: str, fork: str) -> None:
+    """Keep `fork`, the head of `base` the row was stacked at, in the newest of its launch records
+    `made`, as `stacked`, where `_heads` reads it once the base's branch and its reflog are gone."""
     path, record = max(made, key=lambda one: str(one[1].get("at") or ""))
     if record.get("stacked") != {"on": base, "fork": fork}:
         write_json(path, {**record, "stacked": {"on": base, "fork": fork}})
-    return True
 
 
 def _local(run: Pass, branch: str) -> str:
