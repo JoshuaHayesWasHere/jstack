@@ -497,11 +497,13 @@ def status(state: State) -> str:
     (`Pull.OPENING`) is `running`, whatever its Result leaves, and never `left`. A thread in a
     status jbus does not know, or a hung turn, makes the row `stale`. A thread that ended with
     nothing written makes the row `stale` when it completed, was settled or was archived, and
-    `failed` when it failed, so a launched row never goes back to `queued`. A settled thread of a
-    row with no launch is of an earlier life of its slug: the row stays `queued`, held by dispatch.
-    The row is `launched` while no thread is there for a launch, and a thread off T3 Code's list
-    counts only for a row with nothing written. `status` reads no clock: a `stale` row with
-    nothing written becomes `left` once its thread is quiet (`watch.unwritten`).
+    `failed` when it failed, so a launched row never goes back to `queued`. A launched thread that
+    is gone (`watch.gone`) or off T3 Code's list (`Thread.MISSING`) with nothing written makes the
+    row `stale` too, never `launched` for good. A row with no launch record and no thread of its
+    own (`NO_THREAD`) is `queued`: a settled thread is of an earlier life of its slug, held by
+    dispatch. A thread off T3 Code's list counts only for a row with nothing written. `status`
+    reads no clock: a `stale` row with nothing written becomes `left` once its thread is quiet or
+    gone (`watch.unwritten`).
 
     """
     facts, value = state.facts, state.value
@@ -520,11 +522,9 @@ def status(state: State) -> str:
         return "left"
     if facts.seen:
         return "stale"
-    if facts.thread in (Thread.NONE, Thread.MISSING) and facts.launch == Launch.LAUNCHED:
-        return "launched"
-    if facts.thread == Thread.SETTLED and facts.launch == Launch.NONE:
+    if facts.launch == Launch.NONE and facts.thread in NO_THREAD:
         return "queued"
-    return _THREAD.get(facts.thread, "queued")
+    return _THREAD[facts.thread]
 
 
 class Scouting(StrEnum):
@@ -547,8 +547,12 @@ def scouting(state: State) -> Scouting:
     return Scouting.SCOUTING
 
 
+NO_THREAD = frozenset({Thread.NONE, Thread.SETTLED, Thread.MISSING})
+"""The threads of a row with no launch record that leave it `queued`: none, or one of an earlier
+life of its slug."""
+
 _THREAD = {
-    Thread.NONE: "queued",
+    Thread.NONE: "stale",
     Thread.STARTING: "launched",
     Thread.MOVING: "running",
     Thread.QUIET: "running",
@@ -558,6 +562,7 @@ _THREAD = {
     Thread.FAILED: "failed",
     Thread.SETTLED: "stale",
     Thread.ARCHIVED: "stale",
+    Thread.MISSING: "stale",
 }
 
 
