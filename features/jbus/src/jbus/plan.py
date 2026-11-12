@@ -569,9 +569,7 @@ def root_go(
             f"is the user's, jbus plan go {entry} --message <thread>/<message>"
         )
     named, said = held
-    kept = next((one for one in word.load(state) if one.id == named), None)
-    if kept is None:
-        raise Refused(f"refused: the standing word for goes {named} is no word jbus keeps")
+    kept = next(one for one in word.load(state) if one.id == named)
     made = Go(
         entry,
         _scope(home, where.parent),
