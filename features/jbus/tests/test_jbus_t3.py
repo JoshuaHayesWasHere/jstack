@@ -248,3 +248,19 @@ def test_a_move_changes_only_the_instance_and_only_within_the_pool(kitchen, chos
     assert kitchen.t3.calls == [
         ("t3_thread_configure", {"threadId": "mcp:crew", "modelSelection": moved})
     ]
+
+
+def test_a_thread_holds_a_text_only_in_a_user_message_and_a_gone_thread_holds_nothing(kitchen):
+    """`Client.holds` reads the thread's last items for a user message with the text in it: an
+    agent's message with it does not count, a thread T3 Code no longer has holds nothing, and
+    T3 Code that gives no answer leaves it unknown."""
+    client = t3.Client(kitchen.t3.url, kitchen.config_dir / "t3.json")
+    thread = kitchen.t3.thread("alpha", "completed", threadId="mcp:home")
+    said = {"position": 1, "type": "assistant_message", "text": "It is word w1: hello"}
+    thread.update(read_items=[said], itemCount=1)
+    assert client.holds("mcp:home", "It is word w1:") is False
+    thread.update(read_items=[{**said, "type": "user_message"}])
+    assert client.holds("mcp:home", "It is word w1:") is True
+    assert client.holds("mcp:gone", "It is word w1:") is False
+    kitchen.t3.lose_read = True
+    assert client.holds("mcp:home", "It is word w1:") is None

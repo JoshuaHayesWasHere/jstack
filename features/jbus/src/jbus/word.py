@@ -53,7 +53,11 @@ word for that home waits for the next home like any other word. A word that coul
 and each pass tries it again (`deliver`). A home with no `home-id`, or one that handed off, gets
 the word on the first pass after the next home starts and writes its own id into `home-id`. The
 retry key is `word|<project>|<id>|<thread>`, and jbus writes `sent_at` only after T3 Code accepted
-the message.
+the message. Right before it asks T3 Code, jbus keeps the thread it tries (`tried`), and a retry
+goes there under the same key, which T3 Code takes as the word it has. Once the home has handed its
+thread on, the word goes to the home's thread now only where the thread tried does not hold it
+(`Client.holds`). So a pass that dies between the send and `sent_at` tells no second home, and
+loses no word to a home that handed off. A refusal forgets the thread tried.
 
 No part of a word is an event. A word is in no outbox, so no wake carries it, and whoever ran the
 command hears nothing back. The log still has a line
@@ -72,6 +76,7 @@ A `word-sends.json` that does not parse, or that holds something other than a ma
 from __future__ import annotations
 
 import argparse
+import functools
 import hashlib
 import json
 import re
@@ -133,6 +138,7 @@ class Word:
     thread: str = ""
     sent_at: str = ""
     waits: str = ""
+    tried: str = ""
     ref: str = ""
     said_in: str = ""
     checked: bool = False
@@ -194,6 +200,7 @@ def load(state: Path) -> list[Word]:
                 thread=str(sent.get("thread", "")),
                 sent_at=str(sent.get("sent_at", "")),
                 waits=str(sent.get("waits", "")),
+                tried=str(sent.get("tried", "")),
             )
         )
     return words
@@ -376,7 +383,10 @@ def _change(run: Pass, one: Word, **changed: Unpack[_Sent]) -> bool:
         if sends.get(one.id, {}).get("sent_at"):
             return False
         now = replace(one, **changed)
+        tried = sends.get(one.id, {}).get("tried", "")
         sends[one.id] = {"thread": now.thread, "sent_at": now.sent_at, "waits": now.waits}
+        if tried and not now.sent_at:
+            sends[one.id]["tried"] = tried
         _write(run.state, sends)
     how = f"sent to {now.thread}" if now.sent_at else f"waits, {now.waits}"
     about = {"words": now.words, "by": run.user.user, "at": now.at, "to": now.thread}
@@ -384,6 +394,19 @@ def _change(run: Pass, one: Word, **changed: Unpack[_Sent]) -> bool:
         about["answers"] = now.answers
     run.box.record(KIND, f"{KIND} {run.project.name}: {how}", now.words, word=about)
     return True
+
+
+def _try(run: Pass, one: Word, thread: str) -> None:
+    """Keep the thread a try of the word goes to, before T3 Code is asked (`outbox.send`'s `pin`),
+    or forget it where `thread` is empty. It writes no line: nothing became of the word yet."""
+    with locked(run.state, LOCK):
+        sends = _sends(run.state)
+        was = sends.get(one.id, {})
+        if was.get("sent_at") or was.get("tried", "") == thread:
+            return
+        made = {"thread": "", "sent_at": "", "waits": "", **was, "tried": thread}
+        sends[one.id] = {key: value for key, value in made.items() if thread or key != "tried"}
+        _write(run.state, sends)
 
 
 def post(
@@ -395,6 +418,7 @@ def post(
     *,
     row: str,
     template: str,
+    pin: Callable[[], None] | None = None,
 ) -> str:
     """Send one queued message to a home's thread, under the retry key `key`, so T3 Code takes
     a second send with the same key as a repeat of the first. Return why it did not go, or nothing
@@ -411,6 +435,7 @@ def post(
             text=message,
             template=template,
             needs="act",
+            pin=pin,
         )
     except T3Refused:
         return REFUSED
@@ -428,17 +453,27 @@ def deliver(run: Pass, client: Client | None) -> None:
     for one in load(run.state):
         if one.sent_at:
             continue
-        thread, name = thread_of(_homes_dir(run, one)), run.project.name
+        home, name = thread_of(_homes_dir(run, one)), run.project.name
+        thread, held = one.tried or home, False
+        if one.tried and one.tried != home and client is not None:
+            if (held := client.holds(one.tried, f"It is word {one.id}:")) is None:
+                continue
+            thread = one.tried if held else home
         key = f"{KIND}|{name}|{one.id}|{thread}"
         text = MESSAGE.format(**(asdict(one) | {"by": run.user.user}))
         if one.answers:
             text += ANSWERS.format(answers=one.answers)
-        waits = post(run, client, thread, text, key, row=name, template=KIND)
+        pin = functools.partial(_try, run, one, thread)
+        waits = (
+            "" if held else post(run, client, thread, text, key, row=name, template=KIND, pin=pin)
+        )
         if not waits:
             at = jsettings.stamp(run.now)
             if _change(run, one, thread=thread, sent_at=at, waits=""):
                 run.say(f"{KIND} {name}: sent to {thread}")
             continue
+        if waits == REFUSED:
+            _try(run, one, "")
         if waits != one.waits and _change(run, one, waits=waits):
             run.say(f"wait {name}: a word of {one.at} {waits}")
 

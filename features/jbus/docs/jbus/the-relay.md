@@ -59,7 +59,8 @@ A body's own `id` that a route sent is never spooled again.
 A hashed id is not spooled again while the route holds it or sent it in the last `RELAY_DEDUP_SECONDS`.
 That case is jbus posting a body again after it lost the answer.
 In both cases the journal says `not sent again`.
-jbus's bodies carry no time, so the same alert said again later has the same hashed id, and it goes once the window has passed.
+jbus gives each body an id of its own when it queues it, so a retry is not sent again and the same alert queued again later goes as a new body.
+A body with no id of its own carries no time, so the same alert said again later has the same hashed id, and it goes once the window has passed.
 A body that went and was not yet written to `sent/` when the relay stopped goes once more after its start.
 
 The pager is a second route, `page`, spooled as the first is, with the pager as its target.
