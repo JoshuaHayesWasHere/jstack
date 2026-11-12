@@ -41,7 +41,7 @@ def home(tmp_path):
 def judged(home, text, head=PUSHED):
     real = merge.pushed_on(home)
     (home.tasks / "alpha.md").write_text(real(text))
-    home.open_pull_request(real(head))
+    home.open_pull_request(real(head), files=("a.py", "a_test.py"))
     return home.ready(), real
 
 
