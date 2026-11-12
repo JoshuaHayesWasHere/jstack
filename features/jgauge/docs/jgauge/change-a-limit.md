@@ -11,13 +11,15 @@ These values mean the same on any machine, and you cannot change them.
 ## See the limits on this machine
 
 Run `jgauge sizes`.
-For each of `test_slots`, `short_slots` and `max_running`, it prints the value each caller gets and where that value came from.
+For each of `test_slots`, `short_slots`, `max_running` and `workers`, it prints the value each caller gets and where that value came from.
+Then its `total` line adds the workers the slots of both lanes run with every slot taken, and says whether they fit `workers`.
 Then it prints room's six lines.
 
 ## Change the number of test slots
 
 1. Open `~/.config/jstack/machine.toml`, or create it if it does not exist.
-2. Set `test_slots` for the full lane, `short_slots` for the short lane, or both:
+2. Set `workers` to the test workers both lanes may run at once, and both lanes are derived inside it.
+   Or set `test_slots` for the full lane, `short_slots` for the short lane, or both:
 
    ```toml
    test_slots = 3
@@ -25,6 +27,7 @@ Then it prints room's six lines.
    ```
 
 3. Run `jgauge sizes`, and check that each line says it came from `machine.toml`.
+   A `total` line that says `over` names how many workers past `workers` your counts run with every slot taken.
 
 To use another count for one command only, run `jgauge test-slot --slots <n> -- <command>`, or set `TEST_SLOTS` for that command.
 `jbus.service` does not see a `TEST_SLOTS` set in a shell profile.
@@ -48,13 +51,14 @@ A thread that is already running moves to another account only at a real cap of 
 
 | Limit | Default | Set it in | Read by |
 |---|---|---|---|
-| `test_slots`, how many whole suites run at once, machine-wide | The processors divided by one desk run's workers (a quarter of the processors, at least 2), and at most one for each 4 GiB: 4 on most machines of 8 cores or more | `~/.config/jstack/machine.toml`; `--slots` and `TEST_SLOTS` come before it | `jgauge test-slot`, `jbus poll` |
-| `short_slots`, how many targeted runs and reviewers' proofs run at once | One for each 8 processors, from 2 to 8 | `~/.config/jstack/machine.toml` | `jgauge test-slot --short`, `jbus poll` |
+| `workers`, how many test workers the slots of both lanes run at once, machine-wide | The processors | `~/.config/jstack/machine.toml` | `jgauge test-slot`, `jgauge sizes` |
+| `test_slots`, how many whole suites run at once, machine-wide | What `workers` holds after the short lane, at one desk run's workers a slot (a quarter of the processors, at least 2), at least 1, and at most one for each 4 GiB: 1 on 24 cores, 2 on 8 | `~/.config/jstack/machine.toml`; `--slots` and `TEST_SLOTS` come before it | `jgauge test-slot`, `jbus poll` |
+| `short_slots`, how many targeted runs and reviewers' proofs run at once | What `workers` holds after one full slot, at 4 workers a slot, from 1 to 8: 4 on 24 cores, 1 on 8 | `~/.config/jstack/machine.toml` | `jgauge test-slot --short`, `jbus poll` |
 | `max_running`, how many crewmates run at once, across every project | One for each processor, while each has 2 GiB | `~/.config/jbus/config.toml` | `jbus` |
 | `headroom`, the share of a usage window at which a launch counts an account as full | `90` | `~/.config/jstack/config.toml` | `jroles`, `jbus`, `jgauge room` |
 | `room_passes`, how many passes a row waits for room before its gate | `10` | `~/.config/jbus/config.toml` | `jbus` |
 
-`jgauge` derives the three sizes from the whole machine: its processors in `/proc/stat` and its `MemTotal`, or on macOS `hw.ncpu` and `hw.memsize` of `sysctl`.
+`jgauge` derives the four sizes from the whole machine: its processors in `/proc/stat` and its `MemTotal`, or on macOS `hw.ncpu` and `hw.memsize` of `sysctl`.
 `jgauge` never uses a caller's own CPU quota, so that `jbus.service` and every shell count the same slots.
 `jgauge` refuses a value that is not a whole number of 1 or more, and prints one line that says so.
 [Configuration](../../../jinstall/docs/configuration.md#the-machines-sizes) has every key of the three files.

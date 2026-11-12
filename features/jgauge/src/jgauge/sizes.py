@@ -1,12 +1,15 @@
-"""The machine's sizes: how many full test slots, how many short ones, and the crew cap.
+"""The machine's sizes: the full test slots, the short ones, the workers they share, the crew cap.
 
-Three numbers in jstack are sizes of the machine and not design choices. This module derives
+Four numbers in jstack are sizes of the machine and not design choices. This module derives
 a default for each from whole-machine facts. Each number also has one local home, a file where
 the owner may set it:
 
 - `test_slots`, read by `jgauge test-slot` and by `jbus poll` for its waiters, set in
   `~/.config/jstack/machine.toml`;
 - `short_slots`, read the same way for the short lane, set in the same file;
+- `workers`, the budget: the test workers both lanes' slots may run at once, the processors
+  unless the owner sets it in the same file. Both lanes are sized inside it, the short lane
+  too, so with every slot taken the slots' workers fit the cores;
 - `max_running`, the crew cap that `jbus` reads when it dispatches, set in
   `~/.config/jbus/config.toml`, where it lived before this module. jbus parses that file and
   passes the raw value here, so this module checks the value and gives its default.
@@ -70,9 +73,16 @@ importing and collecting. Four keeps 9% of 6's CPU for 13% more wall time, and 4
 `-n auto`'s; 2 saves 5% more CPU for 69% more wall time, which would hold the short slots, 55%
 taken in the 2026-11-09 push at 6, near all the time."""
 
-SHORT_PER_CORES = 8
-SHORT_FLOOR = 2
 SHORT_CEILING = 8
+"""The most short slots on any machine: past it a machine's cores go to the full lane."""
+
+FULL_FIRST = 1
+"""The full slots the budget keeps before it sizes the short lane: one, so a whole suite always
+has a slot of its own. On yelena on 2026-11-12, 00:00 to 22:30 UTC, the slot log's releases
+spent 8.79 cores in the short lane (32,490 takes) and 2.92 in the full lane (3,782), so the
+short lane has the rest of the budget. At 24 cores that is 1 full slot of 6 workers and 4 short
+of 4: 2.92 cores is 49% of the full slot's 6 workers and 8.79 is 55% of the short lane's 16.
+2 full and 3 short would leave the short lane at 73% and the full at 24%."""
 
 FALLBACK_CORES = 2
 """The processors taken when none can be read: the Makefile's own fallback."""
@@ -91,9 +101,10 @@ class Name(StrEnum):
     TEST_SLOTS = "test_slots"
     SHORT_SLOTS = "short_slots"
     MAX_RUNNING = "max_running"
+    WORKERS = "workers"
 
 
-IN_FILE = (Name.TEST_SLOTS, Name.SHORT_SLOTS)
+IN_FILE = (Name.TEST_SLOTS, Name.SHORT_SLOTS, Name.WORKERS)
 """The keys `machine.toml` may have. `max_running` is not one: its home is jbus's config."""
 
 
@@ -193,23 +204,35 @@ def desk_workers(cores: int) -> int:
     return max(2, cores // DESK_SHARE)
 
 
-def derive(name: Name, machine: Machine) -> int:
+def derive(
+    name: Name, machine: Machine, *, workers: int | None = None, short: int | None = None
+) -> int:
     """The default of `name` on `machine`, 1 or more.
 
-    `test_slots`: with every full slot taken, at most one desk worker runs per processor, and
-    each slot has `SUITE_GIB` of memory. That gives 1, 4, 4, 4 and 4 slots on 2, 8, 12, 24 and
-    64 cores.
-    `short_slots`: one for each `SHORT_PER_CORES` processors, from 2 to 8. A short run holds
-    one for at most 120 s, beside the full lane.
+    `workers`: the budget, the test workers every slot of both lanes may run at once. It is the
+    processors, since a worker keeps 0.86 of a core busy. The owner may set another in
+    `machine.toml`, and `workers` here is that value.
+    `short_slots`: what the budget holds after `FULL_FIRST` full slots, at `SHORT_WORKERS` a
+    slot, from 1 to `SHORT_CEILING`.
+    `test_slots`: what the budget holds after the short lane, given as `short` where the owner
+    sets it, at the desk's workers a slot, from 1, and `SUITE_GIB` of memory a slot.
+    That gives 1 full and 4 short slots on 24 cores, 22 workers; 2 and 1 on 8, 8 workers; 2 and
+    8 on 64, 64 workers. On 2 cores the floors of one slot a lane give 6 workers, over the
+    budget, and `jgauge sizes` says so.
     `max_running`: one crew for each processor, as long as each crew has `CREW_GIB` of memory.
     One crew per processor is enough because a crew's heavy work runs under the slots. That
     gives 24 on yelena's 24 cores and 62 GiB.
     """
     cores, memory = machine.cores, machine.memory_gib
-    if name is Name.TEST_SLOTS:
-        return max(1, min(cores // desk_workers(cores), memory // SUITE_GIB))
+    budget = workers or cores
+    desk = desk_workers(cores)
+    if name is Name.WORKERS:
+        return cores
     if name is Name.SHORT_SLOTS:
-        return min(SHORT_CEILING, max(SHORT_FLOOR, cores // SHORT_PER_CORES))
+        return min(SHORT_CEILING, max(1, (budget - FULL_FIRST * desk) // SHORT_WORKERS))
+    if name is Name.TEST_SLOTS:
+        short = short or derive(Name.SHORT_SLOTS, machine, workers=budget)
+        return max(1, min((budget - short * SHORT_WORKERS) // desk, memory // SUITE_GIB))
     return max(1, min(cores, memory // CREW_GIB))
 
 
@@ -280,33 +303,70 @@ def resolve(
 ) -> Limit:
     """The value of `name` and where it came from. The first of these that is set wins: `flag`
     and `TEST_SLOTS` (for `test_slots` only), the local home, and `derive`. The local home of
-    the slots is `path()`. The local home of `max_running` is jbus's config, which jbus has
-    already parsed: jbus passes the raw value as `written` and the file as `written_in`. Raises
-    `Refused` for a value that is set and is not a count, never for a fact it cannot read."""
+    the slots and of `workers` is `path()`, and the slots are derived inside the `workers` it
+    sets. The local home of `max_running` is jbus's config, which jbus has already parsed: jbus
+    passes the raw value as `written` and the file as `written_in`. Raises `Refused` for a value
+    that is set and is not a count, never for a fact it cannot read."""
     machine = machine or Machine.here()
-    derived = derive(name, machine)
     env = os.environ if env is None else env
+    file, found, unread = path(), {}, None
+    if name is not Name.MAX_RUNNING:
+        try:
+            found = read_file(file)
+        except Refused as error:
+            unread = error
+    derived = derive(
+        name, machine, workers=found.get(Name.WORKERS), short=found.get(Name.SHORT_SLOTS)
+    )
     if name is Name.TEST_SLOTS and flag is not None:
         return Limit(name, count(flag, "--slots", name), From.FLAG, "--slots", derived)
     if name is Name.TEST_SLOTS and env.get("TEST_SLOTS") is not None:
         value = count(env["TEST_SLOTS"], "TEST_SLOTS", name)
         return Limit(name, value, From.ENV, f"TEST_SLOTS={value}", derived)
+    if unread:
+        raise unread
     if name is Name.MAX_RUNNING:
         if written is not None:
             file = written_in or Path("the jbus config")
             value = count(written, f"max_running in {file}", name)
             return Limit(name, value, From.FILE, str(file), derived)
-    else:
-        file = path()
-        if name in (found := read_file(file)):
-            return Limit(name, found[name], From.FILE, str(file), derived)
+    elif name in found:
+        return Limit(name, found[name], From.FILE, str(file), derived)
     return Limit(name, derived, From.DERIVED, f"from {machine.says()}", derived)
 
 
-def every(jbus_config: Path, env: Mapping[str, str] | None = None) -> tuple[Limit, ...]:
-    """The three sizes, each as its own caller gets it: the slots as `jgauge test-slot` sees
-    them in `env`, and `max_running` as jbus reads it from `jbus_config`. The function reads
-    only that key."""
+@dataclass(frozen=True)
+class Budget:
+    """The test workers both lanes run with every slot taken: each full slot at the desk's
+    workers and each short slot at `SHORT_WORKERS`, against `workers`, the budget."""
+
+    full: int
+    full_workers: int
+    short: int
+    workers: Limit
+
+    @property
+    def total(self) -> int:
+        return self.full * self.full_workers + self.short * SHORT_WORKERS
+
+    def line(self) -> str:
+        said = (
+            f"{'total':<12} {self.total:>3}  {self.full} full x {self.full_workers}"
+            f" + {self.short} short x {SHORT_WORKERS} workers"
+        )
+        over = self.total - self.workers.value
+        if over <= 0:
+            return f"{said}, within workers {self.workers.value}"
+        return (
+            f"{said}, over workers {self.workers.value} by {over}: lower test_slots or"
+            f" short_slots, or raise workers, in {path()}"
+        )
+
+
+def every(jbus_config: Path, env: Mapping[str, str] | None = None) -> tuple[Limit | Budget, ...]:
+    """The sizes, each as its own caller gets it: the slots as `jgauge test-slot` sees them in
+    `env`, and `max_running` as jbus reads it from `jbus_config`, of which the function reads
+    only that key. Then the budget and the workers the slots take of it."""
     machine = Machine.here()
     written = None
     try:
@@ -315,8 +375,13 @@ def every(jbus_config: Path, env: Mapping[str, str] | None = None) -> tuple[Limi
         pass
     except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError) as error:
         raise Refused(f"cannot read max_running from {jbus_config}: {error}") from error
+    full = resolve(Name.TEST_SLOTS, env=env, machine=machine)
+    short = resolve(Name.SHORT_SLOTS, env=env, machine=machine)
+    workers = resolve(Name.WORKERS, env=env, machine=machine)
     return (
-        resolve(Name.TEST_SLOTS, env=env, machine=machine),
-        resolve(Name.SHORT_SLOTS, env=env, machine=machine),
+        full,
+        short,
         resolve(Name.MAX_RUNNING, written=written, written_in=jbus_config, machine=machine),
+        workers,
+        Budget(full.value, desk_workers(machine.cores), short.value, workers),
     )

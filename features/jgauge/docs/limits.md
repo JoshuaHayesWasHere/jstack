@@ -11,8 +11,8 @@ Its `/tmp` is a 32 GB tmpfs of 1,048,576 file slots.
 The measurements are from 2026-10-20 unless a row says otherwise.
 "The busy night" is 2026-10-19 22:00 to 2026-10-20 01:00 ET.
 
-Three of the numbers are sizes of the machine, and `jgauge.sizes` derives them from its processors and memory ([Configuration](../../jinstall/docs/configuration.md#the-machines-sizes)).
-`jgauge sizes` prints the three values as their callers get them, then prints the lines of `jgauge room`.
+Four of the numbers are sizes of the machine, and `jgauge.sizes` derives them from its processors and memory ([Configuration](../../jinstall/docs/configuration.md#the-machines-sizes)).
+`jgauge sizes` prints the four values as their callers get them, then the `total` line of the budget, then the lines of `jgauge room`.
 Put a local value in `~/.config/jstack/machine.toml`, or, for `max_running`, in `~/.config/jbus/config.toml`.
 Never put it in jstack's source.
 Every other number here is a design choice, a share of the machine that means the same on any machine, or a limit of another system.
@@ -93,12 +93,21 @@ A share well under 100% says a holder takes slots without `jgauge test-slot`, or
 
 ## The machine's sizes
 
+The test slots of both lanes share one budget, `workers`: the test workers they may run at once, with every slot taken.
+Its measure is the processors, since a worker keeps 0.86 of a core busy, unless the owner sets `workers` in `~/.config/jstack/machine.toml`.
+The short lane is inside the core budget with the full lane: each full slot counts the desk's workers, a quarter of the processors and at least 2, and each short slot counts `SHORT_WORKERS`, 4.
+`jgauge sizes` prints the sum as its `total` line, and says by how much it is over when a count the owner sets puts it over.
+The budget keeps one full slot, gives the short lane the rest, and gives the full lane what the short lane leaves: 1 full and 4 short slots on yelena, 22 workers.
+Before 2026-11-12 the core budget held the full lane alone, and yelena's 4 full slots of 6 and 6 short of 4 could put 48 workers on 24 cores.
+From 19:45 to 20:20 UTC that day, at 15 crews, the 1-minute load averaged 37.0, CPU pressure (some, avg60) averaged 27.9, and the slots' own tasks were 25.1 of the 37.8 runnable, while the CPU was busy for 19.3 cores (`scouts/sc-load-sampler-again.md` in the jstack home).
+
 | Limit | Where | Value | Protects | Its yelena basis |
 |---|---|---|---|---|
 | Crew cap, `max_running` | `features/jgauge/src/jgauge/sizes.py`, and `max_running` in `~/.config/jbus/config.toml` | `CREW_GIB = 2` | Memory, and how many crews the reviews and merges keep up with | `jgauge.sizes` derives it as `min(cores, GiB // 2)`, 24 on yelena, and the owner's config sets `max_running = 24`. 24 agents are 7.4 GB of 49 GiB available. |
-| Full test slots, `test_slots` | `features/jgauge/src/jgauge/sizes.py`, `~/.config/jstack/machine.toml`, `TEST_SLOTS`, `--slots` | `DESK_SHARE = 4` | CPU for whole suites, machine-wide | `jgauge.sizes` derives it as `cores // desk workers`: 4 on most machines of 8 cores or more, and 5 on 10, 11 or 15, where the floor of 2 workers or the rounding leaves room. Four suites at once is the knee of the table above, CPU pressure 17 to 29. |
+| Test workers at once, `workers` | `features/jgauge/src/jgauge/sizes.py`, `~/.config/jstack/machine.toml` | `budget = workers or cores` | The slots of both lanes, every one taken, run no more workers than the cores | `jgauge.sizes` derives it as the processors, 24 on yelena. The slots' run queue of 25.1 on 24 cores on 2026-11-12 is the measurement above. |
+| Full test slots, `test_slots` | `features/jgauge/src/jgauge/sizes.py`, `~/.config/jstack/machine.toml`, `TEST_SLOTS`, `--slots` | `DESK_SHARE = 4` | CPU for whole suites, machine-wide | `jgauge.sizes` derives it as what `workers` holds after the short lane, at the desk's workers a slot, at least 1: 1 on 24 cores, 2 on 8 and on 64. Four suites at once is the knee of the table above, CPU pressure 17 to 29; on 2026-11-12 the full lane's takes spent 2.92 cores, half of one slot's 6 workers. |
 | Memory a full slot takes | `features/jgauge/src/jgauge/sizes.py` | `SUITE_GIB = 4` | Slots on a small machine | A suite peaks at 1.1 GB. The cap binds only under 16 GiB, so never on yelena. |
-| Short test slots, `short_slots` | `features/jgauge/src/jgauge/sizes.py`, `~/.config/jstack/machine.toml` | `SHORT_PER_CORES = 8` | A targeted run or a reviewer's proof never waits behind a suite | `jgauge.sizes` derives it as `clamp(cores // 8, 2, 8)`, 3 on yelena. There were 9 waits for a short slot on the busy night. |
+| Short test slots, `short_slots` | `features/jgauge/src/jgauge/sizes.py`, `~/.config/jstack/machine.toml` | `FULL_FIRST = 1` | A targeted run or a reviewer's proof never waits behind a suite | `jgauge.sizes` derives it as what `workers` holds after one full slot, at 4 workers a slot, from 1 to 8: 4 on yelena, 1 on 8 cores. On 2026-11-12, 00:00 to 22:30 UTC, the short lane's 32,490 takes spent 8.79 cores, 55% of 4 slots' 16 workers; at 3 slots it would be 73%. |
 | Short lane's time limit | `features/jgauge/src/jgauge/slot.py` | `SHORT_LIMIT_SECONDS = 120.0` | A full suite cannot sit in the short lane | Design choice, not a machine size: a whole suite takes 89 s alone |
 | A short call's wait in the call, with `--thread` | `features/jgauge/src/jgauge/slot.py` | `SHORT_WAIT_SECONDS = 300.0` | A short run waits for the next short slot freed, in the order the calls came, and never for jbus's wake: at the ceiling it ends 76 and says to run it again now | Below the 10 minutes the crew skill gives a slot call, with the lane's 120 s run limit, its stop grace and the sweep after it. A short run holds its slot 10 s on average; on 2026-11-09 the short lane's register-and-wake path sent 709 wakes in 72 h while its 3 slots were 16% used. `JGAUGE_SHORT_WAIT_SECONDS` sets it for a test. |
 | Desk test workers | `Makefile` | `PER_CORE = $(if $(filter true,$(GITHUB_ACTIONS)),$(if $(filter github-hosted,$(RUNNER_ENVIRONMENT)),1 / 1,3 / 2),1 / 4)` | One check's share of the machine | A share, the same on any machine. 6 workers: 89 to 94 s, 5.2 cores busy. |
