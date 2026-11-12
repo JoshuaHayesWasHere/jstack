@@ -83,14 +83,18 @@ def test_each_carrier_is_a_variable_whose_comment_quotes_its_writer():
 
 def tlc(cfg: str) -> subprocess.CompletedProcess:
     """TLC's run of CrewProof.tla with the config `cfg`, in a copy of the spec's folder, on one
-    worker so its first trace is always the same. Some states have no step left, so TLC is not
-    asked to find deadlocks."""
+    worker so its first trace is always the same. Some states have no step left, so TLC is not asked
+    to find deadlocks. Java's tmpdir is the run's own too: TLC writes Naturals.tla and the other
+    standard modules there under fixed names, and a run that shares /tmp can parse one while another
+    rewrites it."""
     found = tools.find_tlc()
     with tempfile.TemporaryDirectory(prefix="crewproof-") as folder:
         work = Path(folder)
+        (work / "tmp").mkdir()
         shutil.copy(SPEC / "CrewProof.tla", work)
         (work / "run.cfg").write_text(cfg)
-        command = [found.java, "-Xmx2g", "-cp", found.jar, "tlc2.TLC", "-workers", "1"]
+        command = [found.java, f"-Djava.io.tmpdir={work / 'tmp'}"]
+        command += ["-Xmx2g", "-cp", found.jar, "tlc2.TLC", "-workers", "1"]
         command += ["-deadlock", "-metadir", str(work / "meta"), "-config", "run.cfg"]
         return subprocess.run(
             tools.in_test_slot([*command, "CrewProof.tla"]),

@@ -68,13 +68,17 @@ def test_the_spec_has_each_value_of_work_json_or_names_its_join():
 
 
 def tlc(cfg: str) -> subprocess.CompletedProcess:
-    """TLC's run of RowLife.tla with the config `cfg`, in a copy of the spec's folder."""
+    """TLC's run of RowLife.tla with the config `cfg`, in a copy of the spec's folder. Java's tmpdir
+    is the run's own too: TLC writes Naturals.tla and the other standard modules there under fixed
+    names, and a run that shares /tmp can parse one while another rewrites it."""
     found = tools.find_tlc()
     with tempfile.TemporaryDirectory(prefix="rowlife-") as folder:
         work = Path(folder)
+        (work / "tmp").mkdir()
         shutil.copy(SPEC / "RowLife.tla", work)
         (work / "run.cfg").write_text(cfg)
-        command = [found.java, "-Xmx512m", "-cp", found.jar, "tlc2.TLC", "-workers", "1"]
+        command = [found.java, f"-Djava.io.tmpdir={work / 'tmp'}"]
+        command += ["-Xmx512m", "-cp", found.jar, "tlc2.TLC", "-workers", "1"]
         command += ["-metadir", str(work / "meta"), "-config", "run.cfg", "RowLife.tla"]
         return subprocess.run(
             tools.in_test_slot(command), cwd=work, capture_output=True, text=True, timeout=300
