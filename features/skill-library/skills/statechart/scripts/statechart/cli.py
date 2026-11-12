@@ -463,8 +463,9 @@ def run_tlc(tools, spec, cfg, base, dump=None, workers="1", first_only=False):
         os.path.abspath(f"{base}.cfg"),
         os.path.basename(spec),
     ]
+    held = in_test_slot(command)
     try:
-        r = run_in_own_group(in_test_slot(command), os.path.dirname(os.path.abspath(spec)))
+        r = run_in_own_group(held, os.path.dirname(os.path.abspath(spec)))
     except OSError as e:
         raise CannotFinish(f"cannot run TLC: {e.strerror or e}") from e
     finally:
@@ -473,6 +474,14 @@ def run_tlc(tools, spec, cfg, base, dump=None, workers="1", first_only=False):
     could_not_start = re.search(rf"^test-slot: {re.escape(tools.java)}: (.*)$", r.stderr, re.M)
     if r.returncode in (126, 127) and could_not_start:
         raise CannotFinish(f"cannot run TLC: {could_not_start[1]}")
+    # TLC prints its version before anything else, so a slot that ends in a fault with nothing on
+    # stdout never ran TLC to its first line: a jgauge that cannot run, such as a venv's shim
+    # whose package is gone. Its own words say why, where TLC's empty output would not.
+    if held is not command and r.returncode != 0 and not r.stdout:
+        raise CannotFinish(
+            f"cannot run TLC: {held[0]} test-slot exited {r.returncode} before TLC printed a"
+            f" line:\n{r.stderr.strip()}"
+        )
     stdout = f"{FIRST_ONLY}{r.stdout}" if first_only else r.stdout
     with open(f"{base}.out", "w", encoding="utf-8") as handle:
         handle.write(stdout)
