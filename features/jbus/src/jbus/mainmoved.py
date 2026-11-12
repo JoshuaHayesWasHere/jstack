@@ -27,7 +27,8 @@ a flake. A fix is a fix row, a revert, or a pull request that changed a file a f
 keep no rule of their own: the store reads it for `main_spells.cause`, `change-failure` counts
 only the spells a change caused, and `flakerow` counts as flakes only the spells with `no fix`. A
 tip whose logs could not be read gets its line on a later pass that judges it, and a tip with a
-line gets no second one.
+line gets no second one. A spell whose merges' files could not be read gets its closing line
+likewise, on a later pass that reads them (`reclose`), and never a `no fix` for want of an answer.
 
 `landed` lists each tip main went through since the last pass, and `tell` looks at them in
 order. A tip still counts when it failed or passed before any pass looked at it, even with a
@@ -321,12 +322,14 @@ def red_line(
     }
 
 
-def changed(run: Pass, tip: str) -> set[str]:
-    """Return the files the commit `tip` changed, as GitHub lists them, none where it gives no
-    answer."""
+def changed(run: Pass, tip: str) -> set[str] | None:
+    """Return the files the commit `tip` changed, as GitHub lists them, or `None` where it gives
+    no answer: no answer is not a commit that changed nothing."""
     said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{tip}")
     files = said.get("files") if isinstance(said, dict) else None
-    return {str(one.get("filename")) for one in files or [] if isinstance(one, dict)}
+    if not isinstance(files, list):
+        return None
+    return {str(one.get("filename")) for one in files if isinstance(one, dict)}
 
 
 def runs(test: str, path: str) -> bool:
@@ -347,21 +350,27 @@ def runs(test: str, path: str) -> bool:
     return inside and not name.startswith("test_") and not prose
 
 
-def closing_line(run: Pass, first: str, green: str, failed: Collection[str] = ()) -> dict:
+def closing_line(run: Pass, first: str, green: str, failed: Collection[str] = ()) -> dict | None:
     """The line of `REDS` that closes the spell whose first red tip is `first` at `green`, the
     tip whose check passed, with `failed` the tests the spell's red tips failed: the pull requests
     merged after `first` up to `green`, and its `cause`. That is `fix: #<n>` where one of them is
     a fix row (`mainjson.FIX`), a revert (`REVERT`), or a pull request that changed a file a test
     in `failed` runs (`runs`), as an ordinary row that fixed the break does, the last such;
     `NO_FIX` where none is. Only a merge that is neither a fix row nor a revert is asked for its
-    files, one call each, once a spell. A rerun that passed at `first` merged nothing: `NO_FIX`."""
+    files, one call each, once a spell. A rerun that passed at `first` merged nothing: `NO_FIX`.
+
+    It returns `None` where GitHub gives no answer for a merge's files: that merge may be the fix,
+    and `NO_FIX` would read the break as a flake, which `jbus.flakerow` files work from."""
     merged = pulls(run, landed(run, first, green)) if green != first else []
-    fixes = [
-        number
-        for number, branch, tip in merged
-        if branch.startswith((mainjson.FIX, REVERT))
-        or (failed and any(runs(test, path) for path in changed(run, tip) for test in failed))
-    ]
+    fixes = []
+    for number, branch, tip in merged:
+        if branch.startswith((mainjson.FIX, REVERT)):
+            fixes.append(number)
+        elif failed:
+            if (touched := changed(run, tip)) is None:
+                return None
+            if any(runs(test, path) for path in touched for test in failed):
+                fixes.append(number)
     return {
         "at": run.now.isoformat(),
         "sha": first,
@@ -373,15 +382,27 @@ def closing_line(run: Pass, first: str, green: str, failed: Collection[str] = ()
 
 def close(run: Pass, under: str, green: str) -> None:
     """Append the closing line of the spell since `under` that `green` ends, once: none where
-    the spell has no line, or its first line has a closing line already."""
+    the spell has no line, its first line has a closing line already, or `closing_line` could
+    not read a merge's files, which `reclose` asks again on a later pass."""
     lines = ledger(run.state / REDS)
     opened = spell(lines, under)
     if not opened or any("cause" in one and one.get("sha") == opened[0]["sha"] for one in lines):
         return
+    failed = [test for one in opened for test in one.get("failed") or []]
+    line = closing_line(run, str(opened[0]["sha"]), green, list(dict.fromkeys(failed)))
+    if line is None:
+        return
     with open(run.state / REDS, "a") as handle:
-        failed = [test for one in opened for test in one.get("failed") or []]
-        line = closing_line(run, str(opened[0]["sha"]), green, list(dict.fromkeys(failed)))
         handle.write(json.dumps(line) + "\n")
+
+
+def reclose(run: Pass, green: str) -> None:
+    """Close the last spell of `REDS` at `green`, the green tip `main.json` keeps, where it ended
+    with no closing line: the pass that found main green could not read a merge's files. The last
+    spell only, which `green` ended, since a spell's `after` names the green tip before it."""
+    opened = [one for one in ledger(run.state / REDS) if "verdict" in one and "after" in one]
+    if green and opened and opened[-1]["after"] != green:
+        close(run, str(opened[-1]["after"]), green)
 
 
 def landed(run: Pass, last: str, main: str) -> list[str]:
@@ -439,6 +460,7 @@ def tell(run: Pass) -> None:
         return
     was = mainjson.load(run.state) or {}
     last, broken = was.get("main"), was.get("broken", "")
+    reclose(run, mainjson.of(was).green)
     if main == last and was.get("check") == "green":
         return
     if was.get("fixed") or was.get("check") == "green":
