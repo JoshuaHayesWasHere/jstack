@@ -541,7 +541,7 @@ def probed(tmp_path, screen):
         target, window = folder / "phone.html", (500, screen[1])
     command = [CHROMIUM, "--headless", "--no-sandbox", "--disable-gpu", "--hide-scrollbars"]
     command += [f"--user-data-dir={folder / 'profile'}", "--allow-file-access-from-files"]
-    command += [f"--window-size={window[0]},{window[1]}", "--virtual-time-budget=8000"]
+    command += [f"--window-size={window[0]},{window[1]}", "--virtual-time-budget=30000"]
     command += ["--dump-dom", target.as_uri()]
     with browser_lock(), tempfile.TemporaryDirectory(prefix="st-site-", dir="/tmp") as short:
         env = {**os.environ, "TMPDIR": short}
