@@ -557,7 +557,7 @@ def test_an_approved_row_is_launched_as_the_home_launches_a_crewmate(kitchen, js
         "mcp:thread-1",
     )
     assert (rows(kitchen)["alpha"]["status"], rows(kitchen)["alpha"]["thread"]) == (
-        "left",
+        "launched",
         "mcp:thread-1",
     )
     kitchen.poll(NOW + timedelta(minutes=3))
