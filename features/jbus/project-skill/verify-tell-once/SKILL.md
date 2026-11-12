@@ -44,7 +44,8 @@ Covers:
 - `features/jbus/src/jbus/reload.py`: `tell`, `_told`
 - `features/jbus/src/jbus/queue.py`: `hold`
 
-At the sync commit `Code(c)` and `Guard(c)` were read against the code of the acts twice, clock, held, blocking, owed, account, reload, revert, cancelled and closed, and each write order and guard matched; items, word and expedite were checked by their quotes, not read in depth.
+At the sync commit `Code(c)` and `Guard(c)` were read against the code of every act, and each write order and guard matched.
+For the three read last: items appends its line, then `items-next.json`, guarded by the fold's `proposed already` (`item._put`); word posts, then `_change` writes `sent_at`, guarded by `if one.sent_at` (`word.deliver`); expedite sends, logs and marks through `rebase.once`, then writes `expedite.json` at the end of `tell`, guarded by the mark or `told`.
 The only change to these files since the model's main (aa5469d97) was 23f42940f, which moved imports and changed no act.
 `features/repo-guards/tests/test_model_sync.py` fails when a file or name above is gone.
 Move `Sync:` forward only after you read every change to these files since it against the model, as `/maintain-formal-verification-skill` says, and never because the check passes.

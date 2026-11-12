@@ -1,7 +1,7 @@
 ---
 name: verify-main-red
 description: Check main's red: the walk of main.json's contract and MainRed.tla; use when changing mainmoved, mainjson, jbus.reverts, culprits, watch's red steps or Repo.again.
-paths: "features/jbus/spec/MainRed.tla, features/jbus/src/jbus/mainmoved.py, features/jmerge/src/jmerge/mainjson.py, features/jbus/src/jbus/watch.py, features/jbus/src/jbus/culprits.py, features/jbus/src/jbus/reverts.py, features/jmerge/src/jmerge/reverts.py, features/jmerge/src/jmerge/cli.py, features/jbus/src/jbus/poll.py"
+paths: "features/jbus/spec/MainRed.tla, features/jbus/src/jbus/mainmoved.py, features/jmerge/src/jmerge/mainjson.py, features/jbus/src/jbus/watch.py, features/jbus/src/jbus/culprits.py, features/jbus/src/jbus/reverts.py, features/jmerge/src/jmerge/reverts.py, features/jmerge/src/jmerge/cli.py, features/jbus/src/jbus/poll.py, features/jsettings/src/jsettings/store.py, features/jmerge/docs/jmerge.md"
 ---
 
 # verify-main-red
@@ -45,8 +45,11 @@ Covers:
 - `features/jmerge/src/jmerge/reverts.py`: `read`
 - `features/jmerge/src/jmerge/cli.py`: `Repo.again`
 - `features/jbus/src/jbus/poll.py`: `steps`, `first_half`, `second_half`
+- `features/jsettings/src/jsettings/store.py`: `write_json`
+- `features/jmerge/docs/jmerge.md`: `Main is not red`
 
 At the sync commit `MainRed.tla` was read against these: `culprit`'s order of checks, then `tested` and `covered`; `OPENED` taking the newest revert and `stuck`; `lean` adding to the newest revert only; `close` skipping a revert not yet open, closing once all holders passed even while main is red, and dropping the record only with main green and every check in `greens`; the pass order 9, 10, 11, 12, 13; `retro` handing over the tip only at `main.red`; `_rerun_failed` asking for a rerun only at the tip; `_withdraw` and `_file`.
+The two things the walk rests on outside the code were read there too: `write_json` writes a whole record through `os.replace`, and the rule the walk checks is the "Main is not red" line of `jmerge.md`.
 The walk of `main_red_model.py` was rerun there and passes as below.
 `features/repo-guards/tests/test_model_sync.py` fails when a file or name above is gone.
 Move `Sync:` forward only after you read every change to these files since it against both models, as `/maintain-formal-verification-skill` says, and never because a check passes.
