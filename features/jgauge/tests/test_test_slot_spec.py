@@ -1,8 +1,8 @@
 """The test slots' TLA+ spec, `features/jgauge/spec/TestSlot.tla`: each carrier of the machine
 room is a VARIABLE that cites the code that writes it, each quote of code stands once in its file,
-and TLC finds what the README says: today's code loses a ledger write, the mode that passes holds
-every rule, and each canary, one of today's faults put back, breaks its own rule. The TLC tests
-skip where no Java runs TLC."""
+and TLC finds what the README says: today's code misses a woken crew's slot, the mode that passes
+holds every rule, and each canary, a fault put back, breaks its own rule. The TLC tests skip where
+no Java runs TLC."""
 
 import importlib
 import re
@@ -81,7 +81,6 @@ def test_each_carrier_is_a_variable_that_cites_its_writer():
 def tlc(
     fault: str,
     rules: list[str] | None = None,
-    pid_reuse: bool = False,
     room: str = "",
     workers: str = "",
 ) -> tuple[int, str]:
@@ -93,10 +92,8 @@ def tlc(
     under fixed names, and a run that shares it can read one while another rewrites it."""
     found = tools.find_tlc()
     cfg = (SPEC / "TestSlot.cfg").read_text()
-    assert 'Fault = "today"' in cfg and "PidReuse = FALSE" in cfg
+    assert 'Fault = "today"' in cfg and "PidReuse = TRUE" in cfg
     cfg = cfg.replace('Fault = "today"', f'Fault = "{fault}"')
-    if pid_reuse:
-        cfg = cfg.replace("PidReuse = FALSE", "PidReuse = TRUE")
     if room:
         cfg = re.sub(r"Rooms = \{.*\}", f'Rooms = {{"{room}"}}', cfg)
     if rules is not None:
@@ -122,19 +119,23 @@ def tlc(
 
 JAVA = pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
 TLC = pytest.mark.timeout(600)
-"""A TLC run comes near the 120 s bound on CI: the mode that passes, 614,686 states, took 86 s."""
+"""A TLC run comes near the 120 s bound on CI: the mode that passes took 86 s at 614,686 states."""
 
 
 @JAVA
 @TLC
-def test_today_s_code_loses_a_ledger_write():
-    """TestSlot.cfg is today's code, and TLC's first finding is the one its comment keeps: two
-    writers read the ledger, and the second write drops the first one's record."""
+def test_today_s_code_misses_a_woken_crew_s_slot():
+    """TestSlot.cfg is today's code, and TLC's first finding is the one its comment keeps: jbus
+    counts the slot spare outside the waiters lock, a desk takes it before the wake is recorded,
+    and the crew jbus woke finds no slot."""
     code, out = tlc("today", workers="1")
     assert code != 0
-    assert "Invariant LedgerNoLostUpdate is violated" in out, out[-4000:]
+    assert "Invariant WokenGetsSlot is violated" in out, out[-4000:]
     steps = re.findall(r"^State \d+: <(\w+)", out, re.M)
-    assert steps == ["Initial", "Read", "Read", "Write", "Write"], out[-4000:]
+    taken = "Start Start ClaimLock ClaimCount ClaimLock ClaimCount Die"
+    waits = "Start WaitersLock Register Start BusStart WakeRead"
+    woken = "ClaimLock Spare ClaimCount Tell WakeLock Wake ClaimLock ClaimCount"
+    assert steps == ["Initial", *taken.split(), *waits.split(), *woken.split()], out[-4000:]
 
 
 @JAVA
@@ -154,11 +155,14 @@ def test_the_mode_that_passes_holds_every_rule():
         ("forget-unended", "EndNotLost"),
         ("orphan-command", "OneCommandPerSlot"),
         ("no-ledger-lock", "LedgerNoLostUpdate"),
+        ("pid-alone", "NoLostHolder"),
     ],
 )
 def test_each_of_today_s_faults_breaks_its_rule(fault, rule):
-    """A canary: one of today's faults, put back into the mode that passes, breaks its rule, so
-    the rule does not hold by construction."""
+    """A canary: one of today's faults, or one the code has closed, put back into the mode that
+    passes, breaks its rule, so the rule does not hold by construction. `pid-alone` is
+    `holders.running` as it was, asking only whether some process has the pid: once another
+    process takes a dead command's pid, a reader counts the holder as running."""
     code, out = tlc(fault, [rule])
     assert code != 0
     assert f"Invariant {rule} is violated" in out, out[-4000:]
@@ -170,7 +174,7 @@ def test_each_of_today_s_faults_breaks_its_rule(fault, rule):
 def test_a_killed_test_slot_takes_its_command_with_it_today(fault, code):
     """Today's code holds OneCommandPerSlot where a killed `jgauge test-slot` leaves the slot
     free, and the canary that lets its command live on breaks it there. The short lane's room
-    alone, since the whole of today's mode is 831,692 states."""
+    alone, since the whole of today's mode is 927,474 states."""
     ended, out = tlc(fault, ["OneCommandPerSlot"], room="short")
     assert ended == code, out[-4000:]
     assert ("Invariant OneCommandPerSlot is violated" in out) == bool(code), out[-4000:]
@@ -190,9 +194,11 @@ def test_a_run_s_end_is_kept_for_jbus_to_tell_today(fault, code):
 
 @JAVA
 @TLC
-def test_a_dead_holder_whose_pid_is_taken_reads_as_running():
-    """`holders.running` asks only whether some process has the pid: once another process takes
-    a dead command's pid, a reader counts the holder as running, and NoLostHolder breaks."""
-    code, out = tlc("none", ["NoLostHolder"], pid_reuse=True)
-    assert code != 0
-    assert "Invariant NoLostHolder is violated" in out, out[-4000:]
+@pytest.mark.parametrize(("fault", "code"), [("today", 0), ("no-ledger-lock", 12)])
+def test_each_ledger_writer_s_record_is_kept_today(fault, code):
+    """Today's ledger writers each hold <ledger>.lock from their read to their rename, so no
+    write drops another's record, and the canary that reads and renames with no lock breaks
+    LedgerNoLostUpdate. The ledger's room alone, which has every writer."""
+    ended, out = tlc(fault, ["LedgerNoLostUpdate"], room="ledger")
+    assert ended == code, out[-4000:]
+    assert ("Invariant LedgerNoLostUpdate is violated" in out) == bool(code), out[-4000:]

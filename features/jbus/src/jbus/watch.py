@@ -108,6 +108,11 @@ TWICE = "check failed twice"
 TOLD = "told"
 """The key in a row's `fails.json` of its second counted failed head whose logs name failed tests:
 the head before the one that holds the row, whose message tells the crew of them (`named_last`)."""
+JUDGING = "judging"
+"""The key in a row's `fails.json` of a failed head after its one counted head that
+`jbus.stall.twice` could not judge yet, its job's log not given or main's check pending: the
+crew is told of it once judged (`judging`), or with the plain message once `stall.JUDGE_FOR` has
+passed with it still unjudged."""
 RERUN_WAIT = timedelta(minutes=30)
 """How long `_check` waits for GitHub to show the rerun it took before the run is failed."""
 NIGHTLY_RED = ("failure", "timed_out")
@@ -1245,6 +1250,15 @@ def named_last(run: Pass, slug: str, head: str) -> tuple[list[str], list[str]] |
         return None
     heads = one["heads"]
     return list(heads), list(heads[head]["tests"])
+
+
+def judging(run: Pass, slug: str, head: str) -> bool:
+    """Say whether `head` is the row's `JUDGING` head, a failed head after its one counted head that
+    `jbus.stall.twice` has not judged yet: the message of its failed check waits for the judgment,
+    since only then is it known whether the head is the row's `TOLD`."""
+    kept = read_json(run.state / FAILS, {})
+    one = kept.get(slug) if isinstance(kept, dict) else None
+    return isinstance(one, dict) and bool(head) and one.get(JUDGING) == head
 
 
 def why(run: Pass, row: dict[str, Any], found: dict[str, str], waits: Waits, unread: str) -> str:

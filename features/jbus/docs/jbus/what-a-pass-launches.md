@@ -29,7 +29,12 @@ Its crew opens its pull request on that branch, and `jmerge` waits on it as `it 
 Its line of `work.json` is `stacked`: its `who` is `<slug>`, the row it is stacked on, its `waits` is `<slug> to merge`, and its `why` is the queue row's, as each row's line carries it.
 The view draws it in Check, on the Stacked stage.
 
-A stack is made by a depends only.
+A stack is backed by a depends, made at launch or by jbus after it.
+A row launched on main whose crew found the code it needs only on an open row's branch is stacked after its launch (`jbus.stack.adopt`).
+Each pass reads every row with a crew whose turn ended, no pull request and no `Stacked on:` line, whose last Result says `Status: paused` and waits on one row alone (`Waits on: <slug>`).
+Where that row's pull request is open on the branch this row's goes on, as for a stacked launch, and this row's branch, origin's or else its worktree's, holds that pull request's head, jbus adds the row to its depends, keeps that head in its newest launch record as the commit it forked from, writes `Stacked on: <slug> <branch>` in place of `Green main:`, and says `stack <row>: stacked on <slug>'s open pull request #<n>, its branch <branch> holds <head>`.
+It then tells its crew once, under `stacked|<row>|<slug>|<head>`, to check on that base, push and end for the review, and the carry-on of that paused Result is spent: from then on the row is a link as any other.
+A row whose base has no open pull request, that waits on two, whose branch does not hold the base's head, or that goes on another branch, stays paused on main, and is carried on once its base merged ([Row moves](row-moves.md)).
 `jbus queue add` refuses a brief whose own `Stacked on:` line names a row its depends does not, with `refused: <slug> cannot be stacked on <row>: its depends does not name <row>`, and says to add `--depends <row>`.
 While the base is open, the link stays on its stack, and jbus tells its crew nothing, whatever the base's head does (`jbus.stack`).
 

@@ -166,7 +166,11 @@ def step(action, before, after):
     if action == "Ages":
         return "a red nightly run ages past three days"
     if action == "Start":
-        return "a pass starts"
+        return (
+            "a pass starts"
+            if after["sight"]
+            else "a pass with no world starts, and judges main alone"
+        )
     if action == "Die":
         return "the pass dies"
     if action == "Known":

@@ -54,7 +54,11 @@ red is one the crew can mend by name: `twice` holds nothing and pages nobody, an
 `told` in `fails.json`, from which `jbus.rebase.github` words the crew's one message of that head's
 failed check, naming the tests and both heads (#1691, 2026-11-11: both its failed heads failed on
 one test of the change's own, and the row waited 22 minutes for an approve that carried no
-decision). At the third counted head (`LIMIT`), or at the second where its logs name no failed test,
+decision). A failed head after the one counted head that `twice` cannot judge yet, its
+job's log not given or main's check pending, is kept as `judging`, and its crew is told nothing
+until it is judged, for `JUDGE_FOR` at most: a log GitHub never gives would keep the red from its
+crew for good, so past that the crew is told the plain failed message (2026-11-12). At the third
+counted head (`LIMIT`), or at the second where its logs name no failed test,
 `twice` holds the row (`jbus queue hold`), keeping the go the hold takes, and pages the Chef once, a
 gate `check failed twice` that names the row, the pull request, each counted head and the failed
 jobs at each. The page's key goes into `fails.json` (`paging`) before the hold, and `held_at` after
@@ -101,7 +105,7 @@ from jbus.passes import Changed, Depends, Pass
 from jbus.record import PASSES as PASS_LOG
 from jbus.t3 import Client
 from jbus.wake import notify
-from jbus.watch import FAILS, TOLD, TWICE, World, at_work, task_brief
+from jbus.watch import FAILS, JUDGING, TOLD, TWICE, World, at_work, task_brief
 from jmerge import judgement, ready
 from jmerge.lines import READY
 from jsettings import store
@@ -461,6 +465,32 @@ PAGING = "paging"
 between the hold and the page leaves the page owed and not lost (`_page`)."""
 
 
+JUDGE_FOR = timedelta(minutes=30)
+"""How long a failed head after a row's one counted head is kept `JUDGING` while `twice` cannot
+judge it: past this, its crew is told the plain failed message, since a log GitHub never gives
+would otherwise keep the red from its crew for good."""
+UNJUDGED = "unjudged"
+"""The key in a row's `fails.json` of the `JUDGING` head and when `twice` first could not judge
+it, kept while the head stays unjudged, past `JUDGE_FOR` too, so the bound is not started again."""
+
+
+def _judging(run: Pass, slug: str, head: str, was: dict[str, Any], kept: dict[str, Any]) -> None:
+    """Keep `head` as the row's `JUDGING` head, and when `twice` first could not judge it, until
+    `JUDGE_FOR` has passed since: then `jbus.rebase.github` tells its crew the plain message."""
+    since = was.get(UNJUDGED) or {}
+    at = _moment(since.get("at")) if since.get("head") == head else None
+    if at is None:
+        at = run.now
+    kept[UNJUDGED] = {"head": head, "at": at.isoformat()}
+    if run.now - at < JUDGE_FOR:
+        kept[JUDGING] = head
+    elif since.get("head") == head and was.get(JUDGING) == head:
+        run.say(
+            f"failed {slug}: {head[:12]} is still not judged after {JUDGE_FOR}, so its crew is "
+            "told the plain failed message"
+        )
+
+
 def _said(head: str, one: dict[str, Any]) -> str:
     jobs = ", ".join(one.get("jobs") or ()) or "no job GitHub gave"
     return f"{head[:12]}: {', '.join(one.get('checks') or ())} failed ({jobs})"
@@ -497,6 +527,8 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         moved, last = list(one.get("moved") or ()), dict(one.get("last") or {})
         kept[slug] = {**one, "heads": heads, "red": on_red, "shared": flakes, "infra": infras}
         kept[slug]["moved"] = moved
+        kept[slug].pop(JUDGING, None)
+        kept[slug].pop(UNJUDGED, None)
         if one.get(PAGING) and not one.get("held_at"):
             _page(run, slug, row, pull, kept[slug])
             continue
@@ -519,6 +551,8 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         check = main_check(run, main) if main else ""
         if main is None or check == "pending":
             run.say(f"wait {slug}: not yet known which main {head[:12]} was checked on, or if red")
+            if len(heads) == 1:
+                _judging(run, slug, head, one, kept[slug])
             continue
         failed = redhead.failures(run, found)
         kept[slug]["last"] = {"head": head, "failed": sorted(failed)}

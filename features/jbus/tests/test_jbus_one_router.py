@@ -30,6 +30,7 @@ SENDERS = {
     "reviewed.py": ("the crew of a reviewed pull request", ["tell"]),
     "rebase.py": ("the crew of a pull request to rebase, or that main is fixed", ["once"]),
     "pausedon.py": ("a paused crew whose rows have all landed, to carry on", ["tell"]),
+    "stack.py": ("a paused crew jbus stacked on an open row's pull request", ["_tell"]),
     "compact.py": (
         "the crew whose pull request opened, or a home, a crew or a scout at its ceiling, to "
         "compact its context",

@@ -22,7 +22,7 @@ The rules, each with its harm:
 ## The record
 
 Model: `features/jbus/spec/ThreadLife.tla`
-Sync: `228c1436cc6fe94de479d333c7aab7b007460462`
+Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
 Covers:
 - `features/jbus/src/jbus/dispatch.py`: `Turns.take`, `settle_lost`, `scratch`
 - `features/jbus/src/jbus/crewthread.py`: `move`, `repair`, `crew`, `_answer`
@@ -33,7 +33,6 @@ Covers:
 - `features/jbus/src/jbus/children.py`: `watch`, `_stall`, `_act`
 
 At the sync commit the model was read against these: the launch's write order (intent, the call, then the launch and `crewthread.move`), a refused and a dropped launch, the adopt, retry and gate branches of `settle_lost`, `resume`'s guards, key, carry-on count and its owes-pull tell sent once, `crew()`'s fallback to the last launch, `_stopped`, and the settle-or-archive split.
-The only change to these files since the model's main (21112eba8) was 23f42940f, which moved imports and changed no step.
 `features/repo-guards/tests/test_model_sync.py` fails when a file or name above is gone.
 Move `Sync:` forward only after you read every change to these files since it against the model, as `/maintain-formal-verification-skill` says, and never because the check passes.
 
@@ -68,10 +67,14 @@ When every step is backed, it is a bug: tell it as the thread's story in the cod
 - A new carry-on, a new way the home is told, or a new end of a thread: give it a step with its quote, rerun, and say in the README what it changes.
 - A rule that changes: show it failing on a scratch break first (take the guard out in your own worktree, uncommitted, see the trace, `git restore` the file).
 
-## Drift at the sync commit
+## The last upkeep
 
-`/maintain-formal-verification-skill` fixes it; it breaks no rule as modeled.
+`/maintain-formal-verification-skill` ran at `228c1436c` (st-model-upkeep-run) and fixed one drift in the model:
 
-- **`ResumeGuard` asks `~told`, and `threads.resume` reads no such thing.**
-  `resume` checks neither `leftover.json` nor whether the home was told, so after a leftover from a hung turn with no Result the code still carries on a turn that later fails, where the model blocks it.
-  The model is stricter than the code here.
+- **`ResumeGuard` asked `~told`**, which `threads.resume` never reads: the guard is gone, so a thread whose home was told can still be carried on or told to open its pull request, as the code does.
+  The rerun reaches the same 45694 states, since no told thread reaches a later failed turn in the model; the chart's carry-on arrows lost their "unless its home's".
+  The break: `carry <= CarryOns` in place of `carry < CarryOns` fails at once (`TypeOK`, a third carry-on).
+
+The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `dispatch.py` changed in #1726, in `turns` and `Turns.rest`, and `watch.py` in #1724, in `left`; neither touches `Turns.take`, `settle_lost`, `scratch` or `ENDED`, so the sync commit moved there.
+
+st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: no covered file changed, so the sync commit moved there.

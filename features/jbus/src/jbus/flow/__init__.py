@@ -6,13 +6,17 @@ lines with `--journal`), the jobs `jbus ci` kept in a project's `ci.jsonl`, and 
 jobs and merged pull requests of each configured project's repo, and prints for the window:
 
 - each row's time from approved to merged, split into working and waiting (`measure.lead_times`),
-  and with `--rows` every merged row's spans, each with the record that opened it;
+  and with `--rows` every row's spans, each with the record that opened it, the rows that did
+  not merge in the window after the merged ones;
 - the classes of waiting ranked by hours lost, over every row with time in the window
   (`measure.pareto`), and what the hours behind a `depends` waited on at the head of the chain
   (`measure.behind`);
 - how long main was red, and what that held up (`runs.main_red`);
-- how long the machine had no room, why, and how long an account cap or a slot held a row
-  (`measure.no_room`, `measure.caps`, `measure.slots`), and when jbus itself did not run;
+- how long the machine had no room, why, and how long a slot held a row (`measure.no_room`,
+  `measure.slots`), and when jbus itself did not run;
+- the hours each account was capped, from the machine's `capped.jsonl` and the full-pool
+  `stall` lines, the rows a cap held, from each project's `outbox.jsonl` and those `stall`
+  lines, and the threads jbus rolled over to another account (`measure.caps`);
 - GitHub's queue and run time, cancels and reruns, and the median and 90th percentile wall time
   of a pull request's `check` (`runs.ci`); past `RUNNERS_BACK_P90_MIN` minutes, the
   text ends with a line that raises the parked row `RUNNERS_BACK`;
@@ -42,6 +46,8 @@ import jbus
 from jbus import digest, verbs
 from jbus.ci import ledger
 from jbus.flow import measure, records, runs
+from jbus.outbox import FILE as OUTBOX
+from jgauge import limits
 
 DEFAULT_DAYS = 7
 RUNNERS_BACK = "jstack-runners-back"
@@ -61,10 +67,12 @@ def build(
     until: datetime,
     jobs: dict[str, list[dict]] | None = None,
     spans: bool = False,
+    spells: list[records.Cap] | None = None,
 ) -> dict[str, Any]:
     """Return the whole measure of the window as one dict. `merges` maps a repo to the times its
-    pull requests merged, by number, `repos` maps a project to its repo, and `jobs` a project
-    to the jobs its `ci.jsonl` kept. With `spans`, each merged row carries its spans."""
+    pull requests merged, by number, `repos` maps a project to its repo, `jobs` a project
+    to the jobs its `ci.jsonl` kept, and `spells` the accounts' caps that the machine's
+    `capped.jsonl` read. With `spans`, each row carries its spans."""
     by_project = {name: merges.get(repo, {}) for name, repo in repos.items()}
     found = measure.rows(projects, since, until, by_project)
     total = sum(one.hours() for one in found) or 1.0
@@ -100,7 +108,7 @@ def build(
         "behind": measure.behind(found),
         "main_red": runs.main_red(found_runs, found, merges),
         "no_room": measure.no_room(lines, since, until),
-        "caps": measure.caps(projects, lines, since, until),
+        "caps": measure.caps(projects, lines, since, until, spells or []),
         "slots": measure.slots(projects, since, until),
         "jbus": measure.jbus_down(lines, since, until),
         "ci": runs.ci(found_runs),
@@ -110,6 +118,7 @@ def build(
 
 
 LOG = "events.jsonl"
+SPELLS = limits.SPELLS
 
 
 def gather(config: jbus.Config, args: argparse.Namespace, since: datetime, until: datetime):
@@ -129,6 +138,9 @@ def gather(config: jbus.Config, args: argparse.Namespace, since: datetime, until
             missing.append(f"{name}: no {LOG}")
             text = ""
         projects.append(records.events(name, text.splitlines()))
+        if (folder / OUTBOX).is_file():
+            sent = (folder / OUTBOX).read_text(errors="replace")
+            records.outbox(projects[-1], sent.splitlines())
         jobs[name] = ledger.read(folder / ledger.JOBS)
         project = configured.get(name)
         repo = records.repo_of(project.checkout) if project else None
@@ -162,6 +174,9 @@ def gather(config: jbus.Config, args: argparse.Namespace, since: datetime, until
         if said is None:
             missing.append("the journal of jbus")
     lines = records.journal(said or "")
+    spells: list[records.Cap] = []
+    if (state / SPELLS).is_file():
+        spells = records.capped((state / SPELLS).read_text(errors="replace").splitlines())
     found_runs: list[records.Run] = []
     merges: dict[str, dict] = {}
     for repo in [] if args.no_github else sorted(set(repos.values())):
@@ -171,7 +186,7 @@ def gather(config: jbus.Config, args: argparse.Namespace, since: datetime, until
             missing.append(f"GitHub for {repo}")
         found_runs += ran or []
         merges[repo] = merged or {}
-    return projects, lines, found_runs, merges, repos, jobs, missing
+    return projects, lines, found_runs, merges, repos, jobs, spells, missing
 
 
 def _local(moment: datetime) -> str:
@@ -214,6 +229,18 @@ def text(said: dict[str, Any]) -> str:
             )
     if not every and len(lead["rows"]) > 25:
         out.append(f"  ({len(lead['rows']) - 25} more, and each row's spans, with --rows)")
+    if lead.get("open"):
+        out += ["", "not merged in the window, longest first (working / waiting hours):"]
+    for row in lead.get("open", []):
+        out.append(
+            f"  {row['project']}/{row['slug']}: {row['working_hours']} / "
+            f"{row['waiting_hours']} h, most on {row['top_wait'] or '-'} "
+            f"({row['top_wait_hours']} h)"
+        )
+        for span in row["spans"]:
+            out.append(
+                f"    {span['start']} {span['hours']:>6} h  {span['class']}  <- {span['source']}"
+            )
     out += ["", "waiting by class, hours lost (share, running share, rows, the longest row):"]
     for one in said["pareto"]:
         mark = " (unexplained)" if one["unexplained"] else ""
@@ -256,12 +283,14 @@ def text(said: dict[str, Any]) -> str:
     room, cap, slot, bus = said["no_room"], said["caps"], said["slots"], said["jbus"]
     reasons = ", ".join(f"{why} {h} h" for why, h in room["by_reason"].items()) or "none"
     accounts = ", ".join(f"{name} {h} h" for name, h in cap["by_account"].items()) or "none"
+    rolled = ", ".join(f"{name} {n}" for name, n in cap["rollovers_by_project"].items()) or "none"
     out += [
         "",
         f"no room: {room['hours']} h in {room['spans']} spans, {room['rows_held']} rows held "
         f"({reasons})",
-        f"account caps: {cap['hours_any']} h with an account capped, {cap['rows_held']} rows "
-        f"held ({accounts})",
+        f"account caps: an account capped {cap['hours_any']} h ({accounts}), "
+        f"{cap['rows_held']} rows a cap held ({cap['row_hours_held']} h of held messages), "
+        f"{cap['rollovers']} threads rolled over to another account ({rolled})",
         f"test slots: {slot['test_slot_waits']} waits, {slot['test_slot_hours']} h, longest "
         f"{slot['test_slot_longest_min']} min; review pool: {slot['review_pool_waits']} waits, "
         f"{slot['review_pool_hours']} h",
@@ -310,14 +339,14 @@ def _flow(args: argparse.Namespace, config: jbus.Config) -> int:
     if since >= until:
         raise jbus.Refused(f"refused: --since {args.since} is not before --until {until}")
     try:
-        projects, lines, found_runs, merges, repos, jobs, missing = gather(
+        projects, lines, found_runs, merges, repos, jobs, spells, missing = gather(
             config, args, since, until
         )
     except records.Unaffordable as error:
         raise jbus.Refused(str(error)) from None
     if args.project:
         projects = [one for one in projects if one.name == config.project(args.project).name]
-    said = build(projects, lines, found_runs, merges, repos, since, until, jobs, args.rows)
+    said = build(projects, lines, found_runs, merges, repos, since, until, jobs, args.rows, spells)
     said |= {"missing": missing}
     said = jbus.redact(said, config.secrets())
     print(json.dumps(said, indent=2, sort_keys=True) if args.json else text(said))
@@ -340,7 +369,9 @@ def _arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--json", action="store_true", help="print the measure as JSON")
     parser.add_argument(
-        "--rows", action="store_true", help="every merged row, each span with its record"
+        "--rows",
+        action="store_true",
+        help="every row, each span with its record, the rows not merged in the window too",
     )
     parser.add_argument(
         "--journal", type=Path, help="read jbus's journal lines from this file, not journalctl"

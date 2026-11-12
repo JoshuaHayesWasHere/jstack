@@ -2,10 +2,23 @@
 
 A row whose brief builds on another row's code (`--depends`, named on its `Builds on:` line)
 launches once that row has opened its pull request, stacked on that pull request's branch
-(`dispatch`, `World.stack_on`). A depends is the one way a stack is made: `jbus queue add` refuses
-a brief whose own `Stacked on:` line names a row its depends does not. Its brief's
+(`dispatch`, `World.stack_on`). A depends backs every stack: `jbus queue add` refuses a brief
+whose own `Stacked on:` line names a row its depends does not. Its brief's
 `Stacked on: <slug> <branch>` line is the one record of the stack: the crew opens its pull request
 on that branch, and `jmerge` waits on the line (`ready.STACKED_ON`).
+
+A row launched on main whose crew found the code it needs only on an open row's branch, built on
+it and paused with `Waits on: <that row>`, is stacked by jbus after its launch (`adopt`), by the
+same rule a launch stacks on (`World.stack_on`): one row waited on, its pull request open, on the
+branch the row's goes on, and the row's branch, origin's or else its worktree's, holds that pull
+request's head. jbus adds the row to its depends (`queue.stack_on`), keeps the base's head it
+holds as `stacked` in the row's newest launch record, where `_heads` reads the commit it forked
+from once the base's branch is gone, writes the `Stacked on:` line in place of `Green main:`, and
+tells its crew once, under `stacked|<slug>|<base>|<fork 12>`, to check on that base, push and end
+for the review. Once that went, the `waits` carry-on of the Result it was stacked from is spent
+(`jbus.pausedon`). From then on the row is a link as any other. A row whose base has no open pull
+request, that waits on two, whose branch does not hold the base's head, or that goes on another
+branch, is left paused: holding stays only where nothing is pushed to stack on.
 
 While the base is open, a link stays on its stack, and its crew is told nothing whatever the
 base's head does: the link is moved once, when the base merged. A `merge_after` order is the
@@ -73,15 +86,38 @@ from typing import Any
 
 from jbriefs import below, reviewers
 from jbriefs import stacked as stacks
-from jbus import END_TURN, crewthread, launchtext, mirror, queue, rebase, review, verbs
+from jbriefs.home import thread_of
+from jbus import (
+    END_TURN,
+    crewthread,
+    launchtext,
+    mirror,
+    outbox,
+    pausedon,
+    queue,
+    rebase,
+    review,
+    verbs,
+    write_json,
+)
 from jbus.launches import records
 from jbus.passes import Pass
 from jbus.prereview import pushed
-from jbus.t3 import Client
+from jbus.t3 import Client, T3Error
 from jbus.watch import World, against, at_work, task_brief
 
-EVENTS = {"restack": "quiet"}
+EVENTS = {"restack": "quiet", "stack": "quiet"}
 KIND = "restack"
+ADOPTED = "stack"
+STACKED = (
+    "jbus: your branch holds the head of {base}'s open pull request #{number}, so jbus stacked "
+    "this task on it: {base} is on its depends now, and the head of `tasks/{slug}.md` says "
+    "`{line}` in place of `Green main:`. Your wait on {base} is over: read the brief and its last "
+    "Result again, from the file. Your base is the branch on that line, not main: run the check "
+    "block on that base, push your branch, and end for the review, with a follow-up Result whose "
+    "`Pull request:` line says `after the review` and that names {base} on no `Waits on:` line. "
+    "Once {base} merges, jbus moves your own commits onto the branch it merged into. " + END_TURN
+)
 MOVED = (
     "jbus: {base} merged as {merge}, and your stacked pull request #{number} is now based on "
     "{onto}, so its block rebases onto origin/{onto}. "
@@ -136,6 +172,131 @@ def before_pull(run: Pass, world: World) -> None:
             run.find(slug, KIND, line, stacks.line(moved), key=f"before pull {merge[:12]}")
             run.say(line)
         _lift(run, world, slug, merged, merge, onto)
+
+
+def adopt(run: Pass, client: Client, world: World) -> None:
+    """Stack each launched row that holds an open row's work on that row's pull request, and tell
+    its crew once: see `_adopted` and `_tell`, and the docs' "What a pass launches"."""
+    for slug in sorted(world.threads):
+        _adopted(run, world, slug)
+    _tell(run, client, world)
+
+
+def _adopted(run: Pass, world: World, slug: str) -> None:
+    """Stack `slug` where its crew built on an open row's branch and paused on it: the row has a
+    crew whose turn ended, no pull request and no `Stacked on:` line, its last Result says
+    `Status: paused` and waits on one row alone, that row's pull request is open on the branch
+    the row's goes on (`World.stack_on`, the rule a stacked launch has), and the row's branch,
+    origin's or else its worktree's, holds that pull request's head. Holding stays only where
+    nothing is pushed to stack on. The fork goes into the row's newest launch record first, then
+    the depends, then the line, so a pass that dies between two writes is finished by the next."""
+    live = world.threads[slug]
+    if len(live) != 1 or at_work(live) or world.awaits(live[0]):
+        return
+    made = records(run, slug, queue.CREW)
+    if slug in world.open or slug in world.merged or not made:
+        return
+    brief = task_brief(run, slug)
+    result = world.result(run, slug)
+    if stacks.said(brief) is not None or below.line(result, "Status:").split()[:1] != ["paused"]:
+        return
+    slugs = _slugs(run)
+    named = mirror.waits_on(result, slugs)
+    if len(named) != 1 or named[0] not in slugs:
+        return
+    on = world.stack_on(run, list(named), queue.brief(run.state, slug) or brief)
+    pull = world.open.get(on.slug) if on else None
+    fork = str((pull or {}).get("headRefOid") or "")
+    if on is None or pull is None or not fork:
+        return
+    branch = (below.line(result, "Branch:").split() or [slug])[0]
+    head = pushed(run, branch) or _local(run, branch)
+    if run.run("git", "cat-file", "-e", f"{fork}^{{commit}}").returncode:
+        run.run("git", "fetch", "-q", "origin", f"refs/pull/{pull['number']}/head")
+    if not _holds(run, head, fork):
+        return
+    _keep_fork(made, on.slug, fork)
+    queue.stack_on(run.state, slug, on.slug)
+    if not _rewrite(run, slug, on):
+        return
+    line = (
+        f"{ADOPTED} {slug}: stacked on {on.slug}'s open pull request #{pull['number']}, "
+        f"its branch {branch} holds {fork[:12]}"
+    )
+    run.find(slug, ADOPTED, line, stacks.line(on), key=fork[:12])
+    run.say(line)
+
+
+def _tell(run: Pass, client: Client, world: World) -> None:
+    """Tell the crew of each row jbus stacked (`_adopted`) that it is stacked, once, under the
+    key `stacked|<slug>|<base>|<fork 12>`, while its brief's `Stacked on:` line names that base.
+    A message the outbox holds goes on a later pass. Once it went, the `waits` carry-on of the
+    Result the row was stacked from is spent too (`pausedon`): it would bring the branch onto
+    main, which for a link is jbus's move once its base merged."""
+    for slug in sorted(world.threads):
+        kept = next(
+            (
+                one.get("stacked")
+                for _, one in reversed(records(run, slug, queue.CREW))
+                if isinstance(one.get("stacked"), dict)
+            ),
+            None,
+        )
+        on = stacks.of(task_brief(run, slug))
+        if not kept or on is None or on.slug != kept.get("on"):
+            continue
+        key = f"stacked|{slug}|{on.slug}|{str(kept.get('fork') or '')[:12]}"
+        thread = thread_of(run.home, slug) or str(world.threads[slug][0].get("threadId") or "")
+        if run.box.has(key) or not thread:
+            continue
+        number = (world.open.get(on.slug) or world.merged.get(on.slug) or {}).get("number", "")
+        message = (
+            STACKED.replace("{base}", on.slug)
+            .replace("{number}", str(number))
+            .replace("{slug}", slug)
+            .replace("{line}", stacks.line(on))
+        )
+        try:
+            went = outbox.send(
+                run,
+                client,
+                thread=thread,
+                row=slug,
+                key=key,
+                text=message,
+                template="stacked",
+                needs="act",
+            )
+        except T3Error as error:
+            run.say(f"wait {slug}: its crew could not be told it is stacked ({error})")
+            continue
+        if not went:
+            continue
+        run.box.mark(key)
+        result = world.result(run, slug)
+        named = mirror.waits_on(result, _slugs(run))
+        if named == (on.slug,):
+            run.box.mark(pausedon.key(run, slug, result, named))
+        run.say(f"told {slug}: it is stacked on {on.slug}")
+
+
+def _slugs(run: Pass) -> set[str]:
+    """The queue's slugs, read only for a row that may be stacked, since few are on a pass."""
+    return {row["slug"] for row in queue.load(run.state)}
+
+
+def _keep_fork(made: list[tuple[Path, dict[str, Any]]], base: str, fork: str) -> None:
+    """Keep `fork`, the head of `base` the row was stacked at, in the newest of its launch records
+    `made`, as `stacked`, where `_heads` reads it once the base's branch and its reflog are gone."""
+    path, record = max(made, key=lambda one: str(one[1].get("at") or ""))
+    if record.get("stacked") != {"on": base, "fork": fork}:
+        write_json(path, {**record, "stacked": {"on": base, "fork": fork}})
+
+
+def _local(run: Pass, branch: str) -> str:
+    """The head of the local `branch`, the crew's worktree's, or nothing where there is none."""
+    said = run.run("git", "rev-parse", "-q", "--verify", f"refs/heads/{branch}^{{commit}}")
+    return said.stdout.strip() if not said.returncode else ""
 
 
 def _lift(
@@ -334,7 +495,10 @@ def _heads(run: Pass, slug: str, base: str, branch: str, onto: str) -> set[str]:
         heads.update(said.stdout.split() if not said.returncode else ())
     said = run.run("git", "reflog", "show", "--format=%H", f"refs/heads/{branch}", "--")
     made = said.stdout.split()[-1:] if not said.returncode else []
-    made += [str(one.get("sha") or "") for _, one in records(run, slug, queue.CREW)]
+    for _, one in records(run, slug, queue.CREW):
+        stacked = one.get("stacked")
+        made += [str(one.get("sha") or "")]
+        made += [str(stacked.get("fork") or "")] if isinstance(stacked, dict) else []
     heads.update(one for one in made if one and not _holds(run, f"origin/{onto}", one))
     return heads
 
@@ -409,12 +573,15 @@ def _rewrite(
     run: Pass, slug: str, stacked: stacks.Stacked, was: stacks.Stacked | None = None
 ) -> bool:
     """Write where the link sits now on its brief's `Stacked on:` line, read again just before,
-    so a line its crew added since is kept. Given the line it `was`, a Result's own `Stacked on:`
+    so a line its crew added since is kept, in place of any `Green main:` line: a link starts
+    from its base's branch, not main. Given the line it `was`, a Result's own `Stacked on:`
     line of that stack is moved too, with what followed the branch on it, the base's url. Return
     whether it was written."""
     path = run.home / "tasks" / f"{slug}.md"
     try:
-        text = launchtext.stacked(path.read_text(errors="replace"), stacked)
+        text = launchtext.stacked(
+            launchtext.green_main(path.read_text(errors="replace"), ""), stacked
+        )
         if was is not None:
             old = f"{stacks.LINE} {was.slug} {was.branch}".split()
             head, mark, body = text.partition("\n## ")
@@ -436,6 +603,13 @@ def _rewrite(
 
 
 STEPS = (
+    verbs.Step(
+        "tellers",
+        33,
+        "stack.adopt",
+        lambda half: adopt(half.run, half.client, half.seen.world),
+        ("client", "world"),
+    ),
     verbs.Step(
         "tellers",
         34,

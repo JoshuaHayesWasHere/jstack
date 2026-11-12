@@ -62,46 +62,47 @@ Keep implementation details out of the map. Name only user paths, stable handles
 
 ## Features
 
-- [jbus](../../jbus/verify.md) covers a queue row from `jbus queue add` to the pass that launches the crew thread, a decision that wakes the home thread through `jbus gate`, `jbus done`, the outbox and the wake, and a red main that files the brief for its fix.
-- [jmerge says ready, wait or hold](../../../features/jmerge/verify.md) covers `jmerge --check` on a reviewed, an unreviewed, a failing and a protected pull request, and `jmerge --claims`.
-- [jgauge room](../../../features/jgauge/verify.md) covers the `go` and `wait:` answers for load and plan limits, and a row that waits for room.
-- [Installing jstack](../../../features/jinstall/verify.md) covers `install.sh`, `install.sh --check`, `install.sh --uninstall`, and a second run that changes nothing.
+One link for each feature file.
+A feature's sub-features and its recipe are in its own file, and nowhere here.
 
-These have their `Paths:` and `Tests:` lines and no recipe yet:
-
-- [The check CI runs](../../../testing/verify/ci-check.md), not driven yet.
-- [A crewmate does one task](../../../features/crew/verify.md), not driven yet.
-- [The pages under docs](../../../features/repo-guards/verify.md), not driven yet.
-- [The evals](../../../features/evals/verify.md), not driven yet.
-- [An expert answers asks](../../../features/expert/verify.md), not driven yet.
-- [Grilling the user](../../../features/grilling/verify.md), not driven yet.
-- [A home and its handoff](../../../features/home/verify.md), not driven yet.
-- [jbriefs reads a brief](../../../features/jbriefs/verify.md), not driven yet.
-- [jdrift lists what changed upstream](../../../features/jdrift/verify.md), not driven yet.
-- [jleak stops a leak](../../../features/jleak/verify.md), not driven yet.
-- [jroles names a model](../../../features/jroles/verify.md), not driven yet.
-- [Lessons from a thread](../../../features/lessons/verify.md), not driven yet.
-- [Playbooks and principles](../../../features/principles/verify.md), not driven yet.
-- [A pull request is reviewed](../../../features/pr-review/verify.md), not driven yet.
-- [A scout answers one question](../../../features/scout/verify.md), not driven yet.
-- [The skill library](../../../features/skill-library/verify.md), not driven yet.
-- [The architect skill](../../../features/architect/verify.md), not driven yet.
-- [The automate-me skill](../../../features/automate-me/verify.md), not driven yet.
-- [The benchmark-checklist skill](../../../features/benchmark-checklist/verify.md), not driven yet.
-- [The bro skill](../../../features/bro/verify.md), not driven yet.
-- [The how skill](../../../features/how/verify.md), not driven yet.
-- [The in-your-own-words skill](../../../features/in-your-own-words/verify.md), not driven yet.
-- [The ketchup skill](../../../features/ketchup/verify.md), not driven yet.
-- [The no-comments skill](../../../features/no-comments/verify.md), not driven yet.
-- [The recall skill](../../../features/recall/verify.md), not driven yet.
-- [The sharpen skill](../../../features/sharpen/verify.md), not driven yet.
-- [The show-me-your-work skill](../../../features/show-me-your-work/verify.md), not driven yet.
-- [The tdd skill](../../../features/tdd/verify.md), not driven yet.
-- [The teach skill](../../../features/teach/verify.md), not driven yet.
-- [The typescript-best-practices skill](../../../features/typescript-best-practices/verify.md), not driven yet.
-- [The why skill](../../../features/why/verify.md), not driven yet.
-- [The verify-jstack harness](../../../features/verify-jstack/verify.md), not driven yet.
-- [Writing for a reader](../../../features/writing/verify.md), not driven yet.
+- [The architect skill](../../../features/architect/verify.md)
+- [The automate-me skill](../../../features/automate-me/verify.md)
+- [The benchmark-checklist skill](../../../features/benchmark-checklist/verify.md)
+- [The bro skill](../../../features/bro/verify.md)
+- [A crewmate does one task](../../../features/crew/verify.md)
+- [The evals](../../../features/evals/verify.md)
+- [An expert answers asks](../../../features/expert/verify.md)
+- [Grilling the user](../../../features/grilling/verify.md)
+- [A home and its handoff](../../../features/home/verify.md)
+- [The how skill](../../../features/how/verify.md)
+- [The in-your-own-words skill](../../../features/in-your-own-words/verify.md)
+- [jbriefs reads a brief](../../../features/jbriefs/verify.md)
+- [jbus](../../../features/jbus/verify.md)
+- [jdrift lists what changed upstream](../../../features/jdrift/verify.md)
+- [jgauge room](../../../features/jgauge/verify.md)
+- [Installing jstack](../../../features/jinstall/verify.md)
+- [jleak stops a leak](../../../features/jleak/verify.md)
+- [jmerge says ready, wait or hold](../../../features/jmerge/verify.md)
+- [Context packs](../../../features/jpack/verify.md)
+- [jroles names a model](../../../features/jroles/verify.md)
+- [The ketchup skill](../../../features/ketchup/verify.md)
+- [Lessons from a thread](../../../features/lessons/verify.md)
+- [The no-comments skill](../../../features/no-comments/verify.md)
+- [A pull request is reviewed](../../../features/pr-review/verify.md)
+- [Playbooks and principles](../../../features/principles/verify.md)
+- [The recall skill](../../../features/recall/verify.md)
+- [The pages under docs](../../../features/repo-guards/verify.md)
+- [A scout answers one question](../../../features/scout/verify.md)
+- [The sharpen skill](../../../features/sharpen/verify.md)
+- [The show-me-your-work skill](../../../features/show-me-your-work/verify.md)
+- [The skill library](../../../features/skill-library/verify.md)
+- [The tdd skill](../../../features/tdd/verify.md)
+- [The teach skill](../../../features/teach/verify.md)
+- [The typescript-best-practices skill](../../../features/typescript-best-practices/verify.md)
+- [The verify-jstack harness](../../../features/verify-jstack/verify.md)
+- [The why skill](../../../features/why/verify.md)
+- [Writing for a reader](../../../features/writing/verify.md)
+- [The check CI runs](../../../testing/verify/ci-check.md)
 
 No recipe drives these yet: `jgauge session` and `jgauge test-slot`, `jbriefs`, `jdrift` (it reads the network), `jroles`, `jmerge --sweep` and `jmerge --accept`, `jbus queue apply`, `jbus alarm` and `jbus t3`, the two hooks, and the skills as an agent runs them in a thread.
 
@@ -110,6 +111,8 @@ No recipe drives these yet: `jgauge session` and `jgauge test-slot`, `jbriefs`, 
 A test file that reads the whole tree, and not the paths of one feature (it globs the repo, or every skill and every page at once), is cross-cutting: every diff runs it, and no `Tests:` line needs to name it.
 A test file reads the tree when it globs, walks or lists with `git ls-files` a folder of the checkout, the root, a `src/`, a folder of tests or any other.
 `testing/tests/test_cross_cutting.py` fails when such a test file is not on this list, and names the read it found.
+A test that reads only the files of the tests, as one does that collects the whole suite with pytest, is not on the list: its `READ_SET` names the folders of tests, so a change to a test runs it at the desk (`--part names`) and in CI, and a change to no test pays none of its seconds.
+`testing/tests/test_test_limits.py`, about 16 s, reads so every test's own limit: #1794, #1798 and #1799 each added a test of 600 s that its list lacked, and each went red first in CI while it held no read set.
 
 Cross-cutting:
 - `testing/tests/test_check_command.py`
