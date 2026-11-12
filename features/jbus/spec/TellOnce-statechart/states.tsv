@@ -2,287 +2,246 @@ state	group	status	start	chart	states in TellOnce.chart.cfg	within in TellOnce.c
 A cancelled check: not told	Not told: nothing marked				0	0	1	0
 A cancelled check: not told, a pass is in its step	Not told: a pass in its step or a mark written				0	0	1	0
 A cancelled check: nothing owed yet	Not told: nothing marked		yes		0	0	1	0
-A cancelled check: told once	Told once: nothing marked				0	0	2	0
-A cancelled check: told once, a pass is in its step	Told once: a pass in its step				0	0	3	1
+A cancelled check: told once	Told once: no key kept yet				0	0	2	0
+A cancelled check: told once, a pass is in its step	Told once: no key kept yet				0	0	3	1
 A cancelled check: told once, cancelled.json says run again, sent.json has its key	Told once: its file says done				0	0	2	0
 A cancelled check: told once, sent.json has its key	Told once: sent.json has its key				0	0	2	0
 A cancelled check: told once, sent.json has its key, a pass is in its step	Told once: sent.json has its key				0	0	4	2
 A hold nobody works on: not told, held.json waits	Not told: nothing marked	works		r0s0 r1s6	1	0	1	0
 A hold nobody works on: not told, held.json waits, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s0 r1s7	1	0	1	0
 A hold nobody works on: not told, held.json waits, the outbox held it	Not told: the outbox held it	works		r0s0 r1s8	1	0	1	0
-A hold nobody works on: not told, held.json waits, the outbox held it, a pass is in its step	Not told: the outbox held it	works		r0s0 r1s9	1	0	1	0
-A hold nobody works on: nothing owed yet	Not told: nothing marked	works	yes	r0s0 r1s30	1	0	1	0
-A hold nobody works on: told once, held.json says its home woke, sent.json has its key	Told once: its file says done	works		r0s0 r1s40	6	0	6	0
-A hold nobody works on: told once, held.json waits	Told once: nothing marked	works		r0s0 r1s41	4	0	4	0
-A hold nobody works on: told once, held.json waits, a pass is in its step	Told once: a pass in its step	works		r0s0 r1s42	11	8	11	8
-A hold nobody works on: told once, held.json waits, sent.json has its key	Told once: sent.json has its key	works		r0s0 r1s43	6	0	6	0
-A hold nobody works on: told once, held.json waits, sent.json has its key, a pass is in its step	Told once: sent.json has its key	works		r0s0 r1s44	15	9	15	9
-A hold nobody works on: told once, held.json waits, the outbox held it	Told once: the outbox held it	works		r0s0 r1s45	3	0	3	0
-A hold nobody works on: told once, held.json waits, the outbox held it, a pass is in its step	Told once: the outbox held it	works		r0s0 r1s46	6	3	6	3
-A merge that changed a skill: not told, reload.json owes it	Not told: nothing marked	works		r0s1 r1s10	2	1	2	1
-A merge that changed a skill: not told, reload.json owes it, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s1 r1s11	2	0	2	0
-A merge that changed a skill: not told, reload.json owes it, the outbox held it	Not told: the outbox held it	works		r0s1 r1s12	2	1	2	1
-A merge that changed a skill: not told, reload.json owes it, the outbox held it, a pass is in its step	Not told: the outbox held it	works		r0s1 r1s13	2	0	2	0
-A merge that changed a skill: nothing owed yet	Not told: nothing marked	works	yes	r0s1 r1s30	1	0	1	0
-A merge that changed a skill: told once, reload.json owes it	Told once: nothing marked	works		r0s1 r1s47	12	4	12	4
-A merge that changed a skill: told once, reload.json owes it, a pass is in its step	Told once: a pass in its step	works		r0s1 r1s48	26	16	26	16
-A merge that changed a skill: told once, reload.json owes it, sent.json has its key	Told once: sent.json has its key	works		r0s1 r1s49	18	6	18	6
-A merge that changed a skill: told once, reload.json owes it, sent.json has its key, a pass is in its step	Told once: sent.json has its key	works		r0s1 r1s50	57	42	57	42
-A merge that changed a skill: told once, reload.json owes it, the outbox held it	Told once: the outbox held it	works		r0s1 r1s51	9	3	9	3
-A merge that changed a skill: told once, reload.json owes it, the outbox held it, a pass is in its step	Told once: the outbox held it	works		r0s1 r1s52	15	6	15	6
-A merge that changed a skill: told once, sent.json has its key	Told once: its file says done	works		r0s1 r1s53	15	0	15	0
-A merge that changed a skill: told twice, reload.json owes it	Told twice	wrong		r0s1 r1s83	4	0	4	0
-A merge that changed a skill: told twice, reload.json owes it, a pass is in its step	Told twice	wrong		r0s1 r1s84	11	8	11	8
-A merge that changed a skill: told twice, reload.json owes it, sent.json has its key	Told twice	wrong		r0s1 r1s85	6	0	6	0
-A merge that changed a skill: told twice, reload.json owes it, sent.json has its key, a pass is in its step	Told twice	wrong		r0s1 r1s86	21	15	21	15
-A merge that changed a skill: told twice, reload.json owes it, the outbox held it	Told twice	wrong		r0s1 r1s87	3	0	3	0
-A merge that changed a skill: told twice, reload.json owes it, the outbox held it, a pass is in its step	Told twice	wrong		r0s1 r1s88	6	3	6	3
-A merge that changed a skill: told twice, sent.json has its key	Told twice	wrong		r0s1 r1s89	6	0	6	0
+A hold nobody works on: not told, held.json waits, the outbox held it, a pass is in its step	Not told: the outbox held it, a pass in its step	works		r0s0 r1s9	1	0	1	0
+A hold nobody works on: nothing owed yet	Not told: nothing marked	works	yes	r0s0 r1s50	1	0	1	0
+A hold nobody works on: told once, held.json says its home woke, sent.json has its key	Told once: its file says done	works		r0s0 r1s60	6	0	6	0
+A hold nobody works on: told once, held.json waits	Told once: no key kept yet	works		r0s0 r1s61	4	0	4	0
+A hold nobody works on: told once, held.json waits, a pass is in its step	Told once: no key kept yet	works		r0s0 r1s62	11	8	11	8
+A hold nobody works on: told once, held.json waits, sent.json has its key	Told once: sent.json has its key	works		r0s0 r1s63	6	0	6	0
+A hold nobody works on: told once, held.json waits, sent.json has its key, a pass is in its step	Told once: sent.json has its key	works		r0s0 r1s64	15	9	15	9
+A hold nobody works on: told once, held.json waits, the outbox held it	Told once: its key kept	works		r0s0 r1s65	3	0	3	0
+A hold nobody works on: told once, held.json waits, the outbox held it, a pass is in its step	Told once: its key kept, a pass in its step	works		r0s0 r1s66	6	3	6	3
+A merge that changed a skill: not told, reload.json owes it	Not told: nothing marked	works		r0s1 r1s10	1	0	1	0
+A merge that changed a skill: not told, reload.json owes it, a merge was kept since	Not told: nothing marked	works		r0s1 r1s11	1	0	1	0
+A merge that changed a skill: not told, reload.json owes it, a merge was kept since, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s1 r1s12	1	0	1	0
+A merge that changed a skill: not told, reload.json owes it, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s1 r1s13	1	0	1	0
+A merge that changed a skill: not told, reload.json owes it, reload.json keeps the thread tried	Not told: nothing marked	works		r0s1 r1s14	1	0	1	0
+A merge that changed a skill: not told, reload.json owes it, reload.json keeps the thread tried, a merge was kept since	Not told: nothing marked	works		r0s1 r1s15	1	0	1	0
+A merge that changed a skill: not told, reload.json owes it, reload.json keeps the thread tried, a merge was kept since, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s1 r1s16	2	1	2	1
+A merge that changed a skill: not told, reload.json owes it, reload.json keeps the thread tried, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s1 r1s17	2	1	2	1
+A merge that changed a skill: not told, reload.json owes it, reload.json keeps the thread tried, the outbox held it	Not told: the outbox held it	works		r0s1 r1s18	1	0	1	0
+A merge that changed a skill: not told, reload.json owes it, reload.json keeps the thread tried, the outbox held it, a merge was kept since	Not told: the outbox held it	works		r0s1 r1s19	1	0	1	0
+A merge that changed a skill: not told, reload.json owes it, reload.json keeps the thread tried, the outbox held it, a merge was kept since, a pass is in its step	Not told: the outbox held it, a pass in its step	works		r0s1 r1s20	2	1	2	1
+A merge that changed a skill: not told, reload.json owes it, reload.json keeps the thread tried, the outbox held it, a pass is in its step	Not told: the outbox held it, a pass in its step	works		r0s1 r1s21	2	1	2	1
+A merge that changed a skill: not told, reload.json owes it, the outbox held it	Not told: the outbox held it	works		r0s1 r1s22	1	0	1	0
+A merge that changed a skill: not told, reload.json owes it, the outbox held it, a merge was kept since	Not told: the outbox held it	works		r0s1 r1s23	1	0	1	0
+A merge that changed a skill: not told, reload.json owes it, the outbox held it, a merge was kept since, a pass is in its step	Not told: the outbox held it, a pass in its step	works		r0s1 r1s24	1	0	1	0
+A merge that changed a skill: not told, reload.json owes it, the outbox held it, a pass is in its step	Not told: the outbox held it, a pass in its step	works		r0s1 r1s25	1	0	1	0
+A merge that changed a skill: nothing owed yet	Not told: nothing marked	works	yes	r0s1 r1s50	1	0	1	0
+A merge that changed a skill: told once, reload.json keeps the thread tried, sent.json has its key	Told once: its file says done	works		r0s1 r1s67	6	0	6	0
+A merge that changed a skill: told once, reload.json keeps the thread tried, sent.json has its key, a merge was kept since	Told once: its file says done	works		r0s1 r1s68	6	0	6	0
+A merge that changed a skill: told once, reload.json owes it, reload.json keeps the thread tried	Told once: its key kept	works		r0s1 r1s69	4	0	4	0
+A merge that changed a skill: told once, reload.json owes it, reload.json keeps the thread tried, a merge was kept since	Told once: its key kept	works		r0s1 r1s70	4	0	4	0
+A merge that changed a skill: told once, reload.json owes it, reload.json keeps the thread tried, a merge was kept since, a pass is in its step	Told once: its key kept, a pass in its step	works		r0s1 r1s71	15	12	15	12
+A merge that changed a skill: told once, reload.json owes it, reload.json keeps the thread tried, a pass is in its step	Told once: its key kept, a pass in its step	works		r0s1 r1s72	15	12	15	12
+A merge that changed a skill: told once, reload.json owes it, reload.json keeps the thread tried, sent.json has its key	Told once: sent.json has its key	works		r0s1 r1s73	6	0	6	0
+A merge that changed a skill: told once, reload.json owes it, reload.json keeps the thread tried, sent.json has its key, a merge was kept since	Told once: sent.json has its key	works		r0s1 r1s74	6	0	6	0
+A merge that changed a skill: told once, reload.json owes it, reload.json keeps the thread tried, sent.json has its key, a merge was kept since, a pass is in its step	Told once: sent.json has its key	works		r0s1 r1s75	24	18	24	18
+A merge that changed a skill: told once, reload.json owes it, reload.json keeps the thread tried, sent.json has its key, a pass is in its step	Told once: sent.json has its key	works		r0s1 r1s76	24	18	24	18
+A merge that changed a skill: told once, reload.json owes it, reload.json keeps the thread tried, the outbox held it	Told once: its key kept	works		r0s1 r1s77	3	0	3	0
+A merge that changed a skill: told once, reload.json owes it, reload.json keeps the thread tried, the outbox held it, a merge was kept since	Told once: its key kept	works		r0s1 r1s78	3	0	3	0
+A merge that changed a skill: told once, reload.json owes it, reload.json keeps the thread tried, the outbox held it, a merge was kept since, a pass is in its step	Told once: its key kept, a pass in its step	works		r0s1 r1s79	9	6	9	6
+A merge that changed a skill: told once, reload.json owes it, reload.json keeps the thread tried, the outbox held it, a pass is in its step	Told once: its key kept, a pass in its step	works		r0s1 r1s80	9	6	9	6
 A project closed: not told	Not told: nothing marked				0	0	1	0
 A project closed: not told, a pass is in its step	Not told: a pass in its step or a mark written				0	0	1	0
 A project closed: not told, closed.json lists what to archive	Not told: nothing marked				0	0	1	0
 A project closed: not told, closed.json lists what to archive, a pass is in its step	Not told: a pass in its step or a mark written				0	0	2	1
 A project closed: nothing owed yet	Not told: nothing marked		yes		0	0	1	0
-A project closed: told once, closed.json lists what to archive	Told once: nothing marked				0	0	1	0
-A project closed: told once, closed.json lists what to archive, a pass is in its step	Told once: a pass in its step				0	0	3	2
+A project closed: told once, closed.json lists what to archive	Told once: no key kept yet				0	0	1	0
+A project closed: told once, closed.json lists what to archive, a pass is in its step	Told once: no key kept yet				0	0	3	2
 A project closed: told once, closed.json says closed	Told once: its file says done				0	0	1	0
 A revert's crew: not told	Not told: nothing marked	works		r0s2 r1s0	1	0	1	0
 A revert's crew: not told, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s2 r1s1	1	0	1	0
-A revert's crew: not told, sent.json says told	Not told: a pass in its step or a mark written	works		r0s2 r1s14	1	0	1	0
-A revert's crew: not told, sent.json says told, the outbox held it	Not told: a pass in its step or a mark written	works		r0s2 r1s15	1	0	1	0
-A revert's crew: not told, the outbox held it	Not told: the outbox held it	works		r0s2 r1s24	1	0	1	0
-A revert's crew: not told, the outbox held it, a pass is in its step	Not told: the outbox held it	works		r0s2 r1s25	1	0	1	0
-A revert's crew: nothing owed yet	Not told: nothing marked	works	yes	r0s2 r1s30	1	0	1	0
-A revert's crew: told once	Told once: nothing marked	works		r0s2 r1s31	4	0	4	0
-A revert's crew: told once, a pass is in its step	Told once: a pass in its step	works		r0s2 r1s32	11	8	11	8
-A revert's crew: told once, sent.json says told	Told once: its file says done	works		r0s2 r1s54	7	0	7	0
-A revert's crew: told once, sent.json says told, the outbox held it	Told once: its file says done	works		r0s2 r1s55	3	0	3	0
-A revert's crew: told once, the outbox held it	Told once: the outbox held it	works		r0s2 r1s71	3	0	3	0
-A revert's crew: told once, the outbox held it, a pass is in its step	Told once: the outbox held it	works		r0s2 r1s72	6	3	6	3
+A revert's crew: not told, sent.json says told	Not told: a pass in its step or a mark written	works		r0s2 r1s26	1	0	1	0
+A revert's crew: not told, sent.json says told, the outbox held it	Not told: a pass in its step or a mark written	works		r0s2 r1s27	1	0	1	0
+A revert's crew: not told, the outbox held it	Not told: the outbox held it	works		r0s2 r1s36	1	0	1	0
+A revert's crew: not told, the outbox held it, a pass is in its step	Not told: the outbox held it, a pass in its step	works		r0s2 r1s37	1	0	1	0
+A revert's crew: nothing owed yet	Not told: nothing marked	works	yes	r0s2 r1s50	1	0	1	0
+A revert's crew: told once	Told once: no key kept yet	works		r0s2 r1s51	4	0	4	0
+A revert's crew: told once, a pass is in its step	Told once: no key kept yet	works		r0s2 r1s52	11	8	11	8
+A revert's crew: told once, sent.json says told	Told once: its file says done	works		r0s2 r1s81	7	0	7	0
+A revert's crew: told once, sent.json says told, the outbox held it	Told once: its file says done	works		r0s2 r1s82	3	0	3	0
+A revert's crew: told once, the outbox held it	Told once: its key kept	works		r0s2 r1s93	3	0	3	0
+A revert's crew: told once, the outbox held it, a pass is in its step	Told once: its key kept, a pass in its step	works		r0s2 r1s94	6	3	6	3
 A row red at two heads: not told, fails.json counts two heads	Not told: nothing marked				0	0	1	0
 A row red at two heads: not told, fails.json counts two heads, a pass is in its step	Not told: a pass in its step or a mark written				0	0	1	0
-A row red at two heads: not told, fails.json counts two heads, sent.json has its key, the row is held	Not told: a pass in its step or a mark written				0	0	2	1
-A row red at two heads: not told, fails.json counts two heads, sent.json has its key, the row is held, a pass is in its step	Not told: a pass in its step or a mark written				0	0	1	0
-A row red at two heads: not told, fails.json counts two heads, the row is held	Not told: a pass in its step or a mark written				0	0	2	1
-A row red at two heads: not told, fails.json counts two heads, the row is held, a pass is in its step	Not told: a pass in its step or a mark written				0	0	1	0
+A row red at two heads: not told, fails.json counts two heads, fails.json keeps the page's key	Not told: nothing marked				0	0	1	0
+A row red at two heads: not told, fails.json counts two heads, fails.json keeps the page's key, a pass is in its step	Not told: a pass in its step or a mark written				0	0	2	1
+A row red at two heads: not told, fails.json counts two heads, fails.json keeps the page's key, the row is held	Not told: a pass in its step or a mark written				0	0	1	0
+A row red at two heads: not told, fails.json counts two heads, fails.json keeps the page's key, the row is held, a pass is in its step	Not told: a pass in its step or a mark written				0	0	3	2
 A row red at two heads: nothing owed yet	Not told: nothing marked		yes		0	0	1	0
-A row red at two heads: told once, fails.json counts two heads, sent.json has its key, the row is held	Told once: sent.json has its key				0	0	2	1
-A row red at two heads: told once, fails.json counts two heads, sent.json has its key, the row is held, a pass is in its step	Told once: sent.json has its key				0	0	1	0
-A row red at two heads: told once, fails.json says held, sent.json has its key, the row is held	Told once: its file says done				0	0	1	0
+A row red at two heads: told once, fails.json counts two heads, fails.json keeps the page's key, the row is held	Told once: sent.json has its key				0	0	1	0
+A row red at two heads: told once, fails.json counts two heads, fails.json keeps the page's key, the row is held, a pass is in its step	Told once: sent.json has its key				0	0	4	3
+A row red at two heads: told once, fails.json says held, fails.json keeps the page's key, the row is held	Told once: its file says done				0	0	1	0
 A short pull request's crew: not told, expedite.json counts	Not told: nothing marked	works		r0s3 r1s2	1	0	1	0
 A short pull request's crew: not told, expedite.json counts, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s3 r1s3	1	0	1	0
 A short pull request's crew: not told, expedite.json counts, the outbox held it	Not told: the outbox held it	works		r0s3 r1s4	1	0	1	0
-A short pull request's crew: not told, expedite.json counts, the outbox held it, a pass is in its step	Not told: the outbox held it	works		r0s3 r1s5	1	0	1	0
-A short pull request's crew: nothing owed yet	Not told: nothing marked	works	yes	r0s3 r1s30	1	0	1	0
-A short pull request's crew: told once, expedite.json counts	Told once: nothing marked	works		r0s3 r1s33	4	0	4	0
-A short pull request's crew: told once, expedite.json counts, a pass is in its step	Told once: a pass in its step	works		r0s3 r1s34	11	8	11	8
-A short pull request's crew: told once, expedite.json counts, sent.json has its key	Told once: sent.json has its key	works		r0s3 r1s35	6	0	6	0
-A short pull request's crew: told once, expedite.json counts, sent.json has its key, a pass is in its step	Told once: sent.json has its key	works		r0s3 r1s36	15	9	15	9
-A short pull request's crew: told once, expedite.json counts, the outbox held it	Told once: the outbox held it	works		r0s3 r1s37	3	0	3	0
-A short pull request's crew: told once, expedite.json counts, the outbox held it, a pass is in its step	Told once: the outbox held it	works		r0s3 r1s38	6	3	6	3
-A short pull request's crew: told once, expedite.json says told, sent.json has its key	Told once: its file says done	works		r0s3 r1s39	6	0	6	0
+A short pull request's crew: not told, expedite.json counts, the outbox held it, a pass is in its step	Not told: the outbox held it, a pass in its step	works		r0s3 r1s5	1	0	1	0
+A short pull request's crew: nothing owed yet	Not told: nothing marked	works	yes	r0s3 r1s50	1	0	1	0
+A short pull request's crew: told once, expedite.json counts	Told once: no key kept yet	works		r0s3 r1s53	4	0	4	0
+A short pull request's crew: told once, expedite.json counts, a pass is in its step	Told once: no key kept yet	works		r0s3 r1s54	11	8	11	8
+A short pull request's crew: told once, expedite.json counts, sent.json has its key	Told once: sent.json has its key	works		r0s3 r1s55	6	0	6	0
+A short pull request's crew: told once, expedite.json counts, sent.json has its key, a pass is in its step	Told once: sent.json has its key	works		r0s3 r1s56	15	9	15	9
+A short pull request's crew: told once, expedite.json counts, the outbox held it	Told once: its key kept	works		r0s3 r1s57	3	0	3	0
+A short pull request's crew: told once, expedite.json counts, the outbox held it, a pass is in its step	Told once: its key kept, a pass in its step	works		r0s3 r1s58	6	3	6	3
+A short pull request's crew: told once, expedite.json says told, sent.json has its key	Told once: its file says done	works		r0s3 r1s59	6	0	6	0
 A work item proposed: not told	Not told: nothing marked				0	0	1	0
 A work item proposed: not told, a pass is in its step	Not told: a pass in its step or a mark written				0	0	1	0
 A work item proposed: nothing owed yet	Not told: nothing marked		yes		0	0	1	0
-A work item proposed: told once	Told once: nothing marked				0	0	2	0
-A work item proposed: told once, a pass is in its step	Told once: a pass in its step				0	0	3	1
+A work item proposed: told once	Told once: no key kept yet				0	0	2	0
+A work item proposed: told once, a pass is in its step	Told once: no key kept yet				0	0	3	1
 A work item proposed: told once, the counter is past it	Told once: its file says done				0	0	2	0
 An ask owed after a limit: not told, owed.json says owed	Not told: the ask owed or not yet due				0	0	2	0
 An ask owed after a limit: not told, owed.json says owed, a pass is in its step	Not told: the ask owed or not yet due				0	0	1	0
-An ask owed after a limit: not told, owed.json says owed, a second try	Not told: the ask owed or not yet due				0	0	12	0
-An ask owed after a limit: not told, owed.json says owed, a second try, a pass is in its step	Not told: the ask owed or not yet due				0	0	3	0
-An ask owed after a limit: not told, owed.json says owed, sent.json has failover's key, a second try	Not told: the ask owed or not yet due				0	0	2	0
-An ask owed after a limit: not told, owed.json says owed, sent.json has failover's key, a second try, a pass is in its step	Not told: the ask owed or not yet due				0	0	1	0
-An ask owed after a limit: not told, owed.json says owed, sent.json has failover's key, the outbox held it, a second try	Not told: the ask owed or not yet due				0	0	1	0
-An ask owed after a limit: not told, owed.json says owed, sent.json has failover's key, the outbox held it, a second try, a pass is in its step	Not told: the ask owed or not yet due				0	0	1	0
+An ask owed after a limit: not told, owed.json says owed, a second try	Not told: the ask owed or not yet due				0	0	24	0
+An ask owed after a limit: not told, owed.json says owed, a second try, a pass is in its step	Not told: the ask owed or not yet due				0	0	6	0
+An ask owed after a limit: not told, owed.json says owed, owed.json keeps failover's key on the ask	Not told: the ask owed or not yet due				0	0	1	0
+An ask owed after a limit: not told, owed.json says owed, owed.json keeps failover's key on the ask, a pass is in its step	Not told: the ask owed or not yet due				0	0	1	0
+An ask owed after a limit: not told, owed.json says owed, owed.json keeps failover's key on the ask, a second try	Not told: the ask owed or not yet due				0	0	12	0
+An ask owed after a limit: not told, owed.json says owed, owed.json keeps failover's key on the ask, a second try, a pass is in its step	Not told: the ask owed or not yet due				0	0	12	0
 An ask owed after a limit: not told, owed.json says owed, the outbox held it	Not told: the ask owed or not yet due				0	0	1	0
 An ask owed after a limit: not told, owed.json says owed, the outbox held it, a pass is in its step	Not told: the ask owed or not yet due				0	0	1	0
-An ask owed after a limit: not told, owed.json says owed, the outbox held it, a second try	Not told: the ask owed or not yet due				0	0	2	0
-An ask owed after a limit: not told, owed.json says owed, the outbox held it, a second try, a pass is in its step	Not told: the ask owed or not yet due				0	0	2	0
+An ask owed after a limit: not told, owed.json says owed, the outbox held it, a second try	Not told: the ask owed or not yet due				0	0	4	0
+An ask owed after a limit: not told, owed.json says owed, the outbox held it, a second try, a pass is in its step	Not told: the ask owed or not yet due				0	0	4	0
 An ask owed after a limit: not told, owed.json says the thread ended	Not told: the ask closed				0	0	2	0
-An ask owed after a limit: not told, owed.json says the thread ended, a second try	Not told: the ask closed				0	0	12	0
-An ask owed after a limit: not told, owed.json says the thread ended, sent.json has failover's key, a second try	Not told: the ask closed				0	0	2	0
-An ask owed after a limit: not told, owed.json says the thread ended, sent.json has failover's key, the outbox held it, a second try	Not told: the ask closed				0	0	1	0
+An ask owed after a limit: not told, owed.json says the thread ended, a second try	Not told: the ask closed				0	0	24	0
+An ask owed after a limit: not told, owed.json says the thread ended, owed.json keeps failover's key on the ask	Not told: the ask closed				0	0	1	0
+An ask owed after a limit: not told, owed.json says the thread ended, owed.json keeps failover's key on the ask, a second try	Not told: the ask closed				0	0	12	0
 An ask owed after a limit: not told, owed.json says the thread ended, the outbox held it	Not told: the ask closed				0	0	1	0
-An ask owed after a limit: not told, owed.json says the thread ended, the outbox held it, a second try	Not told: the ask closed				0	0	2	0
+An ask owed after a limit: not told, owed.json says the thread ended, the outbox held it, a second try	Not told: the ask closed				0	0	4	0
 An ask owed after a limit: not told, owed.json says the user asked again	Not told: the ask closed				0	0	2	0
-An ask owed after a limit: not told, owed.json says the user asked again, a second try	Not told: the ask closed				0	0	12	0
-An ask owed after a limit: not told, owed.json says the user asked again, sent.json has failover's key, a second try	Not told: the ask closed				0	0	2	0
-An ask owed after a limit: not told, owed.json says the user asked again, sent.json has failover's key, the outbox held it, a second try	Not told: the ask closed				0	0	1	0
+An ask owed after a limit: not told, owed.json says the user asked again, a second try	Not told: the ask closed				0	0	24	0
+An ask owed after a limit: not told, owed.json says the user asked again, owed.json keeps failover's key on the ask	Not told: the ask closed				0	0	1	0
+An ask owed after a limit: not told, owed.json says the user asked again, owed.json keeps failover's key on the ask, a second try	Not told: the ask closed				0	0	12	0
 An ask owed after a limit: not told, owed.json says the user asked again, the outbox held it	Not told: the ask closed				0	0	1	0
-An ask owed after a limit: not told, owed.json says the user asked again, the outbox held it, a second try	Not told: the ask closed				0	0	2	0
+An ask owed after a limit: not told, owed.json says the user asked again, the outbox held it, a second try	Not told: the ask closed				0	0	4	0
 An ask owed after a limit: nothing owed yet	Not told: the ask owed or not yet due		yes		0	0	1	0
-An ask owed after a limit: told once, owed.json says owed	Told once: the ask owed				0	0	5	0
-An ask owed after a limit: told once, owed.json says owed, a pass is in its step	Told once: the ask owed				0	0	13	8
-An ask owed after a limit: told once, owed.json says owed, a second try	Told once: the ask owed, a second try				0	0	7	0
-An ask owed after a limit: told once, owed.json says owed, a second try, a pass is in its step	Told once: the ask owed, a second try				0	0	14	6
-An ask owed after a limit: told once, owed.json says owed, sent.json has failover's key	Told once: the ask owed				0	0	1	0
-An ask owed after a limit: told once, owed.json says owed, sent.json has failover's key, a pass is in its step	Told once: the ask owed				0	0	2	0
-An ask owed after a limit: told once, owed.json says owed, sent.json has failover's key, a second try	Told once: the ask owed, a second try				0	0	8	0
-An ask owed after a limit: told once, owed.json says owed, sent.json has failover's key, a second try, a pass is in its step	Told once: the ask owed, a second try				0	0	17	7
-An ask owed after a limit: told once, owed.json says owed, sent.json has failover's key, the outbox held it	Told once: the ask owed				0	0	1	0
-An ask owed after a limit: told once, owed.json says owed, sent.json has failover's key, the outbox held it, a pass is in its step	Told once: the ask owed				0	0	1	0
-An ask owed after a limit: told once, owed.json says owed, sent.json has failover's key, the outbox held it, a second try	Told once: the ask owed, a second try				0	0	4	0
-An ask owed after a limit: told once, owed.json says owed, sent.json has failover's key, the outbox held it, a second try, a pass is in its step	Told once: the ask owed, a second try				0	0	6	2
+An ask owed after a limit: told once, owed.json says owed	Told once: the ask owed				0	0	4	0
+An ask owed after a limit: told once, owed.json says owed, a pass is in its step	Told once: the ask owed				0	0	11	8
+An ask owed after a limit: told once, owed.json says owed, a second try	Told once: the ask owed, a second try				0	0	6	0
+An ask owed after a limit: told once, owed.json says owed, a second try, a pass is in its step	Told once: the ask owed, a second try				0	0	16	12
+An ask owed after a limit: told once, owed.json says owed, owed.json keeps failover's key on the ask	Told once: the ask owed				0	0	3	0
+An ask owed after a limit: told once, owed.json says owed, owed.json keeps failover's key on the ask, a pass is in its step	Told once: the ask owed				0	0	9	6
+An ask owed after a limit: told once, owed.json says owed, owed.json keeps failover's key on the ask, a second try	Told once: the ask owed, a second try				0	0	8	0
+An ask owed after a limit: told once, owed.json says owed, owed.json keeps failover's key on the ask, a second try, a pass is in its step	Told once: the ask owed, a second try				0	0	18	8
+An ask owed after a limit: told once, owed.json says owed, owed.json keeps failover's key on the ask, sent.json has failover's key	Told once: the ask owed				0	0	6	0
+An ask owed after a limit: told once, owed.json says owed, owed.json keeps failover's key on the ask, sent.json has failover's key, a pass is in its step	Told once: the ask owed				0	0	15	9
+An ask owed after a limit: told once, owed.json says owed, owed.json keeps failover's key on the ask, sent.json has failover's key, a second try	Told once: the ask owed, a second try				0	0	8	0
+An ask owed after a limit: told once, owed.json says owed, owed.json keeps failover's key on the ask, sent.json has failover's key, a second try, a pass is in its step	Told once: the ask owed, a second try				0	0	26	12
+An ask owed after a limit: told once, owed.json says owed, owed.json keeps failover's key on the ask, the outbox held it	Told once: the ask owed				0	0	2	0
+An ask owed after a limit: told once, owed.json says owed, owed.json keeps failover's key on the ask, the outbox held it, a pass is in its step	Told once: the ask owed				0	0	4	2
+An ask owed after a limit: told once, owed.json says owed, owed.json keeps failover's key on the ask, the outbox held it, a second try	Told once: the ask owed, a second try				0	0	2	0
+An ask owed after a limit: told once, owed.json says owed, owed.json keeps failover's key on the ask, the outbox held it, a second try, a pass is in its step	Told once: the ask owed, a second try				0	0	4	2
 An ask owed after a limit: told once, owed.json says owed, sent.json has its key	Told once: the ask owed				0	0	6	0
 An ask owed after a limit: told once, owed.json says owed, sent.json has its key, a pass is in its step	Told once: the ask owed				0	0	15	9
-An ask owed after a limit: told once, owed.json says owed, sent.json has its key, a second try	Told once: the ask owed, a second try				0	0	4	0
-An ask owed after a limit: told once, owed.json says owed, sent.json has its key, a second try, a pass is in its step	Told once: the ask owed, a second try				0	0	10	6
-An ask owed after a limit: told once, owed.json says owed, sent.json has its key, sent.json has failover's key, a second try	Told once: the ask owed, a second try				0	0	4	0
-An ask owed after a limit: told once, owed.json says owed, sent.json has its key, sent.json has failover's key, a second try, a pass is in its step	Told once: the ask owed, a second try				0	0	10	6
-An ask owed after a limit: told once, owed.json says owed, the outbox held it	Told once: the ask owed				0	0	4	0
-An ask owed after a limit: told once, owed.json says owed, the outbox held it, a pass is in its step	Told once: the ask owed				0	0	7	3
-An ask owed after a limit: told once, owed.json says owed, the outbox held it, a second try	Told once: the ask owed, a second try				0	0	3	0
-An ask owed after a limit: told once, owed.json says owed, the outbox held it, a second try, a pass is in its step	Told once: the ask owed, a second try				0	0	5	2
-An ask owed after a limit: told once, owed.json says sent, sent.json has failover's key	Told once: the ask closed				0	0	1	0
-An ask owed after a limit: told once, owed.json says sent, sent.json has failover's key, a second try	Told once: the ask closed, a second try				0	0	5	0
+An ask owed after a limit: told once, owed.json says owed, sent.json has its key, a second try	Told once: the ask owed, a second try				0	0	8	0
+An ask owed after a limit: told once, owed.json says owed, sent.json has its key, a second try, a pass is in its step	Told once: the ask owed, a second try				0	0	20	12
+An ask owed after a limit: told once, owed.json says owed, the outbox held it	Told once: the ask owed				0	0	3	0
+An ask owed after a limit: told once, owed.json says owed, the outbox held it, a pass is in its step	Told once: the ask owed				0	0	6	3
+An ask owed after a limit: told once, owed.json says owed, the outbox held it, a second try	Told once: the ask owed, a second try				0	0	4	0
+An ask owed after a limit: told once, owed.json says owed, the outbox held it, a second try, a pass is in its step	Told once: the ask owed, a second try				0	0	8	4
+An ask owed after a limit: told once, owed.json says sent, owed.json keeps failover's key on the ask, sent.json has failover's key	Told once: the ask closed				0	0	6	0
+An ask owed after a limit: told once, owed.json says sent, owed.json keeps failover's key on the ask, sent.json has failover's key, a second try	Told once: the ask closed, a second try				0	0	8	0
 An ask owed after a limit: told once, owed.json says sent, sent.json has its key	Told once: the ask closed				0	0	6	0
-An ask owed after a limit: told once, owed.json says sent, sent.json has its key, a second try	Told once: the ask closed, a second try				0	0	4	0
-An ask owed after a limit: told once, owed.json says sent, sent.json has its key, sent.json has failover's key, a second try	Told once: the ask closed, a second try				0	0	4	0
-An ask owed after a limit: told once, owed.json says the thread ended	Told once: the ask closed				0	0	5	0
-An ask owed after a limit: told once, owed.json says the thread ended, a second try	Told once: the ask closed, a second try				0	0	7	0
-An ask owed after a limit: told once, owed.json says the thread ended, sent.json has failover's key	Told once: the ask closed				0	0	1	0
-An ask owed after a limit: told once, owed.json says the thread ended, sent.json has failover's key, a second try	Told once: the ask closed, a second try				0	0	8	0
-An ask owed after a limit: told once, owed.json says the thread ended, sent.json has failover's key, the outbox held it	Told once: the ask closed				0	0	1	0
-An ask owed after a limit: told once, owed.json says the thread ended, sent.json has failover's key, the outbox held it, a second try	Told once: the ask closed, a second try				0	0	4	0
+An ask owed after a limit: told once, owed.json says sent, sent.json has its key, a second try	Told once: the ask closed, a second try				0	0	8	0
+An ask owed after a limit: told once, owed.json says the thread ended	Told once: the ask closed				0	0	4	0
+An ask owed after a limit: told once, owed.json says the thread ended, a second try	Told once: the ask closed, a second try				0	0	6	0
+An ask owed after a limit: told once, owed.json says the thread ended, owed.json keeps failover's key on the ask	Told once: the ask closed				0	0	3	0
+An ask owed after a limit: told once, owed.json says the thread ended, owed.json keeps failover's key on the ask, a second try	Told once: the ask closed, a second try				0	0	8	0
+An ask owed after a limit: told once, owed.json says the thread ended, owed.json keeps failover's key on the ask, sent.json has failover's key	Told once: the ask closed				0	0	6	0
+An ask owed after a limit: told once, owed.json says the thread ended, owed.json keeps failover's key on the ask, sent.json has failover's key, a second try	Told once: the ask closed, a second try				0	0	8	0
+An ask owed after a limit: told once, owed.json says the thread ended, owed.json keeps failover's key on the ask, the outbox held it	Told once: the ask closed				0	0	2	0
+An ask owed after a limit: told once, owed.json says the thread ended, owed.json keeps failover's key on the ask, the outbox held it, a second try	Told once: the ask closed, a second try				0	0	2	0
 An ask owed after a limit: told once, owed.json says the thread ended, sent.json has its key	Told once: the ask closed				0	0	6	0
-An ask owed after a limit: told once, owed.json says the thread ended, sent.json has its key, a second try	Told once: the ask closed, a second try				0	0	4	0
-An ask owed after a limit: told once, owed.json says the thread ended, sent.json has its key, sent.json has failover's key, a second try	Told once: the ask closed, a second try				0	0	4	0
-An ask owed after a limit: told once, owed.json says the thread ended, the outbox held it	Told once: the ask closed				0	0	4	0
-An ask owed after a limit: told once, owed.json says the thread ended, the outbox held it, a second try	Told once: the ask closed, a second try				0	0	3	0
-An ask owed after a limit: told once, owed.json says the user asked again	Told once: the ask closed				0	0	5	0
-An ask owed after a limit: told once, owed.json says the user asked again, a second try	Told once: the ask closed, a second try				0	0	7	0
-An ask owed after a limit: told once, owed.json says the user asked again, sent.json has failover's key	Told once: the ask closed				0	0	1	0
-An ask owed after a limit: told once, owed.json says the user asked again, sent.json has failover's key, a second try	Told once: the ask closed, a second try				0	0	8	0
-An ask owed after a limit: told once, owed.json says the user asked again, sent.json has failover's key, the outbox held it	Told once: the ask closed				0	0	1	0
-An ask owed after a limit: told once, owed.json says the user asked again, sent.json has failover's key, the outbox held it, a second try	Told once: the ask closed, a second try				0	0	4	0
+An ask owed after a limit: told once, owed.json says the thread ended, sent.json has its key, a second try	Told once: the ask closed, a second try				0	0	8	0
+An ask owed after a limit: told once, owed.json says the thread ended, the outbox held it	Told once: the ask closed				0	0	3	0
+An ask owed after a limit: told once, owed.json says the thread ended, the outbox held it, a second try	Told once: the ask closed, a second try				0	0	4	0
+An ask owed after a limit: told once, owed.json says the user asked again	Told once: the ask closed				0	0	4	0
+An ask owed after a limit: told once, owed.json says the user asked again, a second try	Told once: the ask closed, a second try				0	0	6	0
+An ask owed after a limit: told once, owed.json says the user asked again, owed.json keeps failover's key on the ask	Told once: the ask closed				0	0	3	0
+An ask owed after a limit: told once, owed.json says the user asked again, owed.json keeps failover's key on the ask, a second try	Told once: the ask closed, a second try				0	0	8	0
+An ask owed after a limit: told once, owed.json says the user asked again, owed.json keeps failover's key on the ask, sent.json has failover's key	Told once: the ask closed				0	0	6	0
+An ask owed after a limit: told once, owed.json says the user asked again, owed.json keeps failover's key on the ask, sent.json has failover's key, a second try	Told once: the ask closed, a second try				0	0	8	0
+An ask owed after a limit: told once, owed.json says the user asked again, owed.json keeps failover's key on the ask, the outbox held it	Told once: the ask closed				0	0	2	0
+An ask owed after a limit: told once, owed.json says the user asked again, owed.json keeps failover's key on the ask, the outbox held it, a second try	Told once: the ask closed, a second try				0	0	2	0
 An ask owed after a limit: told once, owed.json says the user asked again, sent.json has its key	Told once: the ask closed				0	0	6	0
-An ask owed after a limit: told once, owed.json says the user asked again, sent.json has its key, a second try	Told once: the ask closed, a second try				0	0	4	0
-An ask owed after a limit: told once, owed.json says the user asked again, sent.json has its key, sent.json has failover's key, a second try	Told once: the ask closed, a second try				0	0	4	0
-An ask owed after a limit: told once, owed.json says the user asked again, the outbox held it	Told once: the ask closed				0	0	4	0
-An ask owed after a limit: told once, owed.json says the user asked again, the outbox held it, a second try	Told once: the ask closed, a second try				0	0	3	0
-An ask owed after a limit: told twice, owed.json says owed	Told twice: the ask owed				0	0	3	0
-An ask owed after a limit: told twice, owed.json says owed, a pass is in its step	Told twice: the ask owed				0	0	8	6
-An ask owed after a limit: told twice, owed.json says owed, a second try	Told twice: the ask owed, a second try				0	0	2	0
-An ask owed after a limit: told twice, owed.json says owed, a second try, a pass is in its step	Told twice: the ask owed, a second try				0	0	5	4
-An ask owed after a limit: told twice, owed.json says owed, sent.json has failover's key	Told twice: the ask owed				0	0	3	0
-An ask owed after a limit: told twice, owed.json says owed, sent.json has failover's key, a pass is in its step	Told twice: the ask owed				0	0	8	6
-An ask owed after a limit: told twice, owed.json says owed, sent.json has failover's key, a second try	Told twice: the ask owed, a second try				0	0	4	0
-An ask owed after a limit: told twice, owed.json says owed, sent.json has failover's key, a second try, a pass is in its step	Told twice: the ask owed, a second try				0	0	10	8
-An ask owed after a limit: told twice, owed.json says owed, sent.json has failover's key, the outbox held it	Told twice: the ask owed				0	0	2	0
-An ask owed after a limit: told twice, owed.json says owed, sent.json has failover's key, the outbox held it, a pass is in its step	Told twice: the ask owed				0	0	4	2
-An ask owed after a limit: told twice, owed.json says owed, sent.json has failover's key, the outbox held it, a second try	Told twice: the ask owed, a second try				0	0	2	0
-An ask owed after a limit: told twice, owed.json says owed, sent.json has failover's key, the outbox held it, a second try, a pass is in its step	Told twice: the ask owed, a second try				0	0	4	2
-An ask owed after a limit: told twice, owed.json says owed, sent.json has its key	Told twice: the ask owed				0	0	4	0
-An ask owed after a limit: told twice, owed.json says owed, sent.json has its key, a pass is in its step	Told twice: the ask owed				0	0	10	6
-An ask owed after a limit: told twice, owed.json says owed, sent.json has its key, a second try	Told twice: the ask owed, a second try				0	0	2	0
-An ask owed after a limit: told twice, owed.json says owed, sent.json has its key, a second try, a pass is in its step	Told twice: the ask owed, a second try				0	0	5	3
-An ask owed after a limit: told twice, owed.json says owed, sent.json has its key, sent.json has failover's key	Told twice: the ask owed				0	0	4	0
-An ask owed after a limit: told twice, owed.json says owed, sent.json has its key, sent.json has failover's key, a pass is in its step	Told twice: the ask owed				0	0	10	6
-An ask owed after a limit: told twice, owed.json says owed, sent.json has its key, sent.json has failover's key, a second try	Told twice: the ask owed, a second try				0	0	4	0
-An ask owed after a limit: told twice, owed.json says owed, sent.json has its key, sent.json has failover's key, a second try, a pass is in its step	Told twice: the ask owed, a second try				0	0	10	6
-An ask owed after a limit: told twice, owed.json says owed, the outbox held it	Told twice: the ask owed				0	0	2	0
-An ask owed after a limit: told twice, owed.json says owed, the outbox held it, a pass is in its step	Told twice: the ask owed				0	0	4	2
-An ask owed after a limit: told twice, owed.json says owed, the outbox held it, a second try	Told twice: the ask owed, a second try				0	0	1	0
-An ask owed after a limit: told twice, owed.json says owed, the outbox held it, a second try, a pass is in its step	Told twice: the ask owed, a second try				0	0	2	1
-An ask owed after a limit: told twice, owed.json says sent, sent.json has its key	Told twice: the ask closed				0	0	4	0
-An ask owed after a limit: told twice, owed.json says sent, sent.json has its key, a second try	Told twice: the ask closed, a second try				0	0	2	0
-An ask owed after a limit: told twice, owed.json says sent, sent.json has its key, sent.json has failover's key	Told twice: the ask closed				0	0	4	0
-An ask owed after a limit: told twice, owed.json says sent, sent.json has its key, sent.json has failover's key, a second try	Told twice: the ask closed, a second try				0	0	4	0
-An ask owed after a limit: told twice, owed.json says the thread ended	Told twice: the ask closed				0	0	3	0
-An ask owed after a limit: told twice, owed.json says the thread ended, a second try	Told twice: the ask closed, a second try				0	0	2	0
-An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has failover's key	Told twice: the ask closed				0	0	3	0
-An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has failover's key, a second try	Told twice: the ask closed, a second try				0	0	4	0
-An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has failover's key, the outbox held it	Told twice: the ask closed				0	0	2	0
-An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has failover's key, the outbox held it, a second try	Told twice: the ask closed, a second try				0	0	2	0
-An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has its key	Told twice: the ask closed				0	0	4	0
-An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has its key, a second try	Told twice: the ask closed, a second try				0	0	2	0
-An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has its key, sent.json has failover's key	Told twice: the ask closed				0	0	4	0
-An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has its key, sent.json has failover's key, a second try	Told twice: the ask closed, a second try				0	0	4	0
-An ask owed after a limit: told twice, owed.json says the thread ended, the outbox held it	Told twice: the ask closed				0	0	2	0
-An ask owed after a limit: told twice, owed.json says the thread ended, the outbox held it, a second try	Told twice: the ask closed, a second try				0	0	1	0
-An ask owed after a limit: told twice, owed.json says the user asked again	Told twice: the ask closed				0	0	3	0
-An ask owed after a limit: told twice, owed.json says the user asked again, a second try	Told twice: the ask closed, a second try				0	0	2	0
-An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has failover's key	Told twice: the ask closed				0	0	3	0
-An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has failover's key, a second try	Told twice: the ask closed, a second try				0	0	4	0
-An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has failover's key, the outbox held it	Told twice: the ask closed				0	0	2	0
-An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has failover's key, the outbox held it, a second try	Told twice: the ask closed, a second try				0	0	2	0
-An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has its key	Told twice: the ask closed				0	0	4	0
-An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has its key, a second try	Told twice: the ask closed, a second try				0	0	2	0
-An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has its key, sent.json has failover's key	Told twice: the ask closed				0	0	4	0
-An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has its key, sent.json has failover's key, a second try	Told twice: the ask closed, a second try				0	0	4	0
-An ask owed after a limit: told twice, owed.json says the user asked again, the outbox held it	Told twice: the ask closed				0	0	2	0
-An ask owed after a limit: told twice, owed.json says the user asked again, the outbox held it, a second try	Told twice: the ask closed, a second try				0	0	1	0
+An ask owed after a limit: told once, owed.json says the user asked again, sent.json has its key, a second try	Told once: the ask closed, a second try				0	0	8	0
+An ask owed after a limit: told once, owed.json says the user asked again, the outbox held it	Told once: the ask closed				0	0	3	0
+An ask owed after a limit: told once, owed.json says the user asked again, the outbox held it, a second try	Told once: the ask closed, a second try				0	0	4	0
 CI that starts no job: not told	Not told: nothing marked				0	0	1	0
 CI that starts no job: not told, a pass is in its step	Not told: a pass in its step or a mark written				0	0	1	0
+CI that starts no job: not told, account.json keeps the tip	Not told: nothing marked				0	0	1	0
+CI that starts no job: not told, account.json keeps the tip, a pass is in its step	Not told: a pass in its step or a mark written				0	0	2	1
+CI that starts no job: not told, account.json keeps the tip, main's tip moved	Not told: nothing marked				0	0	1	0
+CI that starts no job: not told, account.json keeps the tip, main's tip moved, a pass is in its step	Not told: a pass in its step or a mark written				0	0	2	1
 CI that starts no job: not told, main's tip moved	Not told: nothing marked				0	0	1	0
 CI that starts no job: not told, main's tip moved, a pass is in its step	Not told: a pass in its step or a mark written				0	0	1	0
 CI that starts no job: nothing owed yet	Not told: nothing marked		yes		0	0	1	0
-CI that starts no job: told once	Told once: nothing marked				0	0	1	0
-CI that starts no job: told once, a pass is in its step	Told once: a pass in its step				0	0	2	1
-CI that starts no job: told once, account.json keeps the newer question, main's tip moved	Told once: its file says done				0	0	1	0
-CI that starts no job: told once, account.json keeps the question	Told once: its file says done				0	0	1	0
-CI that starts no job: told once, main's tip moved	Told once: nothing marked				0	0	2	0
-CI that starts no job: told once, main's tip moved, a pass is in its step	Told once: a pass in its step				0	0	3	1
-CI that starts no job: told twice, account.json keeps the newer question, main's tip moved	Told twice				0	0	1	0
-CI that starts no job: told twice, main's tip moved	Told twice				0	0	1	0
-CI that starts no job: told twice, main's tip moved, a pass is in its step	Told twice				0	0	2	1
+CI that starts no job: told once, account.json keeps the newer question, account.json keeps the tip, main's tip moved	Told once: its file says done				0	0	1	0
+CI that starts no job: told once, account.json keeps the question, account.json keeps the tip	Told once: its file says done				0	0	1	0
+CI that starts no job: told once, account.json keeps the tip	Told once: its key kept				0	0	1	0
+CI that starts no job: told once, account.json keeps the tip, a pass is in its step	Told once: its key kept, a pass in its step				0	0	3	2
+CI that starts no job: told once, account.json keeps the tip, main's tip moved	Told once: its key kept				0	0	1	0
+CI that starts no job: told once, account.json keeps the tip, main's tip moved, a pass is in its step	Told once: its key kept, a pass in its step				0	0	3	2
 The second target's body: not told, the body waits in the outbox	Not told: nothing marked				0	0	1	0
 The second target's body: not told, the body waits in the outbox, a pass is in its step	Not told: a pass in its step or a mark written				0	0	1	0
 The second target's body: nothing owed yet	Not told: nothing marked		yes		0	0	1	0
-The second target's body: told once, the body waits in the outbox	Told once: nothing marked				0	0	1	0
-The second target's body: told once, the body waits in the outbox, a pass is in its step	Told once: a pass in its step				0	0	2	0
+The second target's body: told once, the body waits in the outbox	Told once: no key kept yet				0	0	1	0
+The second target's body: told once, the body waits in the outbox, a pass is in its step	Told once: no key kept yet				0	0	2	1
 The second target's body: told once, the outbox dropped it	Told once: its file says done				0	0	1	0
-The second target's body: told twice, the body waits in the outbox	Told twice				0	0	1	0
-The second target's body: told twice, the body waits in the outbox, a pass is in its step	Told twice				0	0	2	1
-The second target's body: told twice, the outbox dropped it	Told twice				0	0	1	0
 The user's word: not told	Not told: nothing marked	works		r0s4 r1s0	1	0	1	0
 The user's word: not told, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s4 r1s1	1	0	1	0
-The user's word: not told, the home's thread changed	Not told: nothing marked	works		r0s4 r1s22	1	0	1	0
-The user's word: not told, the home's thread changed, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s4 r1s23	1	0	1	0
-The user's word: not told, word-sends.json says it waits, the outbox held it	Not told: the outbox held it	works		r0s4 r1s26	1	0	1	0
-The user's word: not told, word-sends.json says it waits, the outbox held it, a pass is in its step	Not told: the outbox held it	works		r0s4 r1s27	1	0	1	0
-The user's word: not told, word-sends.json says it waits, the outbox held it, the home's thread changed	Not told: the outbox held it	works		r0s4 r1s28	1	0	1	0
-The user's word: not told, word-sends.json says it waits, the outbox held it, the home's thread changed, a pass is in its step	Not told: the outbox held it	works		r0s4 r1s29	1	0	1	0
-The user's word: nothing owed yet	Not told: nothing marked	works	yes	r0s4 r1s30	1	0	1	0
-The user's word: told once	Told once: nothing marked	works		r0s4 r1s31	4	0	4	0
-The user's word: told once, a pass is in its step	Told once: a pass in its step	works		r0s4 r1s32	11	8	11	8
-The user's word: told once, the home's thread changed	Told once: nothing marked	works		r0s4 r1s69	8	0	8	0
-The user's word: told once, the home's thread changed, a pass is in its step	Told once: a pass in its step	works		r0s4 r1s70	15	8	15	8
-The user's word: told once, word-sends.json says it waits	Told once: nothing marked	works		r0s4 r1s73	2	0	2	0
-The user's word: told once, word-sends.json says it waits, a pass is in its step	Told once: a pass in its step	works		r0s4 r1s74	6	4	6	4
-The user's word: told once, word-sends.json says it waits, the home's thread changed	Told once: nothing marked	works		r0s4 r1s75	4	0	4	0
-The user's word: told once, word-sends.json says it waits, the home's thread changed, a pass is in its step	Told once: a pass in its step	works		r0s4 r1s76	8	4	8	4
-The user's word: told once, word-sends.json says it waits, the outbox held it	Told once: the outbox held it	works		r0s4 r1s77	3	0	3	0
-The user's word: told once, word-sends.json says it waits, the outbox held it, a pass is in its step	Told once: the outbox held it	works		r0s4 r1s78	6	3	6	3
-The user's word: told once, word-sends.json says it waits, the outbox held it, the home's thread changed	Told once: the outbox held it	works		r0s4 r1s79	6	0	6	0
-The user's word: told once, word-sends.json says it waits, the outbox held it, the home's thread changed, a pass is in its step	Told once: the outbox held it	works		r0s4 r1s80	9	3	9	3
-The user's word: told once, word-sends.json says sent	Told once: its file says done	works		r0s4 r1s81	3	0	3	0
-The user's word: told once, word-sends.json says sent, the home's thread changed	Told once: its file says done	works		r0s4 r1s82	3	0	3	0
-The user's word: told twice, the home's thread changed	Told twice	wrong		r0s4 r1s90	4	0	4	0
-The user's word: told twice, the home's thread changed, a pass is in its step	Told twice	wrong		r0s4 r1s91	11	8	11	8
-The user's word: told twice, word-sends.json says it waits, the home's thread changed	Told twice	wrong		r0s4 r1s92	2	0	2	0
-The user's word: told twice, word-sends.json says it waits, the home's thread changed, a pass is in its step	Told twice	wrong		r0s4 r1s93	6	4	6	4
-The user's word: told twice, word-sends.json says it waits, the outbox held it, the home's thread changed	Told twice	wrong		r0s4 r1s94	3	0	3	0
-The user's word: told twice, word-sends.json says it waits, the outbox held it, the home's thread changed, a pass is in its step	Told twice	wrong		r0s4 r1s95	6	3	6	3
-The user's word: told twice, word-sends.json says sent, the home's thread changed	Told twice	wrong		r0s4 r1s96	3	0	3	0
-The wait clock: not told, the clock is counting	Not told: nothing marked	works		r0s5 r1s16	56	224	56	224
-The wait clock: not told, the clock is counting, the outbox held it	Not told: the outbox held it	works		r0s5 r1s17	24	96	24	96
-The wait clock: not told, the clock is due	Not told: nothing marked	works		r0s5 r1s18	28	0	28	0
-The wait clock: not told, the clock is due, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s5 r1s19	16	0	16	0
-The wait clock: not told, the clock is due, the outbox held it	Not told: the outbox held it	works		r0s5 r1s20	12	0	12	0
-The wait clock: not told, the clock is due, the outbox held it, a pass is in its step	Not told: the outbox held it	works		r0s5 r1s21	12	0	12	0
-The wait clock: nothing owed yet	Not told: nothing marked	works	yes	r0s5 r1s30	1	0	1	0
-The wait clock: told once, the clock is due	Told once: nothing marked	works		r0s5 r1s56	16	0	16	0
-The wait clock: told once, the clock is due, a pass is in its step	Told once: a pass in its step	works		r0s5 r1s57	44	32	44	32
-The wait clock: told once, the clock is due, sent.json has its key	Told once: sent.json has its key	works		r0s5 r1s58	24	0	24	0
-The wait clock: told once, the clock is due, sent.json has its key, a pass is in its step	Told once: sent.json has its key	works		r0s5 r1s59	60	36	60	36
-The wait clock: told once, the clock is due, the outbox held it	Told once: the outbox held it	works		r0s5 r1s60	12	0	12	0
-The wait clock: told once, the clock is due, the outbox held it, a pass is in its step	Told once: the outbox held it	works		r0s5 r1s61	24	12	24	12
-The wait clock: told once, the clock says its home was told, sent.json has its key, the stall's key is written	Told once: its file says done	works		r0s5 r1s62	24	0	24	0
-The wait clock: told once, the clock says its home was told, sent.json has its key, the stall's key is written, no stall in the log	Told once: its file says done	wrong		r0s5 r1s63	24	0	24	0
-The wait clock: told once, the clock says jbus acted, counting again, sent.json has its key	Told once: its file says done	works		r0s5 r1s64	72	72	72	72
-The wait clock: told once, the clock says jbus acted, counting again, sent.json has its key, the stall's key is written	Told once: its file says done	works		r0s5 r1s65	24	0	24	0
-The wait clock: told once, the clock says jbus acted, counting again, sent.json has its key, the stall's key is written, a pass is in its step	Told once: its file says done	works		r0s5 r1s66	24	0	24	0
-The wait clock: told once, the clock says jbus acted, counting again, sent.json has its key, the stall's key is written, no stall in the log	Told once: its file says done	works		r0s5 r1s67	24	0	24	0
-The wait clock: told once, the clock says jbus acted, counting again, sent.json has its key, the stall's key is written, no stall in the log, a pass is in its step	Told once: its file says done	works		r0s5 r1s68	48	0	48	0
+The user's word: not told, the home's thread changed	Not told: nothing marked	works		r0s4 r1s34	1	0	1	0
+The user's word: not told, the home's thread changed, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s4 r1s35	1	0	1	0
+The user's word: not told, word-sends.json keeps the thread tried	Not told: nothing marked	works		r0s4 r1s38	1	0	1	0
+The user's word: not told, word-sends.json keeps the thread tried, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s4 r1s39	2	1	2	1
+The user's word: not told, word-sends.json keeps the thread tried, the home's thread changed	Not told: nothing marked	works		r0s4 r1s40	1	0	1	0
+The user's word: not told, word-sends.json keeps the thread tried, the home's thread changed, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s4 r1s41	2	1	2	1
+The user's word: not told, word-sends.json says it waits, the outbox held it	Not told: the outbox held it	works		r0s4 r1s42	1	0	1	0
+The user's word: not told, word-sends.json says it waits, the outbox held it, a pass is in its step	Not told: the outbox held it, a pass in its step	works		r0s4 r1s43	1	0	1	0
+The user's word: not told, word-sends.json says it waits, the outbox held it, the home's thread changed	Not told: the outbox held it	works		r0s4 r1s44	1	0	1	0
+The user's word: not told, word-sends.json says it waits, the outbox held it, the home's thread changed, a pass is in its step	Not told: the outbox held it, a pass in its step	works		r0s4 r1s45	1	0	1	0
+The user's word: not told, word-sends.json says it waits, word-sends.json keeps the thread tried, the outbox held it	Not told: the outbox held it	works		r0s4 r1s46	1	0	1	0
+The user's word: not told, word-sends.json says it waits, word-sends.json keeps the thread tried, the outbox held it, a pass is in its step	Not told: the outbox held it, a pass in its step	works		r0s4 r1s47	2	1	2	1
+The user's word: not told, word-sends.json says it waits, word-sends.json keeps the thread tried, the outbox held it, the home's thread changed	Not told: the outbox held it	works		r0s4 r1s48	1	0	1	0
+The user's word: not told, word-sends.json says it waits, word-sends.json keeps the thread tried, the outbox held it, the home's thread changed, a pass is in its step	Not told: the outbox held it, a pass in its step	works		r0s4 r1s49	2	1	2	1
+The user's word: nothing owed yet	Not told: nothing marked	works	yes	r0s4 r1s50	1	0	1	0
+The user's word: told once, word-sends.json keeps the thread tried	Told once: its key kept	works		r0s4 r1s95	4	0	4	0
+The user's word: told once, word-sends.json keeps the thread tried, a pass is in its step	Told once: its key kept, a pass in its step	works		r0s4 r1s96	15	12	15	12
+The user's word: told once, word-sends.json keeps the thread tried, the home's thread changed	Told once: its key kept	works		r0s4 r1s97	4	0	4	0
+The user's word: told once, word-sends.json keeps the thread tried, the home's thread changed, a pass is in its step	Told once: its key kept, a pass in its step	works		r0s4 r1s98	15	12	15	12
+The user's word: told once, word-sends.json says it waits, word-sends.json keeps the thread tried	Told once: its key kept	works		r0s4 r1s99	2	0	2	0
+The user's word: told once, word-sends.json says it waits, word-sends.json keeps the thread tried, a pass is in its step	Told once: its key kept, a pass in its step	works		r0s4 r1s100	8	6	8	6
+The user's word: told once, word-sends.json says it waits, word-sends.json keeps the thread tried, the home's thread changed	Told once: its key kept	works		r0s4 r1s101	2	0	2	0
+The user's word: told once, word-sends.json says it waits, word-sends.json keeps the thread tried, the home's thread changed, a pass is in its step	Told once: its key kept, a pass in its step	works		r0s4 r1s102	8	6	8	6
+The user's word: told once, word-sends.json says it waits, word-sends.json keeps the thread tried, the outbox held it	Told once: its key kept	works		r0s4 r1s103	3	0	3	0
+The user's word: told once, word-sends.json says it waits, word-sends.json keeps the thread tried, the outbox held it, a pass is in its step	Told once: its key kept, a pass in its step	works		r0s4 r1s104	9	6	9	6
+The user's word: told once, word-sends.json says it waits, word-sends.json keeps the thread tried, the outbox held it, the home's thread changed	Told once: its key kept	works		r0s4 r1s105	3	0	3	0
+The user's word: told once, word-sends.json says it waits, word-sends.json keeps the thread tried, the outbox held it, the home's thread changed, a pass is in its step	Told once: its key kept, a pass in its step	works		r0s4 r1s106	9	6	9	6
+The user's word: told once, word-sends.json says sent, word-sends.json keeps the thread tried	Told once: its file says done	works		r0s4 r1s107	3	0	3	0
+The user's word: told once, word-sends.json says sent, word-sends.json keeps the thread tried, the home's thread changed	Told once: its file says done	works		r0s4 r1s108	3	0	3	0
+The wait clock: not told, the clock is counting	Not told: nothing marked	works		r0s5 r1s28	56	224	56	224
+The wait clock: not told, the clock is counting, the outbox held it	Not told: the outbox held it	works		r0s5 r1s29	24	96	24	96
+The wait clock: not told, the clock is due	Not told: nothing marked	works		r0s5 r1s30	28	0	28	0
+The wait clock: not told, the clock is due, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s5 r1s31	16	0	16	0
+The wait clock: not told, the clock is due, the outbox held it	Not told: the outbox held it	works		r0s5 r1s32	12	0	12	0
+The wait clock: not told, the clock is due, the outbox held it, a pass is in its step	Not told: the outbox held it, a pass in its step	works		r0s5 r1s33	12	0	12	0
+The wait clock: nothing owed yet	Not told: nothing marked	works	yes	r0s5 r1s50	1	0	1	0
+The wait clock: told once, the clock is due	Told once: no key kept yet	works		r0s5 r1s83	16	0	16	0
+The wait clock: told once, the clock is due, a pass is in its step	Told once: no key kept yet	works		r0s5 r1s84	44	32	44	32
+The wait clock: told once, the clock is due, sent.json has its key	Told once: sent.json has its key	works		r0s5 r1s85	24	0	24	0
+The wait clock: told once, the clock is due, sent.json has its key, a pass is in its step	Told once: sent.json has its key	works		r0s5 r1s86	60	36	60	36
+The wait clock: told once, the clock is due, the outbox held it	Told once: its key kept	works		r0s5 r1s87	12	0	12	0
+The wait clock: told once, the clock is due, the outbox held it, a pass is in its step	Told once: its key kept, a pass in its step	works		r0s5 r1s88	24	12	24	12
+The wait clock: told once, the clock says its home was told, sent.json has its key, the stall is logged with its key	Told once: its file says done	works		r0s5 r1s89	24	0	24	0
+The wait clock: told once, the clock says jbus acted, counting again, sent.json has its key	Told once: its file says done	works		r0s5 r1s90	72	72	72	72
+The wait clock: told once, the clock says jbus acted, counting again, sent.json has its key, the stall is logged with its key	Told once: its file says done	works		r0s5 r1s91	24	0	24	0
+The wait clock: told once, the clock says jbus acted, counting again, sent.json has its key, the stall is logged with its key, a pass is in its step	Told once: its file says done	works		r0s5 r1s92	24	0	24	0
