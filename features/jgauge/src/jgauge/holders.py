@@ -13,14 +13,14 @@ waiters' file is (`jsettings.LockedList`). A holder is one run:
 
 - `thread`, `lane` and `command` say whose run it is and what it runs;
 - `pid` is the command's process, and `keeper` the process of the `jgauge test-slot` that holds
-  the slot and records the end. `start` and `keeper_start` are their start times, in clock ticks
-  since boot, from `/proc/<pid>/stat`. A run with no end recorded holds its slot while either
-  lives: once the command is gone its `jgauge test-slot` has yet to record the end. A process
-  lives while its pid is there with the start time the run recorded, so another process that took
-  the pid since is not it. A run whose two processes are gone with no end recorded, since its
-  `jgauge test-slot` was killed with no chance to record it, holds nothing (`running`). A record
-  an older jgauge wrote has no `keeper`, 0, and goes by its command alone, and one with no start
-  time goes by its pid alone;
+  the slot and records the end. `start` and `keeper_start` are their start times: in clock ticks
+  since boot from `/proc/<pid>/stat`, or with no /proc, as on macOS, in seconds from `ps`. A run
+  with no end recorded holds its slot while either lives: once the command is gone its `jgauge
+  test-slot` has yet to record the end. A process lives while its pid is there with the start time
+  the run recorded, so another process that took the pid since is not it. A run whose two
+  processes are gone with no end recorded, since its `jgauge test-slot` was killed with no chance
+  to record it, holds nothing (`running`). A record an older jgauge wrote has no `keeper`, 0, and
+  goes by its command alone, and one with no start time goes by its pid alone;
 - `since` is when the command started, and `id` names the run;
 - `ended` is when the command ended, or nothing while it runs, and `code` its exit code.
 
@@ -29,8 +29,10 @@ An ended run stays in the file until jbus has woken its thread or found that it 
 
 from __future__ import annotations
 
+import calendar
 import os
 import secrets
+import subprocess
 from dataclasses import dataclass, replace
 from datetime import datetime
 from pathlib import Path
@@ -41,6 +43,7 @@ from jsettings import thread_id
 
 NAME = "test-slot-holders.json"
 LOCK = "test-slot-holders.lock"
+PROC = Path("/proc")
 
 
 @dataclass(frozen=True)
@@ -59,16 +62,36 @@ class Holder:
 
 
 def started(pid: int) -> int | None:
-    """When process `pid` started, in clock ticks since boot, or nothing when no process has it.
-    The 22nd field of `/proc/<pid>/stat`, counted after the command's name, which can hold spaces
-    and parentheses."""
+    """When process `pid` started, or nothing when no process has it. On Linux it is in clock
+    ticks since boot, the 22nd field of `/proc/<pid>/stat`, counted after the command's name, which
+    can hold spaces and parentheses. With no /proc, as on macOS, it is in seconds since the epoch,
+    from `ps`. Either way it is only ever compared with another reading on the same machine."""
     if pid <= 0:
         return None
+    if not PROC.is_dir():
+        return _ps_started(pid)
     try:
-        stat = Path(f"/proc/{pid}/stat").read_text()
+        stat = (PROC / str(pid) / "stat").read_text()
     except (FileNotFoundError, ProcessLookupError):
         return None
     return int(stat.rpartition(")")[2].split()[19])
+
+
+def _ps_started(pid: int) -> int | None:
+    """`ps -o lstart=` for `pid`, read in UTC and the C locale so that every caller reads the same
+    time whatever its own zone, or nothing when `ps` lists no such process."""
+    listed = subprocess.run(
+        ["ps", "-o", "lstart=", "-p", str(pid)],
+        capture_output=True,
+        text=True,
+        env={**os.environ, "LC_ALL": "C", "TZ": "UTC"},
+        check=False,
+    )
+    try:
+        when = datetime.strptime(listed.stdout.strip(), "%a %b %d %H:%M:%S %Y")
+    except ValueError:
+        return None
+    return calendar.timegm(when.timetuple())
 
 
 def _fields(one: dict[str, Any]) -> dict[str, Any]:
