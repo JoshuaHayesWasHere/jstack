@@ -15,7 +15,9 @@ import pytest
 from statechart_support import SCRIPTS, TOOLS, needs_tlc, write, write_lamp
 from testing.paths import REPO
 
-FAKE_JGAUGE = """import os
+READ_SET = ("features/*/spec/README.md", "features/skill-library/skills/statechart/")
+
+FAKE_JGAUGE ="""import os
 import sys
 
 
