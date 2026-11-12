@@ -925,6 +925,30 @@ def test_a_base_with_no_package_json_counts_its_tests_failed_there(repo):
     assert len(node_runs(repo)) == 1
 
 
+FLOW_BUGGY = "export const add = (a, b) => a - b;\n"
+FLOW_FIXED = "export const add = (a, b) => a + b;\n"
+FLOW_TEST = """import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { add } from './flows.mjs';
+
+test('adds', () => assert.equal(add(2, 2), 4));
+"""
+
+
+def test_a_node_test_file_with_no_vitest_above_it_runs_on_node_test(repo):
+    """FAFU's `flows/flows.test.mjs` runs on `node --test`, with no package.json above it, and the
+    block ran it on Vitest: `head exit 2: vitest: no package.json at the head`. A test whose tree
+    names no Vitest runs on `node --test` in each copy, and its exit is the side's."""
+    commit(repo, {"flows/flows.mjs": FLOW_BUGGY})
+    git(repo, "update-ref", "refs/remotes/origin/main", "HEAD")
+    base = git(repo, "rev-parse", "HEAD")
+    head = commit(repo, {"flows/flows.mjs": FLOW_FIXED, "flows/flows.test.mjs": FLOW_TEST})
+    said, line = proof(repo)
+    assert "head exit 0: node: 1 passed, 0 failed\n" in said
+    assert "base exit 1: node: 0 passed, 1 failed\n" in said
+    assert line == proved.Proved(("flows/flows.test.mjs",), 1, base, 0, head)
+
+
 def test_a_branch_of_node_tests_and_config_alone_runs_them_at_the_head_alone(repo):
     node(repo)
     head = commit(repo, {"src/calc.test.ts": "import { add } from './calc';\n"})
