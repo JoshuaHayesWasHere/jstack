@@ -156,7 +156,7 @@
   "drawnFrom": {
     "command": "statechart from-spec TellOnce.tla --config TellOnceOwed.chart.cfg --title 'Does jbus send an ask owed after a limit twice when a pass dies?' --expect-broken NoTellTwice --png",
     "inputs": {
-      "TellOnce.map.py": "9156f5bce10318c4ba2c4c08c3ed12f0de1d7970bffc3785bfcf3a3c60726324",
+      "TellOnce.map.py": "c397e7de1a65438b8d128ed326447500849f6d46b55bdf4f7f854a27dd417257",
       "TellOnce.tla": "41b23d8ea74289f120ee8a2915c393a38f69150b4d21609acbfb92a1fda743cc",
       "TellOnceOwed.chart.cfg": "648bd5364ce248404f4205285ed4c1f5b4de346f017d62052b51ea9e517d9d4a"
     },

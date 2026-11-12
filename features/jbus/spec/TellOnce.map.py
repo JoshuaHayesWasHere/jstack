@@ -199,6 +199,7 @@ group_colors = {
     "Not told: nothing marked, a pass in its step": "#fdebd0",
     "Not told: the outbox held it": "#fad7a0",
     "Not told: a mark written": "#f5cba7",
+    "Not told: the clock's stall": "#fdf2e9",
     "Not told: the ask owed": "#fdebd0",
     "Not told: the ask closed": "#fad7a0",
     "Told once: nothing marked": "#e8f8f5",

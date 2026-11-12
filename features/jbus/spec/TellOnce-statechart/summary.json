@@ -200,7 +200,7 @@
     "command": "statechart from-spec TellOnce.tla --config TellOnce.chart.cfg --title 'Does jbus tell anyone twice, or drop a tell, when a pass dies?' --expect-broken NoTellTwice,NoTellLost --png",
     "inputs": {
       "TellOnce.chart.cfg": "dda74037721bcf18bc09e3812039a087cbdc6d127699c59d070ea464eda5ff9c",
-      "TellOnce.map.py": "9156f5bce10318c4ba2c4c08c3ed12f0de1d7970bffc3785bfcf3a3c60726324",
+      "TellOnce.map.py": "c397e7de1a65438b8d128ed326447500849f6d46b55bdf4f7f854a27dd417257",
       "TellOnce.tla": "41b23d8ea74289f120ee8a2915c393a38f69150b4d21609acbfb92a1fda743cc"
     },
     "chart": "8c1d348d095d80d53bf7db961f0fbb9c501d775ac2a36608b84aca4b4cd2ce0a"
