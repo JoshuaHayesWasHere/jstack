@@ -16,7 +16,16 @@ once a day whole (`snapshot`). A `Said` is a line `jmerge` logged of a pull requ
 `jmerge.lines.one`: it changes why the row waits and nothing else. A `Mark` is an item's line
 that a row's pull request waits on the owner's merge (`waiting: ... is hold`) or went back to
 its checks (`resumed: ... is check`): the table writes a row's line only when a column of its
-own changes, so these lines say a hold the table did not.
+own changes, so these lines say a hold the table did not. A `Held` is a home's `act` line that
+held a row (`held <slug>`) or approved it again (`approved <slug>`).
+
+Three records say what an account cap did. `capped` reads the machine's `capped.jsonl`, each
+read of which instances are capped (`jgauge.limits.note`), into a `Cap` per instance: from the
+first read that shows it capped to its `until`, or to an earlier read that shows it free.
+`outbox` reads a project's `outbox.jsonl` into a `CapHold` per row whose message the outbox held
+for a cap (a `held` line whose rule starts `cap: until <t>`), until the row's next `sent` line,
+or the cap's `<t>` where that comes first, since a row whose cap ended may send nothing more. A
+`rollover` event is a thread jbus moved to another account because its own was capped.
 """
 
 from __future__ import annotations
@@ -38,6 +47,9 @@ ZONES = {"EDT": timezone(timedelta(hours=-4)), "EST": timezone(timedelta(hours=-
 STAMP = re.compile(r"(\d{4}-\d{2}-\d{2} \d{2}:\d{2}) (EDT|EST)")
 MERGED = re.compile(r"^merged (\S+) #(\d+)")
 CAPPED = re.compile(r"^capped (\S+): (\S+) is capped until (\S+)")
+ROLLOVER = re.compile(r"^rollover (\S+): (\S+) moved from (\S+) to (\S+)")
+HELD = re.compile(r"^(held|approved) ([^\s;:]+)")
+CAP_RULE = "cap: until "
 BOTH = re.compile(r"^stall (\S+): (\S+) and (\S+) are both capped until (\S+)")
 SLOT = re.compile(
     r"^slot-wake: woke (\S+), a (\w+) slot is free for `([^`]*)`(?:, after (\d+) min)?"
@@ -110,6 +122,38 @@ class Cap:
 
 
 @dataclass(frozen=True)
+class Held:
+    """A home's `act` line at `at` that held the row (`held`) or approved it again."""
+
+    at: datetime
+    slug: str
+    held: bool
+    source: str
+
+
+@dataclass(frozen=True)
+class CapHold:
+    """A row whose message the outbox held for a cap from `at` to `until`: its next `sent`, or
+    the end of the cap its rule named, whichever came first."""
+
+    at: datetime
+    until: datetime
+    slug: str
+    source: str
+
+
+@dataclass(frozen=True)
+class Rollover:
+    """A thread of `slug` jbus moved at `at` from account `away` to `to`."""
+
+    at: datetime
+    slug: str
+    thread: str
+    away: str
+    to: str
+
+
+@dataclass(frozen=True)
 class SlotWait:
     """A thread that waited `minutes` for a test slot (`kind` full or short), told at `at`."""
 
@@ -130,6 +174,9 @@ class Project:
     marks: list[Mark] = field(default_factory=list)
     merged: dict[str, tuple[datetime, str]] = field(default_factory=dict)
     caps: list[Cap] = field(default_factory=list)
+    held: list[Held] = field(default_factory=list)
+    cap_holds: list[CapHold] = field(default_factory=list)
+    rollovers: list[Rollover] = field(default_factory=list)
     slots: list[SlotWait] = field(default_factory=list)
     pool: list[tuple[datetime, int]] = field(default_factory=list)
     pages: list[tuple[datetime, str]] = field(default_factory=list)
@@ -198,17 +245,23 @@ def tables(text: str) -> Iterable[dict[str, str]]:
 def events(name: str, lines: Iterable[str]) -> Project:
     """Read a project's `events.jsonl`. A line that does not parse is skipped."""
     project = Project(name)
+    for at, record in _timed(lines):
+        if "event" in record:
+            project.first = min(project.first or at, at)
+            _event(project, at, record)
+    return project
+
+
+def _timed(lines: Iterable[str]) -> Iterable[tuple[datetime, dict[str, Any]]]:
+    """Yield each JSON object of a log with its `at`, skipping a line that does not parse."""
     for raw in lines:
         try:
             record = json.loads(raw)
         except ValueError:
             continue
         at = when(record.get("at", "")) if isinstance(record, dict) else None
-        if at is None or "event" not in record:
-            continue
-        project.first = min(project.first or at, at)
-        _event(project, at, record)
-    return project
+        if at is not None:
+            yield at, record
 
 
 def _event(project: Project, at: datetime, record: dict[str, Any]) -> None:
@@ -240,6 +293,10 @@ def _event(project: Project, at: datetime, record: dict[str, Any]) -> None:
         _cap(project, at, found[3], found[1], (found[2],))
     elif kind == "stall" and (found := BOTH.match(line)):
         _cap(project, at, found[4], found[1], (found[2], found[3]))
+    elif kind == "act" and (found := HELD.match(line)):
+        project.held.append(Held(at, found[2], found[1] == "held", source))
+    elif kind == "rollover" and (found := ROLLOVER.match(line)):
+        project.rollovers.append(Rollover(at, found[1], found[2], found[3], found[4]))
     elif kind == "slot-wake" and (found := SLOT.match(line)):
         place = WORKTREE.search(found[3])
         slug = place[1] if place else ""
@@ -272,6 +329,51 @@ def _cap(project: Project, at: datetime, until: str, slug: str, who: tuple[str, 
     end = when(until)
     if end is not None and end > at:
         project.caps.append(Cap(at, end, slug, who))
+
+
+def outbox(project: Project, lines: Iterable[str]) -> None:
+    """Read a project's `outbox.jsonl` into the rows a cap held, each from its first `held` line
+    with a `cap: until <t>` rule to the row's next `sent` line, or to the latest `<t>` its held
+    lines named where that comes first. A rule whose `<t>` is not a time holds nothing."""
+    said = [(at, record) for at, record in _timed(lines) if record.get("row")]
+    opened: dict[str, tuple[datetime, datetime, str]] = {}
+    for at, record in sorted(said, key=lambda one: one[0]):
+        row, went, rule = record["row"], record.get("went"), str(record.get("rule", ""))
+        if row in opened and (went == "sent" or opened[row][1] <= at):
+            began, until, source = opened.pop(row)
+            project.cap_holds.append(CapHold(began, min(at, until), row, source))
+        end = when(rule.removeprefix(CAP_RULE)) if rule.startswith(CAP_RULE) else None
+        if went != "held" or end is None or end <= at:
+            continue
+        if row in opened:
+            began, until, source = opened[row]
+            opened[row] = (began, max(until, end), source)
+        else:
+            opened[row] = (at, end, f"{project.name} outbox.jsonl {record['at']} held {rule}")
+    for row, (began, until, source) in opened.items():
+        project.cap_holds.append(CapHold(began, until, row, source))
+
+
+def capped(lines: Iterable[str]) -> list[Cap]:
+    """Read the machine's `capped.jsonl` into a `Cap` per instance and spell: from the first
+    read that shows the instance capped to its `until`, or to a later read, by any reader, that
+    names the instance and shows it free."""
+    reads = [(at, one) for at, one in _timed(lines) if isinstance(one.get("capped"), dict)]
+    found: list[Cap] = []
+    spells: dict[str, tuple[datetime, datetime]] = {}
+    for at, record in sorted(reads, key=lambda one: one[0]):
+        now = {name: when(str(until)) for name, until in record["capped"].items()}
+        for name, (began, until) in list(spells.items()):
+            if name not in now and name in record.get("instances", [name]):
+                found.append(Cap(began, min(until, at), "", (name,)))
+                del spells[name]
+            elif (later := now.get(name)) and later != until:
+                spells[name] = (began, later)
+        for name, until in now.items():
+            if until is not None and until > at and name not in spells:
+                spells[name] = (at, until)
+    found += [Cap(began, until, "", (name,)) for name, (began, until) in spells.items()]
+    return found
 
 
 def journal(text: str) -> list[Line]:
