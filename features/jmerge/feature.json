@@ -8,6 +8,11 @@
   "commands": {
     "jmerge": "jmerge.cli:main"
   },
+  "projectSkills": [
+    "project-skill/verify-flow-design",
+    "project-skill/verify-flow-today",
+    "project-skill/verify-pr-verdict"
+  ],
   "docs": [
     "docs/jmerge.md"
   ]
