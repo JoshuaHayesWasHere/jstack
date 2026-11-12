@@ -6,7 +6,8 @@ judged again on a later pass.
 
 The hold keeps the go it takes (`jbus.queue.hold`), and the pass that sees every required check
 passed at the head puts that go back (`jbus.queue.lift`), unless the row was held again since or
-its brief changed. A head that failed only at an infra step is not counted either.
+its brief changed. A head that failed only at an infra step is not counted either, nor a merge of
+main that failed something the head before it did not.
 
 Like `test_jbus_github.py`, the tests run the real pass against the fakes."""
 
@@ -533,10 +534,10 @@ def test_twice_holds_no_row_for_the_1720_heads_each_a_merge_of_main_that_brought
     passes(launched, 0)
     made(launched, FIRST_1720, GREEN_1720, "e" * 40)
     failing(launched, FIRST_1720, "130937656772", CAP)
-    passes(launched, 3)
+    said = launched.poll(NOW + timedelta(minutes=3))
     made(launched, SECOND_1720, FIRST_1720, "f" * 40)
     failing(launched, SECOND_1720, "130941258618", CAP + OVERVIEW)
-    passes(launched, 6, 9)
+    said += launched.poll(NOW + timedelta(minutes=6)) + launched.poll(NOW + timedelta(minutes=9))
     kept = fails(launched)
     assert (kept["heads"], kept["moved"]) == ({}, [FIRST_1720, SECOND_1720])
     assert not rows(launched)["alpha"].get("held")
@@ -544,8 +545,9 @@ def test_twice_holds_no_row_for_the_1720_heads_each_a_merge_of_main_that_brought
     assert {f"failed|alpha|{FIRST_1720[:12]}", f"failed|alpha|{SECOND_1720[:12]}"} <= set(
         told(launched)
     )
-    moved = [line for line in launched.lines("failed") if "main moved under it" in line]
-    assert len(moved) == 2
+    moved = [line for line in said if "main moved under it" in line]
+    assert [line.split(" at ")[1][:12] for line in moved] == [FIRST_1720[:12], SECOND_1720[:12]]
+    assert "failed a-cap-on-size-only-shrinks features/jbus/src/jbus/work.py, which" in moved[0]
     assert all(line.endswith("main moved under it, not counted") for line in moved)
 
 

@@ -38,8 +38,13 @@ make target and shows a download or network failure (`infra`, `FETCH`), such as 
 download, is kept apart too and counted for nothing: that step ran nothing of the row's
 (2026-11-09). A lint step, which also runs no test and no make target, shows no fetch failure and
 counts. Each sign is searched in the own part of the log of the step that failed the job, the
-last one to fail (`failed_step`), not the whole log. At the second head, a push or a merge of
-main alike,
+last one to fail (`failed_step`), not the whole log. A head that is only a merge of main into the
+head seen before it (`merge_of_main`), as `git merge main` and GitHub's update-branch make one, is
+kept apart too, under `moved`, and counted for nothing, where it fails something that head did not
+(`failures`: a failed test's id, or a lint rule and its path): main moved under it, as when two
+diffs that each pass a size cap cross it together, and a held crew would get no fix message to
+mend it (#1720, 2026-11-11). Its crew is told to fix it as at any first failure. At the second
+counted head, a push or a merge of main that failed nothing new,
 `twice` holds the row (`jbus queue hold`), keeping the go the hold takes, and pages the Chef once, a
 gate `check failed twice` that names the row, the pull request, both heads and the failed jobs at
 each. The outbox then sends the crew of a held row no rebase and no fix message (`outbox.FIXES`), so
@@ -83,9 +88,9 @@ from jbus.passes import Changed, Depends, Pass
 from jbus.record import PASSES as PASS_LOG
 from jbus.t3 import Client
 from jbus.wake import notify
-from jbus.watch import FAILS, TWICE, World, job_log, ran, task_brief
+from jbus.watch import FAILS, TWICE, World, _api, job_log, ran, task_brief
 from jmerge import judgement, ready
-from jmerge.joblog import failed_in
+from jmerge.joblog import failed_in, plain
 from jmerge.lines import READY
 from jsettings import store
 
@@ -469,6 +474,35 @@ def infra(run: Pass, world: World, red: rebase.Red) -> list[str]:
     return steps
 
 
+LINT = re.compile(r"(?m)\berror ([a-z0-9][a-z0-9-]*): ([^\s:]+)")
+"""`repo-standard conform`'s line for an error of a rule: the rule's id and the path it names."""
+
+
+def failures(run: Pass, red: rebase.Red) -> set[str]:
+    """Return what failed at a head: each failed test's id and each lint rule with its path that
+    the failed jobs' logs name, or the failed checks' names where the logs name neither."""
+    found: set[str] = set()
+    for repo, job in red.jobs:
+        log = plain(job_log(run, repo, job) or "")
+        found.update(failed_in(log).tests)
+        found.update(f"{rule} {path}" for rule, path in LINT.findall(log))
+    return found or {f"check {name}" for name in red.names}
+
+
+def merge_of_main(run: Pass, head: str, before: str, main: str) -> bool:
+    """Say whether `head` is a merge of main into `before`, the head seen before it, as a crew's
+    `git merge main` and GitHub's update-branch make one: a merge commit whose first parent is
+    `before` and whose second is on `main`, the main its check ran on."""
+    said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{head}")
+    given = said.get("parents") if isinstance(said, dict) else None
+    parents = [str(one.get("sha")) for one in given or [] if isinstance(one, dict)]
+    if len(parents) != 2 or not before or parents[0] != before:
+        return False
+    compared = _api(run, f"repos/{{owner}}/{{repo}}/compare/{parents[1]}...{main}")
+    status = compared.get("status") if isinstance(compared, dict) else None
+    return status in ("ahead", "identical")
+
+
 def lifted(
     run: Pass, slug: str, row: queue.Row, pull: dict[str, Any], required: tuple[str, ...]
 ) -> bool:
@@ -499,7 +533,8 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
     """Count, for each row's open pull request, the heads at which a required check failed, and
     hold the row and page the Chef once at the second (`TWICE`). A head whose check ran on a red
     main is not counted, nor one whose failed tests are each a flake of two other branches, nor
-    one that failed only at an infra step (`infra`). A held row is counted no further; its own
+    one that failed only at an infra step (`infra`), nor a merge of main that brought a new failure
+(`merge_of_main`). A held row is counted no further; its own
     hold is lifted once every required check passes at its head (`lifted`), and once its hold is
     lifted, by that or an approve, its count starts again."""
     path = run.state / FAILS
@@ -512,25 +547,32 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         if row is None or not head or not crewthread.tended(run, slug):
             continue
         if lifted(run, slug, row, pull, required):
-            kept[slug] = {"heads": {}, "red": [], "shared": [], "infra": []}
+            kept[slug] = {"heads": {}, "red": [], "shared": [], "infra": [], "moved": []}
+            kept[slug]["last"] = {"head": head, "failed": []}
             continue
         one = dict(was.get(slug) or {})
         if one.get("held_at") and not row.get("held"):
             one = {}
         heads, on_red = dict(one.get("heads") or {}), list(one.get("red") or ())
         flakes, infras = list(one.get("shared") or ()), list(one.get("infra") or ())
+        moved, last = list(one.get("moved") or ()), dict(one.get("last") or {})
         kept[slug] = {**one, "heads": heads, "red": on_red, "shared": flakes, "infra": infras}
-        if row.get("held") or any(head in seen for seen in (heads, on_red, flakes, infras)):
+        kept[slug]["moved"] = moved
+        if row.get("held") or any(head in seen for seen in (heads, on_red, flakes, infras, moved)):
             continue
         found = rebase.ran_and_failed(run, world, pull)
         names = [name for name in found.names if name in required]
         if not names:
+            if not ready.waiting(pull.get("statusCheckRollup") or [], required):
+                kept[slug]["last"] = {"head": head, "failed": []}
             continue
         main = tested(run, head, found)
         check = main_check(run, main) if main else ""
         if main is None or check == "pending":
             run.say(f"wait {slug}: not yet known which main {head[:12]} was checked on, or if red")
             continue
+        failed = failures(run, found)
+        kept[slug]["last"] = {"head": head, "failed": sorted(failed)}
         if check == "failed":
             on_red.append(head)
             run.say(
@@ -551,6 +593,16 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
                 f"failed {slug}: #{pull['number']} at {head[:12]} failed only at "
                 f"{', '.join(dict.fromkeys(steps))}, a step that failed to fetch and ran no test, "
                 "not counted"
+            )
+            continue
+        before = str(last.get("head") or "")
+        new = sorted(failed - set(last.get("failed") or ()))
+        if main and new and merge_of_main(run, head, before, main):
+            moved.append(head)
+            run.say(
+                f"failed {slug}: #{pull['number']} at {head[:12]}, a merge of main into "
+                f"{before[:12]}, failed {', '.join(new)}, which {before[:12]} did not: main moved "
+                "under it, not counted"
             )
             continue
         heads[head] = {"at": run.now.isoformat(), **_failure(found, names)}
