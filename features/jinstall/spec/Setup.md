@@ -108,7 +108,7 @@ The expert's canaries above put each fault back.
 S=../../skill-library/skills/statechart/scripts
 cd features/jinstall/spec
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
-    statechart from-spec Setup.tla --config Setup.chart.cfg \
+    statechart from-spec Setup.tla --config Setup.chart.cfg --also-config Setup.cfg \
     --title "Does an uninstall or an expert's takeover leave anything behind?"
 ```
 
@@ -119,6 +119,7 @@ It writes `Setup-statechart/`, labelled by `Setup.map.py`: 22 chart states and 3
 - The expert's webhook.
 
 `Setup.chart.cfg` leaves the mirror out, which breaks no rule, so the graph stays drawable.
+`--also-config Setup.cfg` runs it with the mirror once more for the tables alone: its 411,730 states add 171 states and 1,308 arrows, and `states.tsv` and `arrows.tsv` list all 228 states and 1,668 arrows between them, each with its action and its count of model steps in each run.
 Its `tlc/` folder holds TLC's output, which is not committed.
 
 ## What the model leaves out

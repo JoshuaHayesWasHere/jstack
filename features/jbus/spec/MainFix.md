@@ -57,13 +57,14 @@ S=$PWD/features/skill-library/skills/statechart/scripts
 D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainFix.* "$W"
 (cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
-    statechart from-spec MainFix.tla --config MainFix.chart.cfg \
+    statechart from-spec MainFix.tla --config MainFix.chart.cfg --also-config MainFix.cfg \
     --title "Main went red: what has jbus filed when a pass dies?" --out out)
 ```
 
 Run it from the repo root, then copy the files of `$W/out` into `MainFix-statechart/`, all except `tlc/`.
 `MainFix.chart.cfg` draws main and its Mac with `World = {}` and no nightly, 329 distinct states.
 With no broken rule the chart draws the shortest way to each state between passes, and the worlds `"refuses"` and `"hand"` give too many of them to read, so they and the nightlies are checked by `MainFix.cfg` and not drawn.
+`--also-config MainFix.cfg` runs it once more for the tables alone: its 329,948 states add 910 states and 2,506 arrows to the chart cfg's, and `states.tsv` and `arrows.tsv` list all 975 states and 2,647 arrows between them, each with its action and its count of model steps in each run.
 
 ## What the main-fix model leaves out
 

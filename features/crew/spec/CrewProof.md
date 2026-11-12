@@ -48,7 +48,7 @@ S=$PWD/features/skill-library/skills/statechart/scripts
 D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(mktemp -d "${TMPDIR:-/tmp}/crewproof.XXXXXX") && cp features/crew/spec/CrewProof.* "$W"
 (cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
-    statechart from-spec CrewProof.tla --config CrewProof.chart.cfg --expect-broken RebaseRecorded \
+    statechart from-spec CrewProof.tla --config CrewProof.chart.cfg --also-config CrewProof.cfg --expect-broken RebaseRecorded \
     --title "Does the proof on the brief match the head, and does a rebase leave its record?" --out out)
 ```
 
@@ -57,6 +57,7 @@ Its PNG, its Excalidraw scenes and the charts page are not committed: `make char
 `CrewProof.chart.cfg` is the cfg's slice for one picture: a jstack repo whose branch changes code, with no call moved to the background, on two heads (155,185 states).
 It draws in a few minutes, labelled by `CrewProof.map.py`, whose comment names each value it joins.
 The broken `RebaseRecorded` is drawn as its numbered path.
+`--also-config CrewProof.cfg` runs the whole cfg once more for the tables alone: its 681,275 states add 44 states and 484 arrows, and `states.tsv` and `arrows.tsv` list all 121 states and 736 arrows between them, each with its action and its count of model steps in each run.
 
 ## What the model leaves out
 

@@ -39,17 +39,18 @@ Since one behavior follows one act, the three charts together draw every path.
 S=features/skill-library/skills/statechart/scripts
 cd features/jbus/spec
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
-    statechart from-spec TellOnce.tla --config TellOnce.chart.cfg \
+    statechart from-spec TellOnce.tla --config TellOnce.chart.cfg --also-config TellOnce.cfg \
     --title "Does jbus tell a thread twice, or drop a tell, when a pass dies?"
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
-    statechart from-spec TellOnce.tla --config TellOnceOther.chart.cfg --out TellOnceOther-statechart \
+    statechart from-spec TellOnce.tla --config TellOnceOther.chart.cfg --also-config TellOnce.cfg --out TellOnceOther-statechart \
     --title "Does jbus act twice, or drop an act, outside a thread when a pass dies?"
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
-    statechart from-spec TellOnce.tla --config TellOnceOwed.chart.cfg --out TellOnceOwed-statechart \
+    statechart from-spec TellOnce.tla --config TellOnceOwed.chart.cfg --also-config TellOnce.cfg --out TellOnceOwed-statechart \
     --title "Does jbus send an ask owed after a limit twice when a pass dies?"
 ```
 
 They write `TellOnce-statechart/`, `TellOnceOther-statechart/` and `TellOnceOwed-statechart/`, labelled by `TellOnce.map.py`, with one `bug-N` chart for each act that breaks a rule, and none while no act does.
+`--also-config TellOnce.cfg` runs every carrier at once for each folder's tables: its 1,496 states add 136 states and 188 arrows to `TellOnce.chart.cfg`'s, 193 and 335 to `TellOnceOther.chart.cfg`'s and 175 and 295 to `TellOnceOwed.chart.cfg`'s, so each folder's `states.tsv` and `arrows.tsv` list all 252 states and 409 arrows between them, each with its action and its count of model steps in each run.
 A state's color says where its tell stands: orange not told, green told once, red told twice, each shade a step short of done that its label names, such as a mark written or the outbox holding it; the ask's chart splits by whether owed.json still owes the ask and by its try.
 
 ## What the act-once model leaves out

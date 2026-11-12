@@ -42,13 +42,13 @@ Each config's comment keeps TLC's verdict and the trace it prints.
 S=$PWD/features/skill-library/skills/statechart/scripts
 W=$(mktemp -d) && cp features/jmerge/spec/MergeRun.* "$W"
 (cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
-    statechart from-spec MergeRun.tla --config MergeRun.chart.cfg \
+    statechart from-spec MergeRun.tla --config MergeRun.chart.cfg --also-config MergeRun.cfg \
     --title "jbus's pass starts a run of jmerge: does what it said reach you?" --out out)
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `MergeRun-statechart/`.
 `MergeRun.chart.cfg` has one pass run and no tick (191 model states), labelled by `MergeRun.map.py`: 21 chart states and 30 of its 41 steps, and no bug path: RunHeard, NoFalseNoRecord and DeathTold hold on it.
-The two-run stories are `MergeRun.cfg`'s, which the test checks.
+The two-run stories are `MergeRun.cfg`'s, which the test checks, and `--also-config MergeRun.cfg` runs it once more for the tables alone: its 16,941 states add 20 states and 82 arrows, and `states.tsv` and `arrows.tsv` list all 44 states and 135 arrows between them, each with its action and its count of model steps in each run.
 
 ## What MergeRun leaves out
 
