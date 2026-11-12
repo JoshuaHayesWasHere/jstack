@@ -4,7 +4,8 @@
 # brief once it has a Result. Both sides run in the one slot a run gets, since a side that gave its
 # slot back would find every slot taken on a busy machine when it asked again. A side the short
 # lane's limit cut runs again alone in a full slot. A side that exited 0 is kept in the worktree's
-# `crew-proof-sides`, and a run at the same head and base runs only the side still owed. features/crew/do-the-task.md
+# `crew-proof-sides`, and a run at the same head and base runs only the side still owed. Each side
+# leaves out the tests marked `browser`, as `make check` and CI do. features/crew/do-the-task.md
 # says what it proves and how.
 # A crew runs it by its path, `bash "$T/proved.sh" <brief> <thread id>`, from its worktree: the
 # command it sends then holds no `rm`, which Claude Code stops to ask about, even in full access.
@@ -206,7 +207,7 @@ else
                 cd "$at" || exit
                 workers=
                 if env -u VIRTUAL_ENV uv run python -c "import xdist" > /dev/null 2>&1; then workers="-n $PROOF_WORKERS --dist worksteal"; fi
-                env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider $workers $more $PROOF_TESTS > "$PROOF_BASE/.proof-$side" 2>&1
+                env -u VIRTUAL_ENV uv run pytest -q -p no:cacheprovider -m "not browser" $workers $more $PROOF_TESTS > "$PROOF_BASE/.proof-$side" 2>&1
                 echo "$side exit $?: $(tail -n 1 "$PROOF_BASE/.proof-$side")"
             done
         ' | tee -a "$tree/.proof-said"

@@ -2,18 +2,21 @@
 # Each status names what in features/jbus/src/jbus/work.py sets it (`work.status` and its `_THREAD`
 # table), and `removed` the verb that writes it. A row that is over keeps its status (`work.kept`).
 # The line's value in work.json (`value`) is not drawn: each status node joins the values that give
-# it, as work.status projects them (running: working, opening, launching; stale: hung, lost;
-# left: leftover, closed; queued: unapproved, behind, ready; launched: lost, unknown), and
+# it, as work.status projects them (running: working, opening; stale: hung, lost, unknown;
+# left: leftover, closed; queued: unapproved, behind, ready; launched: launching), and
 # the value of a row that is over may say otherwise than its kept status, as a pull request that
 # opens on a done row shows `check`. The facts are joined too: a step names the one that changed.
 reader_actions = ["Grant", "Hold", "Lift", "Remove"]
 
 STATUS = {
     "queued": "queued (no thread yet)",
-    "launched": "launched (a launch with no thread yet)",
+    "launched": "launched (a launch whose thread is starting)",
     "running": "running (the thread at work, a Result or not, or its pull request opening)",
     "waiting": "waiting (the thread asks you)",
-    "stale": "stale (the turn hung, or the thread ended or was settled with nothing written)",
+    "stale": (
+        "stale (the turn hung, or the thread ended, was settled or left T3 Code's list with "
+        "nothing written)"
+    ),
     "failed": "failed (the thread failed)",
     "gate": "gate (a question is open)",
     "pr": "pr (its pull request is open)",
