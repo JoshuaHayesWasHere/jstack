@@ -25,7 +25,7 @@ The root home does step 1 and no other: it queues the brief by "Queueing a row i
 
    Its `Proves it:` line, under the "Done when" list, names what outside the agent shows the task is done: a test or a command, a metric, a dataset, an external judge or the user.
    `jbus queue add` queues no brief whose line names only the crew, the crewmate, the reviewer, the agent, the model or a review, or is empty.
-   A crewmate's desk check is the crew skill's touched check, `make check-fast BASE=<base> PART=touched`: the lint, the test files the branch adds or edits, and the cross-cutting tests the selection names, wherever they live (`select_tests.py --part cross`).
+   A crewmate's desk check is the crew skill's touched check, `make check-fast BASE=<base> PART=touched`: the lint, the test files the branch adds or edits, the cross-cutting tests the selection names, wherever they live (`select_tests.py --part cross`), and the tests that read a file the branch edits (`select_tests.py --part names`).
    The whole suite, `make check-fast BASE=origin/main` with no `PART=` or `make check`, is CI's check on the pull request, never a desk step a brief asks for: it holds a full test slot for about 9 minutes, and CI runs it again.
    Write the line to name the touched check and the test the task adds, and, for a row whose `Where:` names code, what a user would see once it merges: a command of the product in backticks with what it prints, a measure read after the merge, or `judged: <why>` for what only a person can judge.
    One line of each kind:
