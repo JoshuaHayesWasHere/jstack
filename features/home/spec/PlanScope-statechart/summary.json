@@ -66,12 +66,12 @@
   ],
   "codeLike": [],
   "drawnFrom": {
-    "command": "statechart from-spec PlanScope.tla --config PlanScope.chart.cfg --expect-broken EntryOnce,FixCountedWhereRead --png",
+    "command": "statechart from-spec PlanScope.tla --config PlanScope.chart.cfg --title 'A plan entry and a scope'\"'\"'s retire: is any work lost?' --expect-broken EntryOnce,FixCountedWhereRead --png",
     "inputs": {
       "PlanScope.chart.cfg": "5819da9ca6bc600a4ddc648e577fc8b9496a32ac3d25bdfa732d92d8ed1f6d74",
       "PlanScope.map.py": "a24605d2357bf58241280b738ed567c6042ad83f91b47484d4148a57327c0aa6",
       "PlanScope.tla": "199c8c0854d1feeaa574fb370c91ec079e229a4b96353b010683b1444fcd3c1e"
     },
-    "chart": "2c8ba30b8ee69b6694d294d3575c28dfae14de4f97d1d74211e52d3c2daa9383"
+    "chart": "ffa4f6f3b277068791d758becbe5c908dfab05e34a1cf215ca3794a6cc405209"
   }
 }
