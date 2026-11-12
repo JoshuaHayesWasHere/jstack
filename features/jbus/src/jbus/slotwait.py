@@ -31,9 +31,10 @@ whose command and `jgauge test-slot` are both gone with no end recorded, leaves 
 whose command is gone while its `jgauge test-slot` lives stays: that process has yet to record
 the end (`holders.running`).
 
-`test-slot-waiters.json` belongs to the machine, not to a project. A pass of any project wakes any
-waiter, and once one pass records a wake in the file, the other passes read that record there. A
-thread that takes a slot leaves the file (`jgauge.slot.take`).
+`test-slot-waiters.json`, `test-slot-holders.json` and `pool-waiters.json` belong to the machine,
+not to a project, so the three wakes are steps a pass runs once, in its first project's half
+(`verbs.Step.once`), and that project's pass sends and records each wake. A thread that takes a
+slot leaves the file (`jgauge.slot.take`).
 
 A crew that finds every instance of the review pool capped registers in `pool-waiters.json`
 (`jroles.waits`, which `jroles review --thread` writes) with the time the cap ends, and ends its
@@ -320,7 +321,7 @@ STEPS = (
         "slotwait.wake",
         lambda half: wake(half.run, half.client),
         ("client",),
-        shared=True,
+        once=True,
     ),
     verbs.Step(
         "before-watch",
@@ -328,7 +329,7 @@ STEPS = (
         "slotwait.wake_capped",
         lambda half: wake_capped(half.run, half.client),
         ("client",),
-        shared=True,
+        once=True,
     ),
     verbs.Step(
         "before-watch",
@@ -336,6 +337,6 @@ STEPS = (
         "slotwait.wake_ended",
         lambda half: wake_ended(half.run, half.client),
         ("client",),
-        shared=True,
+        once=True,
     ),
 )

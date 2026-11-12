@@ -13,6 +13,7 @@ import pytest
 
 import jbus
 from jgauge import holders, slot, waiters
+from jroles import waits
 from test_jbus_kitchen import NOW, iso, sends
 
 LANES = {"short": slot.short(), "full": slot.full(2)}
@@ -357,3 +358,34 @@ def test_an_ended_run_whose_wake_was_lost_is_sent_again_with_the_same_key(kitche
     kitchen.poll(NOW + MIN)
     keys = {given["clientRequestId"] for given in sends(kitchen)}
     assert keys == {f"slot-end|{thread}|{run.since}"} and holders.read(slot.locks_dir()) == []
+
+
+def test_slot_wakes_run_once_a_pass(kitchen, slots):
+    """The waiters and holders files belong to the machine, so a pass over three projects reads
+    each waiter's and each ended run's thread once, not once for each project (pass-slotwait-once,
+    2026-11-12: five project halves read them one after another, up to 12 s a pass), and still
+    wakes each one as a pass over one project does."""
+    kitchen.second("b")
+    kitchen.second("c")
+    slots.hold("full")
+    first, second = waiter(kitchen, ago=9), waiter(kitchen, ago=3)
+    busy, run = ended_run(kitchen, "running", wrote=1, turns=[turn(21, 15), turn(1)])
+    pooled = kitchen.t3.thread("waiter", "completed", idle=timedelta(minutes=2))["threadId"]
+    waits.register(waits.where(), pooled, "review", NOW + 20 * MIN, NOW)
+
+    def reads():
+        asked = [given["threadId"] for tool, given in kitchen.t3.calls if tool == "t3_thread_read"]
+        return {thread: asked.count(thread) for thread in (first, second, busy, pooled)}
+
+    kitchen.poll()
+    assert reads() == dict.fromkeys((first, second, busy, pooled), 1)
+    assert sends(kitchen) == []
+    slots.free("full")
+    (made,) = [one for one in kitchen.t3.threads if one["threadId"] == busy]
+    made["status"], made["runs"][-1] = "completed", turn(1, 0)
+    kitchen.t3.at_work.discard(busy)
+    kitchen.poll(NOW + MIN)
+    keys = sorted(given["clientRequestId"].split("|")[:2] for given in sends(kitchen))
+    assert keys == [["slot-end", busy], ["slot-wake", first]]
+    kitchen.poll(NOW + 2 * MIN)
+    assert len(sends(kitchen)) == 2 and holders.read(slot.locks_dir()) == []

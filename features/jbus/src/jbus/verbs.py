@@ -144,6 +144,10 @@ class Step:
     `shared` marks a step that reads what the whole machine shares, acts on it and records that it
     did, such as the free test slots or the usage caps: the pass runs its projects side by side,
     and runs such a step in one project at a time (`jbus.poll.steps`).
+
+    `once` marks a step whose work is the same for every project, since it reads and acts on only
+    what the whole machine shares, such as the threads that wait on a test slot: the pass runs it
+    once, in the half of the config's first project, and not in the others (`jbus.poll.steps`).
     """
 
     slot: str
@@ -152,6 +156,7 @@ class Step:
     run: Callable[[Any], object]
     needs: tuple[str, ...] = ()
     shared: bool = False
+    once: bool = False
 
 
 @dataclass(frozen=True)
