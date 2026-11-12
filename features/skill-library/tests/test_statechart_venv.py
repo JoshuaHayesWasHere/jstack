@@ -17,7 +17,7 @@ from testing.paths import REPO
 
 READ_SET = ("features/*/spec/README.md", "features/skill-library/skills/statechart/")
 
-FAKE_JGAUGE ="""import os
+FAKE_JGAUGE = """import os
 import sys
 
 
