@@ -59,9 +59,11 @@ and prunes the worktrees that were in it, once it settles the crew's thread
 A row left with work on its branch launches again, a new thread on its slug, branch and worktree
 (`crewtree.reopen`), with a `Resume:` line, once for each cause that clears (`pausedon.cleared`).
 
-jbus never holds back a launch because another brief names the same file, since each crew
-has its own worktree and branch. The crew of the pull request that merges second rebases that
-pull request, and `jbus.rebase` tells that crew to.
+A row waits while another row out names a hot file that its `Where:` names (`jbus.hotfiles`), as
+`waits on <slug>: both name <file>, ...` (`Hot`), unless it resumes its own branch or fixes main,
+and launches on the first pass after that row merged, ended or was removed. Any other file two
+briefs share holds back no launch, since each crew has its own worktree and branch: the crew of the
+pull request that merges second rebases it, and `jbus.rebase` tells that crew to.
 """
 
 from __future__ import annotations
@@ -83,6 +85,7 @@ from jbus import (
     cleanup,
     crewthread,
     crewtree,
+    hotfiles,
     outcome,
     pausedon,
     queue,
@@ -95,7 +98,7 @@ from jbus import (
 from jbus.launches import record_path, records
 from jbus.launchhome import homed, unhomed
 from jbus.launchtext import RESUMED, fixes_main, launched_text, resumed, resumed_on
-from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot
+from jbus.passes import Changed, Depends, Hot, Pass, Red, Rerun, Slot
 from jbus.t3 import Client, T3Dropped, T3Error, T3Refused
 from jbus.watch import TITLE, World, against, at_work, crew_threads, ended
 from jmerge import judgement, mainjson
@@ -488,7 +491,30 @@ class Turns:
             if red and on is None and not fixes_main(slug, brief):
                 run.reasons[slug] = Red()
                 continue
+            if cause is None and not fixes_main(slug, brief):
+                skip = (slug, *row.get("depends", []))
+                if found := hotfiles.holder(run, brief, self.out, skip):
+                    run.reasons[slug] = Hot(*found)
+                    continue
             yield row, brief, on, cause
+
+    def out(self) -> dict[str, str]:
+        """Each row out, by slug, with its queued brief, in the order the queue launches them: a
+        row jbus launched, this pass too, or whose pull request is open, that is not over,
+        merged or removed. A row out whose brief is gone names no file, and is left out."""
+        run, world = self.run, self.world
+        merged = set(world.merged) - set(world.open)
+        gone = merged | run.removed
+        found: dict[str, str] = {}
+        rows = sorted(queue.load(run.state), key=lambda row: queue.order(row, self.lift))
+        for row in rows:
+            slug = row["slug"]
+            if slug in gone or work.over(row):
+                continue
+            out = slug in world.open or launched(run, slug)
+            if out and (brief := queue.brief(run.state, slug)) is not None:
+                found[slug] = brief
+        return found
 
     def live(self) -> list[Path]:
         """Return the worktrees jbus makes for the project's rows still out, whose Claude

@@ -6,6 +6,7 @@ A pass launches a row only when all of these hold:
 - every slug in `depends` is merged, or every one but one, whose pull request is open: the row then launches stacked on that pull request's branch, unless its brief opens no pull request (a measure or a proof row), which is never stacked and waits for that slug's merge;
 - no branch of its name exists, save the one jbus made for a launch whose connection dropped (below), and no settled thread has its slug;
 - main is not red, as `main.json` reads it, or the row fixes main (jbus filed it for the red, or its heading says it fixes main), or it launches stacked on an open row it depends on; any other row waits as `main is red: waits for green`, and launches on the first pass that reads main as green ([A red main](a-red-main.md));
+- no other row out names a hot file its `Where:` names, unless the row resumes its own branch or fixes main; it waits as `waits on <slug>: both name <file>, a file in 3 or more conflicts with main in 7 days`, and launches on the first pass after that row merged, ended or was removed ([A hot file](#a-hot-file));
 - fewer than `max_running` crewmates are out across every project in the config (`jgauge sizes` prints `max_running`, which jbus derives from the machine unless the config sets it);
 - fewer than `max_per_project` crewmates are out in the row's project, 24 unless the config sets it;
 - fewer than `max_per_home` crewmates are out for the row's home, 6 unless the config sets it;
@@ -121,6 +122,19 @@ A launch whose connection dropped and that made no thread is tried once more int
 A worktree jbus cannot make (origin lacks the base, or the worktree is not clean once its files are written) is a condition, `the crew's worktree could not be made`, and the row does not launch.
 A launch T3 Code refuses removes the worktree and the branch with it.
 T3 Code's storage cleanup removes a finished crew's worktree by its thread's path under its worktrees folder, whoever made it, as it did when T3 Code made it.
+
+## A hot file
+
+A file is hot once the `rebase` events of the last 7 days put it in 3 or more conflicts with main (`jbus.hotfiles`).
+The event names the head the crew was told to rebase, and `git merge-tree` of that head with main as it was at the event gives the files in conflict.
+`hot-files.json` in the project's state keeps each head's files, keyed `<slug>/<head>`, for 7 days, and the offset of the log read to, so a pass reads only the new lines of `events.jsonl` and asks git about each head once.
+
+A row out is one jbus launched, this pass too, or whose pull request is open, and that is not merged, over or removed.
+A row names a file when a path or glob of its `Where:` line is that file: a folder names none of the files under it, since most `Where:` lines name a feature's `src/`, and a hold for a folder would have held 98 of 158 launches on 2026-11-11 and 12, where the files named held 14.
+A row resumed on its own branch, a row that fixes main, and the rows a row depends on are never held for it.
+
+Only the launch waits: a pull request already open is never held, and no check, review or merge guard changes.
+A log, a ledger or a git call that fails gives fewer hot files, and the rows launch as before.
 
 ## What a rebase asks of its crew
 
