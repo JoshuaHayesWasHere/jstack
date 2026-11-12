@@ -4,6 +4,7 @@ conflicts with main (`jbus.hotfiles`). Like `test_jbus_queue.py`, the tests run 
 against a faked T3 Code server, `gh` and `jmerge`, over a real git checkout in which each conflict
 is made."""
 
+import json
 import os
 import subprocess
 from datetime import timedelta
@@ -11,7 +12,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import rebase, wake
+from jbus import hotfiles, rebase, wake
 from repo_template import IDENTITY
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import add, brief, rows
@@ -222,3 +223,57 @@ def test_a_held_row_waits_on_the_user_where_the_row_it_waits_on_does(kitchen):
     (event,) = kitchen.events("waiting-on-user")
     assert event["slug"] == "#7"
     assert kitchen.lines("waiting-on-user")[0].endswith("unblocks beta · since 11:03 ET")
+
+
+def test_a_head_that_merges_cleanly_or_that_git_cannot_read_counts_no_conflict(kitchen):
+    conflicts(kitchen, HOT, 2)
+    box = wake.Box(kitchen.state, jbus.load().project("demo"))
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(wake.Box, "clock", staticmethod(lambda: NOW - timedelta(hours=1)))
+        told(box, 990, git(kitchen, "rev-parse", "main"))
+        told(box, 991, "f" * 40)
+    queue_two(kitchen)
+
+    kitchen.poll()
+
+    assert launched(kitchen) == ["alpha", "beta"]
+
+
+def test_a_ledger_and_log_lines_that_are_not_records_are_passed_over(kitchen):
+    """The hot list is a help, never a gate: what it cannot read gives fewer hot files, not a
+    failed pass."""
+    (kitchen.state / hotfiles.LEDGER).write_text("[]")
+    log = kitchen.state / wake.LOG
+    stray = {"event": "rebase", "at": "never", "text": f"refs/jstack/pre-rebase/x/a {'a' * 40}"}
+    with log.open("a") as file:
+        file.write("not a record\n" + json.dumps(stray) + "\n")
+    conflicts(kitchen, HOT, 3)
+    queue_two(kitchen)
+
+    kitchen.poll()
+
+    assert launched(kitchen) == ["alpha"]
+    assert rows(kitchen)["beta"]["why"] == WAITS
+
+
+def test_a_pass_with_no_log_launches_as_before(kitchen):
+    queue_two(kitchen)
+    (kitchen.state / wake.LOG).unlink(missing_ok=True)
+
+    kitchen.poll()
+
+    assert launched(kitchen) == ["alpha", "beta"]
+
+
+def test_a_pass_asks_git_about_so_many_heads_and_the_next_goes_on_from_there(kitchen, monkeypatch):
+    monkeypatch.setattr(hotfiles, "MOST", 2)
+    conflicts(kitchen, HOT, 3)
+    add(kitchen, "gamma", priority=1, text=naming("gamma", HOT))
+    kitchen.poll()
+    assert launched(kitchen) == ["gamma"]
+
+    queue_two(kitchen)
+    kitchen.poll(NOW + timedelta(minutes=3))
+
+    assert launched(kitchen) == ["gamma"]
+    assert rows(kitchen)["alpha"]["why"] == WAITS.replace("alpha", "gamma")

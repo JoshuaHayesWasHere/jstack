@@ -37,11 +37,12 @@ or git that fails, gives fewer hot files, and the rows launch as they did before
 from __future__ import annotations
 
 import contextlib
+import itertools
 import json
 import os
 import re
 from collections import Counter
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -93,8 +94,6 @@ def holder(
     nothing. The first file by path and the first row that names it are given, so a row's reason
     stays the same from pass to pass."""
     mine = parse.where(brief)
-    if not mine:
-        return None
     files = sorted(file for file in hot(run) if names(mine, file))
     if not files:
         return None
@@ -110,17 +109,15 @@ def holder(
 def _count(run: Pass) -> frozenset[str]:
     since = run.now - WINDOW
     ledger = read_json(run.state / LEDGER, {})
-    if not isinstance(ledger, dict):
-        ledger = {}
-    kept = ledger.get("conflicts")
+    mine: dict[str, Any] = ledger if isinstance(ledger, dict) else {}
+    kept = mine.get("conflicts")
     known: dict[str, dict[str, Any]] = kept if isinstance(kept, dict) else {}
-    log = run.state / wake.LOG
-    place = _read(log, ledger.get("log"))
+    place = mine.get("log")
     asked = 0
-    for end, record in _lines(log, place["offset"]):
+    for end, record in _lines(run.state / wake.LOG, place):
         if asked >= MOST:
             break
-        place["offset"] = end
+        place = end
         if record is None or record.get("event") != KIND:
             continue
         found = _BACKUP.search(str(record.get("text", "")))
@@ -154,8 +151,6 @@ def conflicted(run: Pass, head: str, at: datetime) -> list[str]:
         branch,
         timeout=GIT_TIMEOUT,
     ).stdout.strip()
-    if not main:
-        return []
     merged = run.run(
         "git",
         "merge-tree",
@@ -171,39 +166,32 @@ def conflicted(run: Pass, head: str, at: datetime) -> list[str]:
     return sorted({line for line in merged.stdout.splitlines()[1:] if line})
 
 
-def _read(log: Path, kept: Any) -> dict[str, int]:
-    """Where to read the log from: the offset the ledger kept, or the start where the log is a
-    new file or shorter than that offset."""
-    try:
-        stat = log.stat()
-    except OSError:
-        return {"inode": 0, "offset": 0}
-    place = kept if isinstance(kept, dict) else {}
-    offset = place.get("offset")
-    same = place.get("inode") == stat.st_ino and isinstance(offset, int)
-    if not same or not 0 <= offset <= stat.st_size:
-        offset = 0
-    return {"inode": stat.st_ino, "offset": offset}
-
-
-def _lines(log: Path, offset: int) -> Iterable[tuple[int, dict[str, Any] | None]]:
-    """Each whole line of the log after `offset`, with the offset of its end, and its record or
-    None for a line that is none. A last line with no newline yet is left for a later pass."""
+def _lines(log: Path, kept: Any) -> Iterator[tuple[dict[str, int], dict[str, Any] | None]]:
+    """Each whole line of the log after the place the ledger kept, with the place at its end and
+    its record, or None for a line that is none. The log is read from the start where it is a new
+    file or shorter than that place, and a last line with no newline yet is left for a later
+    pass."""
     try:
         handle = os.open(log, os.O_RDONLY)
     except OSError:
         return
     with os.fdopen(handle, "rb") as file:
+        stat = os.fstat(file.fileno())
+        place = kept if isinstance(kept, dict) else {}
+        offset = place.get("offset")
+        same = place.get("inode") == stat.st_ino and isinstance(offset, int)
+        offset = offset if same and 0 <= offset <= stat.st_size else 0
         file.seek(offset)
-        for line in file:
-            if not line.endswith(b"\n"):
-                return
+        for line in itertools.takewhile(lambda line: line.endswith(b"\n"), file):
             offset += len(line)
             try:
                 record = json.loads(line)
             except ValueError:
                 record = None
-            yield offset, record if isinstance(record, dict) else None
+            yield (
+                {"inode": stat.st_ino, "offset": offset},
+                (record if isinstance(record, dict) else None),
+            )
 
 
 def _at(record: Mapping[str, Any]) -> datetime | None:
