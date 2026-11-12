@@ -10,11 +10,11 @@ With the backup ref and the lease, a rebase never loses what was on the branch.
 
 The key of the message is `rebase|<slug>|<head 12>`. T3 Code uses the key to retry, and jbus writes
 the key in `sent.json` as a mark of the send. So a pass that got no answer tries again, and jbus
-tells a head once for each reason, save a conflict, which `retell` tells again at a new main.
-For main moving or for a failure, jbus tells a pull request to rebase only once. A crew may rebase and then find its pull request stale or failing again at a new
-head. jbus then parks a gate (`SECOND`) with the default that the pull request waits, and asks for
-no second rebase. jbus tells of a conflict with the base at every head, since nothing but a rebase
-resolves a conflict.
+tells a head once for each reason, save a conflict, which `retell` tells again at a new main. For
+main moving or for a failure, jbus tells a pull request to rebase only once. A crew may rebase and
+then find its pull request stale or failing again at a new head. jbus then parks a gate (`SECOND`)
+with the default that the pull request waits, and asks for no second rebase. jbus tells of a
+conflict with the base at every head, since nothing but a rebase resolves a conflict.
 
 `tell` also reads a second kind of `wait` line, `content-changed`, about a new head that changed
 what the reviewed patch says. `jmerge` keeps the review over a rebase, whatever its range-diff
