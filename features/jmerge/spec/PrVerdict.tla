@@ -19,16 +19,19 @@ CONSTANT Moves          \* how many times other work moves main under the pull r
 Kept(g) == Drop # g
 
 \* The holds for your word a pull request may carry, each asked of you and lifted only by you.
+\*   "over":     its queue row is over, done or merged, with the pull request open: the hold says
+\*               your accept lifts it, and today none does (Repo.judged passes no queue wait
+\*               through Repo.lift).
 \*   "nogo":     its queue row has no go, or is held: you approve it (jbus queue approve).
 \*   "touches":  it touches a protected path: your accept lifts it at its head.
 \*   "declines": its rebase dropped lines, or its crew declined a finding, the review did not
 \*               uphold: your accept lifts it at its head.
 \*   "mergeoff": the repo's merge-off switch is on: you turn merging on again.
-Holds == {"nogo", "touches", "declines", "mergeoff"}
+Holds == {"over", "nogo", "touches", "declines", "mergeoff"}
 Accepted == {"touches", "declines"}
 
 \* The verdicts that wait on your word (verb `hold`), and those on the crew.
-HoldWords == {"row-held", "declines", "touches", "merge-off"}
+HoldWords == {"row-over", "row-held", "declines", "touches", "merge-off"}
 CrewWords == {"check-failed", "conflicts", "merged-tree-fails"}
 
 \* st: "open" or "merged".
@@ -45,8 +48,8 @@ CrewWords == {"check-failed", "conflicts", "merged-tree-fails"}
 \* mainRed: main's check failed and jbus's revert or fix row has not landed yet.
 \* ahead: the pull request at the head of main's line, if any: "none", "other" (waiting on GitHub
 \*   or its check, it merges by itself) or "held" (waiting on its crew or its user).
-\* batch: "none", "pending" (a member of jmerge's batch, whose check runs), or "failed" (a member
-\*   of a failed batch of one at this head).
+\* batch: "none", "pending" (a member of jmerge's batch with other pull requests, whose check
+\*   runs), or "failed" (a member of a failed batch at this head).
 \* guards: the repo names fast guards (treeguards). batchOn: the merge-batch switch is on.
 \* said: jmerge's last verdict. fresh: that verdict was given at this head.
 \* unheld: the holds still outstanding when it merged, not lifted by your word at its head.
@@ -114,7 +117,7 @@ Again ==
 \*   - main changed no path since its check started: it merges on its check (cli.py `if not paths:`).
 \*   - the batch takes it: the switch is on, main is not red at the run's start (cli.py
 \*     `if not check and (state / batch.SWITCH).exists() and default and not repo.main_state.red:`),
-\*     and no batch of one failed at this head (cli.py
+\*     and no batch it was in failed at this head (cli.py
 \*     `if self.batching is not None and self.batching.takes(one, self.trunk, self.is_revert(one)):`,
 \*     batch.py `failed = self.record.failed.get(str(one.number)) == one.head`,
 \*     batch.py `return not revert and bool(default) and one.base == default and not failed`).
@@ -146,7 +149,8 @@ Verdict ==
     ELSE IF ci = "none" THEN "not-passed"
     ELSE IF ci = "fail" /\ ~Rejudged THEN "check-failed"
     ELSE IF decided /\ clash THEN "conflicts"
-    \* Its queue row's go (cli.py `rows.short(self.queue, brief.stem, brief=self.stored(brief.stem))`,
+    \* Its queue row: over (rows.py `return ready.ROW_OVER.format(status=row["status"])`), then its
+    \* go (cli.py `rows.short(self.queue, brief.stem, brief=self.stored(brief.stem))`,
     \* rows.py `if row.get("held"):`, rows.py `if row and not judgement.has_go(row, brief):`).
     ELSE IF "nogo" \in Asks /\ Kept("go") THEN "row-held"
     \* A drop or a decline the review did not uphold (cli.py
@@ -171,12 +175,14 @@ Verdict ==
 
 \* What your accept judges: every hold it lifts lifted, at the head it is given at
 \* (cli.py `return ready.codes() if self.accepted == (one.number, one.head) else frozenset()`).
+\* A queue wait is not passed through Repo.lift, so a row that is over still holds it.
 VerdictAccepted ==
     LET a == Asks \ Accepted IN
     IF ~reviewed THEN "no-review"
     ELSE IF ci = "none" THEN "not-passed"
     ELSE IF ci = "fail" /\ ~Rejudged THEN "check-failed"
     ELSE IF decided /\ clash THEN "conflicts"
+    ELSE IF "over" \in asks /\ Kept("over") THEN "row-over"
     ELSE IF "nogo" \in a /\ Kept("go") THEN "row-held"
     ELSE IF ci = "fail" THEN Again
     ELSE IF ~decided THEN "undecided"
@@ -220,7 +226,27 @@ GuardsFail ==
     /\ UNCHANGED <<st, good, ci, reviewed, asks, moved, overlap, clash, tipFails, decided,
         mainRed, movesLeft, ahead, batch, Setup, unheld, fails, held>>
 
-\* It joins the batch (cli.py `elif on is not None and found.judged.batch:`), and waits on its check.
+\* A member the run judged with no other goes the single path in that run (batch.py
+\* `return GUARDS if size >= GUARDS_LEAST else ""`, cli.py
+\* `self.merge(one, slug, note, replace(found, batch=False))`): the guards on its tree over the tip,
+\* where the repo names them, and it merges, or they fail as in GuardsFail. Whether other members
+\* are judged in the same run is the world's, so the step has no fairness: a run may batch it.
+Alone ==
+    /\ Open
+    /\ Verdict = "ready-batch"
+    /\ IF guards /\ tipFails
+       THEN /\ guardsSaid' = TRUE
+            /\ said' = IF overlap THEN InTurn("base-moved-asked") ELSE "merged-tree-fails"
+            /\ fresh' = TRUE
+            /\ UNCHANGED <<st, unheld>>
+       ELSE /\ st' = "merged" /\ unheld' = asks /\ said' = "merged"
+            /\ UNCHANGED <<guardsSaid, fresh>>
+    /\ UNCHANGED <<good, ci, reviewed, asks, moved, overlap, clash, tipFails, decided, mainRed,
+        movesLeft, ahead, batch, Setup>>
+
+\* Judged with other members, it joins their batch (cli.py
+\* `elif on is not None and found.judged.batch:`): a guards batch of two to four, proven in the
+\* run, or CI's batch of five or more, proven across runs. It waits on the batch's check.
 JoinBatch ==
     /\ Open
     /\ Verdict = "ready-batch"
@@ -236,7 +262,9 @@ BatchProves ==
     /\ st' = "merged" /\ unheld' = Asks /\ said' = "merged" /\ batch' = "none"
     /\ UNCHANGED <<good, ci, reviewed, asks, Main, ahead, Setup, fresh, fails, held>>
 
-\* CI's check of the batch of one fails: it goes the single path at this head.
+\* The batch's check fails: a guards batch puts each member's head under failed (cli.py
+\* `on.record.alone(made.members)`), as does a CI batch narrowed to a half under five (batch.py
+\* `def alone(`), and it goes the single path at this head.
 BatchFails ==
     /\ Open
     /\ batch = "pending" /\ tipFails
@@ -405,7 +433,8 @@ System ==
 YourWord == Approve \/ MergeOn \/ Accept \/ AcceptOther
 Next == System \/ MainMoves \/ YourWord
 
-\* Each step that happens by itself happens once it can; your word has no fairness.
+\* Each step that happens by itself happens once it can, but Alone, which needs a run that judged
+\* no other member; your word has no fairness.
 Fairness ==
     /\ WF_vars(Judge) /\ WF_vars(Merge) /\ WF_vars(GuardsFail) /\ WF_vars(JoinBatch)
     /\ WF_vars(BatchProves) /\ WF_vars(BatchFails) /\ WF_vars(Release)
