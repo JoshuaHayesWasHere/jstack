@@ -42,7 +42,7 @@
     {
       "id": "state-*start0",
       "type": "ellipse",
-      "x": 160.0,
+      "x": 159.66,
       "y": 115.0,
       "width": 22,
       "height": 22,
@@ -78,6 +78,90 @@
       }
     },
     {
+      "id": "state-r0group2",
+      "type": "rectangle",
+      "x": 68.54,
+      "y": 346.5,
+      "width": 205,
+      "height": 64,
+      "angle": 0,
+      "strokeColor": "#75797c",
+      "backgroundColor": "#eaf2f8",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region0",
+      "roundness": {
+        "type": 3
+      },
+      "seed": 2196146423,
+      "version": 1,
+      "versionNonce": 4169261936,
+      "isDeleted": false,
+      "boundElements": [
+        {
+          "id": "state-r0group2-text",
+          "type": "text"
+        },
+        {
+          "id": "step1",
+          "type": "arrow"
+        },
+        {
+          "id": "step2",
+          "type": "arrow"
+        }
+      ],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "customData": {
+        "statechart": {
+          "kind": "state",
+          "id": "r0group2"
+        }
+      }
+    },
+    {
+      "id": "state-r0group2-text",
+      "type": "text",
+      "x": 84.64,
+      "y": 358.5,
+      "width": 172.8,
+      "height": 40.0,
+      "angle": 0,
+      "strokeColor": "#1b2631",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region0",
+      "roundness": null,
+      "seed": 2476679217,
+      "version": 1,
+      "versionNonce": 1958014175,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "Lines on their way\n1 state",
+      "originalText": "Lines on their way\n1 state",
+      "fontSize": 16,
+      "fontFamily": 6,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "state-r0group2",
+      "autoResize": true,
+      "lineHeight": 1.25
+    },
+    {
       "id": "state-r0rest",
       "type": "rectangle",
       "x": 40.0,
@@ -108,6 +192,14 @@
         },
         {
           "id": "step0",
+          "type": "arrow"
+        },
+        {
+          "id": "step1",
+          "type": "arrow"
+        },
+        {
+          "id": "step2",
           "type": "arrow"
         }
       ],
@@ -147,8 +239,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "Region 1\n3 states, 6 steps inside",
-      "originalText": "Region 1\n3 states, 6 steps inside",
+      "text": "In no group\n3 states, 3 steps inside",
+      "originalText": "In no group\n3 states, 3 steps inside",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -160,9 +252,9 @@
     {
       "id": "step0",
       "type": "arrow",
-      "x": 171.0,
+      "x": 170.7,
       "y": 137.0,
-      "width": 0.0,
+      "width": 0.22,
       "height": 68.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -191,11 +283,11 @@
           0.0
         ],
         [
-          0.0,
+          0.13,
           34.0
         ],
         [
-          0.0,
+          0.22,
           68.0
         ]
       ],
@@ -224,12 +316,226 @@
       }
     },
     {
+      "id": "step1",
+      "type": "arrow",
+      "x": 148.74,
+      "y": 346.5,
+      "width": 27.0,
+      "height": 77.5,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region0",
+      "roundness": {
+        "type": 2
+      },
+      "seed": 2901420750,
+      "version": 1,
+      "versionNonce": 2528254538,
+      "isDeleted": false,
+      "boundElements": [
+        {
+          "id": "step1-label",
+          "type": "text"
+        }
+      ],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          -27.0,
+          -38.75
+        ],
+        [
+          -0.02,
+          -77.5
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": {
+        "elementId": "state-r0group2",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "endBinding": {
+        "elementId": "state-r0rest",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false,
+      "customData": {
+        "statechart": {
+          "kind": "step",
+          "from": "r0group2",
+          "to": "r0rest"
+        }
+      }
+    },
+    {
+      "id": "step1-label",
+      "type": "text",
+      "x": 92.34,
+      "y": 299.0,
+      "width": 58.8,
+      "height": 17.5,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region0",
+      "roundness": null,
+      "seed": 887286396,
+      "version": 1,
+      "versionNonce": 565524147,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "2 steps",
+      "originalText": "2 steps",
+      "fontSize": 14,
+      "fontFamily": 6,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step1",
+      "autoResize": true,
+      "lineHeight": 1.25
+    },
+    {
+      "id": "step2",
+      "type": "arrow",
+      "x": 193.32,
+      "y": 269.0,
+      "width": 27.03,
+      "height": 77.5,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region0",
+      "roundness": {
+        "type": 2
+      },
+      "seed": 905542516,
+      "version": 1,
+      "versionNonce": 2807693527,
+      "isDeleted": false,
+      "boundElements": [
+        {
+          "id": "step2-label",
+          "type": "text"
+        }
+      ],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "points": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          27.03,
+          38.75
+        ],
+        [
+          0.02,
+          77.5
+        ]
+      ],
+      "lastCommittedPoint": null,
+      "startBinding": {
+        "elementId": "state-r0rest",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "endBinding": {
+        "elementId": "state-r0group2",
+        "focus": 0,
+        "gap": 4,
+        "fixedPoint": null
+      },
+      "startArrowhead": null,
+      "endArrowhead": "arrow",
+      "elbowed": false,
+      "customData": {
+        "statechart": {
+          "kind": "step",
+          "from": "r0rest",
+          "to": "r0group2"
+        }
+      }
+    },
+    {
+      "id": "step2-label",
+      "type": "text",
+      "x": 195.14,
+      "y": 299.0,
+      "width": 50.4,
+      "height": 17.5,
+      "angle": 0,
+      "strokeColor": "#1e1e1e",
+      "backgroundColor": "transparent",
+      "fillStyle": "solid",
+      "strokeWidth": 1,
+      "strokeStyle": "solid",
+      "roughness": 0,
+      "opacity": 100,
+      "groupIds": [],
+      "frameId": "frame-region0",
+      "roundness": null,
+      "seed": 84603105,
+      "version": 1,
+      "versionNonce": 2625591933,
+      "isDeleted": false,
+      "boundElements": [],
+      "updated": 1,
+      "link": null,
+      "locked": false,
+      "text": "1 step",
+      "originalText": "1 step",
+      "fontSize": 14,
+      "fontFamily": 6,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "step2",
+      "autoResize": true,
+      "lineHeight": 1.25
+    },
+    {
       "id": "frame-region0",
       "type": "frame",
       "x": 0.0,
       "y": 75.0,
       "width": 342,
-      "height": 234,
+      "height": 376,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -254,7 +560,7 @@
     {
       "id": "state-*start1",
       "type": "ellipse",
-      "x": 890.21,
+      "x": 687.35,
       "y": 115.0,
       "width": 22,
       "height": 22,
@@ -275,7 +581,7 @@
       "isDeleted": false,
       "boundElements": [
         {
-          "id": "step1",
+          "id": "step3",
           "type": "arrow"
         }
       ],
@@ -292,7 +598,7 @@
     {
       "id": "state-r1group0",
       "type": "rectangle",
-      "x": 807.22,
+      "x": 579.25,
       "y": 205.0,
       "width": 262,
       "height": 64,
@@ -319,7 +625,7 @@
           "type": "text"
         },
         {
-          "id": "step1",
+          "id": "step3",
           "type": "arrow"
         },
         {
@@ -327,19 +633,11 @@
           "type": "arrow"
         },
         {
-          "id": "step11",
+          "id": "step8",
           "type": "arrow"
         },
         {
-          "id": "step13",
-          "type": "arrow"
-        },
-        {
-          "id": "step14",
-          "type": "arrow"
-        },
-        {
-          "id": "step15",
+          "id": "step9",
           "type": "arrow"
         }
       ],
@@ -356,7 +654,7 @@
     {
       "id": "state-r1group0-text",
       "type": "text",
-      "x": 823.02,
+      "x": 595.05,
       "y": 217.0,
       "width": 230.4,
       "height": 40.0,
@@ -379,8 +677,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "Lines heard, no run out\n9 states, 9 steps inside",
-      "originalText": "Lines heard, no run out\n9 states, 9 steps inside",
+      "text": "Lines heard, no run out\n7 states, 6 steps inside",
+      "originalText": "Lines heard, no run out\n7 states, 6 steps inside",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -392,7 +690,7 @@
     {
       "id": "state-r1group1",
       "type": "rectangle",
-      "x": 636.49,
+      "x": 502.0,
       "y": 346.5,
       "width": 272,
       "height": 64,
@@ -419,10 +717,6 @@
           "type": "text"
         },
         {
-          "id": "step3",
-          "type": "arrow"
-        },
-        {
           "id": "step4",
           "type": "arrow"
         },
@@ -435,7 +729,7 @@
           "type": "arrow"
         },
         {
-          "id": "step13",
+          "id": "step9",
           "type": "arrow"
         }
       ],
@@ -452,7 +746,7 @@
     {
       "id": "state-r1group1-text",
       "type": "text",
-      "x": 652.49,
+      "x": 518.0,
       "y": 358.5,
       "width": 240.0,
       "height": 40.0,
@@ -475,8 +769,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "Lines heard, a run is out\n9 states, 5 steps inside",
-      "originalText": "Lines heard, a run is out\n9 states, 5 steps inside",
+      "text": "Lines heard, a run is out\n6 states, 3 steps inside",
+      "originalText": "Lines heard, a run is out\n6 states, 3 steps inside",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -488,7 +782,7 @@
     {
       "id": "state-r1group2",
       "type": "rectangle",
-      "x": 695.87,
+      "x": 578.92,
       "y": 488.0,
       "width": 282,
       "height": 64,
@@ -515,10 +809,6 @@
           "type": "text"
         },
         {
-          "id": "step2",
-          "type": "arrow"
-        },
-        {
           "id": "step5",
           "type": "arrow"
         },
@@ -531,11 +821,7 @@
           "type": "arrow"
         },
         {
-          "id": "step10",
-          "type": "arrow"
-        },
-        {
-          "id": "step11",
+          "id": "step8",
           "type": "arrow"
         }
       ],
@@ -552,7 +838,7 @@
     {
       "id": "state-r1group2-text",
       "type": "text",
-      "x": 712.07,
+      "x": 595.12,
       "y": 500.0,
       "width": 249.6,
       "height": 40.0,
@@ -575,8 +861,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "Lines on their way\n12 states, 13 steps inside",
-      "originalText": "Lines on their way\n12 states, 13 steps inside",
+      "text": "Lines on their way\n10 states, 12 steps inside",
+      "originalText": "Lines on their way\n10 states, 12 steps inside",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -588,13 +874,13 @@
     {
       "id": "state-r1group3",
       "type": "rectangle",
-      "x": 694.31,
-      "y": 771.0,
+      "x": 584.12,
+      "y": 629.5,
       "width": 262,
       "height": 64,
       "angle": 0,
-      "strokeColor": "#7f7668",
-      "backgroundColor": "#fdebd0",
+      "strokeColor": "#7d6e6c",
+      "backgroundColor": "#fadbd8",
       "fillStyle": "solid",
       "strokeWidth": 1,
       "strokeStyle": "solid",
@@ -615,19 +901,7 @@
           "type": "text"
         },
         {
-          "id": "step8",
-          "type": "arrow"
-        },
-        {
-          "id": "step10",
-          "type": "arrow"
-        },
-        {
-          "id": "step12",
-          "type": "arrow"
-        },
-        {
-          "id": "step14",
+          "id": "step5",
           "type": "arrow"
         }
       ],
@@ -644,8 +918,8 @@
     {
       "id": "state-r1group3-text",
       "type": "text",
-      "x": 710.11,
-      "y": 783.0,
+      "x": 599.92,
+      "y": 641.5,
       "width": 230.4,
       "height": 40.0,
       "angle": 0,
@@ -667,8 +941,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "Told wrong, no run out\n9 states, 9 steps inside",
-      "originalText": "Told wrong, no run out\n9 states, 9 steps inside",
+      "text": "Lines lost\n5 states, 5 steps inside",
+      "originalText": "Lines lost\n5 states, 5 steps inside",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -678,196 +952,12 @@
       "lineHeight": 1.25
     },
     {
-      "id": "state-r1group4",
-      "type": "rectangle",
-      "x": 502.0,
-      "y": 629.5,
-      "width": 262,
-      "height": 64,
-      "angle": 0,
-      "strokeColor": "#7c6239",
-      "backgroundColor": "#f8c471",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": {
-        "type": 3
-      },
-      "seed": 3455198838,
-      "version": 1,
-      "versionNonce": 1187450831,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "state-r1group4-text",
-          "type": "text"
-        },
-        {
-          "id": "step2",
-          "type": "arrow"
-        },
-        {
-          "id": "step3",
-          "type": "arrow"
-        },
-        {
-          "id": "step8",
-          "type": "arrow"
-        },
-        {
-          "id": "step9",
-          "type": "arrow"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "customData": {
-        "statechart": {
-          "kind": "state",
-          "id": "r1group4"
-        }
-      }
-    },
-    {
-      "id": "state-r1group4-text",
-      "type": "text",
-      "x": 517.8,
-      "y": 641.5,
-      "width": 230.4,
-      "height": 40.0,
-      "angle": 0,
-      "strokeColor": "#1b2631",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": null,
-      "seed": 3731066691,
-      "version": 1,
-      "versionNonce": 1960574942,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "Told wrong, a run is out\n9 states, 6 steps inside",
-      "originalText": "Told wrong, a run is out\n9 states, 6 steps inside",
-      "fontSize": 16,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "state-r1group4",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "state-r1group5",
-      "type": "rectangle",
-      "x": 632.47,
-      "y": 912.5,
-      "width": 282,
-      "height": 64,
-      "angle": 0,
-      "strokeColor": "#7d6e6c",
-      "backgroundColor": "#fadbd8",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": {
-        "type": 3
-      },
-      "seed": 3136624352,
-      "version": 1,
-      "versionNonce": 3769631867,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "state-r1group5-text",
-          "type": "text"
-        },
-        {
-          "id": "step5",
-          "type": "arrow"
-        },
-        {
-          "id": "step9",
-          "type": "arrow"
-        },
-        {
-          "id": "step12",
-          "type": "arrow"
-        },
-        {
-          "id": "step15",
-          "type": "arrow"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "customData": {
-        "statechart": {
-          "kind": "state",
-          "id": "r1group5"
-        }
-      }
-    },
-    {
-      "id": "state-r1group5-text",
-      "type": "text",
-      "x": 648.67,
-      "y": 924.5,
-      "width": 249.6,
-      "height": 40.0,
-      "angle": 0,
-      "strokeColor": "#1b2631",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": null,
-      "seed": 356474086,
-      "version": 1,
-      "versionNonce": 4018058161,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "Lines lost\n13 states, 12 steps inside",
-      "originalText": "Lines lost\n13 states, 12 steps inside",
-      "fontSize": 16,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "state-r1group5",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step1",
+      "id": "step3",
       "type": "arrow",
-      "x": 904.33,
-      "y": 136.55,
-      "width": 22.4,
-      "height": 68.45,
+      "x": 699.31,
+      "y": 136.96,
+      "width": 7.09,
+      "height": 68.04,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -881,9 +971,9 @@
       "roundness": {
         "type": 2
       },
-      "seed": 2901420750,
+      "seed": 1123961826,
       "version": 1,
-      "versionNonce": 2528254538,
+      "versionNonce": 19729251,
       "isDeleted": false,
       "boundElements": [],
       "updated": 1,
@@ -895,12 +985,12 @@
           0.0
         ],
         [
-          10.2,
-          34.45
+          3.0,
+          34.04
         ],
         [
-          22.4,
-          68.45
+          7.09,
+          68.04
         ]
       ],
       "lastCommittedPoint": null,
@@ -928,233 +1018,11 @@
       }
     },
     {
-      "id": "step2",
-      "type": "arrow",
-      "x": 790.68,
-      "y": 552.0,
-      "width": 111.66,
-      "height": 77.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 905542516,
-      "version": 1,
-      "versionNonce": 2807693527,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step2-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          -55.93,
-          38.75
-        ],
-        [
-          -111.66,
-          77.5
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1group2",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1group4",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1group2",
-          "to": "r1group4"
-        }
-      }
-    },
-    {
-      "id": "step2-label",
-      "type": "text",
-      "x": 709.55,
-      "y": 582.0,
-      "width": 50.4,
-      "height": 17.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": null,
-      "seed": 84603105,
-      "version": 1,
-      "versionNonce": 2625591933,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "1 step",
-      "originalText": "1 step",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step2",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step3",
-      "type": "arrow",
-      "x": 726.89,
-      "y": 410.5,
-      "width": 100.42,
-      "height": 219.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 1123961826,
-      "version": 1,
-      "versionNonce": 19729251,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step3-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          -55.22,
-          38.75
-        ],
-        [
-          -100.42,
-          109.5
-        ],
-        [
-          -97.34,
-          180.25
-        ],
-        [
-          -95.45,
-          219.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1group1",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1group4",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1group1",
-          "to": "r1group4"
-        }
-      }
-    },
-    {
-      "id": "step3-label",
-      "type": "text",
-      "x": 597.07,
-      "y": 511.25,
-      "width": 58.8,
-      "height": 17.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": null,
-      "seed": 2742942549,
-      "version": 1,
-      "versionNonce": 1105822712,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "3 steps",
-      "originalText": "3 steps",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step3",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
       "id": "step4",
       "type": "arrow",
-      "x": 785.29,
+      "x": 631.06,
       "y": 346.5,
-      "width": 90.77,
+      "width": 47.98,
       "height": 77.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -1188,11 +1056,11 @@
           0.0
         ],
         [
-          15.5,
+          -8.41,
           -38.75
         ],
         [
-          90.77,
+          39.57,
           -77.5
         ]
       ],
@@ -1223,7 +1091,7 @@
     {
       "id": "step4-label",
       "type": "text",
-      "x": 771.4,
+      "x": 593.25,
       "y": 299.0,
       "width": 58.8,
       "height": 17.5,
@@ -1259,10 +1127,10 @@
     {
       "id": "step5",
       "type": "arrow",
-      "x": 829.36,
+      "x": 717.75,
       "y": 552.0,
-      "width": 157.05,
-      "height": 360.5,
+      "width": 2.63,
+      "height": 77.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1295,28 +1163,12 @@
           0.0
         ],
         [
-          -9.1,
+          -2.63,
           38.75
         ],
         [
-          -25.36,
-          109.5
-        ],
-        [
-          -147.04,
-          180.25
-        ],
-        [
-          -157.05,
-          251.0
-        ],
-        [
-          -106.33,
-          321.75
-        ],
-        [
-          -78.7,
-          360.5
+          -2.63,
+          77.5
         ]
       ],
       "lastCommittedPoint": null,
@@ -1327,7 +1179,7 @@
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1group5",
+        "elementId": "state-r1group3",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -1339,15 +1191,15 @@
         "statechart": {
           "kind": "step",
           "from": "r1group2",
-          "to": "r1group5"
+          "to": "r1group3"
         }
       }
     },
     {
       "id": "step5-label",
       "type": "text",
-      "x": 652.92,
-      "y": 723.5,
+      "x": 685.72,
+      "y": 582.0,
       "width": 58.8,
       "height": 17.5,
       "angle": 0,
@@ -1369,8 +1221,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "6 steps",
-      "originalText": "6 steps",
+      "text": "5 steps",
+      "originalText": "5 steps",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1382,9 +1234,9 @@
     {
       "id": "step6",
       "type": "arrow",
-      "x": 798.47,
+      "x": 677.1,
       "y": 488.0,
-      "width": 46.5,
+      "width": 51.86,
       "height": 77.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -1418,11 +1270,11 @@
           0.0
         ],
         [
-          -46.5,
+          -51.86,
           -38.75
         ],
         [
-          -35.26,
+          -44.87,
           -77.5
         ]
       ],
@@ -1453,7 +1305,7 @@
     {
       "id": "step6-label",
       "type": "text",
-      "x": 722.57,
+      "x": 595.84,
       "y": 440.5,
       "width": 58.8,
       "height": 17.5,
@@ -1476,8 +1328,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "3 steps",
-      "originalText": "3 steps",
+      "text": "2 steps",
+      "originalText": "2 steps",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1489,9 +1341,9 @@
     {
       "id": "step7",
       "type": "arrow",
-      "x": 809.71,
+      "x": 678.72,
       "y": 410.5,
-      "width": 45.07,
+      "width": 49.32,
       "height": 77.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -1525,11 +1377,11 @@
           0.0
         ],
         [
-          45.07,
+          49.32,
           38.75
         ],
         [
-          35.26,
+          44.87,
           77.5
         ]
       ],
@@ -1560,7 +1412,7 @@
     {
       "id": "step7-label",
       "type": "text",
-      "x": 825.37,
+      "x": 698.64,
       "y": 440.5,
       "width": 58.8,
       "height": 17.5,
@@ -1583,8 +1435,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "3 steps",
-      "originalText": "3 steps",
+      "text": "2 steps",
+      "originalText": "2 steps",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1596,10 +1448,10 @@
     {
       "id": "step8",
       "type": "arrow",
-      "x": 701.8,
-      "y": 693.5,
-      "width": 105.33,
-      "height": 77.5,
+      "x": 763.42,
+      "y": 488.0,
+      "width": 89.3,
+      "height": 219.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1632,23 +1484,31 @@
           0.0
         ],
         [
-          83.31,
-          38.75
+          52.67,
+          -38.75
         ],
         [
-          105.33,
-          77.5
+          79.98,
+          -109.5
+        ],
+        [
+          43.78,
+          -180.25
+        ],
+        [
+          -9.32,
+          -219.0
         ]
       ],
       "lastCommittedPoint": null,
       "startBinding": {
-        "elementId": "state-r1group4",
+        "elementId": "state-r1group2",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
       },
       "endBinding": {
-        "elementId": "state-r1group3",
+        "elementId": "state-r1group0",
         "focus": 0,
         "gap": 4,
         "fixedPoint": null
@@ -1659,16 +1519,16 @@
       "customData": {
         "statechart": {
           "kind": "step",
-          "from": "r1group4",
-          "to": "r1group3"
+          "from": "r1group2",
+          "to": "r1group0"
         }
       }
     },
     {
       "id": "step8-label",
       "type": "text",
-      "x": 755.72,
-      "y": 723.5,
+      "x": 814.0,
+      "y": 369.75,
       "width": 58.8,
       "height": 17.5,
       "angle": 0,
@@ -1690,8 +1550,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "8 steps",
-      "originalText": "8 steps",
+      "text": "3 steps",
+      "originalText": "3 steps",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1703,10 +1563,10 @@
     {
       "id": "step9",
       "type": "arrow",
-      "x": 615.14,
-      "y": 693.5,
-      "width": 140.54,
-      "height": 219.0,
+      "x": 715.23,
+      "y": 269.0,
+      "width": 45.59,
+      "height": 77.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -1739,463 +1599,11 @@
           0.0
         ],
         [
-          -21.63,
+          6.02,
           38.75
         ],
         [
-          -16.24,
-          109.5
-        ],
-        [
-          71.18,
-          180.25
-        ],
-        [
-          118.91,
-          219.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1group4",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1group5",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1group4",
-          "to": "r1group5"
-        }
-      }
-    },
-    {
-      "id": "step9-label",
-      "type": "text",
-      "x": 569.51,
-      "y": 794.25,
-      "width": 58.8,
-      "height": 17.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": null,
-      "seed": 118334491,
-      "version": 1,
-      "versionNonce": 2075583966,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "3 steps",
-      "originalText": "3 steps",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step9",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step10",
-      "type": "arrow",
-      "x": 849.16,
-      "y": 552.0,
-      "width": 42.42,
-      "height": 219.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 2292957372,
-      "version": 1,
-      "versionNonce": 2440302433,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step10-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          14.88,
-          38.75
-        ],
-        [
-          42.42,
-          109.5
-        ],
-        [
-          37.3,
-          180.25
-        ],
-        [
-          3.8,
-          219.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1group2",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1group3",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1group2",
-          "to": "r1group3"
-        }
-      }
-    },
-    {
-      "id": "step10-label",
-      "type": "text",
-      "x": 866.38,
-      "y": 652.75,
-      "width": 50.4,
-      "height": 17.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": null,
-      "seed": 858062679,
-      "version": 1,
-      "versionNonce": 2998369515,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "1 step",
-      "originalText": "1 step",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step10",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step11",
-      "type": "arrow",
-      "x": 884.79,
-      "y": 488.0,
-      "width": 106.85,
-      "height": 219.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 4289523754,
-      "version": 1,
-      "versionNonce": 922944725,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step11-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          58.03,
-          -38.75
-        ],
-        [
-          93.1,
-          -109.5
-        ],
-        [
-          106.85,
-          -180.25
-        ],
-        [
-          77.59,
-          -219.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1group2",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1group0",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1group2",
-          "to": "r1group0"
-        }
-      }
-    },
-    {
-      "id": "step11-label",
-      "type": "text",
-      "x": 948.49,
-      "y": 369.75,
-      "width": 58.8,
-      "height": 17.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": null,
-      "seed": 2505307363,
-      "version": 1,
-      "versionNonce": 1864476014,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "3 steps",
-      "originalText": "3 steps",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step11",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step12",
-      "type": "arrow",
-      "x": 813.64,
-      "y": 835.0,
-      "width": 28.39,
-      "height": 77.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 1722130832,
-      "version": 1,
-      "versionNonce": 116072008,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step12-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          -14.12,
-          38.75
-        ],
-        [
-          -28.39,
-          77.5
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1group3",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1group5",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1group3",
-          "to": "r1group5"
-        }
-      }
-    },
-    {
-      "id": "step12-label",
-      "type": "text",
-      "x": 770.12,
-      "y": 865.0,
-      "width": 58.8,
-      "height": 17.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": null,
-      "seed": 2763779710,
-      "version": 1,
-      "versionNonce": 3538667936,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "3 steps",
-      "originalText": "3 steps",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step12",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step13",
-      "type": "arrow",
-      "x": 922.56,
-      "y": 269.0,
-      "width": 90.77,
-      "height": 77.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 295866630,
-      "version": 1,
-      "versionNonce": 2694583804,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step13-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          -18.96,
-          38.75
-        ],
-        [
-          -90.77,
+          -39.57,
           77.5
         ]
       ],
@@ -2224,141 +1632,10 @@
       }
     },
     {
-      "id": "step13-label",
+      "id": "step9-label",
       "type": "text",
-      "x": 874.2,
+      "x": 696.05,
       "y": 299.0,
-      "width": 58.8,
-      "height": 17.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": null,
-      "seed": 46982602,
-      "version": 1,
-      "versionNonce": 259854373,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "2 steps",
-      "originalText": "2 steps",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step13",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step14",
-      "type": "arrow",
-      "x": 974.32,
-      "y": 269.0,
-      "width": 183.59,
-      "height": 502.0,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 2412119205,
-      "version": 1,
-      "versionNonce": 1698376562,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step14-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          43.72,
-          38.75
-        ],
-        [
-          76.97,
-          109.5
-        ],
-        [
-          71.55,
-          180.25
-        ],
-        [
-          68.75,
-          251.0
-        ],
-        [
-          31.98,
-          321.75
-        ],
-        [
-          -4.43,
-          392.5
-        ],
-        [
-          -55.28,
-          463.25
-        ],
-        [
-          -106.62,
-          502.0
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1group0",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1group3",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1group0",
-          "to": "r1group3"
-        }
-      }
-    },
-    {
-      "id": "step14-label",
-      "type": "text",
-      "x": 1017.87,
-      "y": 511.25,
       "width": 50.4,
       "height": 17.5,
       "angle": 0,
@@ -2372,9 +1649,9 @@
       "groupIds": [],
       "frameId": "frame-region1",
       "roundness": null,
-      "seed": 3345734468,
+      "seed": 118334491,
       "version": 1,
-      "versionNonce": 1913525885,
+      "versionNonce": 2075583966,
       "isDeleted": false,
       "boundElements": [],
       "updated": 1,
@@ -2386,146 +1663,7 @@
       "fontFamily": 6,
       "textAlign": "center",
       "verticalAlign": "middle",
-      "containerId": "step14",
-      "autoResize": true,
-      "lineHeight": 1.25
-    },
-    {
-      "id": "step15",
-      "type": "arrow",
-      "x": 986.08,
-      "y": 269.0,
-      "width": 288.34,
-      "height": 643.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": {
-        "type": 2
-      },
-      "seed": 4173411379,
-      "version": 1,
-      "versionNonce": 3276546246,
-      "isDeleted": false,
-      "boundElements": [
-        {
-          "id": "step15-label",
-          "type": "text"
-        }
-      ],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "points": [
-        [
-          0.0,
-          0.0
-        ],
-        [
-          57.96,
-          38.75
-        ],
-        [
-          97.38,
-          109.5
-        ],
-        [
-          110.48,
-          180.25
-        ],
-        [
-          126.19,
-          251.0
-        ],
-        [
-          96.43,
-          321.75
-        ],
-        [
-          67.55,
-          392.5
-        ],
-        [
-          38.95,
-          463.25
-        ],
-        [
-          10.23,
-          534.0
-        ],
-        [
-          -101.06,
-          604.75
-        ],
-        [
-          -162.15,
-          643.5
-        ]
-      ],
-      "lastCommittedPoint": null,
-      "startBinding": {
-        "elementId": "state-r1group0",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "endBinding": {
-        "elementId": "state-r1group5",
-        "focus": 0,
-        "gap": 4,
-        "fixedPoint": null
-      },
-      "startArrowhead": null,
-      "endArrowhead": "arrow",
-      "elbowed": false,
-      "customData": {
-        "statechart": {
-          "kind": "step",
-          "from": "r1group0",
-          "to": "r1group5"
-        }
-      }
-    },
-    {
-      "id": "step15-label",
-      "type": "text",
-      "x": 1057.31,
-      "y": 582.0,
-      "width": 50.4,
-      "height": 17.5,
-      "angle": 0,
-      "strokeColor": "#1e1e1e",
-      "backgroundColor": "transparent",
-      "fillStyle": "solid",
-      "strokeWidth": 1,
-      "strokeStyle": "solid",
-      "roughness": 0,
-      "opacity": 100,
-      "groupIds": [],
-      "frameId": "frame-region1",
-      "roundness": null,
-      "seed": 1629278448,
-      "version": 1,
-      "versionNonce": 2946027512,
-      "isDeleted": false,
-      "boundElements": [],
-      "updated": 1,
-      "link": null,
-      "locked": false,
-      "text": "1 step",
-      "originalText": "1 step",
-      "fontSize": 14,
-      "fontFamily": 6,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "step15",
+      "containerId": "step9",
       "autoResize": true,
       "lineHeight": 1.25
     },
@@ -2534,8 +1672,8 @@
       "type": "frame",
       "x": 462.0,
       "y": 75.0,
-      "width": 694,
-      "height": 942,
+      "width": 455,
+      "height": 658,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
