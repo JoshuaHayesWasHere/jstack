@@ -825,8 +825,8 @@ def test_a_vitest_file_that_fails_without_the_fix_is_proved_and_jmerge_takes_its
     base = node(repo)
     head = commit(repo, {"src/calc.ts": FIXED_TS, "src/calc.test.ts": EXPECTS_FIX})
     said, line = node_proof(repo)
-    assert "head exit 0: vitest: 1 passed, 0 failed" in said
-    assert "base exit 1: vitest: 0 passed, 1 failed" in said
+    assert "head exit 0: vitest: 1 passed, 0 failed\n" in said
+    assert "base exit 1: vitest: 0 passed, 1 failed\n" in said
     assert line == proved.Proved(("src/calc.test.ts",), 1, base, 0, head)
     runs = node_runs(repo)
     assert [run.split(" in ")[0] for run in runs] == ["vitest CI=1", "vitest CI=1"]
@@ -851,7 +851,7 @@ def test_a_playwright_spec_with_its_helper_is_proved_on_playwright(repo):
         },
     )
     said, line = node_proof(repo)
-    assert "head exit 0: playwright: 1 passed, 0 failed" in said
+    assert "head exit 0: playwright: 1 passed, 0 failed\n" in said
     assert "base exit 1: playwright: 0 passed, 1 failed" in said
     assert line == proved.Proved(("tests/loop.spec.ts",), 1, base, 0, head)
     runs = node_runs(repo)

@@ -53,7 +53,7 @@ prove_sides() {
                     CI=1 PLAYWRIGHT_JSON_OUTPUT_NAME=$out.json ./node_modules/.bin/playwright test --reporter=list,json $files > "$out" 2>&1
                     code=$?
                     report=$(jq -r '(.errors | map(select(.location != null)) | length) as $unloaded
-                        | (.errors | map(select(.location == null)) | first | .message // "" | split("\n")[0]) as $error
+                        | ([.errors[] | select(.location == null) | .message | split("\n")[0]] | first // "") as $error
                         | [.stats.unexpected + $unloaded, "playwright: \(.stats.expected) passed, \(.stats.unexpected) failed"
                             + (if $unloaded > 0 then ", \($unloaded) files did not load" else "" end)
                             + (if $error != "" then ", \($error)" else "" end)] | @tsv' "$out.json" 2> /dev/null)
