@@ -49,7 +49,8 @@ make a minute or more (`jmerge.treeguards`), the tick reads on every 10 seconds 
 process (`tick`), since the timer starts no tick until it ends. The pass runs
 `jmerge --if-free` each pass too, so what the tick misses the next pass with the run lock free
 does. A merge of the tick's that changed a skill is kept for the next pass's `reload.tell`
-before the ETag is (`reload.keep`), since `jmerge` prints its `merged` line once. One run of
+before the ETag is (`reload.keep`), and so is one that names the pull requests its rule breaks
+(`rulebreaks.keep`), since `jmerge` prints its `merged` line once. One run of
 `jmerge` runs at a time, by its run lock (`jmerge.lock`). A tick asks GitHub whatever the API
 budget says (`jbus.budget`): a 304 spends none of it, and what a job that ended costs is
 `jmerge`'s, which the floor is kept for.
@@ -67,7 +68,18 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import jbus
-from jbus import cancelled, conditional, launchd, merge, passes, reload, restated, verbs, watch
+from jbus import (
+    cancelled,
+    conditional,
+    launchd,
+    merge,
+    passes,
+    reload,
+    restated,
+    rulebreaks,
+    verbs,
+    watch,
+)
 from jmerge import mainjson, ready
 from jsettings import proc, store
 
@@ -350,6 +362,7 @@ def _ran(run: passes.Pass, wanted: Wanted, said: merge.Said) -> None:
     """Keep what a run of `jmerge` the tick started said, and, once it ran to its end, the
     verdicts it ran for (`wanted`), as `ran` of each pull request still kept at the same head."""
     reload.keep(run, said)
+    rulebreaks.keep(run, said)
     name = run.project.name
     if said.failed:
         run.say(f"tick {name}: a check ended, and jmerge did not run to its end")
