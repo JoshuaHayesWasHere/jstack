@@ -38,6 +38,7 @@ def repo(tmp_path):
     env = {
         **os.environ,
         "HOME": str(home),
+        "JGAUGE_LOCKS_DIR": str(tmp_path / "locks"),
         "PATH": f"{bin_}:{os.environ['PATH']}",
         "PROC": str(fake_proc(tmp_path / "proc", 24, 62)),
         "TMPFS": str(tmp_path),
