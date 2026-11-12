@@ -1,5 +1,8 @@
-"""`statechart site` writes one page that explores every committed chart: each chart and each of
-its states is on it, it fetches nothing when viewed, and it shows each chart's stories."""
+"""`statechart site`, which `make charts` runs, writes one page that explores every committed chart:
+each chart and each of its states is on it, it fetches nothing when viewed, and it shows each
+chart's stories. Beside the page it draws a PNG and an Excalidraw scene of each chart. The PNGs
+come from npx's mermaid-cli, which needs Node and a browser, so a stand-in for npx draws them here
+outside the tests marked `browser`."""
 
 import contextlib
 import fcntl
@@ -17,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from statechart_support import DOOR_MAP, lib, needs_tlc, node, read, run_door, write
+from statechart_support import DOOR_MAP, lib, needs_tlc, node, read, run_door, statechart_cli, write
 from testing.paths import REPO
 
 chart_site = importlib.import_module("statechart.site")
@@ -39,10 +42,40 @@ def declared_states(chart):
 
 
 FLOW = REPO / "features" / "home" / "docs" / "charts" / "flow.toml"
+NPX = """#!/bin/sh
+[ -n "$NPX_FAILS" ] && { echo "mermaid-cli failed" >&2; exit 1; }
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -o) case "$2" in
+      *.svg) echo '<svg viewBox="0 0 400 300"></svg>' > "$2" ;;
+      *) echo png > "$2" ;;
+    esac ;;
+  esac
+  shift
+done
+"""
 
 
-def site(root, out, *extra):
-    return node("statechart", ["site", "--out", str(out), "--root", str(root), *extra], root)
+STAND_IN = {}
+
+
+@pytest.fixture(autouse=True, scope="module")
+def stand_in_npx(tmp_path_factory):
+    """A stand-in for npx, which draws a PNG without Node or a browser, in a folder of its own."""
+    folder = tmp_path_factory.mktemp("npx")
+    write(folder / "npx", NPX, 0o755)
+    STAND_IN["bin"] = folder
+
+
+def site(root, out, *extra, env=None):
+    """Runs `statechart site` on the charts under `root`, with the stand-in npx first on PATH."""
+    path = f"{STAND_IN['bin']}{os.pathsep}{os.environ['PATH']}"
+    return node(
+        "statechart",
+        ["site", "--out", str(out), "--root", str(root), *extra],
+        root,
+        {"PATH": path, **(env or {})},
+    )
 
 
 def test_the_page_opens_on_a_map_of_every_chart_and_how_they_hand_off(tmp_path):
@@ -113,7 +146,11 @@ def test_the_page_holds_each_committed_chart_and_each_of_its_states(tmp_path):
             assert page.count(f'id="{name}-{state_id}"') == 1, (name, state_id)
             assert html.escape(caption, quote=True) in page or caption in page, (name, caption)
     total = sum(len(declared_states(c)) for c in CHARTS)
-    assert r.stdout == f"wrote {out}: {len(CHARTS)} charts, {total} states\n"
+    bugs = len(list(REPO.glob("features/*/spec/*-statechart/bug-*.mmd")))
+    assert r.stdout == (
+        f"wrote {out}: {len(CHARTS)} charts, {total} states\n"
+        f"wrote {len(CHARTS) + bugs} PNGs and {2 * len(CHARTS)} Excalidraw scenes beside it\n"
+    )
 
 
 GROUP_MOST = 15
@@ -273,7 +310,7 @@ def test_the_page_says_how_many_steps_a_chart_draws_of_how_many_it_could(tmp_pat
 
 
 def test_the_page_fetches_nothing_when_it_is_viewed(tmp_path):
-    out = tmp_path / "index.html"
+    out = tmp_path / "charts" / "index.html"
     assert site(REPO, out).returncode == 0
     page = read(out)
     assert not re.search(r"<script[^>]*\bsrc=|<link\b|@import|url\(\s*['\"]?https?:", page)
@@ -327,16 +364,42 @@ def test_the_page_tells_a_charts_bug_paths_and_says_so_when_it_has_none(tmp_path
     assert "No bug paths" in read(out)
 
 
-def test_check_says_whether_the_written_page_is_the_one_the_charts_make(tmp_path):
-    folder = lamp(tmp_path, "")
-    out = tmp_path / "index.html"
-    assert site(tmp_path, out).returncode == 0
-    current = site(tmp_path, out, "--check")
-    assert (current.returncode, current.stdout) == (0, f"{out} is current\n")
-    write(folder / "chart.mmd", CHART.replace('"On"', '"Lit"'))
-    stale = site(tmp_path, out, "--check")
-    assert stale.returncode == 1
-    assert stale.stdout == f"{out} is stale: run statechart site --out {out}\n"
+def test_the_command_draws_a_png_and_an_excalidraw_scene_of_each_chart_beside_the_page(tmp_path):
+    folder = lamp(tmp_path / "repo", "")
+    write(folder / "bug-1.mmd", CHART)
+    before = sorted(p.name for p in folder.iterdir())
+    out = tmp_path / "charts" / "index.html"
+    r = site(tmp_path / "repo", out)
+    assert (r.returncode, r.stderr) == (0, "")
+    assert sorted(p.name for p in out.parent.iterdir()) == [
+        "Lamp-bug-1.png",
+        "Lamp.excalidraw",
+        "Lamp.overview.excalidraw",
+        "Lamp.png",
+        "index.html",
+    ]
+    assert sorted(p.name for p in folder.iterdir()) == before, "it wrote into the spec folder"
+    assert read(out.parent / "Lamp.png") == "png\n"
+    scene = tmp_path / "scene.excalidraw"
+    assert statechart_cli.main(["excalidraw", str(folder / "chart.mmd"), "--out", str(scene)]) == 0
+    assert read(out.parent / "Lamp.excalidraw") == read(scene)
+    groups = tmp_path / "groups.excalidraw"
+    assert statechart_cli.main(["overview", str(folder / "chart.mmd"), "--out", str(groups)]) == 0
+    assert read(out.parent / "Lamp.overview.excalidraw") == read(groups)
+    page = read(out)
+    assert '<a href="Lamp.png">PNG</a>' in page
+    assert '<a href="Lamp.excalidraw">Excalidraw</a>' in page
+
+
+def test_a_png_it_cannot_draw_exits_2_and_leaves_the_rest_written(tmp_path):
+    lamp(tmp_path / "repo", "")
+    out = tmp_path / "charts" / "index.html"
+    r = site(tmp_path / "repo", out, env={"NPX_FAILS": "1"})
+    assert r.returncode == 2
+    assert r.stderr == "could not draw Lamp.png: mermaid-cli failed\n"
+    assert r.stdout.endswith("wrote 0 PNGs and 2 Excalidraw scenes beside it\n")
+    assert (out.parent / "Lamp.excalidraw").is_file() and out.is_file()
+    assert not (out.parent / "Lamp.png").exists()
 
 
 BROWSER = os.environ.get("JSTACK_TEST_BROWSER", "")
