@@ -186,6 +186,7 @@ def test_a_pass_with_nothing_quiet_reads_no_thread(kitchen):
         {"projectId": PROJECT, "titleContains": "crew: ", "limit": 100},
         {"projectId": PROJECT, "limit": 100, "includeSubagents": True},
         {"projectId": PROJECT, "limit": 100, "settled": False},
+        {"projectId": PROJECT, "limit": 100},
     ]
     assert {tool for tool, _ in kitchen.t3.calls} == {"t3_thread_list"}
 
