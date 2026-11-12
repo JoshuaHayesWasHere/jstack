@@ -82,7 +82,10 @@ case " $* " in
         sleep 60
     fi
     if [ -n "$SLOW" ]; then sleep "$SLOW"; fi
-    case $PWD in "$TMPDIR"/base.*) if [ -n "$BASE_SLOW" ]; then sleep "$BASE_SLOW"; fi ;; esac
+    case $PWD in
+    "$TMPDIR"/base.*) if [ -n "$BASE_SLOW" ]; then sleep "$BASE_SLOW"; fi ;;
+    *) if [ -n "$DURING" ]; then bash -c "$DURING"; fi ;;
+    esac
     shift 2
     echo "$*" >> "$TMPDIR/pytest-args"
     exec {sys.executable} -m pytest "$@"
@@ -94,7 +97,9 @@ exit 64
 the short lane stops one at its limit, and a full one at `FULL_LIMIT` seconds; each pytest run
 takes `SLOW` seconds more, and one in the copy of the base `BASE_SLOW` seconds more, `NO_XDIST`
 stands for a repo whose venv has no pytest-xdist, and with `SLOTS` set only that many test-slot
-calls get a slot, and every one after them finds every slot taken, exit 76."""
+calls get a slot, and every one after them finds every slot taken, exit 76. `DURING` is a
+command the head side's pytest run starts with, in the worktree, as a crew's edit or commit while
+the proof call sits in the background."""
 BSD_WC = """#!/bin/sh
 REAL "$@" | awk '{ $1 = sprintf("%8s", $1); print }'
 """
@@ -308,6 +313,34 @@ def test_a_run_stopped_mid_test_leaves_no_copy_of_the_base(repo):
             os.killpg(running.pid, signal.SIGKILL)
             running.wait()
     assert copies(repo) == []
+
+
+def test_a_commit_made_while_the_head_side_runs_gets_no_proved_line(repo):
+    """The proof call can sit in the background while the crew goes on: a commit made while the
+    head side runs leaves a run over files that are not the head's, so the script writes no
+    `Proved:` line for the head it began at, names the head it moved to, and ends 1
+    (`spec/CrewProof.tla`'s ProvedAtHead)."""
+    head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(repo, DURING="echo '# moved' >> calc.py && git commit -qam moved")
+    moved = git(repo, "rev-parse", "HEAD")
+    assert moved != head
+    assert "Proved:" not in said
+    assert (
+        f"no proof: the head or the worktree moved while it ran: HEAD {head} is now {moved}\n"
+        in said
+    )
+    assert line is None
+
+
+def test_an_edit_left_uncommitted_while_the_head_side_runs_gets_no_proved_line(repo):
+    commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
+    said, line = proof(repo, DURING="echo '# edited' >> calc.py")
+    assert "Proved:" not in said
+    assert (
+        "no proof: the head or the worktree moved while it ran: the worktree has changes: M calc.py\n"
+        in said
+    )
+    assert line is None
 
 
 def test_a_temp_directory_that_is_gone_leaves_the_branch_checked_out(repo):
