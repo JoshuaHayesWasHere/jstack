@@ -1,5 +1,6 @@
 """A pass does not launch a row while another row that names the same hot file runs or has its
-pull request open. A file is hot once the `rebase` events of the last 7 days put it in 3 or more
+pull request open (`jbus.dispatch`), and the queue says which file and which row it waits on
+(`jbus.watch`). A file is hot once the `rebase` events of the last 7 days put it in 3 or more
 conflicts with main (`jbus.hotfiles`). Like `test_jbus_queue.py`, the tests run the real pass
 against a faked T3 Code server, `gh` and `jmerge`, over a real git checkout in which each conflict
 is made."""
