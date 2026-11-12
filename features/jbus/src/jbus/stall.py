@@ -558,7 +558,9 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         moved, last = list(one.get("moved") or ()), dict(one.get("last") or {})
         kept[slug] = {**one, "heads": heads, "red": on_red, "shared": flakes, "infra": infras}
         kept[slug]["moved"] = moved
-        if row.get("held") or any(head in seen for seen in (heads, on_red, flakes, infras, moved)):
+        if row.get("held") or any(head in seen for seen in (heads, on_red, flakes, infras)):
+            continue
+        if head in moved:
             continue
         found = rebase.ran_and_failed(run, world, pull)
         names = [name for name in found.names if name in required]
