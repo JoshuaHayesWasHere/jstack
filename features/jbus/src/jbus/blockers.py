@@ -303,8 +303,8 @@ def _retire(args: argparse.Namespace, _: Config) -> int:
     scope = Path(os.path.realpath(given))
     root = Path(os.path.realpath(homes_dir()))
     why = ""
-    if scope.parent.parent != root or not scope.is_dir():
-        why = f"{given} is no directory of a home under {root}"
+    if not scope.parent.is_relative_to(root) or scope.parent == root or not scope.is_dir():
+        why = f"{given} is no directory of a scoped home inside the homes' state, {root}"
     elif scope.name in (homes.UNCATEGORIZED, *homes.SHARED) or scope.name.startswith("_"):
         why = f"{given} is no scoped home, and only a scoped home retires"
     elif not (scope / "plan.md").exists() and not (scope / "plan-archived.md").exists():

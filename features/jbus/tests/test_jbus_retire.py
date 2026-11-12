@@ -4,6 +4,8 @@ archived, each brief that named the scope is the catch-all's, and admit reads th
 ledger for it. The tests run the real command and then `jbus queue add`, which is where a try
 left behind would show: a fix past the cap queued as though none was tried."""
 
+import contextlib
+
 import pytest
 
 from jbriefs import home as homes
@@ -95,8 +97,8 @@ def test_a_scope_with_no_ledger_retires_its_plan_and_carries_nothing(kitchen):
     assert not (homes.catchall(kitchen.home) / blockers.LEDGER).exists()
 
 
-@pytest.mark.parametrize("scope", ["uncategorized", "tasks", "nowhere"])
-def test_the_catch_all_a_shared_folder_and_no_folder_are_refused(kitchen, scope):
+@pytest.mark.parametrize("scope", ["uncategorized", "tasks", "planless", "nowhere"])
+def test_the_catch_all_a_shared_folder_one_with_no_plan_and_no_folder_are_refused(kitchen, scope):
     if scope != "nowhere":
         (kitchen.home / scope).mkdir(exist_ok=True)
     code, said = retire(kitchen, scope)
@@ -111,3 +113,22 @@ def test_a_folder_outside_the_homes_state_is_refused(kitchen, tmp_path):
     code, said = kitchen.main("retire", str(outside))
     assert code != 0
     assert (outside / "plan.md").exists()
+
+
+def test_a_fix_whose_scope_retires_before_admit_takes_its_lock_is_counted_in_the_catch_all(
+    kitchen, monkeypatch
+):
+    """Admit reads the brief's home, flow, and a retire takes flow's lock first and archives its
+    plan: once admit holds the lock, the brief is the catch-all's, and its try is counted there."""
+    flow, real = kitchen.home / "flow", blockers.locked
+
+    @contextlib.contextmanager
+    def retire_first(directory, name):
+        if directory == flow and (flow / "plan.md").exists():
+            (flow / "plan.md").rename(flow / "plan-archived.md")
+        with real(directory, name):
+            yield
+
+    monkeypatch.setattr(blockers, "locked", retire_first)
+    add(kitchen, "alpha", text=fix("alpha"))
+    assert (slugs(homes.catchall(kitchen.home)), slugs(flow)) == (["alpha"], [])
