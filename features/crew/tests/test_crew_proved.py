@@ -169,16 +169,19 @@ def environ(tree, **more):
     }
 
 
-def worktrees(tree):
-    return git(tree, "worktree", "list", "--porcelain")
+def worktrees(tree, head=True):
+    listed = git(tree, "worktree", "list", "--porcelain")
+    return listed if head else re.sub(r"(?m)^HEAD .*\n?", "", listed)
 
 
 def copies(tree):
     return sorted(path.name for kind in ("base", "fork") for path in tree.parent.glob(f"{kind}.*"))
 
 
-def proof(tree, shell="", **more):
-    before = worktrees(tree)
+def proof(tree, shell="", moves_head=False, **more):
+    """The script's run, which leaves the worktree list as it found it, its HEAD too unless the
+    run commits (`moves_head`)."""
+    before = worktrees(tree, head=not moves_head)
     ran = subprocess.run(
         ["bash", "-c", shell + script()],
         cwd=tree,
@@ -187,7 +190,7 @@ def proof(tree, shell="", **more):
         timeout=60,
         env=environ(tree, **more),
     )
-    assert worktrees(tree) == before
+    assert worktrees(tree, head=not moves_head) == before
     assert copies(tree) == []
     home = tree.parent / "home"
     return ran.stdout, proved.proved((home / "tasks" / "a-task.md").read_text())
@@ -321,7 +324,9 @@ def test_a_commit_made_while_the_head_side_runs_gets_no_proved_line(repo):
     `Proved:` line for the head it began at, names the head it moved to, and ends 1
     (`spec/CrewProof.tla`'s ProvedAtHead)."""
     head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
-    said, line = proof(repo, DURING="echo '# moved' >> calc.py && git commit -qam moved")
+    said, line = proof(
+        repo, moves_head=True, DURING="echo '# moved' >> calc.py && git commit -qam moved"
+    )
     moved = git(repo, "rev-parse", "HEAD")
     assert moved != head
     assert "Proved:" not in said

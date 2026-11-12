@@ -150,6 +150,7 @@ else
     [ "$(sed -n 1p "$passed" 2> /dev/null)" = "$head $base" ] || printf '%s %s\n' "$head" "$base" > "$passed"
     ran=0
     owed=
+    moved=
     for side in $sides; do
         if had=$(command grep -m 1 "^$side exit 0: " "$passed"); then
             echo "$side: exited 0 at this head and base already, $had"
@@ -179,6 +180,19 @@ else
             done
         ' | tee -a "$tree/.proof-said"
         ran=${PIPESTATUS[0]}
+        # The head side ran on the worktree as it is, so a commit or an edit made while the call
+        # sat in the background leaves a run of files that are not the head's: it proves nothing,
+        # and no side of it is kept.
+        now=$(git rev-parse HEAD)
+        if [ "$now" != "$head" ]; then
+            moved="HEAD $head is now $now"
+        elif dirty=$(git status --porcelain | sed 's/^ *//' | paste -sd , - | sed 's/,/, /g') && [ -n "$dirty" ]; then
+            moved="the worktree has changes: $dirty"
+        fi
+        if [ -n "$moved" ]; then
+            echo "no proof: the head or the worktree moved while it ran: $moved"
+            exit 1
+        fi
         left=
         for side in $owed; do
             command grep "^$side exit 0: " "$tree/.proof-said" >> "$passed"
