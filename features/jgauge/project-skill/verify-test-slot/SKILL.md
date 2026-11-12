@@ -17,8 +17,7 @@ The rules, each with its harm, and today's verdict:
   Broken, a cap the hook or jbus wrote is undone by a writer that read the file before it.
 - **`WokenGetsSlot`** (breaks, canary `spare-outside-lock`): a woken waiter gets its slot, or its claim lapses at `HOLDS`.
   Broken, a crew jbus woke finds its slot taken and registers again.
-- **`EndNotLost`** (breaks, canary `forget-unended`): a run whose `jgauge test-slot` lives to its end has that end on file for jbus to tell.
-  Broken, the thread that ended its turn on "my run holds a slot" is never told the run ended.
+- **`EndNotLost`** (holds since ts-forget-unended, canary `forget-unended`): a run whose `jgauge test-slot` lives to its end has that end on file for jbus to tell.
 - **`OneCommandPerSlot`** (holds since #1719, canary `orphan-command`): a slot runs one command at a time.
 - **`NoLostHolder`** (holds with `PidReuse = FALSE`): every holder ends, or its pid is dead.
   With `PidReuse = TRUE` it breaks in every mode, a gap the model names and does not close.
@@ -32,7 +31,7 @@ Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
 Covers:
 - `features/jgauge/src/jgauge/slot.py`: `run`, `take`, `free`, `spare`, `_claim`, `_first_free`, `_free_for`, `_ahead`, `_line`, `_wait_in_call`, `_sweep`
 - `features/jgauge/src/jgauge/waiters.py`: `register`, `drop`, `forget`, `woken`, `holding`, `claims`, `lapsed`, `HOLDS`, `FORGOTTEN`
-- `features/jgauge/src/jgauge/holders.py`: `hold`, `end`, `forget`, `running`
+- `features/jgauge/src/jgauge/holders.py`: `hold`, `end`, `forget`, `running`, `_alive`
 - `features/jgauge/src/jgauge/slotlog.py`: `take`, `release`, `_append`
 - `features/jgauge/src/jgauge/children.py`: `Watch`, `end`, `main`
 - `features/jgauge/src/jgauge/limits.py`: `run`, `from_endpoint`, `keep`, `note`, `_keep_retry`
@@ -46,12 +45,12 @@ Covers:
 - `features/jsettings/src/jsettings/store.py`: `locked`, `LockedList.held`
 
 At the sync commit, main's tip when this branch took main in, the model was read against these.
-`slot.run` writes `slotlog.take`, starts the command under `children.Watch`, then `holders.hold`, waits on `child.wait`, then `holders.end`, `slotlog.release`, closes the slot and calls `_sweep`, the order of `LogTake`, `Spawn`, `Hold`, `Ran`, `End`, `LogRelease` and `Close`.
+`slot.run` writes `slotlog.take`, starts the command under `children.Watch`, then `holders.hold` with the command's `pid` and its own as `keeper`, waits on `child.wait`, then `holders.end`, `slotlog.release`, closes the slot and calls `_sweep`, the order of `LogTake`, `Spawn`, `Hold`, `Ran`, `End`, `LogRelease` and `Close`.
 `slotwait.wake` forgets the lapsed waiters under the lock, then counts `slot.spare` with no lock, and `tell` records `waiters.woken` only after the message went, which is `spare-outside-lock` as today's code.
-`slotwait.wake_ended` forgets a run with no `ended` once `holders.running` says its pid is gone, which is `forget-unended` as today's code.
+`slotwait.wake_ended` forgets a run with no `ended` once `holders.running` says it is over, and `holders.running` counts such a run as running while `_alive` finds its command's `pid` or its `keeper`, the pid of its `jgauge test-slot`, so the run stays until that process writes the end, which is why `forget-unended` is a canary of a fault the code has closed; a record with no `keeper` (0, from an older jgauge) goes by its command alone.
 `ledger.write` reads the file with `_text`, merges, and renames into place with `os.replace` under no lock, as `hooks/limits.sh` does with `cat` and `mv -f`, which is `no-ledger-lock` and the trace of `LedgerNoLostUpdate`.
 `slot.run` arms `children.Watch` before `Popen`, so a killed `jgauge test-slot` takes its command with it, which is why `orphan-command` is a canary of a fault the code has closed.
-No covered file changed between the model's commit (2d0ca28c3, #1719) and the sync, and `features/jgauge/tests/test_test_slot_spec.py` passed there (11 passed).
+Since the last sync (2fb4e2587) the covered files changed only in ts-forget-unended: `holders.Holder` gained `keeper`, `holders.hold` records it, `holders.running` reads it through `_alive`, and `slot.run` passes its own pid; the spec's `Over` and `TodayFaults` moved with it, and the rest of the steps read as before.
 `features/repo-guards/tests/test_model_sync.py` fails when a file or name above is gone.
 Move `Sync:` forward only after you read every change to these files since it against the model, as `/maintain-formal-verification-skill` says, and never because the check passes.
 
@@ -69,8 +68,8 @@ uv run pytest features/jgauge/tests/test_test_slot_spec.py -q
 It finds each quote of the spec once in its file, checks that each ledger row (D-048 to D-074) is a VARIABLE that cites its writer, and runs TLC on today's mode, the mode that passes and each canary, in under a minute; the TLC tests skip where no Java runs TLC.
 The bare TLC command, the table of faults and the trace are in `features/jgauge/spec/README.md`, "Check the rules"; run TLC in a copy of the folder, since it writes `states/` where it runs.
 
-- **Bounds:** one full slot, one short slot, one crew thread waiting on the full lane; `TestSlot.cfg` (`Fault = "today"`, `PidReuse = FALSE`, every process `Mortal`) stops at `LedgerNoLostUpdate` after 186 distinct states on one worker; `Fault = "none"` holds every rule over 614,686 distinct states; today's mode holds `OneCommandPerSlot` over 1,450,651.
-- **The faults:** `spare-outside-lock` breaks `WokenGetsSlot`, `forget-unended` breaks `EndNotLost`, `no-ledger-lock` breaks `LedgerNoLostUpdate`, and `orphan-command`, a fault the code has closed, breaks `OneCommandPerSlot`.
+- **Bounds:** one full slot, one short slot, one crew thread waiting on the full lane; `TestSlot.cfg` (`Fault = "today"`, `PidReuse = FALSE`, every process `Mortal`) stops at `LedgerNoLostUpdate` after 186 distinct states on one worker; `Fault = "none"` holds every rule over 614,686 distinct states; today's mode holds `OneCommandPerSlot` and `EndNotLost` over 831,692.
+- **The faults:** `spare-outside-lock` breaks `WokenGetsSlot` and `no-ledger-lock` breaks `LedgerNoLostUpdate`; `forget-unended`, which breaks `EndNotLost`, and `orphan-command`, which breaks `OneCommandPerSlot`, are faults the code has closed.
 - **Assumptions:** the rest is in the README's "What the model leaves out": no `free()` probe outside the waiters lock but jbus's own, one jgauge slot count, no order of the short lane for a call with no thread, no crash between `Popen` and `holders.hold`, no `dead` checks in jbus, and a ledger merge joined into "each merged record stays".
 
 ## A real bug or a modeling error
@@ -88,4 +87,3 @@ When every step is backed, it is a bug: tell it as the machine's story (who read
 ## Drift at the sync commit
 
 None found in the steps.
-`TestSlot.cfg`'s comment says TLC stops "after 144 distinct states on one TLC worker", while TLC at the sync prints 186, as the README says; the comment is stale, and the verdict is the same.
