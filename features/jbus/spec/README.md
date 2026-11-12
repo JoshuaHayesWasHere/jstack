@@ -289,3 +289,69 @@ It writes `TellOnce-statechart/`, labelled by `TellOnce.map.py`, with one `bug-N
 - `Box.send` writes a finding's key before its line, which loses the line when a pass dies between them: the model has it for the clock's stall and stall.twice's page, and the other keyed findings (an ask resent, failover's, expedite's) share it.
 - The event `item.write` records after its line, cancelled.py's false "not run again" after a rerun whose finding was lost, and the account question the second park leaves open: each is a fault of its own, not a tell twice or lost.
 - The second target's timeout after the target took the body is a pass that dies after the act.
+
+## Main's fix and revert, filed step by step, as a TLA+ spec
+
+`MainFix.tla` takes the steps MainRed.tla folds into one, `reverts` and `fixes`, and gives each write its own step, as the code of main aa5469d97 (2026-11-11) makes them.
+A pass can die between any two writes, and the disk and GitHub keep what was written.
+It has one variable for each carrier of the st-state-ledger's MainFix rows, and each variable's comment quotes the code that writes it:
+
+- B-023, the revert's brief `tasks/revert-<n>-<branch>.md` (`revertBrief`): GitHub opens the revert, then jbus writes its brief, its record in `reverts.json` and its line in `events.jsonl` (`jbus/reverts.py` `revert`).
+- B-028, main's fix brief `tasks/main-red-<sha>.md` and its queue row (`fix`): the brief, then `queue.add` (`jbus/watch.py` `_file`).
+- B-029, the Mac's fix row `macos-red-<sha>` (`macFix`): the same (`jbus/reverts.py` `_mac_file`).
+- B-030, B-031 and B-032, the runs each nightly has seen, `browser-runs.json`, `macos-nightly-runs.json` and `scheduled-<stem>-runs.json` (`browserSeen`, `macosSeen`, `scheduledSeen`): the day's row, then the run kept as seen (`jbus/watch.py` `_nightly_red`).
+
+A pass judges the Mac, then main, then reads each nightly, as steps 9, 12 and 40 run.
+`World` names the faults of the world the model lets in past a pass that dies: GitHub refuses or does not answer (`"refuses"`), a hand turns a red green (`"hand"`), or a nightly's red run is more than three days old when a pass first reads it (`"late"`).
+`Watched` names the nightlies the model runs.
+Each condition the code checks quotes it.
+`features/jbus/tests/test_main_fix_spec.py` finds each backticked quote of the spec once, in the file named last before it, and checks that each carrier has its variable.
+The conditions with no cite are the world's steps and the pass's own place in its steps, which no code checks.
+
+### Check the rules of main's fix
+
+```sh
+cd features/jbus/spec
+java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -config MainFix.cfg MainFix.tla
+```
+
+Run it in a copy of this folder, since TLC writes `states/` where it runs.
+`MainFix.cfg` is today's code with a pass that dies and no other fault, watching all three nightlies, and every rule holds over 1244712 distinct states:
+
+- `FiledWhole`: after any crash, a red tip has a fix row and its brief, or neither, by the next pass: main's red tip, its Mac's, and each red nightly run.
+- `RevertKnown`: an open revert on GitHub has its `reverts.json` record by the next pass, since jmerge merges and `reverts.close` closes only a revert on record.
+- `RefinesMainRed`: each step is MainRed's `reverts` or `fixes` step, or leaves both as they are, where MainRed's `reverts` is the record and its `fixes` are the red tips whose main fix row the queue holds.
+  It also holds with `World = {"refuses"}`, over 12557140 distinct states, which takes about a minute.
+
+The canary, `Fault = "no-reopen-check"`, is `opened` not asking GitHub for the revert's branch, and `RevertKnown` breaks: a pass opens the revert and dies, and the next pass files a fix row in its place.
+The comment in `MainFix.cfg` keeps the breaks TLC finds past that config, each with its trace, and the test's `FINDINGS` checks that each still breaks:
+
+- `RevertSaid` (jbus says each revert it opened) breaks on a crash alone: a pass that dies between `reverts.json` and `events.jsonl` leaves the revert with no line, and every later pass reads it as its own.
+- `RevertKnown` breaks with `"hand"`: a revert opened by a pass that died, then a green, is never recorded, so it stays open.
+  With `"refuses"` it is recorded a pass late.
+- `FiledWhole` breaks with `"refuses"`, where a brief written while GitHub did not answer stays when the next pass reverts instead, and with `"late"`, where a nightly's brief stays with no row once its run is stale.
+
+### Draw the chart of main's fix
+
+```sh
+S=$PWD/features/skill-library/skills/statechart/scripts
+D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
+W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainFix.* "$W"
+(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+    statechart from-spec MainFix.tla --config MainFix.chart.cfg --expect-broken FiledWhole,RevertKnown,RevertSaid \
+    --title "Main went red: what has jbus filed when a pass dies?" --out out --png)
+```
+
+Run it from the repo root, then copy the files of `$W/out` into `MainFix-statechart/`, all except `tlc/`.
+`MainFix.chart.cfg` draws main and its Mac with `World = {"refuses", "hand"}` and no nightly, 11175 distinct states, in about a minute.
+Even one nightly in that world is 260448 states, too many to draw, so the nightlies are checked by `MainFix.cfg` and not drawn.
+Each of its three broken rules draws a `bug-N` chart, and `stories.md` tells each one.
+
+### What the main-fix model leaves out
+
+- A second red, its culprit and its revert, and the revert's holders: MainRed.tla has them.
+- `reverts.close` and `_withdraw`, which take a revert or a fix row back once main is green, and the revert MainRed calls stuck.
+- `_add_tip`: a red tip that fails as an open fix row does goes into that row's brief, and files no row of its own.
+- A queue that refuses a brief (`Refused`): the brief stays with no row, and the home is told of it as a condition.
+- A project's first pass, a run whose jobs or logs GitHub has not given yet (`NIGHTLY_GRACE`), a red run whose failures are both shots and more, and a row removed from the queue.
+- What `_nightly_red` keeps of a run that files nothing, which it writes at the loop's end: the model writes it at once, since the next pass reads the same runs and keeps the same.

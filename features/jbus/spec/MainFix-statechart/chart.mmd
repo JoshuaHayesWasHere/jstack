@@ -1,0 +1,102 @@
+---
+title: "Main went red: what has jbus filed when a pass dies?"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group0Wrong fill:#d1f2eb,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group1 fill:#d6eaf8,stroke:#6b757c,color:#1b2631
+  classDef group2 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  state "Legend" as legend {
+    state "Between passes" as legendGroup0
+    state "In a pass" as legendGroup1
+    state "After a pass died" as legendGroup2
+    state "Wrong today" as legendWrong
+  }
+  class legendGroup0 group0
+  class legendGroup1 group1
+  class legendGroup2 group2
+  class legendWrong plainWrong
+  state "Main red, between passes" as g0 {
+    state "a revert open on GitHub,<br/>not on record; main: its<br/>fix row queued" as s0
+    state "no revert; main: no fix<br/>brief" as s1
+  }
+  state "Main red, jbus in a pass" as g1 {
+    state "a revert open on GitHub,<br/>not on record; main: a fix<br/>brief with no row" as s2
+    state "a revert open on GitHub,<br/>not on record; main: no<br/>fix brief" as s3
+    state "no revert; main: no fix<br/>brief" as s4
+  }
+  state "Main's Mac red, after a<br/>pass that died" as g2 {
+    state "a revert on record, never<br/>said; main's Mac: no fix<br/>brief" as s5
+    state "a revert open on GitHub,<br/>not on record; main's Mac:<br/>no fix brief" as s6
+    state "no revert; main's Mac: a<br/>fix brief with no row" as s7
+  }
+  state "Main's Mac red, between<br/>passes" as g3 {
+    state "a revert on record, never<br/>said; main's Mac: no fix<br/>brief" as s8
+    state "a revert open on GitHub,<br/>not on record; main's Mac:<br/>a fix brief with no row" as s9
+    state "no revert; main's Mac: no<br/>fix brief" as s10
+  }
+  state "Main's Mac red, jbus in a<br/>pass" as g4 {
+    state "a revert on record, never<br/>said; main's Mac: no fix<br/>brief" as s11
+    state "a revert open on GitHub,<br/>its brief written, not on<br/>record; main's Mac: no fix<br/>brief" as s12
+    state "a revert open on GitHub,<br/>not on record; main's Mac:<br/>a fix brief with no row" as s13
+    state "a revert open on GitHub,<br/>not on record; main's Mac:<br/>no fix brief" as s14
+    state "no revert; main's Mac: a<br/>fix brief with no row" as s15
+    state "no revert; main's Mac: no<br/>fix brief" as s16
+  }
+  state "Main green, between<br/>passes: no revert" as s17
+  state "Main red, after a pass<br/>that died: a revert open<br/>on GitHub, not on record;<br/>main: no fix brief" as s18
+  state "Main red, then green<br/>again, after a pass that<br/>died: a revert open on<br/>GitHub, not on record" as s19
+  state "Main red, then green<br/>again, between passes: a<br/>revert open on GitHub, not<br/>on record" as s20
+  state "Main red, then green<br/>again, jbus in a pass: a<br/>revert open on GitHub, not<br/>on record" as s21
+  [*] --> s17
+  s17 --> s1 : a merge turns main red
+  s17 --> s10 : a merge turns main's Mac red
+  s1 --> s4 : a pass starts
+  s10 --> s16 : a pass starts
+  s16 --> s15 : jbus writes the fix brief
+  s16 --> s14 : jbus opens the revert on<br/>GitHub
+  s15 --> s7 : the pass dies
+  s4 --> s3 : jbus opens the revert on<br/>GitHub
+  s14 --> s6 : the pass dies
+  s14 --> s12 : jbus writes the revert's brief
+  s7 --> s15 : a pass starts
+  s3 --> s18 : the pass dies
+  s6 --> s19 : you run a red check again, and<br/>it passes or a pull request<br/>merges, a fix row's or one you<br/>merge, and main's Mac turns<br/>green
+  s12 --> s11 : jbus records the revert in<br/>reverts.json
+  s18 --> s3 : a pass starts
+  s19 --> s21 : a pass starts
+  s11 --> s5 : the pass dies
+  s5 --> s11 : a pass starts
+  s15 --> s13 : jbus opens the revert on<br/>GitHub
+  s21 --> s20 : jbus finds main green
+  s3 --> s2 : jbus writes the fix brief
+  s11 --> s8 : jbus finds main green
+  s13 --> s9 : jbus finds main green
+  s2 --> s0 : jbus queues the fix row
+  class s17 group0
+  class s18 group2
+  class s0 group0Wrong
+  class s1 group0
+  class s2 group1
+  class s3 group1
+  class s4 group1
+  class s19 group2
+  class s20 group0Wrong
+  class s21 group1
+  class s5 group2
+  class s6 group2
+  class s7 group2
+  class s8 group0Wrong
+  class s9 group0Wrong
+  class s10 group0
+  class s11 group1
+  class s12 group1
+  class s13 group1
+  class s14 group1
+  class s15 group1
+  class s16 group1
