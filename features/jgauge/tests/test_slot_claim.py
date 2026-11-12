@@ -64,11 +64,16 @@ def test_jbus_wakes_a_waiter_for_each_slot_a_take_finds_spare(machine, monkeypat
         now = datetime.now(UTC)
         spare = slot.spare(lane, waiters.read(machine.locks), now)
         assert spare == 2 - held - claimed
-        told = []
+        told, resent = [], []
+
+        def tell(run, client, one, again=False):
+            (resent if again else told).append(one.thread)
+
         monkeypatch.setattr(slotwait, "dead", lambda run, client, one: False)
-        monkeypatch.setattr(slotwait, "tell", lambda run, client, one: told.append(one.thread))
+        monkeypatch.setattr(slotwait, "tell", tell)
         slotwait.wake(SimpleNamespace(now=now, say=lambda line: None), None)
         assert len(told) == max(spare, 0)
+        assert sorted(resent) == [f"mcp:woken-{n}" for n in range(claimed)]
         took = slot.take(lane, "mcp:taker", ["echo"])
         assert took is None
         if took is not None:
