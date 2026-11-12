@@ -2,10 +2,12 @@
 \* One row of jbus's queue, from `jbus queue add` to its end: the facts a pass reads of it, the
 \* status each pass works out again from them (work.py `def status(state: State) -> str:`) and
 \* writes (queue.py `new["status"] = work.kept(was, new["status"])`), and its go, beside it.
-\* No verb moves the status: a pass sees one fact change and writes the status the facts give,
-\* unless the row is over (work.py `def over(row: Mapping[str, Any]) -> bool:`): then it keeps
-\* it. Each status edge of this spec's state graph is a move of queue.py `MOVES: dict[tuple[str,
-\* str], str] = {`, and test_rowlife_spec.py fails when the two differ. The go is moved by verbs
+\* A pass sees one fact change and writes the status the facts give, unless the row is over
+\* (work.py `def over(row: Mapping[str, Any]) -> bool:`): then it keeps it. Two verbs move the
+\* status too, each with a line of its own: `remove`, and the add of a crewmate's brief over a
+\* scout's done row (`HandOver`). Each status edge of this spec's state graph but the hand-over's
+\* is a move of queue.py `MOVES: dict[tuple[str, str], str] = {`, and test_rowlife_spec.py fails
+\* when the two differ. The go is moved by verbs
 \* and rules of queue.py, each its own action. `statechart replay` walks jbus's
 \* `transitions.jsonl` over the graph (RowLife.trace.py), and fails on a line no step makes.
 \* Beside the status, each pass writes the row's line of work.json, whose value is the pattern
@@ -18,7 +20,8 @@ EXTENDS Naturals
 CONSTANT Fault
 \* "none" is the code. A canary takes a guard of the code out:
 \* "no-latch", derive writes the facts' status over a final one, as it did before work.kept;
-\* "settled-queued", `status` gives a settled thread's row `queued`, as `_THREAD` did before.
+\* "settled-queued", `status` gives a settled thread's row `queued`, as `_THREAD` did before;
+\* "any-hand-over", the hand-over takes a crewmate's done row too, not only a scout's.
 
 \* Each pass writes the status the facts give and appends the move to transitions.jsonl, marking
 \* one `MOVES` lacks `"legal": false` and writing it all the same (queue.py
@@ -41,6 +44,8 @@ Final == {"merged", "done"}
 \* are the user's words to jbus and jmerge, each its own record, and no step here; `answer` is
 \* a Grant by a rule, and `withdraw` a Remove.
 Gos == {"waiting", "approved", "behind", "held", "kept"}
+\* A row is added as a scout's request or a crewmate's brief (queue.py `def role(row: Row) -> str:`).
+Roles == {"scout", "crew"}
 
 \* The facts, as the facets of work.py `class Facts:` have them, each folded to what `status`
 \* tells apart.
@@ -73,6 +78,7 @@ Values == {"removed", "asking", "hung", "waiting", "merged", "leftover", "done",
 
 VARIABLES
     status,    \* queue.json's row status (queue.py `new["status"] = work.kept(was, new["status"])`)
+    role,      \* scout or crew, fixed at the add but for the hand-over
     go,        \* the row's go (queue.py `def _grant(`, `_hold`, `_lift`, `_void`)
     value,     \* work.json's line value for the row, which a pass writes (states.py
                \* `work.write(run.state, at, half.answered(), written)`) and each writer of a facet
@@ -87,11 +93,11 @@ VARIABLES
                \* gates.md, silence, cleared) is the question's record and moves no status: each
                \* is the question closing here.
     launched
-vars == <<status, go, value, thread, written, pull, question, launched>>
+vars == <<status, role, go, value, thread, written, pull, question, launched>>
 facts == <<thread, written, pull, question, launched>>
 
 TypeOK ==
-  /\ status \in Statuses /\ go \in Gos /\ value \in Values
+  /\ status \in Statuses /\ role \in Roles /\ go \in Gos /\ value \in Values
   /\ thread \in Threads /\ written \in Writtens /\ pull \in Pulls
   /\ question \in BOOLEAN /\ launched \in BOOLEAN
 
@@ -174,9 +180,10 @@ Restated(g) ==
   value' = IF status = "removed" THEN "removed"
            ELSE ValueOf(g, thread, written, pull, question, launched)
 
-\* An added row is queued, has no facts yet, and waits for its go.
+\* An added row is queued, has no facts yet, and waits for its go. A row keeps the role it was
+\* added with, but for the hand-over.
 Init ==
-  /\ status = "queued" /\ go = "waiting" /\ value = "unapproved"
+  /\ status = "queued" /\ go = "waiting" /\ value = "unapproved" /\ role \in Roles
   /\ thread = "none" /\ written = "none" /\ pull = "none" /\ question = FALSE /\ launched = FALSE
 
 \* The status region: one fact changes, and the pass derives.
@@ -189,19 +196,19 @@ Launch ==
   /\ ~launched /\ status = "queued"
   /\ go \in {"approved", "behind"}  \* dispatch.py `if not row.get("approved"):`, dispatch.py `if unmerged and on is None:`
   /\ Derive("starting", written, pull, question, TRUE)  \* watch.py `elif slug not in seen.gone:`
-  /\ UNCHANGED go
+  /\ UNCHANGED <<go, role>>
 
 \* T3 Code says something new of the row's thread.
 Thread ==
   /\ launched
   /\ \E t \in Threads \ {thread} : Derive(t, written, pull, question, launched)
-  /\ UNCHANGED go
+  /\ UNCHANGED <<go, role>>
 
 \* The crew writes a Result: clean, or one that leaves something.
 Write ==
   /\ launched
   /\ \E w \in Writtens \ {"none", written} : Derive(thread, w, pull, question, launched)
-  /\ UNCHANGED go
+  /\ UNCHANGED <<go, role>>
 
 \* GitHub lists the row's pull request: it opens, merges (also between two passes), or closes,
 \* and a closed one opens again. A pull request in neither of GitHub's lists is closed only while
@@ -218,12 +225,12 @@ Pull ==
                             <<"opening", "none">>, <<"opening", "open">>,
                             <<"opening", "merged">>}
        /\ Derive(thread, written, p, question, launched)
-  /\ UNCHANGED go
+  /\ UNCHANGED <<go, role>>
 
 \* jbus opens a question on the row, or the question closes.
 Ask ==
   /\ Derive(thread, written, pull, ~question, launched)
-  /\ UNCHANGED go
+  /\ UNCHANGED <<go, role>>
 
 \* The `remove` verb writes the line `removed`, and the pass never judges it. It refuses a row
 \* that is over. Its other refusals, a thread at work, an open or merged pull request, a launch
@@ -233,12 +240,22 @@ Remove ==
   /\ status \notin Final \cup {"removed"}
      \* queue.py `{verb.slug} is {row['status']}, and a row that is over stays`
   /\ status' = "removed" /\ value' = "removed"  \* work.py `row=_set(Row.REMOVED)`
-  /\ UNCHANGED <<go, facts>>
+  /\ UNCHANGED <<go, role, facts>>
+
+\* A crewmate's brief added at a scout's slug once its Report says done takes the row over: it is
+\* a crewmate's row, queued again with no go, since the scout's go was for the request, and with
+\* none of the scout's facts (queue.py `def _hand_over(`). The add writes the line `handed`.
+HandOver ==
+  /\ Fault = "any-hand-over" \/ role = "scout"  \* queue.py `return made == CREW and role(row) == SCOUT and over(row) and row.get("status") == "done"`
+  /\ status = "done"
+  /\ status' = "queued" /\ go' = "waiting" /\ role' = "crew" /\ value' = "unapproved"
+  /\ thread' = "none" /\ written' = "none" /\ pull' = "none" /\ question' = FALSE
+  /\ launched' = FALSE
 
 \* A pass with no fact changed writes the line and the status again, as every pass does.
 Pass ==
   /\ Derive(thread, written, pull, question, launched)
-  /\ UNCHANGED go
+  /\ UNCHANGED <<go, role>>
 
 \* The go region.
 
@@ -248,7 +265,7 @@ Pass ==
 Grant ==
   /\ go' \in {"approved", "behind"}  \* queue.py `def _grant(`
   /\ Restated(go')
-  /\ UNCHANGED <<status, facts>>
+  /\ UNCHANGED <<status, role, facts>>
 
 \* `add` gives an approved row new depends, and its go is free or behind. The write of the queue
 \* restates no approved facet beside another (restated.py
@@ -257,14 +274,14 @@ Grant ==
 Depends ==
   /\ go \in {"approved", "behind"}
   /\ go' \in {"approved", "behind"} \ {go}  \* queue.py `row.update(priority=verb.priority, depends=verb.depends, queued_by=ran_by or runner())`
-  /\ UNCHANGED <<status, value, facts>>
+  /\ UNCHANGED <<status, role, value, facts>>
 
 \* The last row the row depends on is over, and the pass that sees it writes the line: the go
 \* is free.
 Ahead ==
   /\ go = "behind" /\ go' = "approved"
   /\ Restated(go')
-  /\ UNCHANGED <<status, facts>>
+  /\ UNCHANGED <<status, role, facts>>
 
 \* `jbus queue hold` takes the go back, and with `keep` keeps the go it took. A held row may be
 \* held again, and keeps no go then.
@@ -273,14 +290,14 @@ Hold ==
   /\ \/ go' = "held"
      \/ go \in {"approved", "behind"} /\ go' = "kept"
   /\ Restated(go')
-  /\ UNCHANGED <<status, facts>>
+  /\ UNCHANGED <<status, role, facts>>
 
 \* `jbus queue lift` puts back the go a hold kept.
 Lift ==
   /\ go = "kept"  \* queue.py `took = (row.get("hold") or {}).get(TOOK) if row.get("held") else None`
   /\ go' \in {"approved", "behind"}
   /\ Restated(go')
-  /\ UNCHANGED <<status, facts>>
+  /\ UNCHANGED <<status, role, facts>>
 
 \* An unlaunched row whose go no longer holds waits for the user's go again: the entry's go that
 \* no longer holds, or a brief that now names a case of gates.md. A launched row keeps its go.
@@ -289,16 +306,18 @@ Void ==
   /\ status \in {"queued", "gate"}  \* queue.py `return not row.get("thread") and row.get("status", "queued") in UNLAUNCHED`
   /\ go' = "waiting"
   /\ Restated(go')
-  /\ UNCHANGED <<status, facts>>
+  /\ UNCHANGED <<status, role, facts>>
 
-Next == Launch \/ Thread \/ Write \/ Pull \/ Ask \/ Remove \/ Pass \/ Grant \/ Depends \/ Ahead
-        \/ Hold \/ Lift \/ Void
+Next == Launch \/ Thread \/ Write \/ Pull \/ Ask \/ Remove \/ HandOver \/ Pass \/ Grant \/ Depends
+        \/ Ahead \/ Hold \/ Lift \/ Void
 
 Spec == Init /\ [][Next]_vars
 
 \* A row that is over stays over: once `merged` or `done`, every reader of `work.over` (the queue,
-\* `watch.final`, jmerge) reads it over for good, and a `done` row may only become `merged`.
+\* `watch.final`, jmerge) reads it over for good, and a `done` row may only become `merged`. The
+\* one step out is a scout's done row that its crewmate's brief takes over, which makes it a
+\* crewmate's: a crewmate's row never leaves.
 FinalStays ==
-  [][ /\ (status \in Final => status' \in Final)
+  [][ /\ (status \in Final => status' \in Final \/ (role = "scout" /\ role' = "crew"))
       /\ (status = "merged" => status' = "merged") ]_vars
 ====

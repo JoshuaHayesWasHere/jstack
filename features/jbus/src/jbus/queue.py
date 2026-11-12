@@ -294,9 +294,12 @@ MOVES: dict[tuple[str, str], str] = {
 """Every move of a row's status that the work makes, one entry each: from a status, to a status
 (or `removed`, the line `remove` and `withdraw` write), with the change of facts that makes it.
 The table is the status edges of TLC's graph of `features/jbus/spec/RowLife.tla`, the moves one
-step of the model makes, and `test_rowlife_spec.py` fails when the two differ. No verb moves a row
-but `remove`: each pass works the status out again from the facts (`work.status`), so the table
-cannot drive a row as `item.MOVES` drives an item. It judges a move after the facts made it:
+step of the model makes but the hand-over's, and `test_rowlife_spec.py` fails when the two differ.
+No verb moves a row but `remove`, and the add of a crewmate's brief over a scout's done row, which
+takes it from `done` to `queued` with a line of its own marked `handed` (`_hand_over`): the table
+leaves that move out, so `derive` still marks a pass that writes it. Each pass works the status out
+again from the facts (`work.status`), so the table cannot drive a row as `item.MOVES` drives an
+item. It judges a move after the facts made it:
 `derive` marks each line of `transitions.jsonl` whose move it does not hold, and writes the
 status all the same, since the status is what the facts say, but for a row that is over: `derive`
 keeps it (`work.kept`), so no move leaves `merged` or `done` but `done` to `merged`, and `remove`
@@ -926,13 +929,26 @@ def role(row: Row) -> str:
 
 def _handed(row: Row, made: str) -> bool:
     """Return whether a crewmate's brief takes the row over: the row is a scout's whose Report
-    says done (`over`), and the scout delivered the brief at its own slug."""
-    return made == CREW and role(row) == SCOUT and over(row)
+    says done (`over`, and `done` rather than `merged`), and the scout delivered the brief at its
+    own slug."""
+    return made == CREW and role(row) == SCOUT and over(row) and row.get("status") == "done"
 
 
-def _hand_over(row: Row) -> None:
-    """Make a scout's finished row a crewmate's: it is queued again with no go, since its go was
-    for the request and not the brief."""
+def _hand_over(batch: _Batch, row: Row, by: str) -> None:
+    """Make a scout's done row a crewmate's: it is queued again with no go, since its go was for
+    the request and not the brief. The move is a line `{slug, from, to, by, at, handed}` of
+    `transitions.jsonl`, which the batch writes with its other lines, so the row's life is whole
+    in the log and `statechart replay` reads it as RowLife's `HandOver` (`RowLife.trace.py`)."""
+    batch.moves.append(
+        {
+            "slug": row["slug"],
+            "from": row.get("status", "queued"),
+            "to": "queued",
+            "by": by,
+            "at": jsettings.stamp(clock()),
+            "handed": True,
+        }
+    )
     for column in ("role", "approval", "held", "hold", CARRIED):
         row.pop(column, None)
     row.update(approved="", brief_sha="", **_blank())
@@ -2001,7 +2017,7 @@ def _do(
             found[0] if found else {"slug": verb.slug, "approved": "", "brief_sha": "", **_blank()}
         )
         if handed:
-            _hand_over(row)
+            _hand_over(batch, row, who(ran_by or runner()))
         if made == SCOUT:
             row["role"] = SCOUT
         if verb.item and row.get("item", verb.item) != verb.item:

@@ -7,7 +7,7 @@
 # left: leftover, closed; queued: unapproved, behind, ready; launched: launching), and
 # the value of a row that is over may say otherwise than its kept status, as a pull request that
 # opens on a done row shows `check`. The facts are joined too: a step names the one that changed.
-reader_actions = ["Grant", "Depends", "Hold", "Lift", "Remove"]
+reader_actions = ["Grant", "Depends", "Hold", "Lift", "Remove", "HandOver"]
 
 STATUS = {
     "queued": "queued (no launch yet)",
@@ -197,6 +197,8 @@ def step(action, before, after):
         return "you hold the approved row" if before["go"] == "approved" else "you hold the row"
     if action == "Remove":
         return f"you remove the row from {before['status']}"
+    if action == "HandOver":
+        return "the crewmate's brief the scout delivered takes its done row over, with no go"
     if action == "Grant":
         if after["go"] == "behind":
             return "you approve the row, behind a row it depends on"
@@ -347,6 +349,11 @@ arrows = {
     ("status", "review", "question", "Pull"): ("merge", "it closes while a question is open", None),
     ("status", "review", "final", "Pull"): ("merge", "the pull request merges", None),
     ("status", "review", "removed", "Remove"): ("you", "you remove it", None),
+    ("status", "final", "notlaunched", "HandOver"): (
+        "you",
+        "the crewmate's brief takes over the scout's done row, with no go",
+        "a scout's row, done",
+    ),
     ("go", "waiting", "approved", "Grant"): ("you", "you approve, or a rule gives its go", None),
     ("go", "waiting", "behind", "Grant"): (
         "you",
@@ -398,7 +405,8 @@ def seen(state=None):
     """{arrow or (lane, from, to): (count, where the count comes from)} for each move
     transitions.jsonl records. It records statuses, not what moved them, so a count between two
     superstates is on their arc, and one inside a superstate on its cell. A `queued` after the row
-    left `queued` or `gate` once is `requeued`. A file that is not there, or a line that does not
+    left `queued` or `gate` once is `requeued`, but for the hand-over's line (`handed`), which
+    starts the crewmate's row anew. A file that is not there, or a line that does not
     parse, counts as nothing. The logs are jbus's state folder, ~/.local/state/jbus unless `state`
     names another."""
     import collections
@@ -431,7 +439,9 @@ def seen(state=None):
         for t in sorted(ts, key=lambda t: str(t.get("at", ""))):
             stamps.append(str(t.get("at", "")))
             a = "requeued" if t["from"] == "queued" and launched else t["from"]
-            launched = launched or t["to"] not in ("queued", "gate", "removed")
+            launched = not t.get("handed") and (
+                launched or t["to"] not in ("queued", "gate", "removed")
+            )
             b = "requeued" if t["to"] == "queued" and launched else t["to"]
             x = "atwork" if a == "requeued" else SUPERSTATE[a]
             y = "atwork" if b == "requeued" else SUPERSTATE[b]

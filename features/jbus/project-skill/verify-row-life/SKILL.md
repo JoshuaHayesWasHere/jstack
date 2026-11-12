@@ -46,12 +46,12 @@ Rerun it when the diff touches a file of the record, a new writer of a row's sta
 uv run pytest features/jbus/tests/test_rowlife_spec.py -q
 ```
 
-It runs TLC in a copy of the spec folder and prints `6 passed` in a few seconds; it skips where no Java runs TLC.
+It runs TLC in a copy of the spec folder and prints `7 passed` in a few seconds; it skips where no Java runs TLC.
 The bare TLC command is in `features/jbus/spec/RowLife.md`, "Check the rule"; run it in a copy of the folder, since TLC writes `states/` where it runs.
 
-- **Bounds:** one row, `Fault = "none"`, 3092 distinct states, `TypeOK` and `FinalStays`.
-- **The canaries:** `Fault = "no-latch"` takes `work.kept` out, and `FinalStays` breaks (`test_a_derive_that_writes_over_a_final_status_breaks_the_rule`); `Fault = "settled-queued"` gives a settled thread's row `queued` again, and its graph has status edges `queue.MOVES` lacks.
-- **Assumptions:** a fact's change and the pass that sees it are one step (no restate drift between passes, no one-source pass); the facts are folded (an open pull request's eight steps are `check`, `quiet` is `working`); no clock, so `watch.unwritten`'s stale to left is out; no scout row and no `merge_after`.
+- **Bounds:** one row, a scout's or a crewmate's, `Fault = "none"`, 6184 distinct states, `TypeOK` and `FinalStays`.
+- **The canaries:** `Fault = "no-latch"` takes `work.kept` out, and `FinalStays` breaks (`test_a_derive_that_writes_over_a_final_status_breaks_the_rule`); `Fault = "any-hand-over"` lets the hand-over take a crewmate's done row, and `FinalStays` breaks (`test_a_hand_over_of_a_crewmates_done_row_breaks_the_rule`); `Fault = "settled-queued"` gives a settled thread's row `queued` again, and its graph has status edges `queue.MOVES` lacks.
+- **Assumptions:** a fact's change and the pass that sees it are one step (no restate drift between passes, no one-source pass); the facts are folded (an open pull request's eight steps are `check`, `quiet` is `working`); no clock, so `watch.unwritten`'s stale to left is out; a scout's row only as far as its role and the hand-over, and no `merge_after`.
   The rest is in the README's "What the model leaves out".
 
 ## A real bug or a modeling error
@@ -93,3 +93,6 @@ There `queue.MOVES` is the graph's status edges, so `Moves` and `MovesKnown` are
 So `Remove` guards on `status \notin Final \cup {"removed"}` alone, and `FinalStays` is again `status \in Final => status' \in Final`.
 `remove`'s other refusals, a thread at work, an open or merged pull request, a launch with no answer yet, read T3 Code and GitHub at the verb, not the facts a pass last saw, so the spec leaves them out (RowLife.md's "What the model leaves out"), and the graph keeps each removal a replayed log can show.
 `Depends`, `Pass` and #1724's `ValueOf` stand, and `FinalStays` holds over 3092 distinct states with each canary breaking its check.
+
+st-hand-over-line then gave the row a `role`, scout or crew, and a `HandOver` step, the add of a crewmate's brief over a scout's done row, which `queue._hand_over` writes as a line marked `handed`.
+`FinalStays` lets a scout's done row leave only by it (`status' \in Final \/ (role = "scout" /\ role' = "crew")`), and holds over 6184 distinct states with each canary breaking its check.

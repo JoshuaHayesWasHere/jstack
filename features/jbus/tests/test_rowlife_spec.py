@@ -1,7 +1,8 @@
 """The row's life as a TLA+ spec, `features/jbus/spec/RowLife.tla`: each status edge of TLC's
-graph of it is a move of `queue.MOVES`, and the table has no other, and TLC finds that a row that
-merged or is done never leaves, as the facts `work.status` reads change and `queue.derive` keeps a
-final status (`work.kept`). The TLC runs skip where no Java runs TLC."""
+graph of it but the hand-over's is a move of `queue.MOVES`, and the table has no other, and TLC
+finds that a crewmate's row that merged or is done never leaves, as the facts `work.status` reads
+change and `queue.derive` keeps a final status (`work.kept`), while a scout's done row leaves only
+for its crewmate's brief. The TLC runs skip where no Java runs TLC."""
 
 import importlib
 import re
@@ -24,13 +25,29 @@ tools = importlib.import_module("statechart.tools")
 replay = importlib.import_module("statechart.replay")
 
 
+def status_moves(graph) -> dict[str, set[tuple[str, str]]]:
+    """Each change of status one step of each action of the graph makes, by action."""
+    moves: dict[str, set[tuple[str, str]]] = {}
+    for was, steps in enumerate(graph.step):
+        for action, led in steps.items():
+            for now in (bit for bit in range(led.bit_length()) if led >> bit & 1):
+                if graph.vars[was]["status"] != graph.vars[now]["status"]:
+                    pair = (graph.vars[was]["status"], graph.vars[now]["status"])
+                    moves.setdefault(action, set()).add(pair)
+    return moves
+
+
 @pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
-def test_queue_moves_are_the_status_edges_of_the_spec_graph():
+def test_queue_moves_are_the_status_edges_of_the_spec_graph_but_the_hand_over():
     """Each move one step of the spec makes is a move of `queue.MOVES`, and the table has no
     other, so a move the model gains or drops, or one the code's table gains, fails here until the
-    other side takes it in."""
+    other side takes it in. The hand-over's `done` to `queued` is not the table's: `derive` marks a
+    pass that writes it, since only the add of a crewmate's brief makes it, with its own line."""
     graph = replay.dump_graph(str(SPEC / "RowLife.tla"), str(SPEC / "RowLife.cfg"), ())
-    assert graph.moves("status") == set(queue.MOVES)
+    moves = status_moves(graph)
+    assert moves.pop("HandOver") == {("done", "queued")}
+    assert set().union(*moves.values()) == set(queue.MOVES)
+    assert ("done", "queued") not in queue.MOVES
 
 
 def test_the_spec_has_each_status_of_the_queue():
@@ -92,6 +109,18 @@ def test_a_derive_that_writes_over_a_final_status_breaks_the_rule():
     `FinalStays`, so the facts can leave a final row, and the rule holds by the code's latch."""
     cfg = (SPEC / "RowLife.cfg").read_text().replace('Fault = "none"', 'Fault = "no-latch"')
     assert 'Fault = "no-latch"' in cfg
+    ran = tlc(cfg)
+    assert ran.returncode != 0
+    assert "FinalStays is violated" in ran.stdout, ran.stdout[-4000:]
+
+
+@pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
+def test_a_hand_over_of_a_crewmates_done_row_breaks_the_rule():
+    """The canary of the hand-over's guard: the spec with a crewmate's done row taken over too
+    (`Fault = "any-hand-over"`) breaks `FinalStays`, so only a scout's row may leave `done`, as
+    `queue._handed` lets only a scout's row be taken over."""
+    cfg = (SPEC / "RowLife.cfg").read_text().replace('Fault = "none"', 'Fault = "any-hand-over"')
+    assert 'Fault = "any-hand-over"' in cfg
     ran = tlc(cfg)
     assert ran.returncode != 0
     assert "FinalStays is violated" in ran.stdout, ran.stdout[-4000:]
