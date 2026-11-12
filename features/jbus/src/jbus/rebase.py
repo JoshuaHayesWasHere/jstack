@@ -77,10 +77,12 @@ has written the review, `github` sends the rebase message instead, whatever `jme
 that `jmerge` prints.
 
 A head still in conflict after its message is told again once for each tip of main it was not told
-at, under `rebase|<slug>|<head 12>|<main 12>` (`retell`): a crew that refused the message while its
-review ran, or held on its home's word, keeps its head, and the merge it waited for may be what
-lets its rebase through (#1710, 2026-11-11). The first message writes the key of the tip it went
-at, so the next one waits for main to move.
+at, under `rebase|<slug>|<head 12>|<main 12>`, or `conflict|...` before its review (`retell`): a
+crew that refused the message while its review ran, or held on its home's word, keeps its head,
+and the merge it waited for may be what lets its rebase through (#1710, 2026-11-11). The first
+message writes the key of its kind at the tip it went at, so the next one waits for main to move.
+A conflict told before the review stays out of `rebase|<slug>|`, so it is not the one rebase that
+a stale main at a later head would otherwise be refused after.
 
 No message comes when every check passed: the review came before the pull request opened
 (`jbus.prereview`), so a green pull request owes its crew no line."""
@@ -349,20 +351,27 @@ def github(run: Pass, client: Client, world: World) -> None:
         if not told:
             deliver(run, client, world, number, ready.CONFLICTS, ask)
         else:
-            retell(run, client, world, number, brief, ask)
+            retell(run, client, world, (slug, head, number), brief, ask)
 
 
-def retell(run: Pass, client: Client, world: World, number: int, brief: str, ask: Ask) -> None:
+def retell(
+    run: Pass, client: Client, world: World, pull: tuple[str, str, int], brief: str, ask: Ask
+) -> None:
     """Tell the crew of a pull request still in conflict at a head it was told of once more, at a
-    tip of main it was not told at, under `rebase|<slug>|<head 12>|<main 12>`. A crew whose
-    reviewer has not written (`reviewers.running`) is not told: it is not to rebase from under
-    its review. The outbox holds the message while the crew is at work, and a pass after its turn
-    sends it."""
+    tip of main it was not told at, under the key of its kind and that tip: `rebase|<slug>|<head
+    12>|<main 12>` after its review, `conflict|<slug>|<head 12>|<main 12>` before it, since only a
+    `rebase|<slug>|` key counts as the one rebase that `post` allows a stale main. The tip the
+    first message went at (`deliver`) is told under either kind no more. A crew whose reviewer has
+    not written (`reviewers.running`) is not told: it is not to rebase from under its review. The
+    outbox holds the message while the crew is at work, and a pass after its turn sends it."""
+    slug, head, number = pull
     tip = run.tip()
     if not tip or reviewers.running(brief):
         return
-    did = f"told the crew again, main at {tip[:12]}"
-    again = replace(ask, kind="rebase", did=did, doing="told to rebase", default=True, event=True)
+    sent = run.box.sent()
+    if any(mark(kind, slug, head, tip[:12]) in sent for kind in ("rebase", "conflict")):
+        return
+    again = replace(ask, did=f"told the crew again, main at {tip[:12]}", event=True)
     post(run, client, world, number, ready.CONFLICTS, again, window=tip[:12])
 
 
@@ -488,11 +497,11 @@ def ran_and_failed(run: Pass, world: World, pull: dict) -> Red:
 def deliver(run: Pass, client: Client, world: World, number: int, reason: str, ask: Ask) -> bool:
     """Send the crew of a pull request one message, once per head, and write an event of the ask's
     kind that says so. Say whether the message went. A rebase or conflict message that went also
-    writes the key of a retelling at main's tip (`retell`), so the crew is told again only once
-    main moves."""
+    writes the key of its kind at main's tip (`retell`), so the crew is told again only once main
+    moves."""
     went = post(run, client, world, number, reason, replace(ask, event=True))
     if went and ask.kind in ("rebase", "conflict") and (tip := run.tip()):
-        run.box.mark(mark("rebase", went[0], went[1], tip[:12]))
+        run.box.mark(mark(ask.kind, went[0], went[1], tip[:12]))
     return bool(went)
 
 
