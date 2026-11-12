@@ -123,7 +123,7 @@ The canaries break their rule: `Fault = "close-twice"` (a close run again after 
 ```sh
 S=features/skill-library/skills/statechart/scripts
 cd features/home/spec
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "../../../$S" \
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
     statechart from-spec PlanScope.tla --config PlanScope.chart.cfg \
     --expect-broken EntryOnce,FixCountedWhereRead --title "A plan entry and a scope's retire: is any work lost?" --png
 ```
