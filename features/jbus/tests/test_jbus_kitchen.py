@@ -451,7 +451,7 @@ def fake_gh(stub, args, cwd):
     file. A pull request marked `old` is outside that window, and `pr view` still finds it by
     its number, or ends as the real command does for a number it cannot resolve. `head-now.json`
     is a head pushed since the list was given, and only a view shows it. `run rerun` starts a
-    run again and says nothing, or fails when `gh-no-rerun` is there.
+    run again and `run cancel` cancels one, each saying nothing; a rerun fails with `gh-no-rerun`.
 
     `pr edit` changes nothing and says nothing: the log is its record. With `gh-edit-refused`
     there, it fails and says nothing.
@@ -588,8 +588,8 @@ def fake_gh(stub, args, cwd):
         if "&event=push" in args[1]:
             listed = [r for r in listed if r["event"] == "push"]
         said = json.dumps({"workflow_runs": listed})
-    elif args[:2] == ["run", "rerun"]:
-        if (stub / "gh-no-rerun").exists():
+    elif args[:2] in (["run", "rerun"], ["run", "cancel"]):
+        if args[1] == "rerun" and (stub / "gh-no-rerun").exists():
             return 1, "", "run cannot be rerun\n"
         said = ""
     elif args[:2] == ["api", "rate_limit"]:
