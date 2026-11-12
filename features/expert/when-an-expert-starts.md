@@ -53,11 +53,15 @@ A `[home]` line the session-start hook put in this thread does not apply: it was
    ```json
    {"action": "unpin", "threadId": "<thread>"}
    ```
-4. See to the webhook. An ask from another thread comes in through it, and it has to be made here: one made for this expert by another thread starts a new thread on each request.
+4. See to the webhook.
+   An ask from another thread comes in through it, and it has to be made here: one made for this expert by another thread starts a new thread on each request.
 
-   A call and the block that keeps what it returned are two calls, and a turn can stop between any two. So this step never trusts `$E/webhook` alone: each time, it reads what T3 Code has live, compares it with the record, and does the one call that closes the gap. A start that finds the work half done finishes it, and a second start finds nothing to do.
+   A call and the block that keeps what it returned are two calls, and a turn can stop between any two.
+   So this step never trusts `$E/webhook` alone: each time, it reads what T3 Code has live, compares it with the record, and does the one call that closes the gap.
+   A start that finds the work half done finishes it, and a second start finds nothing to do.
 
-   Call the `t3-code` server's `list_scheduled_tasks` (if your harness defers it, load it first) with no arguments. Then run this with the block at the top, with this thread's id in place of `<threadId>`, the whole reply in place of the line in angle brackets, and nothing in place of `<the ids a call was refused for>`:
+   Call the `t3-code` server's `list_scheduled_tasks` (if your harness defers it, load it first) with no arguments.
+   Then run this with the block at the top, with this thread's id in place of `<threadId>`, the whole reply in place of the line in angle brackets, and nothing in place of `<the ids a call was refused for>`:
 
    ```sh
    ME='<threadId>'
@@ -107,13 +111,22 @@ A `[home]` line the session-start hook put in this thread does not apply: it was
    esac
    ```
 
-   Its first word is what to do, and it prints no address. `keep`: the step is done. Any other word names one call below. After that call, whatever it answered, call `list_scheduled_tasks` again and run this block again with the new reply, until it prints `keep`.
+   Its first word is what to do, and it prints no address.
+   `keep`: the step is done.
+   Any other word names one call below.
+   After that call, whatever it answered, call `list_scheduled_tasks` again and run this block again with the new reply, until it prints `keep`.
 
-   - `delete <id>`: a task with this expert's title that the record does not keep, left by a turn that stopped before it kept what a create returned, whichever thread that turn ran in. Or it is the webhook the record keeps, with no `$E/webhook.url`: its address was in a reply that is gone. Delete it.
-   - `create`: no task the record names is live. Create one, then keep it.
-   - `take <id>`: the webhook the record keeps posts into another thread. The block has written this thread into the record first, so a turn that stops after the call leaves a record that says where the webhook posts. Take it over.
+   - `delete <id>`: a task with this expert's title that the record does not keep, left by a turn that stopped before it kept what a create returned, whichever thread that turn ran in.
+     Or it is the webhook the record keeps, with no `$E/webhook.url`: its address was in a reply that is gone.
+     Delete it.
+   - `create`: no task the record names is live.
+     Create one, then keep it.
+   - `take <id>`: the webhook the record keeps posts into another thread.
+     The block has written this thread into the record first, so a turn that stops after the call leaves a record that says where the webhook posts.
+     Take it over.
 
-   A call that is refused, other than a delete that answers that there is no such task, puts its id in `<the ids a call was refused for>`, separated by spaces, for the rest of this turn. The block then leaves that task alone, as if it were not listed: a take that is refused is followed by a create.
+   A call that is refused, other than a delete that answers that there is no such task, puts its id in `<the ids a call was refused for>`, separated by spaces, for the rest of this turn.
+   The block then leaves that task alone, as if it were not listed: a take that is refused is followed by a create.
 
    **Delete it** with the `t3-code` server's `delete_scheduled_task` (if your harness defers it, load it first), with the id the block printed:
 
@@ -143,7 +156,11 @@ A `[home]` line the session-start hook put in this thread does not apply: it was
 
    Leave `bindToCurrentThread` out: each run then posts into this thread. The call returns the id as `scheduledTaskId`, and the address as `webhookUrl`.
 
-   Then keep what it returned. Run this with the block at the top, with the two values the call returned and this thread's id in their places. A call that returned no `webhookUrl` gets nothing in that place. It writes the address before the record, and an empty `$E/webhook.url` where there is none, so a record whose webhook has no such file lost its address. A turn that stops between the two writes leaves a webhook the record does not keep, which the next run of the block above deletes, and an address that the next create's keep writes over.
+   Then keep what it returned.
+   Run this with the block at the top, with the two values the call returned and this thread's id in their places.
+   A call that returned no `webhookUrl` gets nothing in that place.
+   It writes the address before the record, and an empty `$E/webhook.url` where there is none, so a record whose webhook has no such file lost its address.
+   A turn that stops between the two writes leaves a webhook the record does not keep, which the next run of the block above deletes, and an address that the next create's keep writes over.
 
    ```sh
    ME='<threadId>'
