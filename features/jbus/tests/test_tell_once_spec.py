@@ -96,15 +96,19 @@ def test_each_carrier_of_the_ledger_is_a_variable():
 
 def tlc(fault: str) -> str:
     """TLC's output for TellOnce.cfg with `Fault = fault`, run on past each broken rule
-    (`-continue`) in a copy of the spec's folder, as the spec's README runs it."""
+    (`-continue`) in a copy of the spec's folder, as the spec's README runs it. Java's tmpdir is the
+    run's own too: TLC writes Naturals.tla and the other standard modules there under fixed names,
+    and a run that shares /tmp can parse one while another rewrites it."""
     found = tools.find_tlc()
     cfg = (SPEC / "TellOnce.cfg").read_text()
     assert 'Fault = "none"' in cfg
     with tempfile.TemporaryDirectory(prefix="tell-once-") as folder:
         work = Path(folder)
+        (work / "tmp").mkdir()
         shutil.copy(SPEC / "TellOnce.tla", work)
         (work / "TellOnce.cfg").write_text(cfg.replace('Fault = "none"', f'Fault = "{fault}"'))
-        command = [found.java, "-Xmx512m", "-cp", found.jar, "tlc2.TLC", "-workers", "1"]
+        command = [found.java, f"-Djava.io.tmpdir={work / 'tmp'}"]
+        command += ["-Xmx512m", "-cp", found.jar, "tlc2.TLC", "-workers", "1"]
         command += ["-continue", "-metadir", str(work / "meta"), "-config", "TellOnce.cfg"]
         ran = subprocess.run(
             tools.in_test_slot([*command, "TellOnce.tla"]),

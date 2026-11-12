@@ -6,5 +6,8 @@
     "maintain-verification-skill",
     "make-bot-ui",
     "retro"
+  ],
+  "projectSkills": [
+    "project-skill/verify-output-folder"
   ]
 }

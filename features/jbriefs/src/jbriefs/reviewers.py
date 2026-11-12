@@ -74,3 +74,27 @@ def running(text: str) -> bool:
         elif not (kind == "Reviewer" and numbered):
             plain += 1
     return bool(seats or plain or scoped)
+
+
+def not_run(text: str, head: str, why: str, by: str = "", scope: str = "") -> str:
+    """The `## Review` a reviewer writes when it stops before its review, to append to the brief
+    `text`: `Verdict: not run` at `head`, with its `By:` line and, on a scoped pass, its `Scope:`
+    line, so `running` stops waiting on its seat and the crew may rebase. Empty where the brief
+    already ends in that same section, so a stop sent twice writes one."""
+    by = f"By: {by.removeprefix('By:').strip()}" if by.strip() else ""
+    lines = text.splitlines()
+    headings = [at for at, line in enumerate(lines) if line.startswith("## ")]
+    if headings and lines[headings[-1]].rstrip() == "## Review":
+        last = lines[headings[-1] + 1 :]
+        said = {line.partition(":")[0]: line for line in last}
+        if (
+            said.get("Verdict", "").strip() == "Verdict: not run"
+            and said.get("Head", "").split()[1:2] == [head]
+            and said.get("By", "").strip() == by
+        ):
+            return ""
+    section = ["## Review", by, "Verdict: not run", scope.strip(), f"Why: {why.strip()}"]
+    section += [f"Head: {head}   Unchanged by the review: not checked, no review ran"]
+    section += ["Sent to: not sent, no review ran"]
+    lead = "\n" if text and not text.endswith("\n") else ""
+    return lead + "\n" + "\n".join(one for one in section if one) + "\n"

@@ -1,5 +1,8 @@
-"""`statechart site` writes one page that explores every committed chart: each chart and each of
-its states is on it, it fetches nothing when viewed, and it shows each chart's stories."""
+"""`statechart site`, which `make charts` runs, writes one page that explores every committed chart:
+each chart and each of its states is on it, it fetches nothing when viewed, and it shows each
+chart's stories. Beside the page it draws a PNG and an Excalidraw scene of each chart. The PNGs
+come from npx's mermaid-cli, which needs Node and a browser, so a stand-in for npx draws them here
+outside the tests marked `browser`."""
 
 import contextlib
 import fcntl
@@ -17,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from statechart_support import DOOR_MAP, lib, needs_tlc, node, read, run_door, write
+from statechart_support import DOOR_MAP, lib, needs_tlc, node, read, run_door, statechart_cli, write
 from testing.paths import REPO
 
 chart_site = importlib.import_module("statechart.site")
@@ -39,10 +42,40 @@ def declared_states(chart):
 
 
 FLOW = REPO / "features" / "home" / "docs" / "charts" / "flow.toml"
+NPX = """#!/bin/sh
+[ -n "$NPX_FAILS" ] && { echo "mermaid-cli failed" >&2; exit 1; }
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -o) case "$2" in
+      *.svg) echo '<svg viewBox="0 0 400 300"></svg>' > "$2" ;;
+      *) echo png > "$2" ;;
+    esac ;;
+  esac
+  shift
+done
+"""
 
 
-def site(root, out, *extra):
-    return node("statechart", ["site", "--out", str(out), "--root", str(root), *extra], root)
+STAND_IN = {}
+
+
+@pytest.fixture(autouse=True, scope="module")
+def stand_in_npx(tmp_path_factory):
+    """A stand-in for npx, which draws a PNG without Node or a browser, in a folder of its own."""
+    folder = tmp_path_factory.mktemp("npx")
+    write(folder / "npx", NPX, 0o755)
+    STAND_IN["bin"] = folder
+
+
+def site(root, out, *extra, env=None):
+    """Runs `statechart site` on the charts under `root`, with the stand-in npx first on PATH."""
+    path = f"{STAND_IN['bin']}{os.pathsep}{os.environ['PATH']}"
+    return node(
+        "statechart",
+        ["site", "--out", str(out), "--root", str(root), *extra],
+        root,
+        {"PATH": path, **(env or {})},
+    )
 
 
 def test_the_page_opens_on_a_map_of_every_chart_and_how_they_hand_off(tmp_path):
@@ -64,10 +97,12 @@ def test_the_page_opens_on_a_map_of_every_chart_and_how_they_hand_off(tmp_path):
         "TellOnce": "A thing jbus does once",
         "MainFix": "The fix and revert jbus files",
         "CrewProof": "A crew&#x27;s proof on its brief",
+        "GreenMove": "The green copy of jstack",
     }
     for name, thing in things.items():
         assert f'data-chart="{name}"' in flow and thing in flow, name
-    handoffs = re.findall(r"<li>(.*?)</li>", flow)
+    listed = re.search(r'<ol class="handoffs">.*?</ol>', flow, re.S)[0]
+    handoffs = re.findall(r"<li>(.*?)</li>", listed)
     assert len(handoffs) >= 5
     for item in handoffs:
         ends = re.findall(r'class="go" data-chart="(\w+)"', item)
@@ -102,7 +137,15 @@ def test_the_page_holds_each_committed_chart_and_each_of_its_states(tmp_path):
     assert r.returncode == 0, r.stderr
     page = read(out)
     names = {c.parent.name.removesuffix("-statechart") for c in CHARTS}
-    assert names >= {"HomeTreeToday", "RowLife", "MainRed", "ThreadLife", "PrVerdict", "FlowToday"}
+    assert names >= {
+        "HomeTreeToday",
+        "RowLife",
+        "MainRed",
+        "ThreadLife",
+        "PrVerdict",
+        "FlowToday",
+        "GreenMove",
+    }
     for chart in CHARTS:
         name = chart.parent.name.removesuffix("-statechart")
         assert f'class="tab" role="tab" data-chart="{name}"' in page
@@ -113,7 +156,80 @@ def test_the_page_holds_each_committed_chart_and_each_of_its_states(tmp_path):
             assert page.count(f'id="{name}-{state_id}"') == 1, (name, state_id)
             assert html.escape(caption, quote=True) in page or caption in page, (name, caption)
     total = sum(len(declared_states(c)) for c in CHARTS)
-    assert r.stdout == f"wrote {out}: {len(CHARTS)} charts, {total} states\n"
+    bugs = len(list(REPO.glob("features/*/spec/*-statechart/bug-*.mmd")))
+    assert r.stdout == (
+        f"wrote {out}: {len(CHARTS)} charts, {total} states\n"
+        f"wrote {len(CHARTS) + bugs} PNGs and {2 * len(CHARTS)} Excalidraw scenes beside it\n"
+    )
+
+
+def cfg_bounds(cfg):
+    """The constants a cfg sets, as `Name = value`, its canary switch at "none" left out, and
+    the names of its CONSTRAINT lines."""
+    text = read(cfg)
+    constants = re.findall(r"^\s*(?:CONSTANT\s+)?(\w+)\s*=\s*(.+?)\s*$", text, re.M)
+    return [f"{k} = {v}" for k, v in constants if v != '"none"'], re.findall(
+        r"^CONSTRAINT\s+(\w+)", text, re.M
+    )
+
+
+@pytest.mark.parametrize("chart", CHARTS, ids=lambda chart: chart.parent.name)
+def test_each_charts_tab_says_what_the_model_covers_and_that_the_chart_joins_its_states(
+    chart, tmp_path
+):
+    """A reader must not take a chart for every path of the code: its tab names the cfg's bounds,
+    the model's and the chart's counts, and says the chart joins what a user cannot tell apart."""
+    out = tmp_path / "index.html"
+    assert site(REPO, out, "--flow", str(FLOW)).returncode == 0
+    name = chart.parent.name.removesuffix("-statechart")
+    panel = re.search(
+        rf'<section class="chart-panel" data-chart="{name}".*?</header>', read(out), re.S
+    )[0]
+    cover = html.unescape(re.search(r'<div class="coverage">(.*?)</div>', panel, re.S)[1])
+    summary = json.loads(read(chart.parent / "summary.json"))
+    command = summary["drawnFrom"]["command"]
+    cfg = re.search(r"--config (\S+)", command)
+    cfg = cfg[1] if cfg else f"{name}.cfg"
+    assert cfg in cover, cover
+    constants, constraints = cfg_bounds(chart.parent.parent / cfg)
+    for bound in [*constants, *constraints]:
+        assert bound in cover, (bound, cover)
+    flat = summary.get("regions", {}).get("flat", {}) if summary["regions"].get("drawn") else {}
+    for count in (
+        summary["modelStates"],
+        summary["modelTransitions"],
+        flat.get("states", summary["chartStates"]),
+        summary["chartStates"],
+        summary["chartTransitions"],
+    ):
+        assert f"{count:,}" in cover, (count, cover)
+    assert "joins the model states a user cannot tell apart" in cover, cover
+
+
+def test_the_overview_lists_the_models_with_no_chart_and_the_state_no_model_has(tmp_path):
+    out = tmp_path / "index.html"
+    assert site(REPO, out, "--flow", str(FLOW)).returncode == 0
+    flow = re.search(r'<section class="flow-panel".*?</section>', read(out), re.S)[0]
+    uncharted = re.search(r'<ul class="uncharted">(.*?)</ul>', flow, re.S)[1]
+    charted = {c.parent.name.removesuffix("-statechart") for c in CHARTS}
+    models = {p.stem for p in REPO.glob("features/*/spec/*.tla")}
+    listed = re.findall(r"<li><code>[\w/]+/(\w+)\.tla</code>: \S", uncharted)
+    assert sorted(listed) == sorted(models - charted), uncharted
+    unmodeled = html.unescape(re.search(r'<ul class="unmodeled">(.*?)</ul>', flow, re.S)[1])
+    for what in ("MCP session", "plan entry"):
+        assert what in unmodeled, unmodeled
+
+
+def test_a_model_the_flow_file_neither_charts_nor_explains_stops_the_page(tmp_path):
+    lamp(tmp_path, "")
+    write(tmp_path / "features" / "lamp" / "spec" / "Switch.tla", "---- MODULE Switch ----\n====\n")
+    flow = tmp_path / "flow.toml"
+    write(flow, '[[chart]]\nname = "Lamp"\nthing = "A lamp"\n')
+    r = site(tmp_path, tmp_path / "index.html", "--flow", str(flow))
+    assert r.returncode == 2
+    assert "features/lamp/spec/Switch.tla has no chart" in r.stderr, r.stderr
+    write(flow, read(flow) + '[[uncharted]]\nmodel = "lamp/spec/Switch.tla"\nwhy = "a sketch"\n')
+    assert site(tmp_path, tmp_path / "index.html", "--flow", str(flow)).returncode == 0
 
 
 GROUP_MOST = 15
@@ -273,7 +389,7 @@ def test_the_page_says_how_many_steps_a_chart_draws_of_how_many_it_could(tmp_pat
 
 
 def test_the_page_fetches_nothing_when_it_is_viewed(tmp_path):
-    out = tmp_path / "index.html"
+    out = tmp_path / "charts" / "index.html"
     assert site(REPO, out).returncode == 0
     page = read(out)
     assert not re.search(r"<script[^>]*\bsrc=|<link\b|@import|url\(\s*['\"]?https?:", page)
@@ -327,16 +443,42 @@ def test_the_page_tells_a_charts_bug_paths_and_says_so_when_it_has_none(tmp_path
     assert "No bug paths" in read(out)
 
 
-def test_check_says_whether_the_written_page_is_the_one_the_charts_make(tmp_path):
-    folder = lamp(tmp_path, "")
-    out = tmp_path / "index.html"
-    assert site(tmp_path, out).returncode == 0
-    current = site(tmp_path, out, "--check")
-    assert (current.returncode, current.stdout) == (0, f"{out} is current\n")
-    write(folder / "chart.mmd", CHART.replace('"On"', '"Lit"'))
-    stale = site(tmp_path, out, "--check")
-    assert stale.returncode == 1
-    assert stale.stdout == f"{out} is stale: run statechart site --out {out}\n"
+def test_the_command_draws_a_png_and_an_excalidraw_scene_of_each_chart_beside_the_page(tmp_path):
+    folder = lamp(tmp_path / "repo", "")
+    write(folder / "bug-1.mmd", CHART)
+    before = sorted(p.name for p in folder.iterdir())
+    out = tmp_path / "charts" / "index.html"
+    r = site(tmp_path / "repo", out)
+    assert (r.returncode, r.stderr) == (0, "")
+    assert sorted(p.name for p in out.parent.iterdir()) == [
+        "Lamp-bug-1.png",
+        "Lamp.excalidraw",
+        "Lamp.overview.excalidraw",
+        "Lamp.png",
+        "index.html",
+    ]
+    assert sorted(p.name for p in folder.iterdir()) == before, "it wrote into the spec folder"
+    assert read(out.parent / "Lamp.png") == "png\n"
+    scene = tmp_path / "scene.excalidraw"
+    assert statechart_cli.main(["excalidraw", str(folder / "chart.mmd"), "--out", str(scene)]) == 0
+    assert read(out.parent / "Lamp.excalidraw") == read(scene)
+    groups = tmp_path / "groups.excalidraw"
+    assert statechart_cli.main(["overview", str(folder / "chart.mmd"), "--out", str(groups)]) == 0
+    assert read(out.parent / "Lamp.overview.excalidraw") == read(groups)
+    page = read(out)
+    assert '<a href="Lamp.png">PNG</a>' in page
+    assert '<a href="Lamp.excalidraw">Excalidraw</a>' in page
+
+
+def test_a_png_it_cannot_draw_exits_2_and_leaves_the_rest_written(tmp_path):
+    lamp(tmp_path / "repo", "")
+    out = tmp_path / "charts" / "index.html"
+    r = site(tmp_path / "repo", out, env={"NPX_FAILS": "1"})
+    assert r.returncode == 2
+    assert r.stderr == "could not draw Lamp.png: mermaid-cli failed\n"
+    assert r.stdout.endswith("wrote 0 PNGs and 2 Excalidraw scenes beside it\n")
+    assert (out.parent / "Lamp.excalidraw").is_file() and out.is_file()
+    assert not (out.parent / "Lamp.png").exists()
 
 
 BROWSER = os.environ.get("JSTACK_TEST_BROWSER", "")
@@ -521,7 +663,7 @@ def probed(tmp_path, screen):
         target, window = folder / "phone.html", (500, screen[1])
     command = [CHROMIUM, "--headless", "--no-sandbox", "--disable-gpu", "--hide-scrollbars"]
     command += [f"--user-data-dir={folder / 'profile'}", "--allow-file-access-from-files"]
-    command += [f"--window-size={window[0]},{window[1]}", "--virtual-time-budget=8000"]
+    command += [f"--window-size={window[0]},{window[1]}", "--virtual-time-budget=30000"]
     command += ["--dump-dom", target.as_uri()]
     with browser_lock(), tempfile.TemporaryDirectory(prefix="st-site-", dir="/tmp") as short:
         env = {**os.environ, "TMPDIR": short}

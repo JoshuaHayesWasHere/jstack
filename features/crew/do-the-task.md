@@ -82,7 +82,15 @@
               fi
               echo "$step: exit $said in $(($(date +%s) - started)) s, $lane lane"
               case $said in
-              0) [ -n "$clean" ] || echo "passed $step" >> "$steps" ;;
+              0)
+                  if [ -z "$clean" ] && [ -z "$(git status --porcelain)" ] && [ "$(git rev-parse HEAD)" = "$head" ]; then
+                      echo "passed $step" >> "$steps"
+                  elif [ -z "$clean" ]; then
+                      echo "$step: passed over work that $head does not have, so it is not kept"
+                      ran=76
+                      break
+                  fi
+                  ;;
               76)
                   ran=76
                   break
@@ -134,6 +142,8 @@
   The steps after the guards are the test files CI failed on that the block of "The failed files" kept in the worktree's `crew-failed-files` and that are in the worktree, so a fix head's `Checked:` line says exit 0 only once they pass there.
   A name leaves that list once its step passed at a committed head.
   A step that passed at a committed head is kept in the worktree's `crew-check-steps` (`git rev-parse --git-path crew-check-steps`), and a run of the block at the same head and base skips it, so a wait for a slot, or a call cut at its time limit, never starts the check over.
+  A step is kept only where the worktree was clean when the block began and is still clean at that head when the step ends: a call moved to the background lets the crew edit while a step runs, and a step that passed over such an edit is no pass at the head.
+  The block prints `<step>: passed over work that <head> does not have, so it is not kept`, starts no further step, and ends 76 with no `Checked:` line and no `running:` line: commit or drop the work first, then run the block again.
   `jmerge` merges a pull request only once its last `Checked:` line says the desk's check (`PART=touched`, a `PART=guards` line of an earlier head, or another repo's `jgauge check`) exited 0 at its head, or at a head whose patch the head carries unchanged (`ready.short_on_checked`): a missing line, a failure, a 124 and a line of a head whose patch changed since each hold it, until this block runs again at the head.
   Give the call a time limit of 10 minutes (`timeout: 600000` in Claude Code), and never send it to the background: a call that outlives 10 minutes is moved to the background, and each step's end then wakes the thread.
   So the block counts the time since it began and starts no step with less than `reserve` (120 s, the short lane's limit) left of its `budget` (540 s).
@@ -304,7 +314,7 @@
   ```
 
   It fetches the base each time, so it reads main as it is now and not as the worktree last saw it, and asks `git merge-tree` what GitHub's merge would: exit 0 is a head that merges cleanly, exit 1 a conflict.
-  On a conflict it starts the rebase of "A conflict", with its record and its `refs/jstack/pre-rebase` ref, so the rest is that section's: resolve the files with `jmerge --remake` for the generated ones, prove no line was lost, run the check block at the new head, and push with its lease.
+  On a conflict it starts the rebase of "A conflict", with its record and its `refs/jstack/pre-rebase` ref, so the rest is that section's: resolve the files with `jmerge --remake` for the generated ones, prove no line was lost, check the new head with the guard tests and the lint, and push with its lease.
   Then run this again: main may have moved once more while you rebased, and the pull request opens on the first run that prints `open it`.
   A link of a stack opens at once, since jbus moves it once its base merged ("A link that moved").
   So does a link jbus already moved onto main, whose `Stacked on:` line ends `at <merge>`, until its head holds that merge: until then its branch holds its base's commits too, and a rebase onto main would replay them, as "A conflict" says, so the block reads the line by the same rule that section does.

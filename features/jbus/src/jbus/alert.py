@@ -68,9 +68,9 @@ LASTING = {PASS: timedelta(minutes=2)}
 
 @dataclass
 class Streak:
-    """One streak, under its key, with `why` the cause of its last failure. Once `alerted` it is an
-    open item: `line` is what it says, and `owner` whose it is. `ends` is when a line raised once
-    leaves the list by itself."""
+    """One streak, under its key, with `why` the cause of its last failure and `once` the name
+    it was counted under, if any (`failed`). Once `alerted` it is an open item: `line` is what it
+    says, and `owner` whose it is. `ends` is when a line raised once leaves the list by itself."""
 
     key: str
     count: int
@@ -80,6 +80,7 @@ class Streak:
     line: str = ""
     ends: str = ""
     why: str = ""
+    once: str = ""
 
 
 def home(project: str, thread: str = "") -> str:
@@ -131,14 +132,20 @@ def failed(
     *,
     now: datetime | None = None,
     user: jsettings.Settings,
+    once: str = "",
 ) -> str | None:
     """Count one failure. From the count `after` on, once the streak's failures span the key's
-    `LASTING`, return the alert line on each call until the streak alerted (`raise_`)."""
+    `LASTING`, return the alert line on each call until the streak alerted (`raise_`).
+
+    A failure named by `once`, such as the end of a run whose record a pass reads again after it
+    died, is counted once: a call with the name the streak last counted counts nothing, and
+    returns what the counted call returned."""
     now = now or datetime.now(UTC)
     with locked(state, LOCK):
         one = streak(state, key) or Streak(key, 0, now.isoformat(), False)
-        one.count, one.why = one.count + 1, why
-        _keep(state, key, one)
+        if not once or one.once != once:
+            one.count, one.why, one.once = one.count + 1, why, once or one.once
+            _keep(state, key, one)
     lasted = now - datetime.fromisoformat(one.since)
     if one.count < after or one.alerted or lasted < LASTING.get(key, timedelta(0)):
         return None

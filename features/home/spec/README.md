@@ -43,11 +43,12 @@ So each run of a property ends in seconds with no cache: TLC carries each branch
 ```sh
 S=features/skill-library/skills/statechart/scripts
 cd features/home/spec
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "../../../$S" \
-    statechart from-spec HomeTreeToday.tla --png
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
+    statechart from-spec HomeTreeToday.tla
 ```
 
-It writes `HomeTreeToday-statechart/`: `chart.mmd` and `chart.png`, `stories.md` and `summary.json`.
+It writes `HomeTreeToday-statechart/`: `chart.mmd`, `stories.md` and `summary.json`.
+Its PNG, its Excalidraw scenes and the charts page are not committed: `make charts`, at the repo's root, draws them from the committed `chart.mmd` into a folder git ignores, and prints the page's path.
 Today's code breaks no rule, so it draws no `bug-N` chart and `stories.md` is empty.
 Its `tlc/` folder holds TLC's output, which is not committed.
 The chart's scene, in `HomeTreeToday.cfg`, is child a alone with one call, a home thread that never fails, K at 1, no guard dropped, and the catch-all's thread moving only before the root makes child a (`CatchallFirst`).

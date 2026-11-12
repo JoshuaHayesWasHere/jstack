@@ -94,7 +94,7 @@ VARIABLES
     failed,
     \* D-129: $G/crew-check-steps, its first line the head (and base) and the steps passed there:
     \* crew/do-the-task.md `[ "$(sed -n 1p "$steps" 2> /dev/null)" = "$head $base" ] || printf '%s %s\n' "$head" "$base" > "$steps"`
-    \* and crew/do-the-task.md `0) [ -n "$clean" ] || echo "passed $step" >> "$steps" ;;`.
+    \* and crew/do-the-task.md `echo "passed $step" >> "$steps"`.
     steps,
     \* D-130: $G/crew-proof-sides, its first line the head (and base) and the sides that exited 0:
     \* crew/templates/proved.sh `[ "$(sed -n 1p "$passed" 2> /dev/null)" = "$head $base" ] || printf '%s %s\n' "$head" "$base" > "$passed"`
@@ -122,6 +122,7 @@ VARIABLES
     out,        \* a reviewer thread at work: "none", "first", "scoped"
     kept,       \* the head the reviewer at work was launched for
     twice,      \* a scoped reviewer was launched while one for the same round was at work
+    mark,       \* the head in the git dir's crew-scoped-launch, written before a scoped launch
     runs        \* ghost, what the runs behind the carriers really ran on: a step kept in
                 \* crew-check-steps, or a side kept in crew-proof-sides, that ran on another tree
                 \* than its first line's head (steps, sides), and whether the exits the last
@@ -129,7 +130,8 @@ VARIABLES
 
 vars == <<finding, declines, scoped, proved, checked, dropped, crewCheck, proofFiles, outcome,
           before, preRef, failed, steps, sides, head, dirty, origin, rebased, lost, conflict,
-          result, repo, kind, pc, bg, call, sections, saw, meets, reviewer, out, kept, twice, runs>>
+          result, repo, kind, pc, bg, call, sections, saw, meets, reviewer, out, kept, twice, mark,
+          runs>>
 
 Tree == IF dirty THEN Dirty ELSE head
 \* The crew runs no block again whose line holds at its clean head already: a run there writes
@@ -165,8 +167,8 @@ TypeOK ==
     /\ rebased \in BOOLEAN /\ lost \in BOOLEAN /\ conflict \in BOOLEAN /\ result \in BOOLEAN
     /\ repo \in {"jstack", "other"} /\ kind \in {"code", "tests", "docs"}
     /\ pc \in {"idle", "checking", "checkEnd", "waiting", "proving", "proveEnd", "kept",
-               "recorded", "pushed", "launching"}
-    /\ bg \in BOOLEAN /\ twice \in BOOLEAN
+               "recorded", "pushed", "marked", "launching"}
+    /\ bg \in BOOLEAN /\ twice \in BOOLEAN /\ mark \in 0..MaxHead
     /\ sections \subseteq (Heads \X BOOLEAN) /\ saw \in 0..MaxHead /\ meets \in {"yes", "no"}
     /\ reviewer \in [line: {"absent", "launched", "none"}, of: 0..MaxHead]
     /\ out \in {"none", "first", "scoped"} /\ kept \in 0..MaxHead
@@ -184,6 +186,7 @@ Init ==
     /\ pc = "idle" /\ bg = FALSE /\ call = NoCall
     /\ sections = {} /\ saw = 0 /\ meets = "yes"
     /\ reviewer = [line |-> "absent", of |-> 0] /\ out = "none" /\ kept = 0 /\ twice = FALSE
+    /\ mark = 0
     /\ runs = True
 
 ----
@@ -218,7 +221,7 @@ Edit ==
     /\ UNCHANGED <<finding, declines, scoped, proved, checked, dropped, crewCheck, proofFiles,
                    outcome, before, preRef, failed, steps, sides, head, origin, rebased, lost,
                    conflict, result, repo, kind, pc, bg, call, sections, saw, meets, reviewer,
-                   out, kept, twice, runs>>
+                   out, kept, twice, mark, runs>>
 
 \* The edit is dropped (`git checkout`, `git stash`): the worktree is its head's again.
 Undo ==
@@ -226,7 +229,7 @@ Undo ==
     /\ UNCHANGED <<finding, declines, scoped, proved, checked, dropped, crewCheck, proofFiles,
                    outcome, before, preRef, failed, steps, sides, head, origin, rebased, lost,
                    conflict, result, repo, kind, pc, bg, call, sections, saw, meets, reviewer,
-                   out, kept, twice, runs>>
+                   out, kept, twice, mark, runs>>
 
 \* A commit; one after a rebase that dropped lines may put them back.
 Commit ==
@@ -235,14 +238,14 @@ Commit ==
     /\ UNCHANGED <<finding, declines, scoped, proved, checked, dropped, crewCheck, proofFiles,
                    outcome, before, preRef, failed, steps, sides, origin, rebased, conflict,
                    result, repo, kind, pc, bg, call, sections, saw, meets, reviewer, out, kept,
-                   twice, runs>>
+                   twice, mark, runs>>
 
 MovedToBackground ==
     /\ Background /\ ~bg /\ pc \in {"checking", "proving"} /\ bg' = TRUE
     /\ UNCHANGED <<finding, declines, scoped, proved, checked, dropped, crewCheck, proofFiles,
                    outcome, before, preRef, failed, steps, sides, head, dirty, origin, rebased,
                    lost, conflict, result, repo, kind, pc, call, sections, saw, meets, reviewer,
-                   out, kept, twice, runs>>
+                   out, kept, twice, mark, runs>>
 
 \* A block is killed between two of its writes: what it wrote stays.
 Die ==
@@ -250,7 +253,7 @@ Die ==
     /\ UNCHANGED <<finding, declines, scoped, proved, checked, dropped, crewCheck, proofFiles,
                    outcome, before, preRef, failed, steps, sides, head, dirty, origin, rebased,
                    lost, conflict, result, repo, kind, sections, saw, meets, reviewer, out, kept,
-                   twice, runs>>
+                   twice, mark, runs>>
 
 ----
 \* The check block of "Do the task", in a repo whose check selects its tests (repo = "jstack"):
@@ -258,7 +261,7 @@ Die ==
 Unchanged_check ==
     UNCHANGED <<finding, declines, scoped, proved, dropped, crewCheck, proofFiles, outcome, before,
                 preRef, sides, head, dirty, origin, rebased, lost, conflict, result, repo, kind,
-                sections, saw, meets, reviewer, out, kept, twice>>
+                sections, saw, meets, reviewer, out, kept, twice, mark>>
 
 \* crew/do-the-task.md `clean=$(git status --porcelain)`, then the first line of crew-check-steps,
 \* and the failed files read once: crew/do-the-task.md `failed=$(cat "$kept" 2> /dev/null | while read -r one; do [ ! -f "$one" ] || echo "$one"; done | command grep -vxF -e "$touched" -e "$guards"`.
@@ -276,7 +279,10 @@ Todo ==
     IN SelectSeq(all, LAMBDA s: s \notin steps.passed \cup call.done)
 
 \* One step under a slot. 0 passes, and is kept where the worktree was clean when the block
-\* began: crew/do-the-task.md `0) [ -n "$clean" ] || echo "passed $step" >> "$steps" ;;`.
+\* began and is still clean at its head when the step ends:
+\* crew/do-the-task.md `if [ -z "$clean" ] && [ -z "$(git status --porcelain)" ] && [ "$(git rev-parse HEAD)" = "$head" ]; then`.
+\* A pass over work the head does not have (moved) is not kept, and the steps stop as with steps
+\* left, so the exit is 76: crew/do-the-task.md `echo "$step: passed over work that $head does not have, so it is not kept"`.
 \* Any other exit stops the steps with no line that says 0: 1 here stands for a failure, a 124
 \* (crew/do-the-task.md `124) ran=124 ;;`), which goes on to the next step but leaves the exit
 \* 124, and a 76 for no slot. The step runs on the worktree as it is at that moment.
@@ -284,12 +290,12 @@ CheckStep ==
     /\ pc = "checking" /\ Len(Todo) > 0
     /\ LET s == Head(Todo) IN
        \E e \in {0, 1}:
-         /\ steps' = IF e = 0 /\ call.clean
-                       THEN [steps EXCEPT !.passed = @ \cup {s}] ELSE steps
-         /\ runs' = IF e = 0 /\ call.clean /\ Tree /= steps.at
-                      THEN [runs EXCEPT !.steps = TRUE] ELSE runs
-         /\ call' = [call EXCEPT !.done = @ \cup {s}, !.ran = e]
-         /\ pc' = IF e = 1 THEN "checkEnd" ELSE "checking"
+         LET keep == e = 0 /\ call.clean /\ ~dirty /\ head = call.at
+             moved == e = 0 /\ call.clean /\ ~keep
+         IN /\ steps' = IF keep THEN [steps EXCEPT !.passed = @ \cup {s}] ELSE steps
+            /\ runs' = IF keep /\ Tree /= steps.at THEN [runs EXCEPT !.steps = TRUE] ELSE runs
+            /\ call' = [call EXCEPT !.done = @ \cup {s}, !.ran = e, !.left = @ \/ moved]
+            /\ pc' = IF e = 1 \/ moved THEN "checkEnd" ELSE "checking"
     /\ UNCHANGED <<checked, failed, bg>> /\ Unchanged_check
 
 \* No step starts with less than the reserve left of the budget: the rest are left.
@@ -331,7 +337,7 @@ CheckEnd ==
 Unchanged_jgauge ==
     UNCHANGED <<finding, declines, scoped, proved, dropped, proofFiles, before, preRef, failed,
                 steps, sides, head, dirty, origin, rebased, lost, conflict, result, repo, kind,
-                bg, sections, saw, meets, reviewer, out, kept, twice>>
+                bg, sections, saw, meets, reviewer, out, kept, twice, mark>>
 
 CheckCall ==
     /\ pc = "idle" /\ repo = "other" /\ ~CheckHeld /\ pc' = "waiting"
@@ -391,7 +397,7 @@ CheckAnswer ==
 Unchanged_proof ==
     UNCHANGED <<finding, declines, scoped, checked, dropped, crewCheck, proofFiles, outcome,
                 before, preRef, failed, steps, head, dirty, origin, rebased, lost, conflict,
-                result, repo, kind, sections, saw, meets, reviewer, out, kept, twice>>
+                result, repo, kind, sections, saw, meets, reviewer, out, kept, twice, mark>>
 
 Line(k, at, h, b) == [kind |-> k, at |-> at, head |-> h, base |-> b]
 
@@ -462,7 +468,7 @@ WriteResult ==
     /\ UNCHANGED <<finding, declines, scoped, proved, checked, dropped, crewCheck, proofFiles,
                    outcome, before, preRef, failed, steps, sides, head, dirty, origin, rebased,
                    lost, conflict, repo, kind, pc, bg, call, sections, saw, meets, reviewer, out,
-                   kept, twice, runs>>
+                   kept, twice, mark, runs>>
 
 \* The desk proof at the head: its last Checked: line exits 0 there and its Proved: line ran there.
 DeskProof == checked.at = head /\ checked.exit = 0 /\ proved.at = head
@@ -476,7 +482,7 @@ Push ==
     /\ UNCHANGED <<finding, declines, scoped, proved, checked, dropped, crewCheck, proofFiles,
                    outcome, before, preRef, failed, steps, sides, head, dirty, rebased, lost,
                    conflict, result, repo, kind, pc, bg, call, sections, saw, meets, reviewer,
-                   out, kept, twice, runs>>
+                   out, kept, twice, mark, runs>>
 
 \* CI failed on a test file, and "The failed files" keeps it in crew-failed-files.
 CIFails ==
@@ -484,7 +490,7 @@ CIFails ==
     /\ UNCHANGED <<finding, declines, scoped, proved, checked, dropped, crewCheck, proofFiles,
                    outcome, before, preRef, steps, sides, head, dirty, origin, rebased, lost,
                    conflict, result, repo, kind, pc, bg, call, sections, saw, meets, reviewer,
-                   out, kept, twice, runs>>
+                   out, kept, twice, mark, runs>>
 
 ----
 \* The review round. jbus launches the first reviewer on the desk proof; a reviewer runs its
@@ -493,7 +499,7 @@ CIFails ==
 Unchanged_review ==
     UNCHANGED <<scoped, proved, checked, dropped, crewCheck, before, preRef, failed, steps, sides,
                 head, dirty, origin, rebased, lost, conflict, result, repo, kind, pc, bg, call,
-                reviewer, twice, runs>>
+                reviewer, twice, mark, runs>>
 
 LaunchFirst ==
     /\ pc = "idle" /\ result /\ sections = {} /\ out = "none" /\ ~dirty /\ DeskProof
@@ -528,7 +534,7 @@ Answer ==
     /\ UNCHANGED <<declines, scoped, proved, checked, dropped, crewCheck, proofFiles, outcome,
                    before, preRef, failed, steps, sides, head, dirty, origin, rebased, lost,
                    conflict, result, repo, kind, pc, bg, call, sections, saw, meets, reviewer,
-                   out, kept, twice, runs>>
+                   out, kept, twice, mark, runs>>
 
 \* The block of "A second pass", what it prints from the brief and HEAD, transcribed. asked is
 \* the head of the last `needed since` line, sent the head of the `Scoped reviewer:` line, and
@@ -539,6 +545,8 @@ Scoped ==
     IN IF scoped.line /= "needed" \/ asked /= saw \/ ran \/ head = saw THEN ""
        ELSE IF reviewer.line = "none" /\ reviewer.of = head THEN "told"
        ELSE IF reviewer.line = "launched" /\ reviewer.of = head THEN "launched"
+       \* crew/a-second-pass.md `if [ "$(cat "$(git rev-parse --git-path crew-scoped-launch)" 2> /dev/null)" = "$head" ]; then`
+       ELSE IF mark = head THEN "find"
        ELSE "launch"
 
 \* crew/a-second-pass.md `if [ "$meets" = no ] || [ "$meets" = unread ] || [ "$meets" = miscounted ]; then`
@@ -560,23 +568,39 @@ Unchanged_pass ==
 SecondPass ==
     /\ pc = "idle" /\ sections /= {} /\ finding /= "open" /\ out /= "first" /\ ~dirty
     /\ \/ Says = "write needed" /\ scoped' = [line |-> "needed", since |-> saw]
-          /\ UNCHANGED <<pc, reviewer, out, kept, twice>>
+          /\ UNCHANGED <<pc, reviewer, out, kept, twice, mark>>
        \/ Says = "write none" /\ scoped' = [scoped EXCEPT !.line = "none"]
-          /\ UNCHANGED <<pc, reviewer, out, kept, twice>>
-       \* The launch waits for the fixed head's desk proof. Its `Scoped reviewer:` line is the
-       \* next write; with no launch tool the line says none and the home is told.
+          /\ UNCHANGED <<pc, reviewer, out, kept, twice, mark>>
+       \* The launch waits for the fixed head's desk proof. The mark of the head is its first
+       \* write, the launch the next, and its `Scoped reviewer:` line the last; with no launch
+       \* tool the line says none and the home is told.
        \/ Says = "launch" /\ DeskProof
-          /\ \/ /\ pc' = "launching" /\ twice' = (twice \/ out = "scoped")
-                /\ out' = "scoped" /\ kept' = head /\ UNCHANGED reviewer
+          /\ \/ /\ pc' = "marked" /\ mark' = head /\ UNCHANGED <<reviewer, out, kept, twice>>
              \/ /\ reviewer' = [line |-> "none", of |-> head]
-                /\ UNCHANGED <<pc, out, kept, twice>>
+                /\ UNCHANGED <<pc, out, kept, twice, mark>>
+          /\ UNCHANGED scoped
+       \* The mark names the head: the crew looks in the thread list for the reviewer launched
+       \* for it, and writes its line where one is at work, or launches where none is.
+       \/ Says = "find" /\ DeskProof
+          /\ \/ /\ out = "scoped" /\ kept = head
+                /\ reviewer' = [line |-> "launched", of |-> head]
+                /\ UNCHANGED <<pc, out, kept, twice, mark>>
+             \/ /\ ~(out = "scoped" /\ kept = head) /\ pc' = "marked"
+                /\ UNCHANGED <<reviewer, out, kept, twice, mark>>
           /\ UNCHANGED scoped
     /\ Unchanged_pass
+
+\* crew/a-second-pass.md `git rev-parse HEAD > "$(git rev-parse --git-path crew-scoped-launch)"`
+\* is written, then the reviewer is launched.
+Launch ==
+    /\ pc = "marked" /\ pc' = "launching" /\ twice' = (twice \/ out = "scoped")
+    /\ out' = "scoped" /\ kept' = head
+    /\ UNCHANGED <<scoped, reviewer, mark>> /\ Unchanged_pass
 
 \* crew/a-second-pass.md `After the launch, add the line`.
 ReviewerLine ==
     /\ pc = "launching" /\ reviewer' = [line |-> "launched", of |-> kept] /\ pc' = "idle"
-    /\ UNCHANGED <<scoped, out, kept, twice>> /\ Unchanged_pass
+    /\ UNCHANGED <<scoped, out, kept, twice, mark>> /\ Unchanged_pass
 
 ----
 \* "A conflict": the head is kept under refs/jstack/pre-rebase, crew-before-rebase is written,
@@ -586,7 +610,7 @@ ReviewerLine ==
 Unchanged_rebase ==
     UNCHANGED <<finding, declines, scoped, proved, checked, crewCheck, proofFiles, outcome, failed,
                 steps, sides, dirty, result, repo, kind, bg, call, sections, saw, meets,
-                reviewer, out, kept, twice, runs>>
+                reviewer, out, kept, twice, mark, runs>>
 
 Conflict ==
     /\ pc = "idle" /\ origin = head /\ ~conflict /\ ~rebased /\ conflict' = TRUE
@@ -635,7 +659,7 @@ Next ==
     \/ CheckCall \/ RunEnds \/ CheckAnswer
     \/ ProveNone \/ ProveStart \/ ProveSide \/ ProveEnd
     \/ WriteResult \/ Push \/ CIFails
-    \/ LaunchFirst \/ ReviewerWrites \/ ReviewerStops \/ Answer \/ SecondPass \/ ReviewerLine
+    \/ LaunchFirst \/ ReviewerWrites \/ ReviewerStops \/ Answer \/ SecondPass \/ Launch \/ ReviewerLine
     \/ Conflict \/ RebaseKeep \/ RebaseRecord \/ RebaseRun \/ WriteDropped \/ RebasePush \/ Forget
 
 Spec == Init /\ [][Next]_vars
@@ -659,7 +683,7 @@ ReviewHeld ==
         \/ out = "scoped"
         \/ reviewer.line = "none" /\ reviewer.of = head
         \/ head = scoped.since
-        \/ Says \in {"launch", "write needed"}
+        \/ Says \in {"launch", "find", "write needed"}
 
 \* RebaseRecorded: a rebase leaves its record or none. A rebased head not pushed yet has
 \* crew-before-rebase, whose head before is kept under refs/jstack/pre-rebase (RecordKept), and a

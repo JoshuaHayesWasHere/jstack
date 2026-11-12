@@ -86,7 +86,7 @@ VARIABLES
   \* `return f"{STALL} {run.project.name} {name}"`, which nothing raises any more.
   keys,
   \* B-074, streaks.json, each key's count of failures in a row: jbus/alert.py
-  \* `one.count, one.why = one.count + 1, why`.
+  \* `one.count, one.why, one.once = one.count + 1, why, once or one.once`.
   count,
   \* B-076, Streak.alerted, the keys whose alert is open, each an item of the one list:
   \* jbus/alert.py `one.alerted, one.owner, one.line, one.ends = True, owner, line, ends`.

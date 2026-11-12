@@ -1,9 +1,10 @@
 """A crew's proof, review round and rebase as a TLA+ spec, `features/crew/spec/CrewProof.tla`:
 each quote of the code it models stands once in its file, each carrier of the ledger is a
-variable, and TLC gives the verdicts `CrewProof.cfg` keeps in its comments: today's code breaks
-ProofAtHead with the trace the cfg names, each rule alone breaks or holds as the cfg says, and
-the canary `Fault = "line-before-run"` breaks ProofAtHead where today's code, with no call moved
-to the background, holds it. The TLC runs skip where no Java runs TLC."""
+variable, and TLC gives the verdicts `CrewProof.cfg` keeps in its comments: today's code holds
+ProofAtHead and breaks RebaseRecorded with the trace the cfg names, each rule alone breaks or
+holds as the cfg says, and the canary `Fault = "line-before-run"` breaks ProofAtHead where
+today's code, with no call moved to the background, holds it. The TLC runs skip where no Java
+runs TLC."""
 
 import importlib
 import re
@@ -83,14 +84,18 @@ def test_each_carrier_is_a_variable_whose_comment_quotes_its_writer():
 
 def tlc(cfg: str) -> subprocess.CompletedProcess:
     """TLC's run of CrewProof.tla with the config `cfg`, in a copy of the spec's folder, on one
-    worker so its first trace is always the same. Some states have no step left, so TLC is not
-    asked to find deadlocks."""
+    worker so its first trace is always the same. Some states have no step left, so TLC is not asked
+    to find deadlocks. Java's tmpdir is the run's own too: TLC writes Naturals.tla and the other
+    standard modules there under fixed names, and a run that shares /tmp can parse one while another
+    rewrites it."""
     found = tools.find_tlc()
     with tempfile.TemporaryDirectory(prefix="crewproof-") as folder:
         work = Path(folder)
+        (work / "tmp").mkdir()
         shutil.copy(SPEC / "CrewProof.tla", work)
         (work / "run.cfg").write_text(cfg)
-        command = [found.java, "-Xmx2g", "-cp", found.jar, "tlc2.TLC", "-workers", "1"]
+        command = [found.java, f"-Djava.io.tmpdir={work / 'tmp'}"]
+        command += ["-Xmx2g", "-cp", found.jar, "tlc2.TLC", "-workers", "1"]
         command += ["-deadlock", "-metadir", str(work / "meta"), "-config", "run.cfg"]
         return subprocess.run(
             tools.in_test_slot([*command, "CrewProof.tla"]),
@@ -124,16 +129,17 @@ def alone(rules: list[str], background: bool = True, fault: str = "none") -> str
 
 
 @JAVA
-def test_tlc_breaks_proof_at_head_on_todays_code_with_the_trace_the_cfg_keeps():
+def test_tlc_breaks_the_rebase_record_on_todays_code_with_the_trace_the_cfg_keeps():
     ran = tlc((SPEC / "CrewProof.cfg").read_text())
     assert ran.returncode != 0
-    assert "Invariant ProofAtHead is violated" in ran.stdout, ran.stdout[-4000:]
+    assert "Invariant ProofAtHead is violated" not in ran.stdout, ran.stdout[-4000:]
+    assert "Invariant RebaseRecorded is violated" in ran.stdout, ran.stdout[-4000:]
     assert trace(ran.stdout) == kept("trace:")
     assert re.search(r"[\d,]+ distinct states found", ran.stdout)
 
 
 @JAVA
-@pytest.mark.parametrize("rule", ["CheckedAtHead", "RecordGoes", "OneScopedReviewer"])
+@pytest.mark.parametrize("rule", ["RecordGoes"])
 def test_each_rule_the_code_breaks_breaks_with_the_trace_the_cfg_keeps(rule):
     ran = tlc(alone([rule]))
     assert f"Invariant {rule} is violated" in ran.stdout, ran.stdout[-4000:]
@@ -146,11 +152,26 @@ def states(out: str) -> str:
 
 
 @JAVA
-def test_the_review_and_the_rebase_record_hold_over_every_state():
-    ran = tlc(alone(["ReviewHeld", "RecordKept"]))
+def test_a_check_step_kept_only_at_its_clean_head_holds_checked_at_head_in_the_background():
+    """A call moved to the background lets the crew edit while a check step runs: the step is
+    kept as passed only where the worktree is still clean at the block's head when it ends, and
+    a step that passed over an edit ends the block 76 with no `Checked:` line."""
+    ran = tlc(alone(["CheckedAtHead"]))
     assert ran.returncode == 0, ran.stdout[-4000:]
     assert "No error has been found" in ran.stdout
-    assert f"{states(ran.stdout)} distinct states" == kept("holds ReviewHeld RecordKept:")
+    assert f"{states(ran.stdout)} distinct states" == kept("holds CheckedAtHead:")
+
+
+@JAVA
+def test_the_review_one_scoped_reviewer_and_the_rebase_record_hold_over_every_state():
+    """The crew marks a scoped launch in the git dir before it launches, so a block killed
+    between the launch and its `Scoped reviewer:` line launches no second reviewer."""
+    ran = tlc(alone(["ReviewHeld", "OneScopedReviewer", "RecordKept"]))
+    assert ran.returncode == 0, ran.stdout[-4000:]
+    assert "No error has been found" in ran.stdout
+    assert f"{states(ran.stdout)} distinct states" == kept(
+        "holds ReviewHeld OneScopedReviewer RecordKept:"
+    )
 
 
 @JAVA

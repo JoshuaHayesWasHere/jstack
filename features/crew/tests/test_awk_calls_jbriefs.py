@@ -27,7 +27,6 @@ PROGRAM = re.compile(r"\b(?:awk|sed)\b[^'\n]*'(.*?)'", re.S)
 OTHER = {
     ("crew/a-second-pass.md", "reviewer:"): "the head a `Scoped reviewer:` line names, not a seat",
     ("crew/the-review.md", "Reviewer"): "whether the crew wrote its own `Reviewer: none` line once",
-    ("pr-review/SKILL.md", "By:"): "a reviewer finding its own section by the `By:` it printed",
     ("pr-review/the-review.md", "Pull request"): "the head, `Task:` to `Pull request:`",
 }
 """The programs left that name one of the labels, each for another question than what the line

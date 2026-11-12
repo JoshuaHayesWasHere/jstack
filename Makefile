@@ -154,6 +154,18 @@ view-preview:
 check-browser:
 	uv run pytest -m browser
 
+# The charts page, features/home/docs/charts/index.html, with a PNG and Excalidraw scenes of each
+# chart and its overview beside it, drawn from each committed features/*/spec/*-statechart/chart.mmd
+# and summary.json. A chart whose mapping names lanes, as MainRed's and RowLife's do, is drawn as
+# reference lanes from TLC's graphs, so this runs TLC on those specs; it prints the coverage and
+# layout counts, then measures the layout again in a headless browser. git ignores all of it, and
+# nothing runs this but a reader who wants them: the PNGs need Node, for npx's mermaid-cli, and the
+# layout check Chromium. Open the page in a browser.
+.PHONY: charts
+charts:
+	UV_PROJECT_ENVIRONMENT="$$HOME/.cache/jstack/statechart-venv" uv run --frozen --project features/skill-library/skills/statechart/scripts statechart site --lanes --out features/home/docs/charts/index.html
+	UV_PROJECT_ENVIRONMENT="$$HOME/.cache/jstack/statechart-venv" uv run --frozen --project features/skill-library/skills/statechart/scripts statechart lanes-check features/home/docs/charts/index.html
+
 # skills.json, the generated regions of pyproject.toml and the docs indexes, written from
 # features/ and the files they own. Run it after any change to those, and commit what it
 # writes: the check fails on a stale one.

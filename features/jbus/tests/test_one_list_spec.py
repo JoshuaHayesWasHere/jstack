@@ -70,7 +70,9 @@ def test_each_carrier_of_the_ledger_is_a_variable():
 def tlc(world: str, fault: str, rules: list[str] | None = None, mark: str = "count") -> str:
     """TLC's output for OneList.cfg with `World`, `Fault` and `MarkBy` set, and with only `rules`
     (each an `INVARIANT <rule>` or `PROPERTY <rule>` line) where they are given, run in a copy of
-    the spec's folder with one worker, as the spec's README runs it."""
+    the spec's folder with one worker, as the spec's README runs it. Java's tmpdir is the run's own
+    too: TLC writes Naturals.tla and the other standard modules there under fixed names, and a run
+    that shares /tmp can parse one while another rewrites it."""
     cfg = (SPEC / "OneList.cfg").read_text()
     assert 'Fault = "none"' in cfg and 'MarkBy = "count"' in cfg
     cfg = re.sub(r"World = .*", f"World = {world}", cfg).replace('"none"', f'"{fault}"')
@@ -81,9 +83,11 @@ def tlc(world: str, fault: str, rules: list[str] | None = None, mark: str = "cou
     found = tools.find_tlc()
     with tempfile.TemporaryDirectory(prefix="one-list-") as folder:
         work = Path(folder)
+        (work / "tmp").mkdir()
         shutil.copy(SPEC / "OneList.tla", work)
         (work / "run.cfg").write_text(cfg)
-        command = [found.java, "-Xmx1g", "-cp", found.jar, "tlc2.TLC", "-workers", "1"]
+        command = [found.java, f"-Djava.io.tmpdir={work / 'tmp'}"]
+        command += ["-Xmx1g", "-cp", found.jar, "tlc2.TLC", "-workers", "1"]
         command += ["-metadir", str(work / "meta"), "-config", "run.cfg", "OneList.tla"]
         ran = subprocess.run(
             tools.in_test_slot(command), cwd=work, capture_output=True, text=True, timeout=300

@@ -1,6 +1,5 @@
 """`statechart excalidraw` draws each committed chart.mmd as an Excalidraw scene: one box per state,
-one arrow per step, each arrow bound at both ends, no two boxes on top of each other, and the file
-under features/home/docs/charts/ is the one the command builds today."""
+one arrow per step, each arrow bound at both ends, and no two boxes on top of each other."""
 
 import itertools
 import json
@@ -11,9 +10,8 @@ import pytest
 from statechart_support import statechart_cli
 from testing.paths import REPO
 
-READ_SET = ("features/*/spec/*-statechart/chart.mmd", "features/home/docs/charts/")
+READ_SET = ("features/*/spec/*-statechart/chart.mmd",)
 CHARTS = sorted(REPO.glob("features/*/spec/*-statechart/chart.mmd"))
-DRAWN = REPO / "features" / "home" / "docs" / "charts"
 COMMON = {
     "id": str,
     "type": str,
@@ -154,15 +152,3 @@ def test_each_chart_draws_as_a_valid_scene_with_a_box_per_state_and_a_bound_arro
     assert {f["name"] for f in frames} >= {"Legend"}
     for a, b in itertools.combinations(frames, 2):
         assert not overlap(a, b), f"frame {a['name']} overlaps frame {b['name']}"
-
-
-@pytest.mark.parametrize("chart", CHARTS, ids=name_of)
-def test_the_committed_excalidraw_file_is_the_one_the_command_builds(chart, tmp_path):
-    out = tmp_path / f"{name_of(chart)}.excalidraw"
-    build(chart, out)
-    committed = DRAWN / out.name
-    assert committed.read_bytes() == out.read_bytes(), (
-        f"{committed} is stale: run `uv run --project"
-        " features/skill-library/skills/statechart/scripts statechart excalidraw"
-        f" {chart.relative_to(REPO)} --out {committed.relative_to(REPO)}`"
-    )
