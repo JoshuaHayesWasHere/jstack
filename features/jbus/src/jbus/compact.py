@@ -150,13 +150,16 @@ def compacted(run: Pass, thread: str) -> datetime | None:
     path = run.state / outbox.FILE
     want = jsettings.thread_id(thread)
     text = path.read_text(encoding="utf-8") if path.exists() else ""
-    found = []
-    for line in text.splitlines():
-        if f'"template": "{TEMPLATE}"' not in line or '"went": "sent"' not in line:
-            continue
-        one = json.loads(line)
-        if jsettings.thread_id(str(one.get("thread") or "")) == want and one.get("at"):
-            found.append(str(one["at"]))
+    sent = [
+        json.loads(line)
+        for line in text.splitlines()
+        if f'"template": "{TEMPLATE}"' in line and '"went": "sent"' in line
+    ]
+    found = [
+        str(one["at"])
+        for one in sent
+        if jsettings.thread_id(str(one.get("thread") or "")) == want and one.get("at")
+    ]
     return _when(found[-1]) if found else None
 
 
