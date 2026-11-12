@@ -27,14 +27,12 @@ the next run (`ready.RULE_UNRUN`). A repo with no `rule-preflight` file runs non
 from __future__ import annotations
 
 import re
-import shutil
-import subprocess
 from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 from jmerge import lines, ready, treeguards
-from jsettings import store
+from jmerge.treeguards import git
 
 NAME = "rule-preflight"
 KEPT = "rule-trees.json"
@@ -74,41 +72,19 @@ class Ran:
     test: str = ""
 
 
-def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(["git", *args], cwd=cwd, capture_output=True, text=True)
-
-
-class Preflight:
+class Preflight(treeguards.Kept):
     """The rule preflight of one `jmerge` run. `check` is True for `--check`, which runs the
     tests too, in a worktree of its own, so its `wait` line names the pull requests a rule
     breaks; both keep what they ran in `KEPT`."""
 
     def __init__(self, main: Path, state: Path, check: bool) -> None:
+        super().__init__(state / KEPT, True)
         self.main = main
         self.state = state
-        self.path = state / KEPT
         self.tree = state / (TREE + ("-check" if check else ""))
         self.command = treeguards.command_of(state, NAME)
         self.spent = 0
         self.slotless = False
-        self.records: dict | None = None
-
-    def known(self) -> dict:
-        if self.records is None:
-            self.records = store.read_dict(self.path)
-        return self.records
-
-    def keep(self, number: int, record: dict) -> None:
-        self.records = {**self.known(), str(number): record}
-        store.write_json(self.path, self.records)
-
-    def open_only(self, numbers: set[str] | dict[str, str]) -> None:
-        """Drop the record of each pull request that is no longer open."""
-        known = self.known()
-        kept = {number: was for number, was in known.items() if number in numbers}
-        if kept != known:
-            self.records = kept
-            store.write_json(self.path, kept)
 
     def of(
         self, one: ready.PullRequest, others: Sequence[ready.PullRequest], text: str
@@ -137,7 +113,7 @@ class Preflight:
                 return ready.RULE_UNRUN.format(tests=shown, ran=0, open=len(rows)), ""
             if alone is not None:
                 record["alone"] = alone.said
-                self.keep(one.number, record)
+                self.put(one.number, record)
         if record["alone"] != PASSES:
             return "", ""
         on = record.get("on")
@@ -158,7 +134,7 @@ class Preflight:
             if ran is None:
                 break
             on[str(other.number)] = {"head": other.head, "said": ran.said, "test": ran.test}
-            self.keep(one.number, record)
+            self.put(one.number, record)
         failing = [row for row in rows if (on.get(str(row.number)) or {}).get("said") == FAILS]
         if failing and not {row.number for row in failing} <= named(text):
             breaks = ", ".join(
@@ -179,7 +155,7 @@ class Preflight:
         if other.number == one.number:
             return False
         return all(
-            _git(self.main, "merge-base", "--is-ancestor", a, b).returncode
+            git(self.main, "merge-base", "--is-ancestor", a, b).returncode
             for a, b in ((other.head, one.head), (one.head, other.head))
         )
 
@@ -191,7 +167,7 @@ class Preflight:
     ) -> Ran | None:
         """The rules run on `one`'s head merged with `other`'s, or None where no slot came free.
         A failure there is `OWN` where the rules `other` has fail at its head alone too."""
-        merged = _git(self.main, "merge-tree", "--write-tree", one.head, other.head)
+        merged = git(self.main, "merge-tree", "--write-tree", one.head, other.head)
         tree = merged.stdout.split()[:1]
         if merged.returncode == 1 and tree:
             return Ran(CONFLICT)
@@ -199,7 +175,7 @@ class Preflight:
         made = (
             None
             if merged.returncode or not tree
-            else _git(
+            else git(
                 self.main,
                 *treeguards.IDENTITY,
                 "commit-tree",
@@ -227,21 +203,13 @@ class Preflight:
         return ran
 
     def has(self, commit: str, path: str) -> bool:
-        return not _git(self.main, "cat-file", "-e", f"{commit}:{path}").returncode
+        return not git(self.main, "cat-file", "-e", f"{commit}:{path}").returncode
 
     def run(self, commit: str, rules: tuple[str, ...]) -> Ran | None:
         """Run the rules on `commit` in the worktree at `TREE`, or None where no full test slot
         came free in `treeguards.SLOT_SECONDS`. Each rule is one `commit` has."""
-        self.clear()
-        added = _git(self.main, "worktree", "add", "--detach", "-q", str(self.tree), commit)
-        if added.returncode:
-            return Ran(UNBUILT)
-        try:
-            ran = treeguards.run_guards(
-                self.command, self.tree, {"RULES": " ".join(rules)}, LIMIT_SECONDS
-            )
-        finally:
-            self.clear()
+        env = {"RULES": " ".join(rules)}
+        ran = treeguards.run_in_tree(self.main, self.tree, commit, self.command, env, LIMIT_SECONDS)
         if ran is None:
             self.slotless = True
             self.spent += treeguards.SLOT_SECONDS
@@ -252,8 +220,3 @@ class Preflight:
         if ran.code is None:
             return Ran(STOPPED)
         return Ran(FAILS, treeguards.guard(ran.said)) if ran.code else Ran(PASSES)
-
-    def clear(self) -> None:
-        _git(self.main, "worktree", "remove", "--force", str(self.tree))
-        shutil.rmtree(self.tree, ignore_errors=True)
-        _git(self.main, "worktree", "prune")
