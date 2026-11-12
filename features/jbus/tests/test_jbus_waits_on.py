@@ -1,7 +1,8 @@
 """A Result names what it waits on to merge on its `Waits on:` line, a row by its slug or a pull
 request by its number, at any status, and jbus tells the crew to carry on once, when the last of
-them merged (`jbus.pausedon`, `jbus.mirror.waits_on`). A wait written only in prose is refused by
-the brief lint and by `jbus brief set|append` (`jbus.mirror.unwritten`).
+them merged (`jbus.pausedon`, `jbus.mirror.waits_on`), a number found merged by `jbus.watch.look`
+asking GitHub after it once a pass. A wait written only in prose is refused by the brief lint and
+by `jbus brief set|append` (`jbus.mirror.unwritten`, `jbus.brief`).
 
 The replay is of 2026-11-11: st-code-conforms had its pull request #1718 open at head
 ba66f41642f6, was told to rebase at that head, and was steered to put the rebase off until #1717,
