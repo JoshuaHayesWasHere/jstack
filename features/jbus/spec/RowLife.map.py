@@ -6,7 +6,7 @@
 # left: leftover, closed; queued: unapproved, behind, ready; launched: launching), and
 # the value of a row that is over may say otherwise than its kept status, as a pull request that
 # opens on a done row shows `check`. The facts are joined too: a step names the one that changed.
-reader_actions = ["Grant", "Hold", "Lift", "Remove"]
+reader_actions = ["Grant", "Depends", "Hold", "Lift", "Remove"]
 
 STATUS = {
     "queued": "queued (no thread yet)",
@@ -157,6 +157,8 @@ def step(action, before, after):
     return {
         "Lift": "you lift the hold, and its go comes back",
         "Ahead": "the rows it depends on are over",
+        "Depends": "you give the approved row other depends, and its line waits for a pass",
+        "Pass": "a pass writes the row's line again",
         "Void": "its go no longer holds, and it waits for yours",
     }.get(action, action)
 

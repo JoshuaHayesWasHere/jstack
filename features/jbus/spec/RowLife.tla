@@ -247,12 +247,27 @@ Ask ==
   /\ Derive(thread, written, pull, ~question, launched)
   /\ UNCHANGED go
 
-\* The `remove` verb writes the line `removed`, and the pass never judges it.
+\* The `remove` verb takes the row out for good and writes the line `removed`, and no pass judges
+\* it again (queue.py `rows.remove(row)`). `Moves` names the removals the work was seen to make
+\* and guards none (queue.py `MOVES: dict[tuple[str, str], str] = {`): remove asks T3 Code and
+\* GitHub, and refuses only a thread at work (asks.py `if working:`), an open pull request
+\* (asks.py `("open", "{slug} is out: its pull request #{number} is open"),`) or a merged one
+\* (asks.py `("merged", "{slug} merged as #{number}, and a merged row stays"),`), so a `done` row
+\* goes too. A thread at work is a T3 status of watch.py `LIVE = (*STARTING, "running", "waiting")`:
+\* "starting", "atwork", "waiting", and "hung", a turn at work that has stopped moving.
+\* `withdraw` removes only a row that never launched (queue.py `def _launching(`), one of these.
+\* A launch under way with no answer yet is no step here: the launch is one step.
 Remove ==
   /\ status # "removed"
-  /\ <<status, "removed">> \in Moves  \* queue.py `MOVES: dict[tuple[str, str], str] = {`
+  /\ thread \notin {"starting", "atwork", "waiting", "hung"}
+  /\ pull \notin {"open", "merged"}
   /\ status' = "removed" /\ value' = "removed"  \* work.py `row=_set(Row.REMOVED)`
   /\ UNCHANGED <<go, facts>>
+
+\* A pass with no fact changed writes the line and the status again, as every pass does.
+Pass ==
+  /\ Derive(thread, written, pull, question, launched)
+  /\ UNCHANGED go
 
 \* The go region.
 
@@ -264,7 +279,17 @@ Grant ==
   /\ Restated(go')
   /\ UNCHANGED <<status, facts>>
 
-\* The last row the row depends on is over: the go is free.
+\* `add` gives an approved row new depends, and its go is free or behind. The write of the queue
+\* restates no approved facet beside another (restated.py
+\* `if row is not None and not {facts.row, row} <= APPROVED:`), so the line keeps its value until
+\* the next pass.
+Depends ==
+  /\ go \in {"approved", "behind"}
+  /\ go' \in {"approved", "behind"} \ {go}  \* queue.py `row.update(priority=verb.priority, depends=verb.depends, queued_by=ran_by or runner())`
+  /\ UNCHANGED <<status, value, facts>>
+
+\* The last row the row depends on is over, and the pass that sees it writes the line: the go
+\* is free.
 Ahead ==
   /\ go = "behind" /\ go' = "approved"
   /\ Restated(go')
@@ -294,15 +319,19 @@ Void ==
   /\ Restated(go')
   /\ UNCHANGED <<status, facts>>
 
-Next == Launch \/ Thread \/ Write \/ Pull \/ Ask \/ Remove \/ Grant \/ Ahead \/ Hold \/ Lift \/ Void
+Next == Launch \/ Thread \/ Write \/ Pull \/ Ask \/ Remove \/ Pass \/ Grant \/ Depends \/ Ahead
+        \/ Hold \/ Lift \/ Void
 
 Spec == Init /\ [][Next]_vars
 
 \* A row that is over stays over: once `merged` or `done`, every reader of `work.over` (the queue,
-\* `watch.final`, jmerge) reads it over for good, and a `done` row may only become `merged`.
+\* `watch.final`, jmerge) reads it over for good, and a `done` row may only become `merged`, or
+\* leave the queue for good by `remove` (queue.py `rows.remove(row)`), after which no pass reads
+\* it. A merged row is never removed.
 FinalStays ==
-  [][ /\ (status \in Final => status' \in Final)
-      /\ (status = "merged" => status' = "merged") ]_vars
+  [][ /\ (status \in Final => status' \in Final \cup {"removed"})
+      /\ (status = "merged" => status' = "merged")
+      /\ (status = "removed" => status' = "removed") ]_vars
 
 \* Each move of the status is one of the table's, so a pass marks `"legal": false` only a fault:
 \* the table is the code's own status function's, move for move.
