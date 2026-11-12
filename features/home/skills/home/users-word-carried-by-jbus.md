@@ -101,8 +101,8 @@ A brief that holds for a door is opened by a pick only when the user's own pick 
 
 The user gives the go for work once per plan entry, never per row.
 No row is queued outside an entry: a task that fits no open entry gets an entry of its own first, one heading and its `Done when:` list, and `jbus queue add --from` refuses a new row with no open entry of its home's plan and no `Follows:` line.
-When this home files the first rows of an entry, it asks the user for the entry's go once, in one message that names the entry and its rows.
-When the user's word is a go for an entry, record it with the reference of their own message:
+This home asks the user for the entry's go once, in one message that names the entry and the rows it plans.
+When the user's word is a go for an entry, record it at once with the reference of their own message, before the entry has a row, then brief the entry and queue its first row: until a row is queued, each jbus pass wakes this home with the entry and the time since the go.
 
 ```sh
 jbus --project <project> plan go <entry> --message <thread>/last

@@ -28,7 +28,8 @@ import statistics
 from collections import Counter, defaultdict
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from jbus.flow.records import (
     Cap,
@@ -704,4 +705,31 @@ def pages(projects: Iterable[Project], since: datetime, until: datetime) -> dict
                 by_project[project.name] += 1
     return {"total": sum(counted.values()), "by_kind": dict(counted.most_common())} | {
         "by_project": dict(by_project.most_common())
+    }
+
+
+def go_to_queued(projects: list[Project], since: datetime, until: datetime) -> dict[str, Any]:
+    """Return, for each plan entry whose go the user gave in the window, the minutes from that go
+    to the first record of a row filed under it, its first queued row, in the order of the goes,
+    and their median. A row queued before the go counts 0: no row waited on the go."""
+    found = []
+    for project in projects:
+        goes: dict[str, datetime] = {}
+        queued: dict[str, datetime] = {}
+        for slug, entry in project.entries.items():
+            if slug in project.approvals:
+                goes[entry] = min(goes.get(entry, project.approvals[slug]), project.approvals[slug])
+            if slug in project.noted:
+                queued[entry] = min(queued.get(entry, project.noted[slug]), project.noted[slug])
+        for entry, go in goes.items():
+            if since <= go < until and entry in queued:
+                minutes = max(0.0, (queued[entry] - go).total_seconds() / 60)
+                found.append((go, project.name, entry, round(minutes, 1)))
+    found.sort()
+    return {
+        "entries": [
+            {"project": name, "entry": entry, "go": go.astimezone(UTC).isoformat(), "minutes": m}
+            for go, name, entry, m in found
+        ],
+        "median_minutes": round(statistics.median(m for *_, m in found), 1) if found else None,
     }

@@ -150,15 +150,15 @@ def test_a_row_queued_before_the_go_is_approved_on_the_next_pass(kitchen):
     assert crews(kitchen) == ["crew: alpha"]
 
 
-def test_a_go_for_an_entry_with_no_row_is_refused_and_keeps_no_go(kitchen):
+def test_a_go_for_an_entry_with_no_row_approves_its_first_row_when_it_is_queued(kitchen):
+    """The go is kept when the user gives it, before the entry has a row
+    (`test_jbus_go_to_row`), and the row queued after it is approved by it."""
     code, said = plan_go(kitchen)
-    assert code == 1, said
-    assert said.startswith("refused: epic has no queue row: queue its first row, a scout's")
-    assert not (kitchen.state / "goes.json").exists()
+    assert code == 0, said
     queued(kitchen, "alpha")
     kitchen.poll()
-    assert basis(kitchen, "alpha") == ()
-    assert crews(kitchen) == []
+    assert basis(kitchen, "alpha") == (queue.ENTRY, "epic")
+    assert crews(kitchen) == ["crew: alpha"]
 
 
 def test_a_message_that_is_not_the_users_own_gives_no_go(kitchen):
@@ -713,6 +713,19 @@ def test_the_root_gives_no_go_from_another_home_with_no_word_or_over_a_door(
     assert (code, said.strip()) == (1, refused)
     assert not (kitchen.state / "goes.json").exists()
     assert basis(kitchen, "beta") == ()
+
+
+def test_the_root_gives_no_go_to_an_entry_with_no_row(kitchen):
+    """Only the user's own go is kept before an entry has a row: the root's door check reads the
+    entry's rows, and an entry with none has nothing for it to read."""
+    goes_word(kitchen)
+    code, said = root_go(kitchen)
+    assert (code, said.strip()) == (
+        1,
+        "refused: epic has no queue row: queue its first row, a scout's if it needs design "
+        "(--depends for what it waits on), then give the go",
+    )
+    assert not (kitchen.state / "goes.json").exists()
 
 
 def test_a_withdrawn_goes_word_ends_the_roots_go_and_its_unlaunched_rows_wait(kitchen):
