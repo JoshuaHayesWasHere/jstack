@@ -37,8 +37,8 @@ from statechart.tools import MERMAID_CLI, TLA2TOOLS_URL, NoTlc, find_tlc, in_tes
 USAGE = {
     "from-spec": (
         "statechart from-spec SPEC.tla [--config FILE] [--fixed FIXED.tla [--fixed-config FILE]"
-        " | --against AGREED.tla [--against-config FILE]] [--also-config FILE | --count-config FILE]"
-        " [--label TEXT] [--map FILE]"
+        " | --against AGREED.tla [--against-config FILE]]"
+        " [--also-config FILE | --count-config FILE] [--label TEXT] [--map FILE]"
         " [--expect-broken RULE]... [--title TEXT] [--out DIR] [--png] [--keep-work]"
     ),
     "from-chart": (

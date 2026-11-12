@@ -495,6 +495,7 @@ def coverage_of(folder, name, summary):
         if not re.match(r"(module|expect):", said):
             scene.append(said)
     bounds = _bounds(text, spec_text)
+
     def with_bounds(other):
         if not other:
             return None
