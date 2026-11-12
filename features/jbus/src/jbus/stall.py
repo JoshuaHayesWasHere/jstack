@@ -533,10 +533,10 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
     """Count, for each row's open pull request, the heads at which a required check failed, and
     hold the row and page the Chef once at the second (`TWICE`). A head whose check ran on a red
     main is not counted, nor one whose failed tests are each a flake of two other branches, nor
-    one that failed only at an infra step (`infra`), nor a merge of main that brought a new failure
-(`merge_of_main`). A held row is counted no further; its own
-    hold is lifted once every required check passes at its head (`lifted`), and once its hold is
-    lifted, by that or an approve, its count starts again."""
+    one that failed only at an infra step (`infra`), nor a merge of main that brought a new
+    failure (`merge_of_main`). A held row is counted no further; its own hold is lifted once
+    every required check passes at its head (`lifted`), and once its hold is lifted, by that or
+    an approve, its count starts again."""
     path = run.state / FAILS
     was: dict[str, Any] = read_json(path, {})
     table = {row["slug"]: row for row in rows}
