@@ -319,6 +319,7 @@ def test_the_third_failure_in_a_row_alerts_once_and_the_first_success_recovers_o
             "line": "alert: pass",
             "ends": "",
             "why": "it broke",
+            "once": "",
         }
     }
     assert alert.ok(tmp_path, "pass", user=ET) == "recovered: pass after 5 failures since 11:00 ET"
