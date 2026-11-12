@@ -69,7 +69,11 @@ again, a crew push or another failure is (`told_before`). A rerun red again is t
 `refailed|<slug>|<head 12>`. A check that ran no step is not told: no push repairs it. At a row's
 second counted failed head whose logs name failed tests (`watch.named_last`, kept by
 `jbus.stall.twice`), the message is `LAST`: it names those tests and both heads, and says a third
-failed head holds the row and pages the user.
+failed head holds the row and pages the user. A failed head after a row's one counted failed head
+that `twice` could not judge yet, its job's log not given or main's check pending, is told nothing
+until judged (`watch.judging`): told first, it would have the plain message under its key, and the
+one naming the tests would never go. Once `stall.JUDGE_FOR` has passed with it still unjudged, it
+is told the plain message, so a log GitHub never gives does not keep its red from the crew.
 When the crew already got the rebase message for a head, `github` sends no message for the head's
 failed check, since a rebase is the fix that the failed check needs.
 
@@ -121,6 +125,7 @@ from jbus.watch import (
     checks,
     failed_in,
     job_log,
+    judging,
     named_last,
     ran,
     task_brief,
@@ -363,7 +368,12 @@ def github(run: Pass, client: Client, world: World) -> None:
         message = FAILED if last is None else _last(*last)
         again = _asked("refailed", message, head) if red.attempt > 1 else None
         ask = again or _asked("failed", message, head)
-        if red.reason and mark(ask.kind, slug, head) not in sent:
+        if red.reason and mark(ask.kind, slug, head) not in sent and judging(run, slug, head):
+            run.say(
+                f"wait {slug}: #{number} at {head[:12]} failed after one counted failed head, and "
+                "its crew is told once jbus.stall.twice has judged it"
+            )
+        elif red.reason and mark(ask.kind, slug, head) not in sent:
             told = mark("failure", slug, head, failure(run, red))
             merged = "" if again else told_before(run, head, told, sent)
             if merged:

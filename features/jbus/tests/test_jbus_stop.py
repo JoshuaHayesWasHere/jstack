@@ -320,5 +320,95 @@ def test_a_stop_into_a_capped_root_waits_for_the_reset(kitchen):
     cap("claudeAgent", resets=datetime.now(UTC) + timedelta(hours=1))
     kitchen.t3.thread("root", threadId=ROOT)
     code, said = stops(kitchen, "fl-mine", "--on", "fix-root")
-    assert (code, said.endswith("sent to nobody yet, its thread is capped\n")) == (0, True), said
+    assert (code, said.endswith(f"sent to nobody yet, {stop.HELD}\n")) == (0, True), said
     assert sent(kitchen) == []
+
+
+def tells(kitchen, *text, to=SCOPE, by=ROOT):
+    return kitchen.main("tell", to, *text, "--from", by)
+
+
+def test_the_roots_tell_reaches_the_scope_once_signed_as_the_roots_and_not_the_users(kitchen):
+    code, said = tells(kitchen, "rebase", "fl-mine", "before", "you", "start")
+    assert (code, said) == (0, f"told: flow, sent to {FLOW}\n")
+    assert sent(kitchen) == [(FLOW, "tell")]
+    (text,) = texts(kitchen)
+    assert text.startswith("jbus: the root home's own message to the flow home")
+    assert "not the user's word" in text
+    assert "rebase fl-mine before you start" in text
+    kitchen.poll()
+    kitchen.poll()
+    assert sent(kitchen) == [(FLOW, "tell")]
+    logged = [json.loads(line) for line in (kitchen.state / "outbox.jsonl").open()]
+    (told,) = [one for one in logged if one["template"] == "tell"]
+    assert (told["needs"], told["went"]) == ("act", "sent")
+
+
+def test_a_tell_to_every_scope_keeps_one_record_for_each_and_sends_each_once(kitchen):
+    code, said = tells(kitchen, "pause", "new", "rows", to="every")
+    assert (code, said) == (0, f"told: flow, sent to {FLOW}\ntold: view, sent to {VIEW}\n")
+    kitchen.poll()
+    assert sent(kitchen) == [(FLOW, "tell"), (VIEW, "tell")]
+    assert [(one.scope, one.text) for one in stop.load(kitchen.state).tells] == [
+        (SCOPE, "pause new rows"),
+        (OTHER, "pause new rows"),
+    ]
+
+
+def test_the_same_tell_again_is_held_and_sent_no_second_time(kitchen):
+    assert tells(kitchen, "pause", "new", "rows")[0] == 0
+    code, said = tells(kitchen, "pause  new", "rows")
+    assert (code, said) == (0, "held: flow, it already has this message from the root\n")
+    assert sent(kitchen) == [(FLOW, "tell")]
+    assert len(stop.load(kitchen.state).tells) == 1
+
+
+@pytest.mark.parametrize(
+    ("to", "text", "by", "why"),
+    [
+        (SCOPE, ("go",), FLOW, f"refused: --from {FLOW} is not the root home's thread"),
+        (SCOPE, ("go",), NEXT, f"refused: --from {NEXT} is not the root home's thread"),
+        ("nowhere", ("go",), ROOT, "refused: nowhere is no scoped home of demo"),
+        (SCOPE, (), ROOT, "refused: a tell has the root's words"),
+    ],
+)
+def test_a_tell_not_from_the_root_or_to_no_scope_is_refused_and_keeps_nothing(
+    kitchen, to, text, by, why
+):
+    code, said = tells(kitchen, *text, to=to, by=by)
+    assert (code, said.startswith(why)) == (1, True), said
+    assert sent(kitchen) == []
+    assert stop.load(kitchen.state) == stop.Kept()
+
+
+def test_a_tell_to_a_scope_with_no_home_id_waits_and_goes_on_the_pass_after_its_start(kitchen):
+    (kitchen.home / SCOPE / "home-id").unlink()
+    code, said = tells(kitchen, "pick", "up", "fl-mine")
+    assert (code, said) == (
+        0,
+        "told: flow, sent to nobody yet, the flow home is not running, its home-id holds no "
+        "thread\n",
+    )
+    kitchen.poll()
+    assert sent(kitchen) == []
+    (kitchen.home / SCOPE / "home-id").write_text(f"{NEXT}\n")
+    kitchen.poll()
+    kitchen.poll()
+    assert sent(kitchen) == [(NEXT, "tell")]
+    assert "pick up fl-mine" in texts(kitchen)[0]
+
+
+def test_a_stops_file_kept_before_tells_still_parses(kitchen):
+    stop.path(kitchen.state).write_text(json.dumps({"stops": [], "answers": []}))
+    assert stop.load(kitchen.state) == stop.Kept()
+    assert tells(kitchen, "go")[0] == 0
+
+
+def test_a_tell_to_every_scope_of_a_project_with_none_is_refused(kitchen):
+    for scope in (SCOPE, OTHER):
+        (kitchen.home / scope / "plan.md").unlink()
+        (kitchen.home / scope / "home-id").unlink()
+        (kitchen.home / scope).rmdir()
+    code, said = tells(kitchen, "go", to="every")
+    assert (code, said) == (1, "refused: demo has no scoped home for every\n")
+    assert stop.load(kitchen.state) == stop.Kept()

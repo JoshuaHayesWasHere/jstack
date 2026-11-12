@@ -24,13 +24,14 @@ unless:
   slug of the row that holds it, or `outside`. So a row has one open stop on each row that holds it,
   and one on what is outside.
 
-`stops.json` in the project's jbus state holds two lists, `stops` of `Stop` and `answers` of
-`Answer` (`Kept`): each record is one message and what became of it. A taken stop goes at once, as
-one message that needs `decide`, to the root's thread: `jbriefs.home.thread_of`, read when the
-message goes and never kept, so a stop never reaches a thread that handed off. A stop that cannot
-go (no root home is running, or its thread is capped, or T3 Code gave no answer) waits in the file,
-and each pass tries it again (`deliver`). The message's retry key is the stop's key and the time it
-was taken, so a stop taken again after its close is a new message and not a repeat of the old one.
+`stops.json` in the project's jbus state holds three lists, `stops` of `Stop`, `answers` of `Answer`
+and `tells` of `Tell` (`Kept`): each record is one message and what became of it. A taken stop goes
+at once, as one message that needs `decide`, to the root's thread: `jbriefs.home.thread_of`, read
+when the message goes and never kept, so a stop never reaches a thread that handed off. A stop that
+cannot go (no root home is running, or the outbox holds it, or T3 Code gave no answer) waits in the
+file, and each pass tries it again (`deliver`). The message's retry key is the stop's key and the
+time it was taken, so a stop taken again after its close is a new message and not a repeat of the
+old one.
 
 The root answers with `jbus stop answer <scope> <own row> "<text>" --from <root id>`. The answer
 closes every open stop of that row, and goes as one message that needs `act` to the scope's thread,
@@ -41,6 +42,16 @@ settles before it delivers, so a stop of a row that just merged is not sent.
 The verb and a pass can both hold the same unsent stop, so under `stops.lock` jbus rereads the file
 and writes that a stop or an answer went only where it had not (`_change`). T3 Code takes a second
 send with the same key as a repeat of the first.
+
+The root steers a scope with no stop to answer by `jbus tell <scope> "<text>" --from <root id>`, or
+`jbus tell every`, which keeps one `Tell` for each scoped home, oldest first in `tells`. Its words
+are the root's own, never the user's: the message names them so, and is no go for any row, gate or
+door. A scope that already holds the same words from the root, sent or not, holds them and keeps
+none, so the command run again sends nothing twice. A tell goes as one message that needs `act`
+under the retry key `tell|<scope>|<at>`, to the scope's thread read when it goes, so a scope that
+handed off between the tell and the send gets it in its new thread. It waits as an answer does: a
+scope with no `home-id` gets it on the first pass after its home starts and writes its id there.
+An older jbus that writes `stops.json` drops `tells`, since it knows only the two lists.
 
 A `decision` is not a stop: the user makes it, so a scoped home parks it as a gate (`jbus gate`).
 The digest counts the `--outside` stops of each scope (`digest`), since those are the stops that no
@@ -69,6 +80,8 @@ NAME = "stops.json"
 LOCK = "stops.lock"
 KIND = "stop"
 ANSWER = "stop-answer"
+TELL = "tell"
+EVERY = "every"
 OUTSIDE = "outside"
 ENDED = {**{status: status for status in work.FINAL}, "removed": "removed"}
 ASKS = (
@@ -85,6 +98,12 @@ ANSWERS = (
     "Add it, as the root's recommendation, to your own gate for the door: the user alone opens or "
     "refuses the door."
 )
+TELLS = (
+    "jbus: the root home's own message to the {scope} home, written by the root and not the "
+    "user's word: {text}\n\n"
+    "Take it as the root's steer. It is no go for any row, gate or door, and where it differs "
+    "from the user's word, the user's word stands. Nothing is sent back for it."
+)
 DIRECT = (
     "a stop carries only a one-way door, --holds '<case>' with a case of "
     "features/home/templates/gates.md ({cases}): anything else, tell the user directly from this "
@@ -94,7 +113,7 @@ NO_ROOT = "no root home is running, its home-id holds no thread"
 NO_SCOPE = "the {scope} home is not running, its home-id holds no thread"
 NO_T3 = "jbus is not signed in to T3 Code"
 NO_ANSWER = "T3 Code gave no answer"
-CAPPED = "its thread is capped"
+HELD = "the outbox holds it, its thread capped or at work, and outbox.jsonl names the rule"
 SHOWN = ("scope", "row", "on", "outside", "what", "at", "sent_at", "waits")
 """The columns of an open stop that the digest shows."""
 
@@ -151,9 +170,31 @@ class Answer:
 
 
 @dataclass(frozen=True)
+class Tell:
+    """The root's own message to one scoped home, and what became of it."""
+
+    scope: str
+    text: str
+    at: str
+    thread: str = ""
+    sent_at: str = ""
+    waits: str = ""
+
+    @property
+    def sent(self) -> str:
+        return f"{TELL}|{self.scope}|{self.at}"
+
+
+Record = Stop | Answer | Tell
+FIELDS: dict[type, str] = {Stop: "stops", Answer: "answers", Tell: "tells"}
+"""The list of `Kept` that holds each kind of record."""
+
+
+@dataclass(frozen=True)
 class Kept:
     stops: tuple[Stop, ...] = ()
     answers: tuple[Answer, ...] = ()
+    tells: tuple[Tell, ...] = ()
 
 
 def path(state: Path) -> Path:
@@ -175,6 +216,7 @@ def load(state: Path) -> Kept:
         return Kept(
             tuple(Stop(**one) for one in given["stops"]),
             tuple(Answer(**(one | {"stops": tuple(one["stops"])})) for one in given["answers"]),
+            tuple(Tell(**one) for one in given.get("tells", [])),
         )
     except (OSError, ValueError, TypeError, KeyError) as error:
         raise Unparsable(f"refused: {file} does not parse, and nothing writes it") from error
@@ -310,19 +352,47 @@ def answer(run: Pass, thread: str, scope: str, row: str, text: str) -> Answer:
     return made
 
 
+def tell(run: Pass, thread: str, to: str, text: str) -> list[tuple[Tell, bool]]:
+    """Keep the root's message for the scope `to`, or for each scoped home with `every`, and return
+    each scope's record with whether it is new. A scope that already holds the same words from the
+    root keeps no second one. Refuse a tell from any thread but the root's, and to no scope."""
+    text = " ".join(text.split())
+    root = thread_of(run.home)
+    if not root or thread != root:
+        raise Refused(f"refused: --from {thread} is not the root home's thread, which tells")
+    if not text:
+        raise Refused("refused: a tell has the root's words")
+    known = [scope.name for scope, _, _ in homes.scopes(run.home)]
+    if to == EVERY and not known:
+        raise Refused(f"refused: {run.project.name} has no scoped home for {EVERY}")
+    if to != EVERY and to not in known:
+        raise Refused(f"refused: {to} is no scoped home of {run.project.name}")
+    at = _stamp(run)
+    with locked(run.state, LOCK):
+        kept = load(run.state)
+        told = []
+        for scope in known if to == EVERY else [to]:
+            was = next((one for one in kept.tells if (one.scope, one.text) == (scope, text)), None)
+            told.append((was, False) if was else (Tell(scope, text, at), True))
+        made = tuple(one for one, new in told if new)
+        if made:
+            _write(run.state, replace(kept, tells=(*kept.tells, *made)))
+    return told
+
+
 class _Sent(TypedDict, total=False):
     thread: str
     sent_at: str
     waits: str
 
 
-def _change(run: Pass, one: Stop | Answer, **changed: Unpack[_Sent]) -> bool:
-    """Write what became of a stop's or an answer's message, and return whether it wrote anything.
-    Leave a message that went after the caller read `one` as it is."""
+def _change(run: Pass, one: Record, **changed: Unpack[_Sent]) -> bool:
+    """Write what became of a stop's, an answer's or a tell's message, and return whether it wrote
+    anything. Leave a message that went after the caller read `one` as it is."""
     with locked(run.state, LOCK):
         kept = load(run.state)
-        field = "stops" if isinstance(one, Stop) else "answers"
-        records: tuple[Stop | Answer, ...] = getattr(kept, field)
+        field = FIELDS[type(one)]
+        records: tuple[Record, ...] = getattr(kept, field)
         same = [each for each in records if each.sent == one.sent]
         if not same or same[0].sent_at:
             return False
@@ -334,10 +404,10 @@ def _change(run: Pass, one: Stop | Answer, **changed: Unpack[_Sent]) -> bool:
     return True
 
 
-def _reread(state: Path, one: Stop | Answer) -> Stop | Answer:
-    """Return the record of a stop or an answer as the file has it now."""
+def _reread(state: Path, one: Record) -> Record:
+    """Return the record of a stop, an answer or a tell as the file has it now."""
     kept = load(state)
-    return next(each for each in (*kept.stops, *kept.answers) if each.sent == one.sent)
+    return next(each for each in getattr(kept, FIELDS[type(one)]) if each.sent == one.sent)
 
 
 def _send(
@@ -364,7 +434,7 @@ def _send(
         )
     except T3Error:
         return NO_ANSWER
-    return "" if went else CAPPED
+    return "" if went else HELD
 
 
 def _held(run: Pass, one: Stop) -> str:
@@ -401,6 +471,18 @@ def _tell(run: Pass, client: Client | None, one: Answer) -> None:
         run.say(f"wait {one.row}: the root's answer to the {one.scope} home's stop waits, {waits}")
 
 
+def _steer(run: Pass, client: Client | None, one: Tell) -> None:
+    thread = thread_of(run.home / one.scope)
+    text = TELLS.format(scope=one.scope, text=one.text)
+    gone = NO_SCOPE.format(scope=one.scope)
+    waits = _send(run, client, thread, gone, row="", sent=one.sent, text=text, needs="act")
+    if not waits:
+        if _change(run, one, thread=thread, sent_at=_stamp(run), waits=""):
+            run.say(f"{TELL} {one.scope}: the root's message sent to its home, {thread}")
+    elif waits != one.waits and _change(run, one, waits=waits):
+        run.say(f"wait {one.scope}: the root's message to the {one.scope} home waits, {waits}")
+
+
 def settle(run: Pass) -> None:
     """Close each open stop whose own row merged, is done or was removed, with no message. A
     `queue.json` that does not parse closes nothing: a pass reports that file itself. With no
@@ -427,7 +509,8 @@ def settle(run: Pass) -> None:
 
 
 def deliver(run: Pass, client: Client | None) -> None:
-    """Send each stop that waits to the root, and each answer that waits to its scope, once."""
+    """Send each stop that waits to the root, and each answer and tell that waits to its scope,
+    once."""
     kept = load(run.state)
     for one in kept.stops:
         if one.open and not one.sent_at:
@@ -435,6 +518,9 @@ def deliver(run: Pass, client: Client | None) -> None:
     for given in kept.answers:
         if not given.sent_at:
             _tell(run, client, given)
+    for told in kept.tells:
+        if not told.sent_at:
+            _steer(run, client, told)
 
 
 def digest(state: Path, start: datetime) -> dict[str, Any]:
@@ -500,6 +586,38 @@ def _stop(args: argparse.Namespace, config: Config) -> int:
         return 1
 
 
+def _tells(args: argparse.Namespace, config: Config) -> int:
+    """`jbus tell`: keep the root's own message for one scope or every scope (`tell`), send it at
+    once, and print one line for each scope. A pass sends what could not go."""
+    run = Pass(config, verbs.project(config, args.project), datetime.now(UTC), lambda _: None)
+    try:
+        told = tell(run, args.thread, args.to, " ".join(args.words))
+    except Refused as error:
+        print(error)
+        return 1
+    deliver(run, _client(config))
+    for one, new in told:
+        if not new:
+            print(f"held: {one.scope}, it already has this message from the root")
+            continue
+        now = _reread(run.state, one)
+        to = now.thread if now.sent_at else f"nobody yet, {now.waits}"
+        print(f"told: {one.scope}, sent to {to}")
+    return 0
+
+
+def _tell_arguments(tell: argparse.ArgumentParser) -> None:
+    tell.add_argument("to", metavar="SCOPE", help=f"the scoped home it goes to, or {EVERY}")
+    tell.add_argument(
+        "--from",
+        dest="thread",
+        metavar="THREAD",
+        required=True,
+        help="the root home's thread",
+    )
+    tell.add_argument("words", nargs="*", help="the root's own words")
+
+
 def _arguments(stop: argparse.ArgumentParser) -> None:
     stop.add_argument("row", help="this home's own open row, or `answer` for the root's answer")
     held = stop.add_mutually_exclusive_group()
@@ -532,6 +650,12 @@ VERBS = (
         "a scoped home's stop at a one-way door on its own row, or the root's answer",
         _arguments,
         _stop,
+    ),
+    verbs.Verb(
+        "tell",
+        "the root home's own message to one scoped home, or to every one, signed as the root's",
+        _tell_arguments,
+        _tells,
     ),
 )
 

@@ -6,7 +6,9 @@ and its name with no parameters, or a module or class whose `pytestmark` sets it
 tests. The list changes no limit: the limits are where the tests set them.
 
 The test asks pytest itself, as the check's parts do: a pytest that collects the whole suite with
-a small plugin that writes, for each test, its closest `timeout` mark and the node that set it."""
+a small plugin that writes, for each test, its closest `timeout` mark and the node that set it.
+It reads every file of the tests so, and its `READ_SET` says which: a change to one runs it, at the
+desk (`select_tests.py --part names`) and in CI. A change to no test leaves its 16 s out."""
 
 import json
 import os
@@ -16,6 +18,7 @@ import sys
 from testing.paths import REPO
 
 LONG_LIMIT = 300
+READ_SET = ("features/*/tests/", "testing/tests/")
 
 PLUGIN = """
 import json
@@ -60,12 +63,12 @@ LONG = {
     **{
         f"features/jgauge/tests/test_test_slot_spec.py::{name}": TLC
         for name in (
-            "test_a_dead_holder_whose_pid_is_taken_reads_as_running",
             "test_a_killed_test_slot_takes_its_command_with_it_today",
             "test_a_run_s_end_is_kept_for_jbus_to_tell_today",
+            "test_each_ledger_writer_s_record_is_kept_today",
             "test_each_of_today_s_faults_breaks_its_rule",
             "test_the_mode_that_passes_holds_every_rule",
-            "test_today_s_code_loses_a_ledger_write",
+            "test_today_s_code_misses_a_woken_crew_s_slot",
         )
     },
     "features/jmerge/tests/test_pr_verdict_spec.py::test_the_run_says_what_it_should": TLC,

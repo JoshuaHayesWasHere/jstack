@@ -17,17 +17,17 @@ The rules, each with its harm:
   Broken, your files are lost.
 - **`NeverLosesChart`:** a failed swap puts the old chart back.
   Broken, the folder is left with no chart.
-- **`ExitTwoLeavesFolder`:** a run that exits 2 left the output folder as it found it.
+- **`ExitTwoLeavesFolder`:** a run that exits 2 left the output folder as it found it, unless `--png` could not render a chart: then it keeps what it wrote, as `--help`'s exit codes say.
 - **`OverlapNeverRefuses`:** an overlapping run never makes the other refuse.
 
 ## The record
 
 Model: `features/skill-library/skills/statechart/scripts/model/OutputFolder.tla`
-Sync: `228c1436cc6fe94de479d333c7aab7b007460462`
+Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
 Covers:
 - `features/skill-library/skills/statechart/scripts/statechart/cli.py`: `from_spec`, `snapshot`, `read_input`, `out_dir`, `refuse_foreign`, `foreign`, `OWN`, `run_tlc`, `publish`, `moved`, `put_back`, `unchanged`, `finish`, `in_work_folder`, `run_in_own_group`, `stop_group`
 
-The spec quotes no code, so at the sync commit each action was mapped to it: `Start` is `from_spec` and `snapshot`; `Refuse` is `read_input`, `out_dir` and `refuse_foreign` ending in 2; `Tlc` is `run_tlc`; `Stale` is `unchanged`; `Swap` and `MoveIn` are `publish`'s loop on `moved` (`ENOTEMPTY`, `EEXIST`); `MoveAside` is `moved(out, old, "ENOENT")`; `Checked`, `KeepAside` and `Supersede` are `refuse_foreign` in `publish`; `Restore` and `RenameFails` are `put_back`; `Clean` is the last `rmtree` and `finish`; `Stop` is `in_work_folder`; `KillPython` and `OrphanEnd` are `run_in_own_group` and `stop_group`.
+The spec quotes no code, so at the sync commit each action was mapped to it: `Start` is `from_spec` and `snapshot`; `Refuse` is `read_input`, `out_dir` and `refuse_foreign` ending in 2; `Tlc` is `run_tlc`; `Stale` is `unchanged`; `Swap` and `MoveIn` are `publish`'s loop on `moved` (`ENOTEMPTY`, `EEXIST`); `MoveAside` is `moved(out, old, "ENOENT")`; `Checked`, `KeepAside` and `Supersede` are `refuse_foreign` in `publish`; `Restore` and `RenameFails` are `put_back`; `RenderFails` is `finish`'s `render` before `publish`; `Clean` is the last `rmtree` and `finish`'s exit, 0, 1 or 2; `Stop` is `in_work_folder`; `KillPython` and `OrphanEnd` are `run_in_own_group` and `stop_group`.
 `OWN` and `foreign` decide what counts as the command's own files, the model's `notes`.
 `features/repo-guards/tests/test_model_sync.py` fails when a file or name above is gone.
 Move `Sync:` forward only after you read every change to `cli.py` since it against the model, as `/maintain-formal-verification-skill` says, and never because the check passes.
@@ -44,9 +44,10 @@ uv run pytest features/skill-library/tests/test_statechart_runs.py -q -k "output
 
 It selects eight tests: `test_the_output_folder_model_keeps_every_rule_and_breaks_one_without_each_guard` (TLC on the model, and on five mutants of it), and seven that drive the real command on its output folder (two overlapping runs, a spec changed mid-run, a file put in the folder, a killed run, a TLC error, the worked example).
 
-- **Bounds:** two runs, run 2 starts only after run 1; two versions of the spec; one note; the cfg has no constants; 4,294 distinct states.
+- **Bounds:** two runs, run 2 starts only after run 1; two versions of the spec; one note; the cfg has no constants; 11,477 distinct states.
 - **The mutants:** `read'` set for every run, or `Swap` without `spec = snap[r]`, breaks `ChartsOneSpec`; `Checked` without `~aside[r].notes` breaks `KeepsYourFiles`; `RenameFails` without the restore, or `Supersede` without `~out.notes`, breaks `NeverLosesChart`.
-- **Assumptions:** renames are atomic; `--png` is not modeled; there is no exit 1.
+- **Assumptions:** renames are atomic, with no copy fallback; whether `--png` runs is not modeled, only a chart it cannot render; the snapshot is one step at `Start`; TLC failing, as a test slot that dies before TLC prints (#1743), exits 2 before publishing and touches no folder, as `Refuse` does, and has no step of its own.
+  The missing map file, written before any work folder, is a `Refuse` that leaves the output folder alone.
 
 ## A real bug or a modeling error
 
@@ -59,10 +60,18 @@ When every step is the command's, it is a bug: tell it as the two runs' steps an
 - A new exit or a new write to the output folder: add it as an action, and a mutant in `test_statechart_runs.py` that shows the rule it bears on breaking without it.
 - Keep `OutputFolder.map.py` labelling every state the model adds, since the statechart skill shows it as its example.
 
-## Drift at the sync commit
+## The last upkeep
 
-`/maintain-formal-verification-skill` fixes these; the model was last changed in 337107667 (#293).
+`/maintain-formal-verification-skill` ran at `228c1436c` (st-model-upkeep-run): `cli.py` is unchanged from it to the row's first base, and the drift st-model-sync found was settled from the code.
 
-- **`ExitTwoLeavesFolder` is not true of the code:** `finish` returns 2 after `publish` has written the folder when `--png` renders fewer PNGs than charts; the model has no `--png` and no exit after publishing.
-- **Behaviors the model lacks:** exit 1 when the rules are not as expected, with the folder still published; `moved`'s copy fallback for `ENOSYS`, `EXDEV` and `EISDIR`, which is not atomic; a rename onto an empty folder succeeding; a missing map file, which writes one and exits 2; the work folder left after a SIGKILL.
-- **Snapshots moved:** #679 added `in_work_folder`, #1649 added the `drawnFrom` stamp in the work folder, and the snapshot now also covers local modules and expectations, taken after `out_dir`, later than the model's `Start`.
+- **`ExitTwoLeavesFolder` was false of the code, and the code says so on purpose:** `finish` returns 2 after `publish` when `--png` renders fewer PNGs than charts, and `--help` states it ("When a chart does not render, the command keeps the files it wrote and exits 2").
+  The model has `RenderFails`, and the rule and `OverlapNeverRefuses` take that exception; with the old rule TLC breaks it at once, which is the drift.
+- **Exit 1:** `Clean` exits 0 or 1, the folder published either way.
+- **Left out, each in the assumptions above:** `moved`'s copy fallback (`ENOSYS`, `EXDEV`, `EISDIR`), which is not atomic; a rename onto an empty folder, which no chart of a run's can be; the work folder a SIGKILL leaves, outside the output folder; and the snapshot of local modules and expectations after `out_dir`, later than `Start`.
+
+Every rule holds over 11,477 states, and `uv run pytest features/skill-library/tests/test_statechart_runs.py -q -k "output_folder or worked_example or overlap"` printed `8 passed`.
+
+The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `cli.py` changed in #1698 and #1702, in its help, `from_chart` and `site_main`, none of the names this model covers, so the sync commit moved there.
+
+st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: `run_tlc` changed in #1743: a test slot that dies before TLC prints raises `CannotFinish`, so the run exits 2 before it publishes, as a TLC run that fails always did; the model has no step for TLC failing, which touches no folder as `Refuse` does, and the assumptions now say so.
+The sync commit moved there.

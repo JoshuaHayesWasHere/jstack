@@ -7,29 +7,38 @@ config:
 ---
 stateDiagram-v2
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef group2 fill:#fdebd0,stroke:#7f7668,color:#1b2631
-  classDef group2Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef group2Path fill:#fdebd0,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group0 fill:#d6eaf8,stroke:#6b757c,color:#1b2631
+  classDef group0Wrong fill:#d6eaf8,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0Path fill:#d6eaf8,stroke:#1f3a93,stroke-width:4px,color:#1b2631
   state "Legend" as legend {
-    state "Usage ledger" as legendGroup2
+    state "Full lane" as legendGroup0
     state "Breaks a rule" as legendWrong
   }
-  class legendGroup2 group2
+  class legendGroup0 group0
   class legendWrong plainWrong
-  state "Usage ledger" as g0 {
-    state "the ledger keeps the<br/>records of jbus, the<br/>status line wrote and its<br/>record is gone, the last<br/>capped read is older than<br/>the ledger" as s0
-    state "the ledger keeps the<br/>records of no one" as s1
-    state "the ledger keeps the<br/>records of no one, the<br/>status line merges into<br/>the copy it read, of no<br/>one" as s2
-    state "the ledger keeps the<br/>records of no one, the<br/>status line merges into<br/>the copy it read, of no<br/>one, jbus merges into the<br/>copy it read, of no one" as s3
-    state "the ledger keeps the<br/>records of the status<br/>line, jbus merges into the<br/>copy it read, of no one,<br/>the last capped read is<br/>older than the ledger" as s4
+  state "Full lane" as g0 {
+    state "the slot free" as s0
+    state "the slot free, the crew<br/>waits, not woken" as s1
+    state "the slot free, the crew<br/>waits, not woken, jbus<br/>sends a wake for a slot it<br/>counted free" as s2
+    state "the slot held by a desk's<br/>run" as s3
+    state "the slot held by a desk's<br/>run, the crew is woken,<br/>its claim holds" as s4
+    state "the slot held by a desk's<br/>run, the crew is woken,<br/>its claim holds, the woken<br/>crew found its slot taken" as s5
+    state "the slot held by a desk's<br/>run, the crew waits, not<br/>woken, jbus sends a wake<br/>for a slot it counted free" as s6
   }
-  [*] --> s1
-  s1 --> s2 : 1. a writer reads the ledger
-  s2 --> s3 : 2. a writer reads the ledger
-  s3 --> s4 : 3. a writer writes the ledger
-  s4 --> s0 : 4. a writer writes the ledger
-  class s0 group2Wrong
-  class s1 group2Path
-  class s2 group2Path
-  class s3 group2Path
-  class s4 group2Path
+  [*] --> s0
+  s0 --> s3 : 3. the call counts the slots<br/>to spare
+  s3 --> s0 : 4. the slot is let go
+  s0 --> s1 : 6. the crew registers as a<br/>waiter and ends its turn
+  s1 --> s2 : 8. the jbus pass counts the<br/>slots to spare, with no lock
+  s2 --> s6 : 9. the call counts the slots<br/>to spare
+  s6 --> s4 : 10. the jbus pass records the<br/>wake
+  s4 --> s5 : 11. the call counts the slots<br/>to spare
+  s0 --> s0 : 1, 2. a call to test-slot<br/>starts<br/>5. a call to test-slot starts
+  s1 --> s1 : 7. a call to test-slot starts
+  class s0 group0Path
+  class s1 group0Path
+  class s2 group0Path
+  class s3 group0Path
+  class s4 group0Path
+  class s5 group0Wrong
+  class s6 group0Path

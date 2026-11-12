@@ -1,7 +1,7 @@
 {
   "view": "customer",
   "modelStates": 45694,
-  "modelTransitions": 147225,
+  "modelTransitions": 148105,
   "chartStates": 58,
   "chartTransitions": 104,
   "allTransitions": 170,
@@ -68,7 +68,7 @@
     "all": 170,
     "flat": {
       "states": 123,
-      "transitions": 446
+      "transitions": 449
     }
   },
   "classes": [],
@@ -78,8 +78,8 @@
     "inputs": {
       "ThreadLife.cfg": "75b281350ae23c8ba7533f81a323b71b79462281ab56875327f13a90c55c3b2e",
       "ThreadLife.map.py": "6772612119f94a2cb1279dcc9cf6cf4d17fb2527b21983f9624c2398da618ca1",
-      "ThreadLife.tla": "61a09880b209577c93647df5cb38074f306a1d5807b23c29611fdc795e2a39d6"
+      "ThreadLife.tla": "4c4a5bf79075f2f30c8ad1c6eed64e7067e8274019eb9530b0b80c3c4eee2200"
     },
-    "chart": "0f40ce12efb0edd1aff69993a68d331ad5973701a4dd2ff587f076ca5f1de35a"
+    "chart": "35da96cbd3669d3936d706d800a4efd92bc4d6ec28892e0a7c9a782547c34652"
   }
 }

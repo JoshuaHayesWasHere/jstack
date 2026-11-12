@@ -1,5 +1,6 @@
 """The verify-jstack skill's scripts. `launch.sh` says `ready:` only when a drive can run.
-`doctor.sh` fails a feature whose seed the sandbox lacks. At the top of the evidence, `record.sh`
+`doctor.sh` fails a feature whose seed the sandbox lacks. The map links each feature's own file
+and holds none of a feature's text. At the top of the evidence, `record.sh`
 writes what a stand-in set up. Each of the skill's Drive recipes runs as typed. Every test runs the
 scripts, under a temporary `TMPDIR`."""
 
@@ -454,3 +455,27 @@ def test_a_drive_recipe_runs_in_a_new_sandbox_as_typed(at, outcome, sandbox):
 
     assert ran.returncode == 0, ran.stdout + ran.stderr
     OUTCOMES[outcome](ran.stdout, sandbox.parent)
+
+
+MAP = REPO / "features" / "verify-jstack" / "project-skill" / "map.md"
+FEATURE_SECTIONS = (
+    r"^(?:## (?:Sub-features|How to get to it|Driving it|Gotchas)|Needs:|Paths:|Tests:)"
+)
+
+
+def test_the_map_links_each_feature_file_once_and_holds_no_copy_of_one():
+    """The map's Features list is the one list of feature files: a link to each file doctor
+    reads, once, and nothing more of the feature, whose text lives only in its own file."""
+    text = MAP.read_text()
+    features = text.split("\n## Features\n", 1)[1].split("\n## ", 1)[0]
+    links = re.findall(r"\]\(([^)]+\.md)\)", features)
+    linked = sorted((MAP.parent / link).resolve().relative_to(REPO).as_posix() for link in links)
+    pages = sorted(
+        path.relative_to(REPO).as_posix()
+        for path in [*PAGES.glob("*.md"), *REPO.glob("features/*/verify.md")]
+        if path.stem != "README"
+    )
+    assert linked == pages
+    items = [line for line in features.splitlines() if line.startswith("- ")]
+    assert [line for line in items if not re.fullmatch(r"- \[[^]]+\]\([^)]+\)", line)] == []
+    assert re.findall(FEATURE_SECTIONS, text, re.M) == []

@@ -12,7 +12,8 @@ import subprocess
 
 import pytest
 
-from skill_blocks import block, git, home, repo, run
+from jbriefs.parse import where
+from skill_blocks import block, git, home, linked, repo, run
 from testing.paths import REPO, playbooks
 
 __all__ = ["home", "repo"]
@@ -142,3 +143,69 @@ def test_the_folder_a_playbooks_verify_skill_line_names_is_the_one_the_lookup_fi
     named = re.findall(r"`(features/[^`]+/)`", said)
     assert named != []
     assert [folder for folder in named if folder not in folders] == []
+
+
+def test_a_verify_skill_whose_map_links_each_features_own_file_has_a_scout_per_link(repo, home):
+    """verify-jstack's shape: no `features/` folder, and a `map.md` whose list links each
+    feature's own `verify.md` beside its code, or a page elsewhere. A link to no file is no
+    feature."""
+    declared = {"projectSkills": [{"name": "verify-demo", "path": "features/verify/skill"}]}
+    links = [
+        "- [Login](../../login/verify.md)",
+        "- [Billing](../../../features/billing/verify.md)",
+        "- [The CI page](../../../testing/verify/ci-check.md)",
+        "- [Gone](../../gone/verify.md)",
+        "- [The skill](SKILL.md) and [a site](https://example.com/page.md)",
+    ]
+    head = commit(
+        repo,
+        {
+            "skills.json": json.dumps(declared),
+            "features/verify/skill/SKILL.md": "# verify-demo\n",
+            "features/verify/skill/map.md": "# map\n\n## Features\n\n" + "\n".join(links) + "\n",
+            "features/login/verify.md": "# login\n",
+            "features/billing/verify.md": "# billing\n",
+            "testing/verify/ci-check.md": "# ci\n",
+        },
+    )
+    run_name = f"maintain-demo-{head}"
+    assert lookup(repo, home) == [
+        f"wrote: scouts/{run_name}-billing.md",
+        f"wrote: scouts/{run_name}-ci-check.md",
+        f"wrote: scouts/{run_name}-login.md",
+        f"run: {run_name}, 3 feature files, launch them ten at a time",
+    ]
+    assert (scouts(home) / f"{run_name}.map").read_text() == "features/verify/skill/map.md\n"
+    request = (scouts(home) / f"{run_name}-login.md").read_text()
+    assert "`features/login/verify.md`" in request
+    assert "skill/features/" not in request
+
+
+def test_the_crewmates_brief_names_each_linked_feature_file_in_its_where(repo, home):
+    """The live pass fixes the feature files a map links outside the skill's folder, so its
+    brief's Where names each one as a path, the way `jmerge --scope` reads it."""
+    declared = {"projectSkills": [{"name": "verify-demo", "path": "features/verify/skill"}]}
+    head = commit(
+        repo,
+        {
+            "skills.json": json.dumps(declared),
+            "features/verify/skill/SKILL.md": "# verify-demo\n",
+            "features/verify/skill/map.md": "- [Login](../../login/verify.md)\n"
+            "- [CI](../../../testing/verify/ci-check.md)\n",
+            "features/login/verify.md": "# login\n",
+            "testing/verify/ci-check.md": "# ci\n",
+        },
+    )
+    run_name = f"maintain-demo-{head}"
+    lookup(repo, home)
+    linked(home, "maintain-verification-skill")
+    body = block("maintain-verification-skill", "no run:").replace("<run>", run_name)
+    brief = run(body, repo, home)
+    assert brief[0] == f"wrote: tasks/{run_name}.md"
+    text = (scouts(home).parent / "tasks" / f"{run_name}.md").read_text()
+    assert set(where(text)) == {
+        "features/verify/skill",
+        "features/verify/skill/map.md",
+        "features/login/verify.md",
+        "testing/verify/ci-check.md",
+    }

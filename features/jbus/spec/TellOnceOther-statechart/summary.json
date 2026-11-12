@@ -1,12 +1,13 @@
 {
   "view": "customer",
-  "modelStates": 81,
-  "modelTransitions": 116,
-  "chartStates": 46,
-  "chartTransitions": 52,
-  "allTransitions": 55,
+  "modelStates": 88,
+  "modelTransitions": 125,
+  "chartStates": 52,
+  "chartTransitions": 58,
+  "allTransitions": 62,
   "final": [
     "A cancelled check",
+    "A hold only your accept lifts",
     "A project closed",
     "A row red at two heads",
     "A work item proposed",
@@ -17,11 +18,12 @@
     "told once, cancelled.json says run again, sent.json has its key",
     "told once, closed.json says closed",
     "told once, fails.json says held, fails.json keeps the page's key, the row is held",
+    "told once, held.json says you were told",
     "told once, the counter is past it",
     "told once, the outbox dropped it"
   ],
   "chartStatus": {
-    "works": 46,
+    "works": 52,
     "fixed": 0,
     "wrong": 0
   },
@@ -29,17 +31,17 @@
     {
       "name": "Not told: nothing marked",
       "color": "#fef5e7",
-      "states": 9
+      "states": 10
     },
     {
       "name": "Not told: a pass in its step or a mark written",
       "color": "#fdebd0",
-      "states": 10
+      "states": 11
     },
     {
       "name": "Told once: no key kept yet",
       "color": "#e8f8f5",
-      "states": 6
+      "states": 8
     },
     {
       "name": "Told once: its key kept",
@@ -59,21 +61,21 @@
     {
       "name": "Told once: its file says done",
       "color": "#a9dfbf",
-      "states": 7
+      "states": 8
     }
   ],
   "mixedGroups": [],
   "regions": {
     "drawn": true,
     "states": [
-      6,
-      40
+      7,
+      45
     ],
-    "transitions": 52,
-    "all": 55,
+    "transitions": 58,
+    "all": 62,
     "flat": {
-      "states": 53,
-      "transitions": 67
+      "states": 59,
+      "transitions": 74
     }
   },
   "classes": [],
@@ -81,10 +83,10 @@
   "drawnFrom": {
     "command": "statechart from-spec TellOnce.tla --config TellOnceOther.chart.cfg --title 'Does jbus act twice, or drop an act, outside a thread when a pass dies?'",
     "inputs": {
-      "TellOnce.map.py": "31d8587344a6030e5b45073d5e839eeabd2e38ae7cb8229d0d14ca3bf8a4b4be",
-      "TellOnce.tla": "e04553a015c5c12f600ddcbdfebb7ec9526a2f0f111e1a975afe0e852d6fce78",
-      "TellOnceOther.chart.cfg": "ae7f5a60b8ec225befeaeb452bad6e9336fe69f524fc4b04daf10261e5db39cf"
+      "TellOnce.map.py": "fb48339c3dfc74e1770616f75ce726b0d0a566ba3aecaeeffc746c2fc49384d1",
+      "TellOnce.tla": "fa8bccf828c18eb906cc356ad8ac7f2eaae256e8d4863ed3c9be069b6a74b791",
+      "TellOnceOther.chart.cfg": "cc6834a8a54564e26c5684f4e40f101c92b3ccc7e6f81349b08f956f94e3338e"
     },
-    "chart": "2e466a0a8058e069854b03b3edbba4a827639875fd0fd179b838539a0020dfca"
+    "chart": "857bccdcf6342dd3bf5a62545f9370772cd16e3ed906b63ce6f071905cad02c0"
   }
 }

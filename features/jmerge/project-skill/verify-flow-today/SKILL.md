@@ -24,7 +24,7 @@ The rules, each with its harm:
 ## The record
 
 Model: `features/jmerge/spec/FlowToday.tla`
-Sync: `228c1436cc6fe94de479d333c7aab7b007460462`
+Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
 Covers:
 - `features/jmerge/src/jmerge/cli.py`: `Repo.judge`, `Repo.judged`, `Repo.again`, `Repo.in_turn`, `Repo.over_main`, `Repo.waits`, `Repo.accept`, `Repo.merge_holding`, `Repo.start_batch`, `Repo.batched`, `Repo.after_batch`, `Repo.build_batch`, `Repo.guards_batch`, `Repo.merge_members`, `in_line`, `IN_LINE`
 - `features/jmerge/src/jmerge/batch.py`: `Record`, `Batching`, `narrow`, `kind_of`, `LEAST`, `GUARDS_LEAST`, `GUARDS_MOST`
@@ -41,7 +41,7 @@ Covers:
 - `scripts/select_tests.py`: `cross_cutting`, `unowned`, `owns`
 
 At the sync commit every action was read against these; `Launch`, `Check`, `Hear`, `MeetsFix`, `Restack`, `CrewFix`, `BrowserFix`, `Rejudge` and its line, `GiveUpLine` and `KeepsLine`, `Sweep`, `JudgeRed`, `RevertMerges`, `FixMain` and `Unordered`, `Nightly` and `FixBrowser` match.
-The batch does not; see the drift below.
+The upkeep below fixed or stated each place the batch, the line and the row's end did not.
 `features/repo-guards/tests/test_model_sync.py` fails when a file or name above is gone.
 Move `Sync:` forward only after you read every change to these files since it against the model, as `/maintain-formal-verification-skill` says, and never because the check passes.
 
@@ -60,9 +60,9 @@ TLC walks some 7M states, so it takes some minutes (about 650 s on a Linux runne
 A run that ends in seconds took TLC's verdict from the statechart tools' cache (`tools.kept`), keyed by the spec, cfg and jar, and the runner script does the same: the verdict is the one TLC gives, and no change to the code alone can turn it, which is why the record above, and not a pass, says whether the model still describes the code.
 `flow_canaries.py` runs the same runs and prints one line each; its command is in `features/jmerge/spec/README.md`, "Check the rules", from the repo root.
 
-- **Bounds:** two pull requests, one outside break, one brief edit, at most one review round that says the brief is not met, `Gap = "turn"`; 7,024,508 distinct states at st-flow's head.
+- **Bounds:** two pull requests, one outside break, one brief edit, at most one review round that says the brief is not met, `Gap = "turn"`; 7,024,508 distinct states at st-flow's head and again at st-model-upkeep-run's.
 - **The controls:** `Gap = "ended"` (the code from #416 to #427) and `Gap = "busy"` (before #416) each break `FlowsWhenGreen`, `MachineNotLeftFull` and `MainFixWaitsOnlyOnYou`, and hold `MergeRedsMainOnlyOnAMissedTest`.
-- **Assumptions:** a crew's turn is one step; the batch of two stands for one of five or more; main's red is judged in one step; jmerge runs one run at a time.
+- **Assumptions:** a crew's turn is one step; the batch of two stands for CI's of five or more, and its steps take a guards batch of two too; main's red is judged in one step; jmerge runs one run at a time.
   The rest is in the README's "What the code model leaves out" and "Where `Rejudge` and the code differ".
 - **The chart** (`FlowToday.chart.cfg`, 0.97M states) needs more than 14 GB free; the README's "Draw the chart" says how.
 
@@ -78,15 +78,18 @@ When every step is backed, it is a bug: tell it as the rows' story (launch, chec
 - A change to the batch: bring `BuildBatch`, `BatchPasses` and `BatchFails` to the code's shape first (see the drift below), and measure the state count again; past some 10M states the test outgrows CI's limit.
 - Show a changed rule failing on a scratch break first (take the guard out in your own worktree, uncommitted, see the trace, `git restore` the file).
 
-## Drift at the sync commit
+## The last upkeep
 
-The rules most likely still hold; `/maintain-formal-verification-skill` fixes these.
+`/maintain-formal-verification-skill` ran at `228c1436c` (st-model-upkeep-run): the covered code is unchanged from it to the row's first base, and st-model-sync's drift was settled from the code.
 
-- **The batch steps no longer match the code (#1642, #1668):** `LEAST = 5`, and a guards batch is 2 to 4 (`GUARDS_LEAST` to `GUARDS_MOST`): with two pull requests the code runs one guards batch inside the same jmerge run (`guards_batch`), where both merge or both go alone in that run.
-  The model's `BuildBatch`, `BatchPasses` and `BatchFails` describe a CI batch out across runs and a narrowed batch of one, which can no longer form: a half under five sends every suspect alone (`Batching.chosen`).
-  The README's "leaves out" does not say so.
-- **`Alone` waits where the code merges (#1670):** when a pending batch is rebuilt, `Repo.batched` first merges the held pull requests, and after a proven batch `Repo.after_batch` merges them in the same run; the model keeps them waiting while a batch is out.
-- **`HoldRow` and `HomeEdits` cite a line whose meaning changed (#1657):** `if row and bus.over(row):` now returns `ROW_OVER`, a hold on the pull request; the model's rows end only by merging, so it never reaches it.
-- **Older gaps:** a pull request whose guards fail with no overlap with main's change does not go to the line as `InLine` says: it waits on the guards' record for its crew (`judged`, `self.guards.kept`).
-  `Repo.again`'s `repeats` (no rejudge after two runs fail the same test) is in neither the model nor the README's "leaves out".
-- **Stale prose:** the spec and the README say "as of 21112eba8"; #1644, #1647, #1657, #1668, #1670 and #1681 changed code it cites since.
+- **The batch (#1642, #1668):** kept as an abstraction, now said exactly: two pull requests stand for many, the batch of two for CI's batch of five or more, its half of one for a half, and the batch steps take a guards batch of two too, with other work between its build and its verdict that the code's one run lacks (`BuildBatch`'s comment, the README).
+- **`Alone` (#1670):** a run that builds a pending batch again merges the ones held for it first, which `Alone` now allows; the state count is unchanged, since a rebuild then a merge reaches the same states.
+- **`HoldRow` and `HomeEdits` (#1657):** their cite of `bus.over` now says it is the `ROW_OVER` hold, read before the go, which this model's rows, ending only by merging, never meet; the README's "leaves out" says so.
+- **Older gaps, now in the README's "leaves out":** a guards failure with no overlap waits on its crew where the model's takes the line (`InLine`), and `Repo.again`'s `repeats`.
+- **Stale prose:** the spec and README no longer name main 21112eba8.
+
+`uv run pytest features/jmerge/tests/test_flow_spec.py -q` printed `6 passed`: every rule holds over 7,024,508 states, the two controls break their three rules, and the design and its canaries say what they should.
+
+The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `ready.py` changed in #1715, #1721 and #1727, `dispatch.py` in #1726 and `watch.py` in #1724, none of it in a name this model covers, so the sync commit moved there; the chart was drawn again from the spec as it is now.
+
+st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: `select_tests.py` changed in #1742, so a pull request's check selects by main's rule; `cross_cutting`, `unowned` and `owns` are unchanged, and a check may still miss a test main's run selects over several merges (`MergeRedsMainOnlyOnAMissedTest`), so the sync commit moved there.

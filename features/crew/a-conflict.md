@@ -243,5 +243,7 @@ A head gets one scoped review: a later push that changes code gets its own, and 
 A push for a failed check made after a review saw an older head is ruled on the same way, with no line in the Result ("The checks"): `jmerge` compares the two heads, a clean range-diff or a patch that differs in tests, docs or config alone keeps the review, and any other gets the same one scoped review from jbus.
 A failing push before any review starts nothing more than the reviewer the pull request was still owed.
 
-A task is stacked on another task's branch in one case only, and a crewmate sees it as a line in the head of its brief.
-A row that builds on another row's code launches once that row opened its pull request, on its branch: jbus writes its `Stacked on:` line, and only once its base merged moves it, or tells it once to rebase with "A link that moved".
+A task is stacked on another task's branch in two cases only, and a crewmate sees each as a line in the head of its brief, which jbus alone writes.
+A row that builds on another row's code launches once that row opened its pull request, on its branch.
+A row launched on main whose crew found the code it needs only on an open row's branch, built on it and paused with `Waits on: <that row>`, is stacked by jbus on that row's pull request, which tells its crew once to check on that base, push and end for the review ("Do the task").
+In both, jbus writes the `Stacked on:` line, and only once its base merged moves it, or tells it once to rebase with "A link that moved".

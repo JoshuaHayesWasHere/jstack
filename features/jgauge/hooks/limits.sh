@@ -25,6 +25,9 @@ claudeAgent) ;;
 esac
 [ ! -d "$LIMITS" ] || exit 0
 
+mkdir -p "$(dirname "$LIMITS")" 2>/dev/null || exit 0
+{ command exec 9>>"$LIMITS.lock"; } 2>/dev/null || exit 0
+perl -MFcntl=:flock -e 'open(my $l, ">&=9") or exit 1; flock($l, LOCK_EX) or exit 1' 2>/dev/null || exit 0
 kept=$(cat "$LIMITS" 2>/dev/null)
 merged=$(printf '%s\n%s\n' "$kept" "$seen" | awk '
   NF == 3 && ($1 == "five_hour" || $1 == "seven_day") && $2 ~ /^[0-9]+(\.[0-9]+)?$/ && $3 ~ /^[0-9]+$/ {
@@ -42,7 +45,6 @@ merged=$(printf '%s\n%s\n' "$kept" "$seen" | awk '
   }' 2>/dev/null) || exit 0
 [ -n "$merged" ] && [ "$merged" != "$kept" ] || exit 0
 
-mkdir -p "$(dirname "$LIMITS")" 2>/dev/null || exit 0
 next=$LIMITS.$$
 trap 'rm -f "$next" 2>/dev/null' EXIT
 trap 'exit 0' HUP INT TERM
