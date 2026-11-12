@@ -6,9 +6,10 @@ One row of jbus's queue, from `jbus queue add` to its end, in two regions at the
   The spec models the facts `work.status` reads, folded to what it tells apart: the thread (none, starting, at work, hung, waiting, failed, ended, settled, missing), the Result (none, clean, leaving work), the pull request (none, opening, open, merged, closed), a question, and the launch record.
   Each step changes one fact, and the pass derives from them the line's value in `work.json` (`value`, the first of `work.PATTERNS` they match) and the status that value gives, as `work.status` reads it.
   The eight steps of an open pull request are one value, `check`, and `quiet` is `working`; `test_rowlife_spec.py` fails when `work.VALUES` gains a value the spec neither has nor names as joined.
-  `Moves` in `RowLife.tla` is `queue.MOVES`, move for move, and `features/jbus/tests/test_rowlife_spec.py` fails when the two differ.
-  `removed` is the line the `remove` verb writes, and no pass judges it.
-  `remove` refuses only a thread at work and an open or merged pull request (`out` in `asks._asks`), so a `done` row may be removed; `Moves` names the removals seen and guards none.
+  `queue.MOVES` is each change of status one step of TLC's graph of the spec makes, and `features/jbus/tests/test_rowlife_spec.py` fails when the two differ.
+  A thread T3 Code settles with nothing written makes a launched row `stale`, as one that completed or was archived does (`work._THREAD`), so a launched row never goes back to `queued`.
+  A pull request in neither of GitHub's lists reads as closed only while the Result's `Branch:` line names its address, and as none otherwise (`watch.pull`), so a row whose pull request closed may be `done`.
+  `removed` is the line the `remove` verb writes, from any status but `merged` and `done`, which `remove` refuses (`Remove`).
 - The go, which verbs and rules of `queue.py` move: an approve or a rule's go (`_grant`), a hold that may keep the go it took (`_hold`), a lift that puts a kept go back (`_lift`), and a go taken back from an unlaunched row (`_void`).
   An approved row whose `depends` are not all over is `behind` until they are (`Ahead`), and jbus launches it stacked all the same.
   An `add` that changes an approved row's depends moves it between free and behind (`Depends`), and its line keeps its value until the next pass (`Pass`), since `restated.restate` keeps an approved facet beside another.
@@ -16,14 +17,27 @@ One row of jbus's queue, from `jbus queue add` to its end, in two regions at the
 
 `docs/jbus/row-moves.md` says what each move means and which faults the table leaves out.
 
+## Replay a real log
+
+`statechart replay` walks each line of a project's `transitions.jsonl` over TLC's graph of the spec, read by `RowLife.trace.py`, and names each line no step of the model makes:
+
+```sh
+S=features/skill-library/skills/statechart/scripts L=~/.local/state/jbus/<project>/transitions.jsonl
+cd features/jbus/spec
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
+    statechart replay RowLife.tla --trace RowLife.trace.py --log "$L"
+```
+
+A pass's line matches a path of steps that are no verb's, a removal one `Remove` step, and a line that moves the go (`queue._go`) one step of `Grant`, `Hold`, `Lift` or `Void`.
+`features/jbus/tests/test_rowlife_replay.py` replays a fixture of 138 of jstack's own lines, and skips where no Java runs TLC.
+
 ## Check the rule
 
 The rule is `FinalStays`: a row that is over stays over, so the queue, `watch.final` and jmerge, which all read `work.over`, never see a row over and then not.
-A `done` row may only become `merged` or be removed for good, a `merged` one stays so, and a removed one stays removed.
+A `done` row may only become `merged`, and a `merged` one stays so.
 The facts can still leave a final row: a pull request opens after a `done`, or a question opens on a `merged` row.
 The rule holds because `queue.derive` keeps the status (`work.kept`), and so checks the code's derive and not only the table.
-The second rule is `MovesKnown`: each move of the status but a removal, the `remove` verb's, which `derive` never judges, is in `Moves`, so the table is the one `work.status` makes, and a pass marks `"legal": false` only on a fault the model leaves out (a pull request read in neither of GitHub's lists, a row with no launch record, a `Branch:` line that loses the address of a closed pull request), each of which `test_jbus_queue_moves.py` names.
-`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where both rules hold over 2502 distinct states, on a canary that takes `work.kept` out (`Fault = "no-latch"`), where `FinalStays` breaks, and on one that gives a settled thread's row `queued` again (`Fault = "settled-queued"`), where `MovesKnown` breaks.
+`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where the rule holds over 3092 distinct states, on a canary that takes `work.kept` out (`Fault = "no-latch"`), where it breaks, and on one that gives a settled thread's row `queued` again (`Fault = "settled-queued"`), whose graph has status edges `queue.MOVES` lacks.
 Its TLC runs skip where no Java runs TLC.
 By hand, in a copy of this folder:
 
@@ -44,7 +58,7 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --e
 It writes `RowLife-statechart/`: `chart.mmd`, `stories.md` and `summary.json`, labelled by `RowLife.map.py`.
 No chart's PNG or Excalidraw scenes, nor the charts page, is committed: `make charts`, at the repo's root, draws them from each committed `chart.mmd` into a folder git ignores, and prints the page's path.
 Each status on the chart says what in `work.py` sets it, and each step that moves the status is labelled by its row of `queue.MOVES`.
-The regions draw 69 of their 117 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
+The regions draw 80 of their 106 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
 Its `tlc/` folder holds TLC's output, which is not committed.
 
 ## What the model leaves out
@@ -52,7 +66,7 @@ Its `tlc/` folder holds TLC's output, which is not committed.
 - The facts behind a status, past the folds above (a Result that owes its pull request, each step of an open pull request): `test_jbus_queue_moves.py` walks every combination.
 - A restate between passes (`restated.restate`) that the next pass corrects, the `work-drift` event: here a fact's change and the pass that sees it are one step, but for the depends an `add` changes (`Depends`).
   So is a pass that heard from GitHub or T3 Code alone, which keeps the last value unconfirmed.
-- The faults the table leaves out, which a pass marks `"legal": false` in `transitions.jsonl` and writes all the same: a pull request that leaves GitHub's open list unmerged and unclosed, a thread, Result or pull request of a row with no launch record, and a `Branch:` line that loses the address of a closed pull request.
-  So the model never makes `pr` to `done` either, a move of the table.
+- The faults the table leaves out: a pull request read in neither of GitHub's lists while the row has one, and a thread, Result or pull request of a row with no launch record.
+  A pass marks each one `"legal": false` in `transitions.jsonl` and writes it all the same, and `statechart replay` names it.
+- The live guards of `remove`: a thread at work, an open or merged pull request, a launch with no answer yet, which read T3 Code and GitHub at that moment.
 - The scout's row, which `work.scouting` reads, and a row's `merge_after`.
-- A launch under way with no answer yet, which `remove` also refuses (`launched` in `asks._asks`): the launch is one step.
