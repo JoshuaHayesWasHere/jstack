@@ -356,7 +356,7 @@ java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -config MainFix.
 ```
 
 Run it in a copy of this folder, since TLC writes `states/` where it runs.
-`MainFix.cfg` is the code with a pass that dies and no other fault, watching all three nightlies, and every rule holds over 1288706 distinct states:
+`MainFix.cfg` is the code with a pass that dies and no other fault, watching all three nightlies, and every rule holds over 329948 distinct states:
 
 - `FiledWhole`: no brief ever stands with no row, between passes after one that ran every step: main's fix and its Mac's, at every tip, and each nightly's rows.
   A blind pass is not such a pass: it launches nothing, and the next pass with a world queues the row.
@@ -364,8 +364,11 @@ Run it in a copy of this folder, since TLC writes `states/` where it runs.
 - `RevertSaid`: each revert on record has its line in `events.jsonl`.
 - `RefinesMainRed`: each step is MainRed's `reverts` or `fixes` step, or leaves both as they are, where MainRed's `reverts` is the record and its `fixes` are the red tips whose main fix row the queue holds.
 
-They hold too in each world TLC broke them in on the code of aa5469d97: `World = {"hand"}` (2872407 distinct states), `{"refuses"}` (5473465) and `{"late"}` (10480668).
-They hold with `World = {"blind"}` too, over 2547224 distinct states.
+They hold too in each world TLC broke them in on the code of aa5469d97: `World = {"hand"}` (669004 distinct states), `{"refuses"}` (1339244) and `{"late"}` (1006483).
+They hold with `World = {"blind"}` too, over 586960 distinct states.
+Those counts are of `MainFix.cfg`'s `VIEW View`, which tells each variable apart only by what a later step or a rule can still read of it: a nightly run kept in its seen file is "passed" or seen, a pull request's run is as good as seen, a red run that aged unseen is late whatever its kind, the tip and `clear` stop counting once main and its Mac are green again, and so do `sight` between passes and `before` after a pass that died.
+A pass also goes past a nightly's last run straight to its next step, since dying between the two writes nothing.
+So the rules are checked as before, over a quarter to a tenth as many states, and each TLC test ends in well under a minute.
 `test_main_fix_spec.py` runs each of those rules alone in its world, and each canary below.
 Each canary is the code with one fix taken back, and TLC breaks the rule it keeps; the comment in `MainFix.cfg` keeps each trace:
 

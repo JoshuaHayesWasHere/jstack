@@ -153,6 +153,13 @@ Onward ==
   /\ whole' = (phase = Last /\ sight)
   /\ at' = "judge" /\ k' = 1
 
+\* The pass goes on to the next run of its nightly, or past its last run to its next step: a
+\* pass that died between the last run and the next step would have written nothing more.
+NextRun ==
+  IF k = Len(runs[Night(phase)])
+    THEN Onward
+    ELSE at' = "judge" /\ k' = k + 1 /\ UNCHANGED <<phase, whole>>
+
 \* ---- The world, between two passes ----------------------------------------------------------
 
 \* The culprit merges: main's check, its Mac or both go red at it, and the red has one clear
@@ -370,8 +377,7 @@ NightlyRead ==
          \* jbus/watch.py `n for n in (name, redrawn) if n not in run.removed and queue.fresh(run.state, n) is None`
          taken == rows[n] = "row" /\ rows["shots"] = "row"
      IN
-     \/ /\ k > Len(runs[n]) /\ Onward /\ UNCHANGED Seens /\ UNCHANGED rows
-     \/ /\ k <= Len(runs[n]) /\ at' = "judge" /\ k' = k + 1 /\ UNCHANGED <<phase, whole>>
+     \/ /\ NextRun
         /\ \/ /\ kind = "none" /\ UNCHANGED Seens /\ UNCHANGED rows
            \* jbus/watch.py `if event == "pull_request" or not theirs or (off and event not in NIGHTLY_RELEASE):`
            \* and `seen.setdefault(number, "")`
@@ -403,7 +409,7 @@ NightlyRead ==
      \* Its row is free: _filed queues its row, then writes its brief. jbus/watch.py
      \* `if fixed and name in free:`, and for the shots `if drawn and redrawn in free:`. The canary
      \* "brief-first" writes the brief first.
-     \/ /\ k <= Len(runs[n]) /\ kind \in {"red", "shots"} /\ seen = "unseen" /\ <<n, k>> \notin late
+     \/ /\ kind \in {"red", "shots"} /\ seen = "unseen" /\ <<n, k>> \notin late
         /\ (n # "macos" \/ green)
         /\ LET row == IF kind = "shots" THEN "shots" ELSE n IN
            /\ rows[row] # "row"
@@ -426,7 +432,7 @@ QueueNightly ==
 SeeNightly ==
   /\ phase \in NightPs /\ at = "queued"
   /\ SetSeen(Night(phase), IF runs[Night(phase)][k] = "shots" THEN "blank" ELSE "row")
-  /\ at' = "judge" /\ k' = k + 1 /\ UNCHANGED <<phase, whole>>
+  /\ NextRun
   /\ UNCHANGED world /\ UNCHANGED Reverting /\ UNCHANGED <<fix, macFix, rows>>
 
 Pass == Start \/ Die \/ Known \/ Judge \/ Open \/ GhRevert \/ BriefRevert \/ SayOrKeep
@@ -434,6 +440,28 @@ Pass == Start \/ Die \/ Known \/ Judge \/ Open \/ GhRevert \/ BriefRevert \/ Say
         \/ QueueNightly \/ SeeNightly
 Next == GoesRed \/ Merge \/ HandGreen \/ NightlyRuns \/ Ages \/ Pass
 Spec == Init /\ [][Next]_vars
+
+\* What TLC tells states apart by (MainFix.cfg's VIEW): each variable by what a later step or a
+\* rule can still read of it, so TLC checks the same rules over fewer states.
+\* - A nightly run a pass has kept in its seen file is never read again but for "passed", which
+\*   NightlyRead's green reads: no step reads its kind or whether it aged, and no rule its blank
+\*   or its row. A red run that aged unseen is never read again either, and a pull request's run
+\*   is as good as seen: reading it writes only a blank.
+\* - Once main and its Mac are green after the red, neither goes red again (Merge keeps a green
+\*   green, and GoesRed needs the time before the red), so no step reads the tip or clear.
+\* - Between passes, sight is read by none (Start sets it), and before only by RevertKnown, after
+\*   a pass that ran to its end (Start sets it too).
+RunView(n, r) ==
+  CASE SeenOf(n)[r] = "passed" -> "passed"
+    [] SeenOf(n)[r] # "unseen" -> "seen"
+    [] <<n, r>> \in late -> "late"
+    [] runs[n][r] = "pr" -> "seen"
+    [] OTHER -> runs[n][r]
+Over == episode = "red" /\ red = [c \in Checks |-> 0]
+View == <<revertBrief, fix, macFix, rows, pull, opening, record, said,
+          IF Over THEN 0 ELSE tip, red, IF Over THEN FALSE ELSE clear, episode, phase, at, k, whole,
+          IF phase = 0 /\ ~whole THEN FALSE ELSE before, IF phase = 0 THEN TRUE ELSE sight,
+          [n \in Range(Nightlies) |-> [r \in Runs(n) |-> RunView(n, r)]]>>
 
 \* ---- The rules ------------------------------------------------------------------------------
 

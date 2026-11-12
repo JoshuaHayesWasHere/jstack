@@ -45,12 +45,12 @@ A change to a red's culprit, its revert's holders, `close` or `_withdraw` is `ve
 uv run pytest features/jbus/tests/test_main_fix_spec.py -q
 ```
 
-It prints `13 passed` in a few minutes, and skips the TLC runs where no Java runs TLC.
+It prints `13 passed` in about two minutes, with each TLC test under 25 s on a desk, and skips the TLC runs where no Java runs TLC.
 `features/jbus/tests/test_main_fix_crashes.py` stops the real pass at each write the canaries' traces name and runs the next one.
 The bare TLC command is in `features/jbus/spec/README.md`, "Check the rules of main's fix"; run it in a copy of the folder.
 
-- **Bounds:** `MainFix.cfg` is a pass that dies and no other fault (`World = {}`), `MaxTip = 3`, all three nightlies watched, 1288706 distinct states.
-  Every rule holds too with `World = {"hand"}` (2872407), `{"refuses"}` (5473465), `{"late"}` (10480668) and `{"blind"}` (2547224).
+- **Bounds:** `MainFix.cfg` is a pass that dies and no other fault (`World = {}`), `MaxTip = 3`, all three nightlies watched, 329948 distinct states, counted by its `VIEW View`, which tells each variable apart only by what a later step or a rule can still read of it.
+  Every rule holds too with `World = {"hand"}` (669004), `{"refuses"}` (1339244), `{"late"}` (1006483) and `{"blind"}` (586960).
 - **The canaries**, each a fix of st-main-fix-crash-gaps (#1728) taken back: `Fault = "keep-first"` (the record before the line) breaks `RevertSaid`, `"no-known"` (no `reverts.known`) breaks `RevertKnown` with `"hand"`, and `"brief-first"` (the brief before its row) breaks `FiledWhole` with `"refuses"` and with `"late"`.
   `MainFix.cfg`'s comment keeps each trace, and the test's `CANARIES` checks each still breaks.
 - **The findings:** none today; the test's `FIXED` holds each of the five that st-model-main-fix found, and `FINDINGS` is where a new one goes.
@@ -87,3 +87,8 @@ st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased on
 Then #1728 (st-main-fix-crash-gaps) fixed the five findings in `reverts.py` and `watch.py` and wrote its own model of them: `reverts.known` before the nightlies, `reverts-opening.json`, the line before the record, and the row before its brief.
 The row merged main at `5f87506cc` and put the two drifts above on #1728's model: a blind pass skips `reverts.known` too, which needs the world, and `culprits.judge` still needs none.
 Every rule holds in each world, `"blind"` among them, and each canary still breaks its rule, so the sync commit moved there.
+
+On CI the merged model's TLC tests passed 120 s (`FiledWhole` with `"late"` was 10480668 states), so `MainFix.cfg` gained `VIEW View`, and `NextRun` takes a pass past a nightly's last run straight to its next step.
+The view tells a nightly run kept as seen only as "passed" or seen, a pull request's run as seen, and a red run that aged unseen as late; it drops the tip and `clear` once main and its Mac are green again, `sight` between passes, and `before` after a pass that died.
+The tla's comment above `RunView` says why no step and no rule reads what it drops, so every rule holds and each canary breaks as before, over a quarter to a tenth as many states.
+A view that drops what a step still reads would hide a break: before you widen it, check that a canary still breaks.
