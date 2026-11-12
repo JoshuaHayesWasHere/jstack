@@ -53,7 +53,7 @@ uv run pytest features/jbus/tests/test_main_red_model.py -q
 ```
 
 It takes a few seconds (6,818 states in the widest world).
-On the code as it is today it prints `9 passed`.
+On the code as it is today it prints `10 passed`.
 To print every world:
 
 ```sh
@@ -81,6 +81,7 @@ The tests and the world each walks:
 | `test_s3_the_tests_kept_are_the_red_tip_s_own_in_every_order` | every order | passes |
 | `test_s4_each_red_tip_has_one_line_in_the_ledger_one_at_a_time` | one tip at a time | passes |
 | `test_s4_each_red_tip_has_one_line_in_the_ledger_in_every_order` | every order | passes |
+| `test_the_skill_states_the_counts_the_walk_walks` | both | passes: the counts stated equal the counts walked |
 
 Each finding's world is cut from a world that passes, so a break there points at that finding's cause.
 S1 holds one tip at a time, so S1 breaking over every order needs a tip no pass saw (F2).
@@ -152,7 +153,7 @@ When every step is backed, the trace is a real bug: report it with the trace, in
 - **A module moves** (as unit 6 moved `jbus.mainstate` to `jmerge.mainjson`): change the model's imports and the stub targets to the new module, rerun, and expect the same counts.
   Different counts after a pure move mean the move changed behavior.
 - **The property changes.**
-  Change `s1`, `s2`, `s3` or `s4` and the sentence in the docstring and here, and show the new property failing on a scratch break before trusting a pass: break the line it guards in your own worktree, uncommitted, run the check, see the trace, `git restore` the file, and see the check back at `9 passed` (or the new count).
+  Change `s1`, `s2`, `s3` or `s4` and the sentence in the docstring and here, and show the new property failing on a scratch break before trusting a pass: break the line it guards in your own worktree, uncommitted, run the check, see the trace, `git restore` the file, and see the check back at `10 passed` (or the new count).
 
 Two breaks it was shown to catch on the code before the fix, on 2026-10-20: `if False:` for `if check == "failed":` in `mainmoved.py` breaks S1 in the one-tip-at-a-time world (a failed M1 seen by a pass, then M2 lands pending and the pass drops the red), and `if broken:` in `mainmoved.py` breaks S2 (the pass at green M2 keeps `broken: M1`, and the pass at pending M3 reads red again).
 On the fixed code, dropping `broken, waiting, unrun = tip, [], ""` for `waiting, unrun = [], ""` in `mainmoved.py` breaks S1 one tip at a time and over every order.
