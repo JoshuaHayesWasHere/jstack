@@ -1383,8 +1383,9 @@ nothing when it is viewed.
                tables, each with the chart's name, the thing it charts and, for a chart whose
                title asks no question, its question; and one numbered arrow per [[handoff]], with
                from = "Chart: Group", to = "Chart: Group" and the words it says. The command
-               stops when a hand-off names a chart or a group that is not there. Without it, the
-               tab draws the charts in the order of their paths, with no hand-offs.
+               stops when a hand-off names a chart or a group that is not there. Default: the
+               flow.toml beside FILE, where there is one. Without one, the tab draws the charts
+               in the order of their paths, with no hand-offs.
   --check      Writes nothing, and exits 1 when FILE is not the page the charts make now.
 
 Exit codes: 0 written (or current, with --check), 1 stale, 2 a chart or map it cannot read, a
@@ -1414,6 +1415,9 @@ def site_main(argv):
     if "out" not in flags:
         raise CannotFinish(SITE.split("\n", 1)[0])
     root = flags.get("root") or site.repo_root(os.getcwd())
+    beside = os.path.join(os.path.dirname(flags["out"]), "flow.toml")
+    if "flow" not in flags and os.path.isfile(beside):
+        flags["flow"] = beside
     try:
         if flags.get("check"):
             fresh = site.render(root, flags["out"], flags.get("flow"))

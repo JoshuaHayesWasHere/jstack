@@ -47,7 +47,8 @@ def site(root, out, *extra):
 
 def test_the_page_opens_on_a_map_of_every_chart_and_how_they_hand_off(tmp_path):
     out = tmp_path / "index.html"
-    r = site(REPO, out, "--flow", str(FLOW))
+    shutil.copy(FLOW, tmp_path / "flow.toml")
+    r = site(REPO, out)
     assert r.returncode == 0, r.stderr
     page = read(out)
     first = re.search(r'<button class="tab"[^>]*>', page)[0]
@@ -450,7 +451,7 @@ def probed(tmp_path, screen):
         pytest.skip("no chromium on PATH to open the page in")
     folder = tmp_path / f"{screen[0]}"
     folder.mkdir()
-    built = site(REPO, folder / "index.html")
+    built = site(REPO, folder / "index.html", "--flow", str(FLOW))
     assert built.returncode == 0, built.stderr
     page = read(folder / "index.html")
     write(folder / "probed.html", page.replace("</body>", PROBE + "</body>"))

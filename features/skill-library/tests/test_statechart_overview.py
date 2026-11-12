@@ -1,9 +1,9 @@
 """`statechart overview` draws a chart at the level of its groups: ten boxes or fewer, one per group
 of each region and one for a region's states in no group, every state in a box, and every step
-inside a box or on an arrow that counts it. Each overview is drawn again from the charts under
-features/home/docs/charts/: on the page, above its chart, and as an Excalidraw file beside the
-chart's own. A chart is held to its model by test_statechart_current.py, and the overviews are held
-to their charts here, so a group that moves fails the drift check."""
+inside a box or on an arrow that counts it. Each overview is drawn on the page, above its chart, and
+committed as an Excalidraw file beside the chart's own under features/home/docs/charts/. A chart is
+held to its model by test_statechart_current.py, and the committed overviews are held to their
+charts here, so a group that moves fails the drift check. The page is built, not committed."""
 
 import importlib
 import json
@@ -51,15 +51,13 @@ def test_the_overview_has_a_box_per_group_and_counts_every_state_and_step(chart)
     assert all(a in keys and b in keys and a != b for a, b, _ in arrows)
 
 
-def stale_overviews(root, page, drawn, scratch):
+def stale_overviews(root, drawn, scratch):
     """The drift check: each chart under `root` whose overview is not the one its chart.mmd draws
-    now, in `page` or in `drawn`/NAME.overview.excalidraw. The parts of the page it compares hold
-    no code a chart cites, so they stay current while that code moves."""
+    now in `drawn`/NAME.overview.excalidraw. The page is built, not committed, so its overviews are
+    drawn fresh each time and cannot drift."""
     flow = site.load_flow(root / FLOW.relative_to(REPO))
     root, charts = site.read_all(root, flow)
-    fresh = site.overviews(charts, flow)
-    committed = read(page)
-    stale = [name for name, part in fresh.items() if part not in committed]
+    stale = []
     for chart in charts:
         out = scratch / f"{chart.name}.overview.excalidraw"
         built = statechart_cli.main(
@@ -72,11 +70,10 @@ def stale_overviews(root, page, drawn, scratch):
 
 
 def test_each_committed_overview_is_the_one_its_chart_draws(tmp_path):
-    stale = stale_overviews(REPO, DRAWN / "index.html", DRAWN, tmp_path)
+    stale = stale_overviews(REPO, DRAWN, tmp_path)
     assert not stale, (
-        f"stale overviews: {', '.join(stale)}. Draw them again: statechart site --out"
-        f" {(DRAWN / 'index.html').relative_to(REPO)} --flow {FLOW.relative_to(REPO)}, and for"
-        " each chart statechart overview CHART.mmd --out"
+        f"stale overviews: {', '.join(stale)}. Draw them again: for each chart,"
+        " statechart overview CHART.mmd --out"
         f" {DRAWN.relative_to(REPO)}/NAME.overview.excalidraw"
     )
 
@@ -90,15 +87,12 @@ def test_the_drift_check_fails_once_a_state_moves_to_another_group(tmp_path):
     drawn = tmp_path / DRAWN.relative_to(REPO)
     scratch = tmp_path / "scratch"
     scratch.mkdir()
-    assert stale_overviews(tmp_path, drawn / "index.html", drawn, scratch) == []
+    assert stale_overviews(tmp_path, drawn, scratch) == []
     moved = tmp_path / "features/jmerge/spec/FlowToday-statechart/chart.mmd"
     text = read(moved)
     first = re.search(r"^  class s\d+ group0$", text, re.M)[0]
     write(moved, text.replace(first, first.replace("group0", "group1"), 1))
-    assert stale_overviews(tmp_path, drawn / "index.html", drawn, scratch) == [
-        "FlowToday",
-        "FlowToday.overview.excalidraw",
-    ]
+    assert stale_overviews(tmp_path, drawn, scratch) == ["FlowToday.overview.excalidraw"]
 
 
 @pytest.mark.parametrize("chart", CHARTS, ids=name_of)
