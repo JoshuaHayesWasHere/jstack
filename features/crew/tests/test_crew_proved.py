@@ -745,7 +745,8 @@ if [ -z "$files" ]; then
         echo '{"numPassedTests": 0, "numFailedTests": 0, "testResults": []}' > "$report"
         echo "No test files found, exiting with code 1"
     else
-        echo '{"stats": {"expected": 0, "unexpected": 0}, "errors": [{"message": "Error: No tests found."}]}' > "$report"
+        printf '{"stats": {"expected": 0, "unexpected": 0}, "errors": [%s]}\\n' \\
+            '{"message": "Error: No tests found."}' > "$report"
         echo "Error: No tests found."
     fi
     exit 1
@@ -778,8 +779,9 @@ case $PWD in "$TMPDIR"/base.*) if [ -n "$BASE_ERROR" ]; then exit 1; fi ;; esac
 """Vitest or Playwright as `node_modules/.bin` holds them, with the JSON report each writes: a
 test file passes where its `// expects: <path> <text>` line, if it has one, finds the text in
 that file, a path from the folder the runner runs in. A file the config there does not reach
-is not found, and a run that finds none ends 1 with no test run, as each runner does. With `BASE_ERROR` set, a run in the copy of the base ends 1 with no test run, as a
-Playwright web server that will not start or a Vitest that finds no file does."""
+is not found, and a run that finds none ends 1 with no test run, as each runner does. With
+`BASE_ERROR` set, a run in the copy of the base ends 1 with no test run, as a Playwright web
+server that will not start or a Vitest that finds no file does."""
 NPM = """#!/bin/bash
 echo "npm $1 in $PWD" >> "$TMPDIR/npm-args"
 mkdir -p node_modules/.bin
@@ -932,7 +934,7 @@ def test_a_branch_of_node_tests_and_config_alone_runs_them_at_the_head_alone(rep
 
 
 NESTED = {
-    "vitest.config.ts": "// reaches: src/\nexport default { test: { include: ['src/**/*.test.ts'] } };\n",
+    "vitest.config.ts": "// reaches: src/\nexport default { test: { include: ['src/**'] } };\n",
     "playwright.config.ts": "// reaches: tests/\nexport default { testDir: 'tests' };\n",
     "prototypes/kit/vitest.config.ts": "export default { test: { include: ['*.test.ts'] } };\n",
     "prototypes/kit/kit.ts": BUGGY_TS,
