@@ -438,7 +438,7 @@
       "kind": "skill",
       "path": "features/home/skills/engine/SKILL.md",
       "source": "jstack",
-      "description": "Run one engine pass in a repo's root home: read the queue, what waits on the user and the open pull requests, clear what stalls where a fix is reversible, and end in one verdict, Quiet, Moving or Call. Use for /engine, \"run the engine\", \"engine pass\", and the root home's scheduled task."
+      "description": "Run one engine pass in a repo's root home: read the queue, what waits on the user and the open pull requests, clear what stalls where a fix is reversible, and end in one verdict, Quiet, Moving or Call. Use for /engine, \"run the engine\", \"engine pass\", and the root home's scheduled task, and /engine schedule or /engine stop to make or delete that task."
     },
     {
       "name": "expert",

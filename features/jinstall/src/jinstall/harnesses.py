@@ -22,6 +22,9 @@ A row has, last, the file the layout writes into the folder of each skill that s
 `disable-model-invocation: true` in the skill's frontmatter. Codex does not: it reads
 `policy.allow_implicit_invocation` in `agents/openai.yaml` beside the skill. Codex reads
 `~/.agents/skills`, Cursor's root, as well as its own, so Cursor's layout carries the file too.
+A skill may keep its own `agents/openai.yaml`, with the name, the short description and the prompt
+Codex shows for it, which every layout links. A hidden skill's file is that one with the policy
+after it.
 
 A row says, after that, whether its layout copies each skill's SKILL.md rather than linking it.
 codex-cli 0.165.0 lists no skill whose SKILL.md is a symlink, though it follows a linked folder,

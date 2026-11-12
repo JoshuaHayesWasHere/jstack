@@ -13,7 +13,7 @@ import sys
 import pytest
 
 from jinstall import layout
-from jinstall.harnesses import CLAUDE_CODE, HARNESSES
+from jinstall.harnesses import CLAUDE_CODE, HARNESSES, HIDES
 from test_install import User, laid, line_for
 from testing.layouts import place
 from testing.paths import REPO, skills
@@ -21,6 +21,7 @@ from testing.paths import REPO, skills
 sys.path.insert(0, str(REPO / "scripts"))
 tracked = importlib.import_module("jtrees.crawl").tracked
 GITHUB = "https://github.com/JoshuaHayesWasHere/jstack"
+OPENAI = "agents/openai.yaml"
 CODEX = next(harness for harness in HARNESSES if harness.name == "codex")
 
 
@@ -204,12 +205,50 @@ def test_codex_finds_beside_each_hidden_skill_a_policy_that_bars_implicit_invoca
     exposed = set(layout.skills(REPO)) - hidden
     assert "home" in hidden and "grilling" in exposed
     policy = "policy:\n  allow_implicit_invocation: false\n"
+    own = {name for name, folder in skills().items() if (folder / OPENAI).exists()}
     for root in (".codex/skills", ".agents/skills"):
-        for name in hidden:
-            assert (user.home / root / name / "agents" / "openai.yaml").read_text() == policy
-        assert [name for name in exposed if (user.home / root / name / "agents").exists()] == []
+        for name in hidden - own:
+            assert (user.home / root / name / OPENAI).read_text() == policy
+        assert {name for name in exposed if (user.home / root / name / "agents").exists()} == own
     claude = user.home / ".claude" / "skills"
     assert [name for name in hidden if (claude / name / "agents").exists()] == []
+
+
+def interface(text):
+    """The `interface` keys of an `agents/openai.yaml`, as Codex reads its three strings."""
+    found, inside = {}, False
+    for line in text.splitlines():
+        if not line.startswith(" "):
+            inside = line == "interface:"
+        elif inside:
+            key, _, value = line.strip().partition(": ")
+            found[key] = json.loads(value)
+    return found
+
+
+def test_codex_shows_a_skill_by_the_name_description_and_prompt_its_own_file_gives(user):
+    """A skill that keeps `agents/openai.yaml`, as tstack's do, gives Codex a display name, a
+    short description and a default prompt. The install puts the file where Codex reads it."""
+    user.run()
+    own = {name: folder / OPENAI for name, folder in skills().items() if (folder / OPENAI).exists()}
+    assert "engine" in own
+    for name, path in own.items():
+        said = interface(path.read_text())
+        assert set(said) == {"display_name", "short_description", "default_prompt"}, name
+        assert all(said.values()) and f"${name}" in said["default_prompt"], name
+        for root in (".codex/skills", ".agents/skills"):
+            assert interface((user.home / root / name / OPENAI).read_text()) == said
+
+
+def test_a_hidden_skill_keeps_its_own_interface_beside_the_policy(copy):
+    """A hidden skill with its own `agents/openai.yaml` gets that file with the policy after it,
+    so Codex shows it by its name and still never loads it by itself."""
+    mine = 'interface:\n  display_name: "Home"\n'
+    (skills(copy)["home"] / "agents").mkdir()
+    (skills(copy)["home"] / OPENAI).write_text(mine)
+    generate(copy)
+    entry = layout.assemble(copy, CODEX).entries[f"skills/home/{OPENAI}"]
+    assert entry == layout.Written((mine + HIDES[1]).encode())
 
 
 def test_codex_finds_each_skill_md_as_a_file_and_not_a_link(user):

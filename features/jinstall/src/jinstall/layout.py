@@ -11,7 +11,7 @@ A layout holds these entries:
 - every skill as `skills/<name>/`, flat, with each file of its folder, its SKILL.md a copy where
   the harness reads no linked one (`Harness.copies`), and for a skill that
   skills.json marks `hidden`, the file the harness reads to keep its agent from loading the skill
-  by itself (`Harness.hides`);
+  by itself (`Harness.hides`), written after the skill's own copy of that file where it has one;
 - every playbook as `playbooks/<name>.md`;
 - every principle as `principles/<name>.md`, a stub that points at its skill;
 - the templates;
@@ -230,7 +230,9 @@ def assemble(source: Path, harness: Harness) -> Assembled:
     if harness.hides:
         path, text = harness.hides
         for name in hidden(source):
-            entries[f"skills/{name}/{path}"] = Written(text.encode())
+            own = entries.get(f"skills/{name}/{path}")
+            kept = own.source.read_text(encoding="utf-8") if isinstance(own, Linked) else ""
+            entries[f"skills/{name}/{path}"] = Written((kept + text).encode())
     flagged = {
         name: tuple(
             sorted(set().union(*(terms.used(_text(source, f), harness.name) for f in files)))

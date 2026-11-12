@@ -1,0 +1,4 @@
+interface:
+  display_name: "Engine"
+  short_description: "Run one engine pass in a repo's root home"
+  default_prompt: "Use $engine to run one engine pass in this repo's root home."

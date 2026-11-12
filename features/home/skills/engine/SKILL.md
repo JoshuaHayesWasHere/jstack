@@ -1,7 +1,7 @@
 ---
 name: engine
-description: "Run one engine pass in a repo's root home: read the queue, what waits on the user and the open pull requests, clear what stalls where a fix is reversible, and end in one verdict, Quiet, Moving or Call. Use for /engine, \"run the engine\", \"engine pass\", and the root home's scheduled task."
-card: "Run the pipeline | 1 | Runs one engine pass in a root home: it reads the queue, what waits on the operator and the open pull requests, clears what stalls where a fix is reversible, and ends in a verdict, Quiet, Moving or Call. | Reach for it as the root's scheduled task, or to run one pass by hand. | op: the operator; cmd: /engine"
+description: "Run one engine pass in a repo's root home: read the queue, what waits on the user and the open pull requests, clear what stalls where a fix is reversible, and end in one verdict, Quiet, Moving or Call. Use for /engine, \"run the engine\", \"engine pass\", and the root home's scheduled task, and /engine schedule or /engine stop to make or delete that task."
+card: "Run the pipeline | 1 | Runs one engine pass in a root home: it reads the queue, what waits on the operator and the open pull requests, clears what stalls where a fix is reversible, and ends in a verdict, Quiet, Moving or Call. | Reach for it as the root's scheduled task, or to run one pass by hand, and /engine schedule to set the root's schedule. | op: the operator; cmd: /engine"
 ---
 
 # engine
@@ -10,6 +10,7 @@ One pass of the engine, in the repo's root home.
 It runs on top of the home skill (`features/home/skills/home/SKILL.md`) and the root's skill (`features/home/skills/root/SKILL.md`): follow both, with their blocks and their gates.
 This file holds only what a pass adds to them, and the two places it overrides them: a pass may report a Moving verdict, and a pass asks no go of its own.
 `/engine` is the go for one pass.
+`/engine schedule` and `/engine stop` run no pass: they run "The schedule".
 
 ## Only in a root home
 
@@ -100,8 +101,43 @@ A Moving or a Call report opens with its verdict's word, and has only the lines 
 
 ## The schedule
 
-The root runs the engine from one T3 Code scheduled task, bound to its thread, whose prompt is `/engine`.
-On an `/engine` the user typed, and not on a scheduled run, call `list_scheduled_tasks`:
+The root runs the engine from one T3 Code scheduled task, bound to its thread, whose prompt is `/engine` and which runs every 900000 ms.
+`/engine schedule` makes that task, and `/engine stop` deletes it.
+Neither runs a pass.
 
-- A task bound to this thread that runs the engine with a prompt other than `/engine`: rewrite its prompt to `/engine` with `schedule_task` and its `scheduledTaskId`.
-- No such task: make one with `schedule_task`, the prompt `/engine`, bound to this thread, every 900000 ms.
+1. Run the block in "Only in a root home".
+2. Call the `t3-code` server's `list_scheduled_tasks` with no arguments (if your harness defers it, load it first).
+   Save its whole reply as a file, or take the file your harness saved it to when the reply was too long to show.
+3. Run this with the block at the top and the block that finds this home, with `schedule` or `stop` and the file's path in place of the words in angle brackets:
+
+   ```sh
+   DO='<schedule or stop>'
+   F='<the reply file>'
+   if [ "$DO" != schedule ] && [ "$DO" != stop ]; then
+       echo "not read: put schedule or stop in place of <schedule or stop>"
+   elif [ -z "$ME" ]; then
+       echo "not known: put this thread's id, from t3_thread_configure, in place of <threadId>"
+   else
+       jq -r --arg me "$ME" --arg do "$DO" '
+           if (.tasks | type) == "array" then . else error("no tasks") end
+           | [.tasks[] | select(.boundThreadId == $me)
+               | select(.prompt == "/engine" or ((.title // "") | endswith("run the engine")))] as $engine
+           | [$engine[] | select($do == "schedule" and .prompt == "/engine" and .enabled == true
+               and .schedule == {"type": "interval", "everyMs": 900000})][0] as $keep
+           | (if $do == "schedule" and $keep == null then ["make: no engine task runs in this thread every 900000 ms"] else [] end)
+             + [$engine[] | select(.scheduledTaskId != $keep.scheduledTaskId) | "delete \(.scheduledTaskId): \(.title)"]
+             + (if $keep == null then [] else ["keep \($keep.scheduledTaskId): \($keep.title)"] end)
+           | if length == 0 then "none: no engine task runs in this thread" else .[] end' "$F" 2> /dev/null ||
+           echo "not read: put the path of a file that holds the whole reply of list_scheduled_tasks in place of <the reply file>"
+   fi
+   ```
+
+4. Do what each line says, in the order printed:
+   - `make`: call the `t3-code` server's `schedule_task` with `{"title": "<repo> root: run the engine", "prompt": "/engine", "schedule": {"type": "interval", "everyMs": 900000}, "bindToCurrentThread": true}`, `<repo>` being `$R`.
+   - `delete <id>`: call the `t3-code` server's `delete_scheduled_task` with `{"scheduledTaskId": "<scheduledTaskId>"}`.
+   - `keep <id>`: that task is the engine's schedule, so call nothing.
+   - `not read:` or `not known:`: fill in what the line names, and run the block again.
+5. List the tasks again, and run the block again.
+   After `schedule` it prints one `keep` line, and after `stop` it prints `none`.
+   Where it still prints `make` or `delete`, a call was refused: tell the user the id and what the call answered, and make no second call.
+6. Tell the user the line the block printed last, and nothing more.
