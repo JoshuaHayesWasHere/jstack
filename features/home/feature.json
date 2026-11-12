@@ -32,7 +32,8 @@
   ],
   "projectSkills": [
     "project-skill/verify-home-tree",
-    "project-skill/verify-home-tree-today"
+    "project-skill/verify-home-tree-today",
+    "project-skill/verify-plan-scope"
   ],
   "docs": [
     "docs/state.md",

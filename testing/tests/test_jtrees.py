@@ -303,6 +303,7 @@ def test_each_project_skill_a_feature_declares_is_in_skills_json_by_its_frontmat
             "name": "verify-output-folder",
             "path": "features/skill-library/project-skill/verify-output-folder",
         },
+        {"name": "verify-plan-scope", "path": "features/home/project-skill/verify-plan-scope"},
         {"name": "verify-pr-verdict", "path": "features/jmerge/project-skill/verify-pr-verdict"},
         {"name": "verify-row-life", "path": "features/jbus/project-skill/verify-row-life"},
         {"name": "verify-setup", "path": "features/jinstall/project-skill/verify-setup"},
