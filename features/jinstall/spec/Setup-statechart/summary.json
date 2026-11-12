@@ -29,7 +29,7 @@
   "classes": [],
   "codeLike": [],
   "drawnFrom": {
-    "command": "statechart from-spec Setup.tla --config Setup.chart.cfg --title 'Does an uninstall or an expert'\"'\"'s takeover leave anything behind?' --png",
+    "command": "statechart from-spec Setup.tla --config Setup.chart.cfg --title 'Does an uninstall or an expert'\"'\"'s takeover leave anything behind?'",
     "inputs": {
       "Setup.chart.cfg": "82184ec43abcd894a521d66e4615837a8661c1e90eee0806b14b6547a7565dfd",
       "Setup.map.py": "48ea7fe0b24ca970d9398e2e56006e070aa4835ff4147a052f6cb7da54a4bf6f",
