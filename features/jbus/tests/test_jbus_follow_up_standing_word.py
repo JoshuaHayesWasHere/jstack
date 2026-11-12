@@ -208,3 +208,56 @@ def test_a_second_run_changes_nothing_and_an_unknown_or_unheld_word_is_refused(k
     assert (kitchen.state / "acts.jsonl").read_text() == acted
     code, out = stand(kitchen, "--word", "nope")
     assert (code, out) == (1, f"refused: {kitchen.state / 'acts.jsonl'} has no word nope")
+
+
+GOES = "give the plan entries their go yourself, don't wait on me"
+
+
+def test_a_goes_word_stands_for_the_root_and_approves_no_follow_up(kitchen):
+    """`--covers goes` makes the user's word the root's standing word for an entry's go, which
+    `jbus plan go --standing` rests on. It is not a word for follow-ups, and a second run changes
+    nothing."""
+    (kitchen.home / "home-id").write_text(f"{ROOT}\n")
+    word = said_in_polish(kitchen, GOES, thread=ROOT)
+    code, out = stand(kitchen, "--word", word, "--covers", "goes")
+    assert code == 0, out
+    assert out == f"standing: demo, the root gives a plan entry its go on word {word}"
+    acted = (kitchen.state / "acts.jsonl").read_text()
+    assert stand(kitchen, "--word", word, "--covers", "goes") == (0, out)
+    assert (kitchen.state / "acts.jsonl").read_text() == acted
+    assert queue.standing_words(kitchen.state, queue.GOES)[""][0] == word
+    assert queue.standing_words(kitchen.state) == {}
+    add(kitchen, "alpha", polish("alpha"))
+    add(kitchen, "alpha-2", polish("alpha-2", "Follows: alpha\n"))
+    assert rows(kitchen)["alpha-2"]["approved"] == ""
+    code, out = stand(kitchen, "--word", word, "--covers", "goes", "--withdraw")
+    assert (code, out) == (
+        0,
+        f"withdrawn: demo, the root's standing word {word} for goes gives no more go",
+    )
+    assert queue.standing_words(kitchen.state, queue.GOES) == {}
+
+
+def test_an_unchecked_a_bot_chat_or_another_threads_word_gives_the_root_no_goes(kitchen):
+    kitchen.word()
+    assert stand(kitchen, "--word", "said-by-user", "--covers", "goes") == (
+        1,
+        standing.NOT_OWN.format(id="said-by-user"),
+    )
+    words = ("--evidence", CHAT, "--words", "approve the goes [for: polish home]")
+    code, out = kitchen.main("word", "--to", "demo", *words)
+    assert code == 0, out
+    chat = out.split("word ")[-1].strip()
+    assert stand(kitchen, "--word", chat, "--covers", "goes") == (
+        1,
+        standing.NOT_OWN.format(id=chat),
+    )
+    (kitchen.home / "home-id").write_text(f"{ROOT}\n")
+    for thread in (POLISH, "mcp:crew-alpha"):
+        said = said_in_polish(kitchen, GOES, thread=thread)
+        assert stand(kitchen, "--word", said, "--covers", "goes") == (
+            1,
+            f"refused: word {said} was not said in the root's thread, and only a word said there "
+            "stands for goes",
+        )
+    assert queue.standing_words(kitchen.state, queue.GOES) == {}

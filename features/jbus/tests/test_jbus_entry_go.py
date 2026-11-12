@@ -621,3 +621,111 @@ def test_a_row_jbus_files_needs_no_entry(kitchen, monkeypatch):
     kitchen.poll()
     kitchen.poll(NOW + DAY)
     assert filed(kitchen) == ["warnings-2026-10-12"]
+
+
+ROOT = "mcp:" + "-".join("6" * size for size in (8, 4, 4, 4, 12))
+GOES = "give the plan entries their go yourself, don't wait on me"
+
+
+def goes_word(kitchen, covers="goes"):
+    """Keep the user's own message in the root's thread as a word, make it the root's standing
+    word for `covers`, and return its id and the message it was read from."""
+    (kitchen.home / "home-id").write_text(f"{ROOT}\n")
+    kitchen.t3.says(ROOT, "the-goes-word", GOES, title="home: jstack")
+    code, said = kitchen.main("word", "--to", "demo", "--message", f"{ROOT}/the-goes-word")
+    assert code == 0, said
+    word = said.split("word ")[-1].strip()
+    code, said = kitchen.main("standing", "--to", "demo", "--word", word, "--covers", covers)
+    assert code == 0, said
+    return word, f"{ROOT}/the-goes-word"
+
+
+def root_go(kitchen, entry="epic", by=ROOT):
+    return kitchen.main("plan", "go", entry, "--standing", "--from", by)
+
+
+def test_the_root_gives_an_entry_its_go_on_the_users_standing_word_for_goes(kitchen):
+    """The root asks the user for no entry's go once the user's word for goes stands: the go is
+    the root's, it names the word, and each row of the entry is approved by it."""
+    word, message = goes_word(kitchen)
+    queued(kitchen, "alpha")
+    code, said = root_go(kitchen)
+    assert code == 0, said
+    first = said.splitlines()[0]
+    assert first.startswith(
+        f"went epic: the root's go for the plan entry epic, on your standing word {word} for "
+        f"goes, {HEARD_AT}"
+    )
+    (kept,) = json.loads((kitchen.state / "goes.json").read_text())
+    assert (kept["entry"], kept["word"], kept["given_by"], kept["ref"]) == (
+        "epic",
+        word,
+        ROOT,
+        message,
+    )
+    assert basis(kitchen, "alpha") == (queue.ENTRY, "epic")
+    made = rows(kitchen)["alpha"]["approval"]
+    assert (made["message"], made["words"]) == (message, GOES)
+    code, said = kitchen.main("queue", "verify", "alpha")
+    assert code == 0, said
+    shown = json.loads(said)["approved"]
+    assert shown.startswith(
+        f"the root's go for the plan entry epic, on your standing word {word} for goes, "
+        f"{HEARD_AT}, in home: jstack; run "
+    )
+    assert "approved beta" in queued(kitchen, "beta")
+
+
+def held_row(kitchen):
+    queued(kitchen, "alpha", text=brief("alpha", "Holds: spends money\n"))
+
+
+@pytest.mark.parametrize(
+    ("setup", "by", "refused"),
+    [
+        (
+            lambda kitchen: goes_word(kitchen),
+            "mcp:a-home",
+            "refused: --from mcp:a-home is not the root home's thread, and only the root gives "
+            "a go on a standing word",
+        ),
+        (
+            lambda kitchen: goes_word(kitchen, covers="follow-ups"),
+            ROOT,
+            "refused: the root holds no standing word for goes: the user's own message makes "
+            "one, jbus standing --to <project> --word <id> --covers goes",
+        ),
+        (
+            lambda kitchen: (goes_word(kitchen), held_row(kitchen)),
+            ROOT,
+            "refused: epic has a row whose brief holds for a door, alpha (spends money): its go "
+            "is the user's, jbus plan go epic --message <thread>/<message>",
+        ),
+    ],
+    ids=["a home that is not the root", "no standing word for goes", "an entry with a Holds row"],
+)
+def test_the_root_gives_no_go_from_another_home_with_no_word_or_over_a_door(
+    kitchen, setup, by, refused
+):
+    setup(kitchen)
+    queued(kitchen, "beta")
+    code, said = root_go(kitchen, by=by)
+    assert (code, said.strip()) == (1, refused)
+    assert not (kitchen.state / "goes.json").exists()
+    assert basis(kitchen, "beta") == ()
+
+
+def test_a_withdrawn_goes_word_ends_the_roots_go_and_its_unlaunched_rows_wait(kitchen):
+    word, _ = goes_word(kitchen)
+    queued(kitchen, "alpha")
+    assert root_go(kitchen)[0] == 0
+    code, said = kitchen.main(
+        "standing", "--to", "demo", "--word", word, "--covers", "goes", "--withdraw"
+    )
+    assert code == 0, said
+    kitchen.poll()
+    assert basis(kitchen, "alpha") == ()
+    queued(kitchen, "beta")
+    assert basis(kitchen, "beta") == ()
+    (line,) = [one for one in kitchen.main("plan")[1].splitlines() if one.startswith("epic |")]
+    assert line.endswith(f"| go void: the root's standing word {word} for goes was withdrawn")

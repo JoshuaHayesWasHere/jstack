@@ -131,6 +131,19 @@ A home holds one standing word, and a later one takes its place.
 Making a word stand and withdrawing it are acts ([Who acts, and the acts log](the-queue.md#who-acts-and-the-acts-log)) whose verb is `standing`, whose subject is the home's scope, and whose `pre` is `stand` or `withdraw`.
 A go on a standing word is no act on the word, so it never keeps the home from approving other rows on that word with `--word <id>`.
 
+## A standing word for goes
+
+When you tell the root once that it may give a plan entry its go itself, as "give the plan entries their go yourself", the root makes that word stand for goes with `jbus standing --to <project> --word <id> --covers goes`.
+It prints `standing: <project>, the root gives a plan entry its go on word <id>`, and a second run changes nothing.
+The root then gives each entry its go with `jbus plan go <entry> --standing --from <root id>` ([The root's go of an entry](the-plan.md#the-roots-go-of-an-entry)), and no longer asks you for one.
+It is not a word for follow-ups: a word stands for one of the two, and `--covers follow-ups` is the default.
+
+Only a word jbus read from your own message in T3 Code, said in the root's own thread, stands for goes.
+A word from the bot's chat, or one whose time was typed, is refused as above, and a word said in any other thread, a scoped home's or a crewmate's, is `refused: word <id> was not said in the root's thread, and only a word said there stands for goes`.
+Its acts are those of a word for follow-ups, with the subject `goes:` in place of the home's scope, so a jbus that knows only follow-ups never reads it as one.
+`jbus standing --to <project> --word <id> --covers goes --withdraw` ends it, and prints `withdrawn: <project>, the root's standing word <id> for goes gives no more go`.
+Each go the root gave on it then ends, and the rows of those entries that have not launched wait for you again.
+
 ## A waiver in plain words
 
 A home asks you once, in its own thread, whether to waive the Done when lines a review says are unmet, naming each row by its slug with the numbers of the lines, as `alpha: lines 2 and 3`.

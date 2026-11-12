@@ -318,6 +318,13 @@ WITHDRAW = "withdraw"
 """The `pre` of a `standing` act that ends the home's standing word; one that makes it stand has
 `STAND`. `standing_words` reads the act's action, never its line."""
 STAND = "stand"
+FOLLOW_UPS = "follow-ups"
+GOES = "goes"
+COVERS = (FOLLOW_UPS, GOES)
+"""What a standing word stands for: a home's follow-ups, or the root's go for a plan entry
+(`jbus plan go --standing`). The subject of a `standing` act for follow-ups is the home's scope,
+and for goes it is `goes:` and the scope, which no `Home:` line names, so a jbus that knows only
+follow-ups approves nothing on it."""
 ENTRY = "entry"
 ANSWER = "answer"
 GO_DEFAULT = "approve"
@@ -583,7 +590,9 @@ class Said:
     them, and whether jbus read the words and the time in T3 Code (`checked`) or someone typed
     them. `ref` is the `<thread id>/<message id>` or `<thread id>/<item id>` in which jbus read
     them, or nothing. `picks` are the labels the
-    user picked in a question box (`PICK`), each with its question."""
+    user picked in a question box (`PICK`), each with its question. `word` is the id of the
+    root's standing word for goes where the words are that word's and the go of a plan entry is
+    the root's (`jbus.plan.Go`), or nothing."""
 
     words: str
     said_at: str
@@ -591,6 +600,7 @@ class Said:
     checked: bool
     ref: str = ""
     picks: tuple[party.Pick, ...] = ()
+    word: str = ""
 
 
 @dataclass(frozen=True)
@@ -610,8 +620,10 @@ class Approval(judgement.Go):
     then as its `ref`, and that rule's text as its `words`. The user said
     nothing of the row, so `said_at` and `said_in` are empty. With the basis `STANDING`, `ref` is
     the id of the home's standing word, the words and their time are the user's, and `follows` is
-    the parent the brief names. No other basis has a `follows` or a `ground`, and the record of
-    such a basis has neither.
+    the parent the brief names. With the basis `ENTRY`, `message` is the user's message the go
+    rests on, and where the root gave the entry's go on the user's standing word for goes
+    (`jbus plan go --standing`), `ground` is `standing word <id>` and the words are that word's.
+    No other basis has a `follows` or a `ground`, and the record of such a basis has neither.
 
     `brief_sha` is the stored brief's sha at the go, `meaning` is its fingerprint and `scope`
     is the sha256 of that fingerprint (`jbriefs.meaning`): the go holds for a brief that means
@@ -625,6 +637,11 @@ class Approval(judgement.Go):
         ran = f"run {self.ran_at} by {self.who()}"
         if self.basis == ENTRY:
             where = f", in {self.said_in}" if self.said_in else ""
+            if self.ground:
+                return (
+                    f"the root's go for the plan entry {self.ref}, on your {self.ground} for "
+                    f"goes, {self.said_at}{where}; {ran}"
+                )
             return f"your go for the plan entry {self.ref}, {self.said_at}{where}; {ran}"
         if self.closed_by:
             return (
@@ -1409,10 +1426,16 @@ def ruled_by(made: Approval) -> str:
     return f"standing word {made.ref}" if made.basis == STANDING else made.ref
 
 
-def standing_words(state: Path) -> dict[str, tuple[str, Said]]:
-    """Return the standing word for follow-ups each home holds, by the home's scope (empty for
+def standing_subject(scope: str, covers: str = FOLLOW_UPS) -> str:
+    """The subject of the `standing` act of the home `scope`'s word for `covers` (`COVERS`)."""
+    return scope if covers == FOLLOW_UPS else f"{covers}:{scope}"
+
+
+def standing_words(state: Path, covers: str = FOLLOW_UPS) -> dict[str, tuple[str, Said]]:
+    """Return the standing word for `covers` each home holds, by the home's scope (empty for
     the root home): the word's id and the user's words. It is the last `standing` act of the
-    scope in `acts.jsonl` (`jbus.standing`), and a scope whose last one withdrew it holds none."""
+    scope and `covers` in `acts.jsonl` (`jbus.standing`), and one whose last act withdrew it holds
+    none."""
     try:
         text = (state / "acts.jsonl").read_text()
     except FileNotFoundError:
@@ -1422,7 +1445,10 @@ def standing_words(state: Path) -> dict[str, tuple[str, Said]]:
         one = json.loads(line) if line.strip() else {}
         if one.get("action", {}).get("verb") != STANDING:
             continue
-        scope, said = one["action"]["subject"], one["evidence"]
+        subject, said = one["action"]["subject"], one["evidence"]
+        kind, _, scope = subject.partition(":") if ":" in subject else (FOLLOW_UPS, "", subject)
+        if kind != covers:
+            continue
         if one["action"]["pre"] == WITHDRAW:
             held.pop(scope, None)
         else:
@@ -2259,7 +2285,8 @@ def _entered(
     said = entry_go(text, given_entry(row))
     if said is None:
         return ""
-    return _grant(batch, row, text, ENTRY, given_entry(row), said, user, ran_by)
+    ground = f"standing word {said.word}" if said.word else ""
+    return _grant(batch, row, text, ENTRY, given_entry(row), said, user, ran_by, ground=ground)
 
 
 def _void(rows: list[Row], row: Row) -> list[str]:
