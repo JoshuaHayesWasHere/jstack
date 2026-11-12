@@ -66,6 +66,7 @@ A rule that holds with its canary's guard out tests nothing: fix the rule or the
 - A new rule: write its sentence beside it, add a canary in `canaries.py` that breaks it, and see it break before you trust a pass.
 - A changed rule: keep the old words in the README with the user's word that changed them, as "The four rules today's code broke" does.
 
-## Drift at the sync commit
+## The last upkeep
 
-None in the rules; the three mismatches of today's code with its model are in `verify-home-tree-today`.
+`/maintain-formal-verification-skill` ran at the sync commit (st-model-upkeep-run): the covered code is unchanged from it to the row's base, no rule's words changed, and every rule holds on today's code in every scene with each canary breaking its rule (`46 passed`).
+The one fix was to today's code's model, `RaiseCall`, in `verify-home-tree-today`.

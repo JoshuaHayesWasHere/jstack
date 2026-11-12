@@ -27,8 +27,7 @@ Covers:
 - `features/home/skills/handoff/SKILL.md`: `home-id`, `plan-archived.md`
 
 At the sync commit every action's guards and quotes were read against these: `Acts`' timing against `children.watch`'s start (`last or since + patience*rank`), `keep_alive`, `_going`, `_failed` and `_waits` against `KeepAlive`, `StartEnds`, `StartWrites` and `CauseClears`, the merge lock against `merge_holding`, and the order of the handoff block.
-The only code change to these files since the spec's last change (2a24f6848) was 23f42940f, a jbriefs refactor that moves no modeled step.
-Three older mismatches are below.
+The upkeep below fixed one of the three older mismatches and kept two as stated assumptions.
 `features/repo-guards/tests/test_model_sync.py` fails when a file or name above is gone.
 Move `Sync:` forward only after you read every change to these files since it against the model, as `/maintain-formal-verification-skill` says, and never because the check passes.
 
@@ -67,16 +66,16 @@ When every step is backed, it is a bug: tell it as the homes' story (a call, a n
 ## Change the model when the code changes on purpose
 
 - A new guard: add it with a `Drop` value and a canary in `canaries.py` that breaks the rule it holds.
-- A change to how a call reaches you: model each route the code takes (see the drift below), not one `up` flag.
+- A change to how a call reaches you: model each route the code takes (see the last upkeep below), not one `up` flag.
 - Show a changed rule failing on a scratch break first (take the guard out in your own worktree, uncommitted, see the trace, `git restore` the file).
 
-## Drift at the sync commit
+## The last upkeep
 
-All three are older than the spec's last change; `/maintain-formal-verification-skill` fixes them.
+`/maintain-formal-verification-skill` ran at the sync commit (st-model-upkeep-run): the covered code is unchanged from it to the row's base, and the three older mismatches were settled from the code.
 
-- **`RaiseCall` calms the spell; the code does not:** the model sets `quiet` and `watch` back to calm on a new call.
-  In `children.watch`, calls (`USERS`) are left out of the lines that make the spell's signature (since #613), so a new call does not reset a nudged spell; the model is more lenient than the code.
-- **One route to you, the root's home thread, is not literal:** `wakes.need_items` sends a child's gate to that child's own home thread, a one-way door to the root, and nothing for approve, stalled, install and self-asked gates; the model's single `up` flag hides a failure of another thread.
-- **A failed nudge or launch is not modeled:** when `_send` meets a `T3Error`, or `launch` returns false (dispatch off, no model for the role, a wait on a cause), `_act` returns nothing and the step stays where it is, also `calm` past patience, which `StallFlagged` forbids.
-- The code's unstated assumptions: `live()` giving None counts as a live thread; a home with no `home-id` is skipped; an owed plan entry counts as work out, and the model has no state for it.
-- `features/home/spec/README.md` gives `python3 features/home/spec/canaries.py`; run it with `uv run python` as above.
+- **Fixed, `RaiseCall`:** a call no longer calms the spell. `children.watch` leaves calls out of the spell's signature (`USERS`), so a call is only a write of the child's home thread, which ends the spell only while it is `calm`.
+  Every rule still holds in every scene with the same states (398,880, 237,780, 280,108), and every canary still breaks its rule: `uv run pytest features/home/tests/test_home_tree_spec.py -q` printed `46 passed`.
+- **Kept as an assumption, a failed nudge or launch:** modeled, a send that fails while T3 Code is down leaves a quiet child `calm` past its patience, which `StallFlagged` forbids as worded, and a rule's words change only on the user's word.
+  The code tries again each pass, so the step is late, not lost. The README's "leaves out" says so.
+- **Kept as an abstraction, one route to you:** `wakes.need_items` sends a child's gate to its own home thread, and approve, stalled, install and self-asked gates to no thread; the model's single `up` flag is every route, and the README's "leaves out" says so.
+- The spec's header no longer names main 21112eba8, and the README and `canaries.py` give `uv run python`.

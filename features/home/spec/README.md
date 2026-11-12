@@ -87,3 +87,5 @@ Each now holds by the guard the design names for it, and a test in `features/hom
 - What one home leaves for another: a queued row `--for` that home, the user's word the root carries to a scope by `jbus word --scope`, and `jbus stop`, by which a scoped home reaches the root (#553, #567, #578).
 - A pull request that stops being ready a second time, and a push to main by anything but a merge.
 - The crew's own stalls, which the crew skill and jbus's waits cover.
+- A nudge or a launch that fails (`_send` meets a `T3Error`, or `launch` returns false): the code tries again the next pass, so a step is late and not lost, while `StallFlagged` as worded has no room for a late one.
+- Each route a call takes to you: the model has one, `up`, where `wakes.need_items` sends a child's gate to its own home thread and an approve, stalled, install or self-asked gate to none.
