@@ -20,17 +20,17 @@ stateDiagram-v2
   class legendGroup0 group0
   class legendGroup1 group1
   class legendWrong plainWrong
-  state "A row red at two heads" as g0 {
-    state "not told, fails.json<br/>counts two heads" as s0
-    state "not told, fails.json<br/>counts two heads, a pass<br/>is in its step" as s1
-    state "not told, fails.json<br/>counts two heads, the row<br/>is held" as s2
-    state "not told, fails.json<br/>counts two heads, the row<br/>is held, a pass is in its<br/>step" as s3
+  state "A hold only your accept<br/>lifts" as g0 {
+    state "not told, held.json waits" as s0
+    state "not told, held.json waits,<br/>a pass is in its step" as s1
+    state "not told, held.json waits,<br/>sent.json has its key" as s2
+    state "not told, held.json waits,<br/>sent.json has its key, a<br/>pass is in its step" as s3
     state "nothing owed yet" as s4
   }
   [*] --> s4
   s4 --> s0 : 1. what calls for it comes to<br/>hold
   s0 --> s1 : 2. a pass reaches it and reads<br/>its marks
-  s1 --> s3 : 3. the row is held
+  s1 --> s3 : 3. its key goes in sent.json
   s3 --> s2 : 4. the pass dies
   class s0 group1Path
   class s1 group1Path

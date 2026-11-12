@@ -27,15 +27,15 @@ stateDiagram-v2
   class legendGroup2 group2
   class legendGroup3 group3
   class legendWrong plainWrong
-  state "The user's word" as g0 {
+  state "CI that starts no job" as g0 {
     state "not told" as s0
     state "not told, a pass is in its<br/>step" as s1
     state "nothing owed yet" as s2
     state "told once" as s3
     state "told once, a pass is in<br/>its step" as s4
-    state "told once, the home's<br/>thread changed" as s5
-    state "told once, the home's<br/>thread changed, a pass is<br/>in its step" as s6
-    state "told twice, the home's<br/>thread changed, a pass is<br/>in its step" as s7
+    state "told once, main's tip<br/>moved" as s5
+    state "told once, main's tip<br/>moved, a pass is in its<br/>step" as s6
+    state "told twice, main's tip<br/>moved, a pass is in its<br/>step" as s7
   }
   [*] --> s2
   s2 --> s0 : 1. what calls for it comes to<br/>hold

@@ -27,29 +27,24 @@ stateDiagram-v2
   class legendGroup2 group2
   class legendGroup3 group3
   class legendWrong plainWrong
-  state "CI that starts no job" as g0 {
-    state "not told" as s0
-    state "not told, a pass is in its<br/>step" as s1
+  state "A merge that changed a<br/>skill" as g0 {
+    state "not told, reload.json owes<br/>it" as s0
+    state "not told, reload.json owes<br/>it, a pass is in its step" as s1
     state "nothing owed yet" as s2
-    state "told once" as s3
-    state "told once, a pass is in<br/>its step" as s4
-    state "told once, main's tip<br/>moved" as s5
-    state "told once, main's tip<br/>moved, a pass is in its<br/>step" as s6
-    state "told twice, main's tip<br/>moved, a pass is in its<br/>step" as s7
+    state "told once, reload.json<br/>owes it" as s3
+    state "told once, reload.json<br/>owes it, a pass is in its<br/>step" as s4
+    state "told twice, reload.json<br/>owes it, a pass is in its<br/>step" as s5
   }
   [*] --> s2
   s2 --> s0 : 1. what calls for it comes to<br/>hold
   s0 --> s1 : 2. a pass reaches it and reads<br/>its marks
   s1 --> s4 : 3. the receiver takes it
   s4 --> s3 : 4. the pass dies
-  s3 --> s5 : 5. the key the next try names<br/>changes
-  s5 --> s6 : 6. a pass reaches it and reads<br/>its marks
-  s6 --> s7 : 7. the receiver takes it
+  s3 --> s4 : 5. a pass reaches it and reads<br/>its marks
+  s4 --> s5 : 6. the receiver takes it
   class s0 group1Path
   class s1 group1Path
   class s2 group0Path
   class s3 group2Path
   class s4 group2Path
-  class s5 group2Path
-  class s6 group2Path
-  class s7 group3Wrong
+  class s5 group3Wrong

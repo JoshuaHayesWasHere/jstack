@@ -27,13 +27,13 @@ stateDiagram-v2
   class legendGroup2 group2
   class legendGroup3 group3
   class legendWrong plainWrong
-  state "A merge that changed a<br/>skill" as g0 {
-    state "not told, reload.json owes<br/>it" as s0
-    state "not told, reload.json owes<br/>it, a pass is in its step" as s1
+  state "The second target's body" as g0 {
+    state "not told, the body waits<br/>in the outbox" as s0
+    state "not told, the body waits<br/>in the outbox, a pass is<br/>in its step" as s1
     state "nothing owed yet" as s2
-    state "told once, reload.json<br/>owes it" as s3
-    state "told once, reload.json<br/>owes it, a pass is in its<br/>step" as s4
-    state "told twice, reload.json<br/>owes it, a pass is in its<br/>step" as s5
+    state "told once, the body waits<br/>in the outbox" as s3
+    state "told once, the body waits<br/>in the outbox, a pass is<br/>in its step" as s4
+    state "told twice, the body waits<br/>in the outbox, a pass is<br/>in its step" as s5
   }
   [*] --> s2
   s2 --> s0 : 1. what calls for it comes to<br/>hold
