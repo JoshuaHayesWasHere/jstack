@@ -254,7 +254,7 @@
     {
       "id": "state-*start1",
       "type": "ellipse",
-      "x": 751.78,
+      "x": 752.69,
       "y": 115.0,
       "width": 22,
       "height": 22,
@@ -292,7 +292,7 @@
     {
       "id": "state-r1group0",
       "type": "rectangle",
-      "x": 655.03,
+      "x": 654.73,
       "y": 205.0,
       "width": 262,
       "height": 64,
@@ -352,7 +352,7 @@
     {
       "id": "state-r1group0-text",
       "type": "text",
-      "x": 670.83,
+      "x": 670.53,
       "y": 217.0,
       "width": 230.4,
       "height": 40.0,
@@ -467,8 +467,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "Launched\n7 states, 23 steps inside",
-      "originalText": "Launched\n7 states, 23 steps inside",
+      "text": "Launched\n7 states, 29 steps inside",
+      "originalText": "Launched\n7 states, 29 steps inside",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "center",
@@ -480,7 +480,7 @@
     {
       "id": "state-r1group2",
       "type": "rectangle",
-      "x": 534.27,
+      "x": 534.75,
       "y": 488.0,
       "width": 253,
       "height": 64,
@@ -528,7 +528,7 @@
     {
       "id": "state-r1group2-text",
       "type": "text",
-      "x": 550.37,
+      "x": 550.85,
       "y": 500.0,
       "width": 220.8,
       "height": 40.0,
@@ -564,7 +564,7 @@
     {
       "id": "state-r1group3",
       "type": "rectangle",
-      "x": 823.27,
+      "x": 823.75,
       "y": 488.0,
       "width": 99,
       "height": 64,
@@ -612,7 +612,7 @@
     {
       "id": "state-r1group3-text",
       "type": "text",
-      "x": 839.17,
+      "x": 839.65,
       "y": 500.0,
       "width": 67.2,
       "height": 40.0,
@@ -648,10 +648,10 @@
     {
       "id": "step1",
       "type": "arrow",
-      "x": 764.83,
-      "y": 136.81,
-      "width": 14.06,
-      "height": 68.19,
+      "x": 765.64,
+      "y": 136.82,
+      "width": 13.34,
+      "height": 68.18,
       "angle": 0,
       "strokeColor": "#1e1e1e",
       "backgroundColor": "transparent",
@@ -679,12 +679,12 @@
           0.0
         ],
         [
-          6.47,
-          34.19
+          6.17,
+          34.18
         ],
         [
-          14.06,
-          68.19
+          13.34,
+          68.18
         ]
       ],
       "lastCommittedPoint": null,
@@ -714,9 +714,9 @@
     {
       "id": "step2",
       "type": "arrow",
-      "x": 644.7,
+      "x": 644.92,
       "y": 410.5,
-      "width": 10.98,
+      "width": 10.99,
       "height": 77.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -750,11 +750,11 @@
           0.0
         ],
         [
-          -3.99,
+          -3.73,
           38.75
         ],
         [
-          6.99,
+          7.26,
           77.5
         ]
       ],
@@ -785,7 +785,7 @@
     {
       "id": "step2-label",
       "type": "text",
-      "x": 611.31,
+      "x": 611.79,
       "y": 440.5,
       "width": 58.8,
       "height": 17.5,
@@ -808,8 +808,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "5 steps",
-      "originalText": "5 steps",
+      "text": "7 steps",
+      "originalText": "7 steps",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -821,9 +821,9 @@
     {
       "id": "step3",
       "type": "arrow",
-      "x": 729.52,
+      "x": 730.34,
       "y": 269.0,
-      "width": 75.6,
+      "width": 75.44,
       "height": 77.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -857,11 +857,11 @@
           0.0
         ],
         [
-          -68.43,
+          -67.07,
           38.75
         ],
         [
-          -75.6,
+          -75.44,
           77.5
         ]
       ],
@@ -892,9 +892,9 @@
     {
       "id": "step3-label",
       "type": "text",
-      "x": 627.48,
+      "x": 633.87,
       "y": 299.0,
-      "width": 67.2,
+      "width": 58.8,
       "height": 17.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -915,8 +915,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "12 steps",
-      "originalText": "12 steps",
+      "text": "8 steps",
+      "originalText": "8 steps",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -928,9 +928,9 @@
     {
       "id": "step4",
       "type": "arrow",
-      "x": 817.74,
+      "x": 816.66,
       "y": 269.0,
-      "width": 164.62,
+      "width": 162.12,
       "height": 219.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -964,19 +964,19 @@
           0.0
         ],
         [
-          38.4,
+          37.46,
           38.75
         ],
         [
-          35.66,
+          36.74,
           109.5
         ],
         [
-          -88.98,
+          -87.43,
           180.25
         ],
         [
-          -126.22,
+          -124.66,
           219.0
         ]
       ],
@@ -1030,8 +1030,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "4 steps",
-      "originalText": "4 steps",
+      "text": "2 steps",
+      "originalText": "2 steps",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1043,9 +1043,9 @@
     {
       "id": "step5",
       "type": "arrow",
-      "x": 702.31,
+      "x": 701.4,
       "y": 346.5,
-      "width": 75.6,
+      "width": 75.44,
       "height": 77.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -1079,11 +1079,11 @@
           0.0
         ],
         [
-          65.77,
+          64.67,
           -38.75
         ],
         [
-          75.6,
+          75.44,
           -77.5
         ]
       ],
@@ -1114,7 +1114,7 @@
     {
       "id": "step5-label",
       "type": "text",
-      "x": 738.68,
+      "x": 736.67,
       "y": 299.0,
       "width": 58.8,
       "height": 17.5,
@@ -1137,8 +1137,8 @@
       "updated": 1,
       "link": null,
       "locked": false,
-      "text": "3 steps",
-      "originalText": "3 steps",
+      "text": "2 steps",
+      "originalText": "2 steps",
       "fontSize": 14,
       "fontFamily": 6,
       "textAlign": "center",
@@ -1150,9 +1150,9 @@
     {
       "id": "step6",
       "type": "arrow",
-      "x": 709.58,
+      "x": 709.8,
       "y": 410.5,
-      "width": 123.11,
+      "width": 123.37,
       "height": 77.5,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -1186,11 +1186,11 @@
           0.0
         ],
         [
-          74.57,
+          74.84,
           38.75
         ],
         [
-          123.11,
+          123.37,
           77.5
         ]
       ],
@@ -1221,7 +1221,7 @@
     {
       "id": "step6-label",
       "type": "text",
-      "x": 754.76,
+      "x": 755.24,
       "y": 440.5,
       "width": 58.8,
       "height": 17.5,
@@ -1257,9 +1257,9 @@
     {
       "id": "step7",
       "type": "arrow",
-      "x": 835.53,
+      "x": 834.45,
       "y": 269.0,
-      "width": 123.18,
+      "width": 124.26,
       "height": 219.0,
       "angle": 0,
       "strokeColor": "#1e1e1e",
@@ -1293,19 +1293,19 @@
           0.0
         ],
         [
-          59.94,
+          59.0,
           38.75
         ],
         [
-          123.18,
+          124.26,
           109.5
         ],
         [
-          77.94,
+          79.49,
           180.25
         ],
         [
-          55.65,
+          57.2,
           219.0
         ]
       ],

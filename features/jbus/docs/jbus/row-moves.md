@@ -13,11 +13,23 @@ A row at `merged` or `done` stays there whatever the facts say later (`work.kept
 A pull request that opens under a row that is over keeps the row where it is: the pass opens a gate on it (`states.reopened`), and jmerge holds the pull request (`row-over`) until the user accepts it or closes it.
 The telemetry store keeps the mark as the column `legal` of `transitions`, 0 for a marked move and 1 for any other, so a count of `legal = 0` by day says what is left to fix.
 
-The table leaves out four faults: `done` to `pr` (a Result that says done before its pull request opens), `merged` or `done` to `gate` (a question that hides a final row), and `pr` to `running` (a pull request read in neither of GitHub's lists for one pass).
-The first three the facts can still give, and `derive` keeps the row final through them.
+The table holds every move a change of one fact makes, but for the faults below.
+`legal: false` marks only a fault, and the table leaves out four kinds:
+
+- A row that is over leaving `FINAL`, such as `done` to `pr` (a Result that says done before its pull request opens) or `merged` or `done` to `gate` (a question that hides a final row).
+  The facts can still give these, and `derive` keeps the row final through them.
+- A pull request read in neither of GitHub's lists for one pass: `pr` to `running`, `launched`, `queued` or `failed`.
+- A row with a thread, a Result or a pull request and no launch record, or a launch record that goes: `queued` to any status but `launched`, `gate` and `removed`, and any status to `queued` but from `gate`.
+- `left` to `failed`: the `Branch:` line of the Result that named a closed pull request lost its address.
+
 A clean Result from a thread still at work is not `done` but `running` (`work.ENDED_THREAD`), since the thread may yet open the pull request it owes.
+A thread T3 Code settled with nothing written makes a launched row `stale`, as a thread that completed or was archived does (`work._THREAD`), so `watch.unwritten` sends it to its home once it stays quiet: a settled thread never sends a launched row back to `queued`, the status of a row with no launch.
+A settled thread of a row with no launch record is one of an earlier life of its slug, and the row stays `queued` while dispatch holds it.
+A launched thread that is gone or that T3 Code no longer has, with nothing written, makes the row `stale` too, and `watch.unwritten` sends it to its home at once, since no thread is there to carry on: such a row never waits at `launched` for good.
+A thread that starts a new turn makes the row `launched` again.
 A move to `removed` is the line the `remove` verb writes, and `derive` never judges one: the table names the removals the work was seen to make.
-`features/jbus/tests/test_jbus_queue_moves.py` names every other move a change of one fact can make, with why the table leaves it out, and checks this list against `queue.MOVES`.
+`features/jbus/tests/test_jbus_queue_moves.py` names every move a change of one fact can make that the table leaves out, with the fault it is, and checks this list against `queue.MOVES`.
+`features/jbus/spec/RowLife.tla` holds the table to `work.status`: its rule `MovesKnown` says that each move of a status its row makes is in `Moves`, the table move for move.
 
 | From | To | The change of facts |
 |---|---|---|
@@ -29,35 +41,71 @@ A move to `removed` is the line the `remove` verb writes, and `derive` never jud
 | `gate` | `pr` | the question on the row closes, and the row's pull request is open |
 | `gate` | `done` | the question on the row closes, and the row's Result says done |
 | `gate` | `merged` | the question on the row closes, and the row's pull request merged |
+| `gate` | `running` | the question on the row closes, and the row's thread is at work |
+| `gate` | `waiting` | the question on the row closes, and the row's thread asks for an answer |
+| `gate` | `failed` | the question on the row closes, and the row's thread failed with nothing written |
+| `gate` | `stale` | the question on the row closes, and the row's turn hung, or its thread ended or left T3 Code's list with nothing written |
+| `gate` | `left` | the question on the row closes, and the row's Result leaves work, or its pull request closed |
 | `launched` | `running` | T3 Code lists the thread at work |
 | `launched` | `failed` | the thread fails before a pass sees it at work |
 | `launched` | `left` | the thread ends with work left before a pass sees it at work |
 | `launched` | `done` | the thread ends with a clean Result before a pass sees it at work |
+| `launched` | `waiting` | the thread asks for an answer before a pass sees it at work |
+| `launched` | `stale` | the turn hangs, or the thread ends, is settled or leaves T3 Code's list with nothing written, before a pass sees it at work |
+| `launched` | `pr` | a pull request opens before a pass sees the thread at work |
+| `launched` | `merged` | a pull request opens and merges before a pass sees the thread at work |
+| `launched` | `gate` | jbus opens a question on the row |
 | `failed` | `running` | the failed thread works again |
 | `failed` | `left` | the failed thread leaves its work to its home |
 | `failed` | `done` | a Result says done after the thread failed |
+| `failed` | `launched` | the thread starts a new turn |
+| `failed` | `waiting` | the thread asks for an answer |
+| `failed` | `stale` | the turn hangs, or the thread ends, is settled or leaves T3 Code's list with nothing written |
+| `failed` | `pr` | a pull request opens, or opens again |
+| `failed` | `merged` | the pull request opens and merges between two passes, or merges |
+| `failed` | `gate` | jbus opens a question on the row |
 | `running` | `pr` | a pull request opens |
 | `running` | `left` | the Result leaves work, or the pull request closes |
 | `running` | `done` | the thread ends with a clean Result and no pull request |
 | `running` | `waiting` | the thread asks for an answer to its request |
-| `running` | `stale` | the turn hangs, or the thread ends with nothing written |
+| `running` | `stale` | the turn hangs, or the thread ends, is settled or leaves T3 Code's list with nothing written |
 | `running` | `failed` | the thread fails |
 | `running` | `merged` | the pull request opens and merges between two passes |
+| `running` | `launched` | the thread starts a new turn |
+| `running` | `gate` | jbus opens a question on the row |
 | `waiting` | `running` | the request is answered and the thread works again |
 | `waiting` | `left` | the thread ends after its request with work left |
 | `waiting` | `failed` | the thread fails while it waits |
+| `waiting` | `done` | the thread ends with a clean Result after its request |
+| `waiting` | `stale` | the turn hangs, or the thread ends, is settled or leaves T3 Code's list with nothing written, after its request |
+| `waiting` | `launched` | the thread starts a new turn |
+| `waiting` | `pr` | a pull request opens, or opens again |
+| `waiting` | `merged` | the pull request opens and merges between two passes, or merges |
+| `waiting` | `gate` | jbus opens a question on the row |
 | `stale` | `running` | the thread works again |
 | `stale` | `left` | the thread stays quiet with nothing written for long enough, or writes a leftover |
+| `stale` | `done` | the thread ends with a clean Result |
+| `stale` | `failed` | the thread fails |
+| `stale` | `waiting` | the thread asks for an answer |
+| `stale` | `launched` | the thread starts a new turn |
+| `stale` | `pr` | a pull request opens, or opens again |
+| `stale` | `merged` | the pull request opens and merges between two passes, or merges |
+| `stale` | `gate` | jbus opens a question on the row |
 | `left` | `pr` | a pull request opens for what was left |
 | `left` | `done` | a follow-up Result says done |
 | `left` | `running` | the thread works again on what was left |
 | `left` | `waiting` | the thread asks for an answer again |
 | `left` | `launched` | the row is launched again for what was left |
+| `left` | `stale` | the turn hangs on what was left |
+| `left` | `merged` | the pull request of a Result that leaves work merges |
+| `left` | `gate` | jbus opens a question on the row |
 | `left` | `removed` | the `remove` verb takes the row out |
 | `pr` | `merged` | the pull request merges |
 | `pr` | `gate` | jbus opens a question on the row |
 | `pr` | `left` | the pull request closes unmerged |
 | `pr` | `done` | the pull request leaves the open list, and the Result says done and owes none |
+| `pr` | `stale` | the pull request closes unmerged while the turn hangs |
+| `pr` | `waiting` | the pull request closes unmerged while the thread asks for an answer |
 | `pr` | `removed` | the `remove` verb takes the row out |
 | `done` | `merged` | the pull request of a done row merges on the user's accept |
 

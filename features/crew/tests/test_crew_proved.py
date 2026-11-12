@@ -232,6 +232,18 @@ def test_a_test_that_fails_without_the_fix_is_proved(repo):
     assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
 
 
+def test_a_browser_test_that_fails_on_both_sides_leaves_the_exits_to_the_others(repo):
+    """`make check` and CI run pytest with `-m "not browser"`. In st-tellonce-groups a test
+    file's browser tests failed on both sides, since headless Chromium here exits with the probe
+    unrun, and the proof printed head exit 1 for a change whose other tests pass."""
+    browser = "\n\nimport pytest\n\n\n@pytest.mark.browser\ndef test_page():\n    assert False\n"
+    base = git(repo, "rev-parse", "HEAD")
+    head = commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE + browser})
+    said, line = proof(repo)
+    assert "head exit 0: 2 passed" in said
+    assert line == proved.Proved(("tests/test_calc.py",), 1, base, 0, head)
+
+
 def test_a_test_that_passes_at_the_base_too_is_written_with_its_exit_0(repo):
     commit(repo, {"calc.py": FIXED, "tests/test_calc.py": PASSES_AT_BASE})
     _, line = proof(repo)

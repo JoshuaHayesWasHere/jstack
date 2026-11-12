@@ -19,7 +19,7 @@ def lines(v):
     holds = v["reading"] if v["pc"] == "judging" else 0
     lost = {r for r in recorded if r not in ran and r not in judged and r != holds}
     stamp = v["started"]["by"]
-    unlinked = v["blamed"] if v["pc"] == "unlinked" else 0
+    unlinked = v["blamed"]
     unheard = {
         at
         for at, phase in enumerate(v["runs"], 1)
@@ -49,6 +49,8 @@ def lines(v):
 # nothing in memory (looking, stamping, starting a run, reading the folder) is "between passes".
 PASS = {
     "unlinked": "A pass removed a stale stamp and has not said why",
+    "telling": "A pass moved a stale stamp aside and has not told of its run",
+    "unmarking": "A pass told of a run that left no record and has not cleared it",
     "judging": "A pass holds a record it has not sent",
 }
 
@@ -100,6 +102,8 @@ group_colors = {
 STEPS = {
     "PassStarts": "a pass looks at the runs folder",
     "PassTells": "the pass says the last run ended with no record",
+    "PassUnmarks": "the pass clears the stale stamp it told of",
+    "PassUnstamps": "the pass removes the stamp of a run that kept its record",
     "PassStamps": "the pass writes the start stamp",
     "PassSpawns": "the pass starts a run of jmerge in the background",
     "PassReads": "the pass takes the oldest unread record",
@@ -110,7 +114,7 @@ STEPS = {
     "RunsJmerge": "the run starts jmerge",
     "EntrantEnds": "a second jmerge ends",
     "Keeps": "the run writes its record",
-    "Unstamps": "the run removes the stamp and ends",
+    "Unstamps": "the run removes its own stamp and ends",
     "ChildDies": "the run's process dies",
     "StampAges": "a minute goes by",
     "TickRuns": "the merge tick runs jmerge",

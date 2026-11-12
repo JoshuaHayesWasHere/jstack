@@ -85,6 +85,18 @@ def test_a_quote_of_one_python_line_holds_each_or_on_it():
     assert short == []
 
 
+MOST_GENERATED = 600_000
+"""The most states a run of a property may generate, so its test ends in under 120 s on a CI
+runner with no TLC cache: TLC carries each branch of the property and its fairness on every
+state, and on #1707 the runs of a property generated some 5.3k to 5.6k states a second in CI's
+check, where scene a's CallsReachJosh generated 3,015,302 in 571 s, and on #1697 over 600 s."""
+
+
+def generated(out):
+    """The count of states TLC generated, distinct or not, from its last line that says it."""
+    return int(re.findall(r"^([\d,]+) states generated", out, re.M)[-1].replace(",", ""))
+
+
 @pytest.fixture(scope="module")
 def tlc():
     return tools.find_tlc()
@@ -99,9 +111,11 @@ def tlc():
 )
 def test_the_run_says_what_it_should(tlc, module, cfg, rule, want):
     """TLC says each canary breaks the rule on its guard, and each rule holds in today's code in
-    each scene."""
+    each scene, and a run of a property generates at most MOST_GENERATED states."""
     out = canaries.tlc(tlc, module, cfg)
     assert canaries.verdict(out, rule) == want, out[-4000:]
+    if "PROPERTY " in cfg:
+        assert generated(out) <= MOST_GENERATED, out[-4000:]
 
 
 class Retiring:

@@ -152,7 +152,7 @@ def test_a_machine_item_with_no_infra_project_goes_to_the_desk_alone(kitchen, mo
     alert.raise_(config, "pass", "alert: pass failed", now=NOW)
     alert.raise_(config, "pass", "alert: pass failed", now=NOW + timedelta(minutes=1))
     assert desk == ["alert: pass failed"]
-    assert [one.key for one in alert.open_items(config.state_dir, NOW)] == ["pass"]
+    assert [one.key for one in alert.open_items(config, NOW)] == ["pass"]
 
 
 def test_an_alert_of_a_project_is_not_raised_on_the_desk(kitchen, monkeypatch):
@@ -162,7 +162,7 @@ def test_an_alert_of_a_project_is_not_raised_on_the_desk(kitchen, monkeypatch):
     name = config.projects[0].name
     alert.raise_(config, f"jmerge {name}", "alert: jmerge failed", owner=name, now=NOW)
     assert desk == []
-    assert alert.open_items(config.state_dir, NOW)[0].owner == name
+    assert alert.open_items(config, NOW)[0].owner == name
 
 
 def test_status_names_no_webhook_and_no_wake_setting(kitchen):

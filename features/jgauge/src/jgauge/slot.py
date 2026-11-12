@@ -1,7 +1,10 @@
 """A test slot: run one command while holding one of N lock files, machine-wide.
 
 A slot is a `flock` on `~/.local/state/locks/test-slot.<n>.lock`. This process holds it, not
-the command, so the slot is free again when the command ends or when this process dies.
+the command, so the slot is free again when the command ends or when this process dies. Its
+command ends with it, however it dies, SIGKILL too: a watchdog (`jgauge.children`) kills the
+command and everything under it once this process is gone, so no command runs on in a slot the
+next call takes.
 
 There are two lanes. The full lane is for a whole suite and has N slots, `test_slots` in
 `jgauge.sizes`. That module derives the count from the machine unless `--slots`, `TEST_SLOTS`
@@ -81,7 +84,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from jgauge import holders, sizes, slotlog, waiters
+from jgauge import children, holders, sizes, slotlog, waiters
 
 SHORT_LIMIT_SECONDS = 120.0
 SHORT_WAIT_SECONDS = 300.0
@@ -420,11 +423,13 @@ def run(command: list[str], lane: Lane, thread: str = "", wake: list[str] | None
     for told in (signal.SIGTERM, signal.SIGHUP):
         signal.signal(told, pass_on)
     signal.signal(signal.SIGINT, drop if lane.limit is None else pass_on)
+    watch = children.Watch(group=lane.limit is not None)
     try:
         child = subprocess.Popen(
             command,
             env={**os.environ, HELD: name(lane), "TMPDIR": str(own)},
             process_group=None if lane.limit is None else 0,
+            preexec_fn=watch.announce,
         )
     except OSError as error:
         print(f"test-slot: {command[0]}: {error.strerror}", file=sys.stderr)
@@ -445,9 +450,11 @@ def run(command: list[str], lane: Lane, thread: str = "", wake: list[str] | None
             code = code if code >= 0 else 128 - code
         return code
     finally:
+        watch.done()
         if mine is not None:
             holders.end(lock.parent, mine.id, 1 if code is None else code, datetime.now(UTC))
         shutil.rmtree(own, ignore_errors=True)
         slotlog.release(logged, 1 if code is None else code)
+        watch.reap()
         os.close(held)
         _sweep()

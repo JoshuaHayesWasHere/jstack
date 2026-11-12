@@ -52,7 +52,7 @@ Run it by hand anyway when you change the contract on purpose: what it prints is
 uv run pytest features/jbus/tests/test_main_red_model.py -q
 ```
 
-It takes a few seconds (6,183 states in the widest world).
+It takes a few seconds (6,818 states in the widest world).
 On the code as it is today it prints `9 passed`.
 To print every world:
 
@@ -61,7 +61,7 @@ uv run python features/jbus/tests/main_red_model.py
 ```
 
 It prints both worlds, how many states each walks, and for each property `holds` or the number of states that break it with a trace.
-On the code as it is today, every order walks 6,183 states and one tip at a time walks 1,154, and S1 to S4 hold in both.
+On the code as it is today, every order walks 6,818 states and one tip at a time walks 1,210, and S1 to S4 hold in both.
 
 The model has two worlds:
 
@@ -107,10 +107,10 @@ The line numbers below are of the code before the fix (`fa810ec`).
 
 A trace is the shortest order of events to the first state that breaks the property, numbered from `start`.
 Tips are `M0` (green, there from the start) to `M3`; a record is printed with its commits as those names and without `at`.
-For example, with the scratch break `green, waiting, unrun = tip, [], ""` for `green, broken, waiting, unrun = tip, "", [], ""` in `tell`'s `check == "green"` branch, every order prints:
+For example, with the scratch break `green, waiting, unrun, under = tip, [], "", tip` for `green, broken, waiting, unrun, under = tip, "", [], "", tip` in `tell`'s `check == "green"` branch, every order prints:
 
 ```
-S2 breaks in 56 of 3831 states (Options(one_at_a_time=False)), against "Main is not red" in features/jmerge/docs/jmerge.md
+S2 breaks in 172 of 7247 states (Options(one_at_a_time=False)), against "Main is not red" in features/jmerge/docs/jmerge.md
   1. start: M0 is green, no main.json
   2. M1 lands: a merge
   3. M1's check settles: failed

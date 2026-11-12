@@ -249,6 +249,7 @@ TABLE = {
     "reviewed": "quiet",
     "note": "quiet",
     "unplaced": "quiet",
+    "no-record": "quiet",
     "item.proposed": "quiet",
     "item.linked": "quiet",
     "item.approved": "quiet",

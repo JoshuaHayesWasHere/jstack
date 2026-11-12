@@ -195,45 +195,89 @@ STATUSES = (
     "left",
 )
 _QUESTION_CLOSED = "the question on the row closes, and the row's"
+_ASKED = "jbus opens a question on the row"
+_NEW_TURN = "the thread starts a new turn"
+_PULL_OPENS = "a pull request opens, or opens again"
+_PULL_MERGES = "the pull request opens and merges between two passes, or merges"
+_ENDS_UNWRITTEN = (
+    "the turn hangs, or the thread ends, is settled or leaves T3 Code's list with nothing written"
+)
 MOVES: dict[tuple[str, str], str] = {
     ("queued", "launched"): "a launch record names a thread for the row",
-    ("queued", "gate"): "jbus opens a question on the row",
+    ("queued", "gate"): _ASKED,
     ("queued", "removed"): "the `remove` verb takes the row out",
     ("gate", "queued"): f"{_QUESTION_CLOSED} launch has no record",
     ("gate", "launched"): f"{_QUESTION_CLOSED} launch has no thread yet",
     ("gate", "pr"): f"{_QUESTION_CLOSED} pull request is open",
     ("gate", "done"): f"{_QUESTION_CLOSED} Result says done",
     ("gate", "merged"): f"{_QUESTION_CLOSED} pull request merged",
+    ("gate", "running"): f"{_QUESTION_CLOSED} thread is at work",
+    ("gate", "waiting"): f"{_QUESTION_CLOSED} thread asks for an answer",
+    ("gate", "failed"): f"{_QUESTION_CLOSED} thread failed with nothing written",
+    ("gate", "stale"): f"{_QUESTION_CLOSED} turn hung, or its thread ended or left T3 Code's list "
+    "with nothing written",
+    ("gate", "left"): f"{_QUESTION_CLOSED} Result leaves work, or its pull request closed",
     ("launched", "running"): "T3 Code lists the thread at work",
     ("launched", "failed"): "the thread fails before a pass sees it at work",
     ("launched", "left"): "the thread ends with work left before a pass sees it at work",
     ("launched", "done"): "the thread ends with a clean Result before a pass sees it at work",
+    ("launched", "waiting"): "the thread asks for an answer before a pass sees it at work",
+    ("launched", "stale"): f"{_ENDS_UNWRITTEN}, before a pass sees it at work",
+    ("launched", "pr"): "a pull request opens before a pass sees the thread at work",
+    ("launched", "merged"): "a pull request opens and merges before a pass sees the thread at work",
+    ("launched", "gate"): _ASKED,
     ("failed", "running"): "the failed thread works again",
     ("failed", "left"): "the failed thread leaves its work to its home",
     ("failed", "done"): "a Result says done after the thread failed",
+    ("failed", "launched"): _NEW_TURN,
+    ("failed", "waiting"): "the thread asks for an answer",
+    ("failed", "stale"): _ENDS_UNWRITTEN,
+    ("failed", "pr"): _PULL_OPENS,
+    ("failed", "merged"): _PULL_MERGES,
+    ("failed", "gate"): _ASKED,
     ("running", "pr"): "a pull request opens",
     ("running", "left"): "the Result leaves work, or the pull request closes",
     ("running", "done"): "the thread ends with a clean Result and no pull request",
     ("running", "waiting"): "the thread asks for an answer to its request",
-    ("running", "stale"): "the turn hangs, or the thread ends with nothing written",
+    ("running", "stale"): _ENDS_UNWRITTEN,
     ("running", "failed"): "the thread fails",
     ("running", "merged"): "the pull request opens and merges between two passes",
+    ("running", "launched"): _NEW_TURN,
+    ("running", "gate"): _ASKED,
     ("waiting", "running"): "the request is answered and the thread works again",
     ("waiting", "left"): "the thread ends after its request with work left",
     ("waiting", "failed"): "the thread fails while it waits",
+    ("waiting", "done"): "the thread ends with a clean Result after its request",
+    ("waiting", "stale"): f"{_ENDS_UNWRITTEN}, after its request",
+    ("waiting", "launched"): _NEW_TURN,
+    ("waiting", "pr"): _PULL_OPENS,
+    ("waiting", "merged"): _PULL_MERGES,
+    ("waiting", "gate"): _ASKED,
     ("stale", "running"): "the thread works again",
     ("stale", "left"): "the thread stays quiet with nothing written for long enough, or "
     "writes a leftover",
+    ("stale", "done"): "the thread ends with a clean Result",
+    ("stale", "failed"): "the thread fails",
+    ("stale", "waiting"): "the thread asks for an answer",
+    ("stale", "launched"): _NEW_TURN,
+    ("stale", "pr"): _PULL_OPENS,
+    ("stale", "merged"): _PULL_MERGES,
+    ("stale", "gate"): _ASKED,
     ("left", "pr"): "a pull request opens for what was left",
     ("left", "done"): "a follow-up Result says done",
     ("left", "running"): "the thread works again on what was left",
     ("left", "waiting"): "the thread asks for an answer again",
     ("left", "launched"): "the row is launched again for what was left",
+    ("left", "stale"): "the turn hangs on what was left",
+    ("left", "merged"): "the pull request of a Result that leaves work merges",
+    ("left", "gate"): _ASKED,
     ("left", "removed"): "the `remove` verb takes the row out",
     ("pr", "merged"): "the pull request merges",
-    ("pr", "gate"): "jbus opens a question on the row",
+    ("pr", "gate"): _ASKED,
     ("pr", "left"): "the pull request closes unmerged",
     ("pr", "done"): "the pull request leaves the open list, and the Result says done and owes none",
+    ("pr", "stale"): "the pull request closes unmerged while the turn hangs",
+    ("pr", "waiting"): "the pull request closes unmerged while the thread asks for an answer",
     ("pr", "removed"): "the `remove` verb takes the row out",
     ("done", "merged"): "the pull request of a done row merges on the user's accept",
 }
@@ -243,12 +287,13 @@ moves a row: each pass works the status out again from the facts (`work.status`)
 cannot drive a row as `item.MOVES` drives an item. It judges a move after the facts made it:
 `derive` marks each line of `transitions.jsonl` whose move it does not hold, and writes the
 status all the same, since the status is what the facts say, but for a row that is over: `derive`
-keeps it (`work.kept`), so no move leaves `merged` or `done` but `done` to `merged`. A final row
-that the facts would take out of `merged` or `done`, a Result that says done before its pull
-request opens, and a pull request read in
-neither of GitHub's lists for one pass are the faults the table leaves out. `derive` never
-judges a move to `removed`: those entries name the removals the work was seen to make.
-`features/jbus/docs/jbus/row-moves.md` lists it."""
+keeps it (`work.kept`), so no move leaves `merged` or `done` but `done` to `merged`. The table
+holds every move a change of one fact makes but the faults, so `"legal": false` marks only a fault:
+a final row that the facts would take out of `merged` or `done`, a pull request read in neither of
+GitHub's lists for one pass, a thread, Result or pull request of a row with no launch record, and
+a `Branch:` line that loses the address of a closed pull request. `RowLife.tla` holds the table to
+`work.status` (`MovesKnown`). `derive` never judges a move to `removed`: those entries name the
+removals the work was seen to make. `features/jbus/docs/jbus/row-moves.md` lists it."""
 UNLAUNCHED = ("queued", "gate")
 LIVE = (*UNLAUNCHED, "launched", "running", "waiting", "pr")
 WITHDRAWN_BY = "jbus"

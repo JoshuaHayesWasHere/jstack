@@ -496,11 +496,11 @@ def status(state: State) -> str:
     open or not. Any other row with a question open is `gate`. A row whose pull request is opening
     (`Pull.OPENING`) is `running`, whatever its Result leaves, and never `left`. A thread in a
     status jbus does not know, or a hung turn, makes the row `stale`. A thread that ended with
-    nothing written makes the row `stale` when it completed or was archived, and `failed` when it
-    failed. The row is `launched` while no thread is there for a launch, and `queued` once the
-    thread was settled. A thread off T3 Code's list counts only for a row with nothing written.
-    `status` reads no clock: a `stale` row with nothing written becomes `left` once its thread is
-    quiet (`watch.unwritten`).
+    nothing written makes the row `stale` when it completed, was settled or was archived, and
+    `failed` when it failed, so a launched row never goes back to `queued`, nor one whose thread is
+    gone (`watch.gone`) or off T3 Code's list (`Thread.MISSING`). A row with no launch and no
+    thread, or one of an earlier life of its slug, is `queued`. `status` reads no clock: a `stale`
+    row with nothing written becomes `left` once its thread is quiet or gone (`watch.unwritten`).
 
     """
     facts, value = state.facts, state.value
@@ -519,9 +519,10 @@ def status(state: State) -> str:
         return "left"
     if facts.seen:
         return "stale"
-    if facts.thread in (Thread.NONE, Thread.MISSING) and facts.launch == Launch.LAUNCHED:
-        return "launched"
-    return _THREAD.get(facts.thread, "queued")
+    unlaunched = facts.launch == Launch.NONE
+    if unlaunched and facts.thread in (Thread.NONE, Thread.SETTLED, Thread.MISSING):
+        return "queued"
+    return _THREAD[facts.thread]
 
 
 class Scouting(StrEnum):
@@ -545,7 +546,7 @@ def scouting(state: State) -> Scouting:
 
 
 _THREAD = {
-    Thread.NONE: "queued",
+    Thread.NONE: "stale",
     Thread.STARTING: "launched",
     Thread.MOVING: "running",
     Thread.QUIET: "running",
@@ -553,8 +554,9 @@ _THREAD = {
     Thread.WAITING: "waiting",
     Thread.COMPLETED: "stale",
     Thread.FAILED: "failed",
-    Thread.SETTLED: "queued",
+    Thread.SETTLED: "stale",
     Thread.ARCHIVED: "stale",
+    Thread.MISSING: "stale",
 }
 
 
