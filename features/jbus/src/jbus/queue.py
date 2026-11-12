@@ -1676,7 +1676,12 @@ def conduct(text: str) -> list[str]:
       which says what happened: a test's text is small and made up, never an incident's text
       word for word. A quote is a span in double quotes or backticks. The other fields, such as
       `Decisions:`, may quote the user.
+    - Its last Result waits on a merge in prose and not on its `Waits on:` line
+      (`mirror.unwritten`), so nothing would wake its crew when that merge lands. `mirror` reads
+      the queue, so it is imported here and not above.
     """
+    from jbus import mirror
+
     head = _head(text)
     found = asks(text)
     title = next((lines[0] for label, lines in briefs.fields(text) if label == briefs.TITLE), "")
@@ -1705,6 +1710,7 @@ def conduct(text: str) -> list[str]:
                 f'("{" ".join(min(copied))}"): a test\'s text is small and made up, never an '
                 "incident's text word for word"
             )
+    found += [f"brief's {fault}" for fault in mirror.unwritten(mirror.last_result(text))]
     return found
 
 
