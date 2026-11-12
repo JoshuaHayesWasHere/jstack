@@ -190,8 +190,9 @@ states.tsv has one row per chart state: state (its label, as the chart's states 
 status (works, wrong or fixed, empty for a state only --also-dot reaches), start (yes when a start
 state of a run is in it), chart (the Mermaid ids it is drawn as: one id, or one per region, empty
 when not drawn), and per run "states in NAME" (its model states) and "within in NAME" (its model
-steps from one of them to another). arrows.tsv has one row per step between two chart states, by
-from, to, label and action, the TLA+ action TLC names: chart (each drawn arrow it is, as
+steps with no label from one of them to another). arrows.tsv has one row per step between two
+chart states, or with a label within one, by from, to, label and action, the TLA+ action TLC
+names: chart (each drawn arrow it is, as
 "from>to" in Mermaid ids, an arrow from a box with the box's id, empty when not drawn), and per
 run "steps in NAME" (its model steps). A model step that stays in one model state is in neither,
 as summary.json's modelTransitions leaves it out, so per run the states add up to the run's
@@ -1959,19 +1960,21 @@ def chart(args):
         return s["reason"] if s.get("reason") is not None else show(s["key"])
 
     def tally(m, keys):
-        """A run's model states and the steps that stay in one chart state, by chart state, and
-        its steps between two chart states, by (from, to, label, action)."""
+        """A run's model states and its unlabelled steps that stay in one chart state, by chart
+        state, and its other steps, by (from, to, label, action): a labelled step that stays in
+        its chart state is an arrow from the state to itself, as a region chart draws it."""
         g = m["graph"]
         states, arrows = {}, {}
         for k in keys.values():
             states.setdefault(k, [0, 0])[0] += 1
         for e in g["edges"]:
             a, b = keys[e["from"]], keys[e["to"]]
-            if a == b:
+            before, after = g["nodes"][e["from"]]["vars"], g["nodes"][e["to"]]["vars"]
+            label = step_label(e["action"], before, after) or ""
+            if a == b and not label:
                 states[a][1] += 1
                 continue
-            before, after = g["nodes"][e["from"]]["vars"], g["nodes"][e["to"]]["vars"]
-            row = (a, b, step_label(e["action"], before, after) or "", e["action"])
+            row = (a, b, label, e["action"])
             arrows[row] = arrows.get(row, 0) + 1
         return states, arrows
 
