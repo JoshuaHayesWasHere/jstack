@@ -328,12 +328,14 @@ stateDiagram-v2
     %% when r0s4
     r1s1 --> r1s68 : the receiver takes it [unless<br/>A project closed]
     %% when not r0s3
+    r1s2 --> r1s3 : a pass reaches it and reads<br/>its marks
     r1s3 --> r1s2 : the pass dies
     r1s3 --> r1s73 : the receiver takes it
     r1s4 --> r1s5 : a pass reaches it and reads<br/>its marks
     r1s5 --> r1s6 : the outbox holds the message
     r1s5 --> r1s76 : the receiver takes it
     r1s6 --> r1s7 : a pass reaches it and reads<br/>its marks
+    r1s7 --> r1s80 : the receiver takes it
     r1s8 --> r1s9 : a pass reaches it and reads<br/>its marks
     r1s9 --> r1s13 : the row is held
     r1s11 --> r1s10 : the pass dies
@@ -344,7 +346,9 @@ stateDiagram-v2
     r1s15 --> r1s16 : the outbox holds the message
     r1s15 --> r1s87 : the receiver takes it
     r1s16 --> r1s17 : a pass reaches it and reads<br/>its marks
+    r1s17 --> r1s91 : the receiver takes it
     r1s18 --> r1s19 : a pass reaches it and reads<br/>its marks
+    r1s19 --> r1s93 : the receiver takes it
     r1s20 --> r1s21 : a pass reaches it and reads<br/>its marks
     r1s20 --> r1s95 : failover carries the thread<br/>on, the ask quoted
     r1s20 --> r1s38 : the user asked again, or the<br/>thread ended
@@ -363,31 +367,41 @@ stateDiagram-v2
     r1s26 --> r1s27 : a pass reaches it and reads<br/>its marks
     r1s26 --> r1s41 : the user asked again, or the<br/>thread ended
     r1s26 --> r1s35 : the user asked again, or the<br/>thread ended
+    r1s27 --> r1s26 : the outbox holds the message
     r1s28 --> r1s29 : a pass reaches it and reads<br/>its marks
     r1s28 --> r1s42 : the user asked again, or the<br/>thread ended
     r1s28 --> r1s36 : the user asked again, or the<br/>thread ended
+    r1s29 --> r1s28 : the outbox holds the message
     r1s30 --> r1s31 : a pass reaches it and reads<br/>its marks
     r1s30 --> r1s43 : the user asked again, or the<br/>thread ended
     r1s30 --> r1s37 : the user asked again, or the<br/>thread ended
+    r1s31 --> r1s30 : the outbox holds the message
     r1s44 --> r1s45 : a pass reaches it and reads<br/>its marks
     r1s45 --> r1s46 : the outbox holds the message
     r1s45 --> r1s144 : the receiver takes it
     r1s46 --> r1s47 : a pass reaches it and reads<br/>its marks
+    r1s47 --> r1s148 : the receiver takes it
     r1s50 --> r1s51 : a pass reaches it and reads<br/>its marks
     r1s51 --> r1s154 : the receiver takes it
     r1s52 --> r1s54 : a pass counts on its clock
+    r1s53 --> r1s56 : a pass counts on its clock
     r1s54 --> r1s55 : a pass reaches it and reads<br/>its marks
     r1s54 --> r1s52 : the wait is a new one
     r1s55 --> r1s56 : the outbox holds the message
     r1s55 --> r1s156 : the receiver takes it
     r1s56 --> r1s57 : a pass reaches it and reads<br/>its marks
     r1s56 --> r1s53 : the wait is a new one
+    r1s57 --> r1s56 : the outbox holds the message
     r1s58 --> r1s59 : a pass reaches it and reads<br/>its marks
+    r1s59 --> r1s170 : the receiver takes it
     r1s60 --> r1s61 : a pass reaches it and reads<br/>its marks
     r1s60 --> r1s49 : the revert's pull request is<br/>no longer open: marked, not<br/>told
+    r1s61 --> r1s60 : the outbox holds the message
     r1s62 --> r1s63 : a pass reaches it and reads<br/>its marks
     r1s62 --> r1s64 : the key the next try names<br/>changes
+    r1s63 --> r1s179 : the receiver takes it
     r1s64 --> r1s65 : a pass reaches it and reads<br/>its marks
+    r1s65 --> r1s181 : the receiver takes it
     r1s66 --> r1s52 : what calls for it comes to<br/>hold [when The wait clock]
     %% when r0s12
     r1s66 --> r1s14 : what calls for it comes to<br/>hold [when A hold nobody works<br/>on]
@@ -423,22 +437,29 @@ stateDiagram-v2
     r1s68 --> r1s172 : the outbox holds the message<br/>[when A revert's crew]
     %% when r0s4
     r1s68 --> r1s67 : the pass dies
+    r1s72 --> r1s73 : a pass reaches it and reads<br/>its marks
     r1s73 --> r1s74 : its own file says done
     r1s73 --> r1s72 : the pass dies
+    r1s75 --> r1s76 : a pass reaches it and reads<br/>its marks
     r1s76 --> r1s78 : its key goes in sent.json
     r1s76 --> r1s79 : the outbox holds the message
     r1s76 --> r1s75 : the pass dies
+    r1s77 --> r1s78 : a pass reaches it and reads<br/>its marks
     r1s78 --> r1s81 : its own file says done
     r1s78 --> r1s77 : the pass dies
     r1s79 --> r1s80 : a pass reaches it and reads<br/>its marks
+    r1s80 --> r1s76 : the outbox logs it sent
     r1s83 --> r1s84 : its own file says done
     r1s83 --> r1s82 : the pass dies
+    r1s86 --> r1s87 : a pass reaches it and reads<br/>its marks
     r1s87 --> r1s89 : its key goes in sent.json
     r1s87 --> r1s90 : the outbox holds the message
     r1s87 --> r1s86 : the pass dies
+    r1s88 --> r1s89 : a pass reaches it and reads<br/>its marks
     r1s89 --> r1s85 : its own file says done
     r1s89 --> r1s88 : the pass dies
     r1s90 --> r1s91 : a pass reaches it and reads<br/>its marks
+    r1s91 --> r1s87 : the outbox logs it sent
     r1s92 --> r1s93 : a pass reaches it and reads<br/>its marks
     r1s93 --> r1s69 : its own file says done
     r1s93 --> r1s186 : the receiver takes it
@@ -472,9 +493,11 @@ stateDiagram-v2
     r1s102 --> r1s103 : a pass reaches it and reads<br/>its marks
     r1s102 --> r1s136 : the user asked again, or the<br/>thread ended
     r1s102 --> r1s125 : the user asked again, or the<br/>thread ended
+    r1s103 --> r1s102 : the outbox holds the message
     r1s104 --> r1s105 : a pass reaches it and reads<br/>its marks
     r1s104 --> r1s137 : the user asked again, or the<br/>thread ended
     r1s104 --> r1s126 : the user asked again, or the<br/>thread ended
+    r1s105 --> r1s104 : the outbox holds the message
     r1s106 --> r1s138 : the user asked again, or the<br/>thread ended
     r1s106 --> r1s127 : the user asked again, or the<br/>thread ended
     r1s107 --> r1s118 : its own file says done
@@ -495,6 +518,7 @@ stateDiagram-v2
     r1s114 --> r1s115 : a pass reaches it and reads<br/>its marks
     r1s114 --> r1s142 : the user asked again, or the<br/>thread ended
     r1s114 --> r1s131 : the user asked again, or the<br/>thread ended
+    r1s115 --> r1s114 : the outbox holds the message
     r1s116 --> r1s24 : the ask's turn stopped on the<br/>limit again
     r1s118 --> r1s22 : the ask's turn stopped on the<br/>limit again
     r1s143 --> r1s144 : a pass reaches it and reads<br/>its marks
@@ -502,22 +526,31 @@ stateDiagram-v2
     r1s144 --> r1s147 : the outbox holds the message
     r1s144 --> r1s143 : the pass dies
     r1s144 --> r1s240 : the receiver takes it
+    r1s145 --> r1s146 : a pass reaches it and reads<br/>its marks
     r1s146 --> r1s145 : the pass dies
     r1s147 --> r1s148 : a pass reaches it and reads<br/>its marks
     r1s148 --> r1s244 : the receiver takes it
+    r1s149 --> r1s150 : a pass reaches it and reads<br/>its marks [when A cancelled<br/>check]
+    %% when r0s0
     r1s150 --> r1s71 : its own file says done
     r1s150 --> r1s149 : the pass dies
     r1s153 --> r1s154 : a pass reaches it and reads<br/>its marks
     r1s154 --> r1s171 : its own file says done
     r1s154 --> r1s153 : the pass dies
     r1s154 --> r1s247 : the receiver takes it
+    r1s155 --> r1s156 : a pass reaches it and reads<br/>its marks
     r1s156 --> r1s158 : its key goes in sent.json
     r1s156 --> r1s159 : the outbox holds the message
     r1s156 --> r1s155 : the pass dies
+    r1s157 --> r1s158 : a pass reaches it and reads<br/>its marks
     r1s158 --> r1s163 : its own file says done
     r1s158 --> r1s157 : the pass dies
     r1s159 --> r1s160 : a pass reaches it and reads<br/>its marks
+    r1s160 --> r1s159 : the outbox holds the message
+    r1s161 --> r1s52 : the wait is a new one
+    r1s162 --> r1s52 : the wait is a new one
     r1s163 --> r1s167 : the pass writes the stall's<br/>key
+    r1s164 --> r1s165 : the pass writes the stall's<br/>key
     r1s165 --> r1s161 : the clock writes that its home<br/>was told
     r1s165 --> r1s164 : the pass dies
     r1s166 --> r1s167 : the pass writes the stall's<br/>key
@@ -529,8 +562,10 @@ stateDiagram-v2
     r1s170 --> r1s249 : the receiver takes it
     r1s172 --> r1s173 : a pass reaches it and reads<br/>its marks
     r1s172 --> r1s152 : the revert's pull request is<br/>no longer open: marked, not<br/>told
+    r1s173 --> r1s172 : the outbox holds the message
     r1s174 --> r1s176 : the key the next try names<br/>changes
     r1s175 --> r1s174 : the pass dies
+    r1s176 --> r1s177 : a pass reaches it and reads<br/>its marks
     r1s177 --> r1s252 : the receiver takes it
     r1s178 --> r1s179 : a pass reaches it and reads<br/>its marks
     r1s178 --> r1s180 : the key the next try names<br/>changes
@@ -538,6 +573,7 @@ stateDiagram-v2
     r1s180 --> r1s181 : a pass reaches it and reads<br/>its marks
     r1s181 --> r1s177 : the outbox logs it sent
     r1s181 --> r1s254 : the receiver takes it
+    r1s185 --> r1s186 : a pass reaches it and reads<br/>its marks
     r1s186 --> r1s184 : its own file says done
     r1s186 --> r1s185 : the pass dies
     r1s187 --> r1s227 : the user asked again, or the<br/>thread ended
@@ -563,9 +599,11 @@ stateDiagram-v2
     r1s195 --> r1s196 : a pass reaches it and reads<br/>its marks
     r1s195 --> r1s231 : the user asked again, or the<br/>thread ended
     r1s195 --> r1s219 : the user asked again, or the<br/>thread ended
+    r1s196 --> r1s195 : the outbox holds the message
     r1s197 --> r1s198 : a pass reaches it and reads<br/>its marks
     r1s197 --> r1s232 : the user asked again, or the<br/>thread ended
     r1s197 --> r1s220 : the user asked again, or the<br/>thread ended
+    r1s198 --> r1s197 : the outbox holds the message
     r1s199 --> r1s233 : the user asked again, or the<br/>thread ended
     r1s199 --> r1s221 : the user asked again, or the<br/>thread ended
     r1s200 --> r1s211 : its own file says done
@@ -585,20 +623,31 @@ stateDiagram-v2
     r1s207 --> r1s208 : a pass reaches it and reads<br/>its marks
     r1s207 --> r1s237 : the user asked again, or the<br/>thread ended
     r1s207 --> r1s225 : the user asked again, or the<br/>thread ended
+    r1s208 --> r1s207 : the outbox holds the message
     r1s209 --> r1s210 : a pass reaches it and reads<br/>its marks
     r1s209 --> r1s238 : the user asked again, or the<br/>thread ended
     r1s209 --> r1s226 : the user asked again, or the<br/>thread ended
+    r1s210 --> r1s209 : the outbox holds the message
+    r1s239 --> r1s240 : a pass reaches it and reads<br/>its marks
     r1s240 --> r1s242 : its key goes in sent.json
     r1s240 --> r1s243 : the outbox holds the message
     r1s240 --> r1s239 : the pass dies
+    r1s241 --> r1s242 : a pass reaches it and reads<br/>its marks
     r1s242 --> r1s245 : its own file says done
     r1s242 --> r1s241 : the pass dies
+    r1s243 --> r1s244 : a pass reaches it and reads<br/>its marks
+    r1s244 --> r1s240 : the outbox logs it sent
+    r1s246 --> r1s247 : a pass reaches it and reads<br/>its marks
     r1s247 --> r1s250 : its own file says done
     r1s247 --> r1s246 : the pass dies
+    r1s248 --> r1s249 : a pass reaches it and reads<br/>its marks
     r1s249 --> r1s255 : its own file says done
     r1s249 --> r1s253 : the outbox holds the message
     r1s249 --> r1s248 : the pass dies
+    r1s251 --> r1s252 : a pass reaches it and reads<br/>its marks
     r1s252 --> r1s251 : the pass dies
+    r1s253 --> r1s254 : a pass reaches it and reads<br/>its marks
+    r1s254 --> r1s252 : the outbox logs it sent
   }
   class r0s0 plain
   class r0s1 plain

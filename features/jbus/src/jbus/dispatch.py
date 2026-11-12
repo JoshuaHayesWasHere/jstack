@@ -89,6 +89,7 @@ from jbus import (
     read_json,
     roomwait,
     watch,
+    work,
     write_json,
 )
 from jbus.launches import record_path, records
@@ -363,8 +364,8 @@ def caps(run: Pass, slugs: tuple[str, ...]) -> Caps:
 
 @dataclass
 class Turns:
-    """A `Turns` holds one project's rows in a pass, lowest priority first, and its turns at the
-    free slots.
+    """A `Turns` holds one project's rows in a pass, in the order they launch (`queue.order`, with
+    the priority each inherits, `lift`), and its turns at the free slots.
 
     `left` holds the rows not read yet. The pass reads each row once. On a later turn it does
     not judge a skipped row again, and it sends no gate twice.
@@ -382,6 +383,7 @@ class Turns:
     checked: dict[str, bool] = field(default_factory=dict)
     slugs: set[str] = field(default_factory=set)
     landed: frozenset[str] = frozenset()
+    lift: dict[str, int] = field(default_factory=dict)
 
     def _resume(self, row: queue.Row) -> pausedon.Cause | None:
         """Return the cause a left row launches again for (`pausedon.cleared`), or None. Its
@@ -678,7 +680,7 @@ class Turns:
         waits = list(self.capped)
         waits += [row for row, *_ in itertools.islice(self._ready(full=False), 1)]
         waits += [row for row, *_ in self._ready(full=True)]
-        waits.sort(key=queue.order)
+        waits.sort(key=lambda row: queue.order(row, self.lift))
         for row in waits:
             brief = queue.brief(self.run.state, row["slug"]) or ""
             why = self.caps.full(home_of(self.run.home, brief)) or cap
@@ -696,10 +698,20 @@ def turns(
     (`watch.Look.out`). A scout's row is launched by `jbus.scouts`, and a row that depends on it
     may launch once its Report says it is done (`watch.reported`)."""
     settle_lost(run, client)
-    crew = sorted((row for row in rows if queue.role(row) == queue.CREW), key=queue.order)
-    made = Turns(run, client, world, crew, caps(run, out))
+    slugs = {row["slug"] for row in rows}
+    waits = {
+        row["slug"]: pausedon.waits_on(run, world, row["slug"], slugs)
+        for row in rows
+        if row.get("status") not in queue.UNLAUNCHED
+        and not work.over(row)
+        and row["slug"] not in world.archived
+    }
+    lift = queue.lifted(rows, waits)
+    crew = [row for row in rows if queue.role(row) == queue.CREW]
+    crew.sort(key=lambda row: queue.order(row, lift))
+    made = Turns(run, client, world, crew, caps(run, out), lift=lift)
     made.reported = watch.reported(run, rows)
-    made.slugs = {row["slug"] for row in rows}
+    made.slugs = slugs
     made.landed = watch.final(run, world, rows)
     return made
 

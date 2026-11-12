@@ -79,4 +79,6 @@ A gate's answer is no cause of a resume: `questions.carry` sends it to the threa
 A resume moves the line and the queue's `thread` column in one step (`jbus.crewthread.move`), and a home that resumes a crew by hand on a new thread writes the line itself: the clock's restarts, the rebase, expedite and every message about the row go to the thread on the line (`jbus.crewthread.crew`), never to an older launch's.
 The once-key goes into the resume's launch record as `cause`, so each cause launches the row once.
 A row whose thread is still listed and not settled is carried on in place instead (`jbus.pausedon.tell`), under the same key, and a row whose old thread this pass already sent a message is left for that thread's turn.
+Once that thread works again the row moves from `left` to `running` (`jbus.work`): a Result that leaves work is the row's leftover only while no thread is at work on it, as a clean Result is its end only once its thread ended.
+The row's `why` holds what its Result leaves whole, the `Left:` or `Status:` line as written; only a view shortens it.
 A row whose thread T3 Code lists as archived is not launched again, as `jbus.pausedon.tell` carries no archived thread's row on: archiving a thread puts its row away.

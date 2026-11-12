@@ -3,7 +3,23 @@
   "modelStates": 45694,
   "modelTransitions": 147225,
   "chartStates": 58,
-  "chartTransitions": 88,
+  "chartTransitions": 104,
+  "allTransitions": 170,
+  "final": [
+    "a Result that leaves something",
+    "a Result that owes its pull request, told once to open it, ended",
+    "archived, scratch cleared",
+    "Gated",
+    "its turn completed, no Result",
+    "its turn completed, no Result, 1 of 2 carry-ons sent",
+    "its turn completed, no Result, 2 of 2 carry-ons sent",
+    "its turn failed, no Result, 2 of 2 carry-ons sent",
+    "its turn was rolled back, no Result",
+    "its turn was rolled back, no Result, 1 of 2 carry-ons sent",
+    "its turn was rolled back, no Result, 2 of 2 carry-ons sent",
+    "Put away",
+    "the launch is your gate"
+  ],
   "chartStatus": {
     "works": 58,
     "fixed": 0,
@@ -48,7 +64,7 @@
       7,
       51
     ],
-    "transitions": 88,
+    "transitions": 104,
     "all": 170,
     "flat": {
       "states": 123,
@@ -64,6 +80,6 @@
       "ThreadLife.map.py": "6772612119f94a2cb1279dcc9cf6cf4d17fb2527b21983f9624c2398da618ca1",
       "ThreadLife.tla": "659a8f5c5f4a1d6d106537fd16c4c6d323e13507532352da4f7e020bffc20728"
     },
-    "chart": "52892e46c18c24984a28a6962f3b0c70662ce523bdd54f1772915e664af04841"
+    "chart": "0f40ce12efb0edd1aff69993a68d331ad5973701a4dd2ff587f076ca5f1de35a"
   }
 }
