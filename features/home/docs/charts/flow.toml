@@ -37,6 +37,10 @@ question = "When a child home stalls or retires, does what it had out still reac
 name = "TellOnce"
 thing = "A thing jbus does once"
 
+[[chart]]
+name = "MainFix"
+thing = "The fix and revert jbus files"
+
 [[handoff]]
 from = "HomeTreeToday: No pull request yet"
 to = "RowLife: Not launched"
@@ -86,3 +90,8 @@ says = "jbus files the fix as a row of the queue."
 from = "MainRed: Not red"
 to = "FlowToday: Main green, a pull request still red from main's break"
 says = "Main is green again, and the pull requests it broke run their checks again."
+
+[[handoff]]
+from = "MainRed: Red, nothing open yet"
+to = "MainFix: In a pass"
+says = "jbus files the fix row and the revert in a pass, one write at a time."

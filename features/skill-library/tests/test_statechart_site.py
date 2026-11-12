@@ -61,6 +61,7 @@ def test_the_page_opens_on_a_map_of_every_chart_and_how_they_hand_off(tmp_path):
         "MainRed": "A red main",
         "HomeTreeToday": "A tree of homes",
         "TellOnce": "A thing jbus does once",
+        "MainFix": "The fix and revert jbus files",
     }
     for name, thing in things.items():
         assert f'data-chart="{name}"' in flow and thing in flow, name
