@@ -205,7 +205,9 @@ On `no light check`, run the check block of "Do the task", and push once it pass
 jleak's `pre-push` hook takes the `PART=guards` line for this head and no other: the head's one change over the head of the brief's last line of the whole check must be the base it now sits on, the same commits of its own over a later fork, whether a rebase or a merge of the base made it (`jleak.crewpush.only_the_base`).
 A head with a commit more, a fix pushed with the rebase included, is refused with `crew-push: refused: its last Checked: line, the guards and the lint at <head12>, binds only a merge of <base> over <head12> ...`, and wants the check block of "Do the task".
 
-Push with this. It is the only way a rebased head is pushed, never a bare `git push --force` and never `--force-with-lease` with no commit named. The lease names the head the pull request had at GitHub before the rebase started, read from the record, so a fetch since then cannot widen it:
+Push with this.
+It is the only way a rebased head is pushed, never a bare `git push --force` and never `--force-with-lease` with no commit named.
+The lease names the head the pull request had at GitHub before the rebase started, read from the record, so a fetch since then cannot widen it:
 
 ```sh
 G=$(git rev-parse --git-dir)
