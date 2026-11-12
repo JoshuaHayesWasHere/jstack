@@ -89,13 +89,33 @@
   },
   "classes": [],
   "codeLike": [],
+  "map": {
+    "runs": [
+      "TellOnceOwed.chart.cfg",
+      "TellOnce.cfg"
+    ],
+    "states": 252,
+    "arrows": 409
+  },
+  "also": {
+    "cfg": "TellOnce.cfg",
+    "modelStates": 1496,
+    "modelTransitions": 3221,
+    "states": 175,
+    "arrows": 295
+  },
   "drawnFrom": {
-    "command": "statechart from-spec TellOnce.tla --config TellOnceOwed.chart.cfg --title 'Does jbus send an ask owed after a limit twice when a pass dies?'",
+    "command": "statechart from-spec TellOnce.tla --config TellOnceOwed.chart.cfg --also-config TellOnce.cfg --title 'Does jbus send an ask owed after a limit twice when a pass dies?'",
     "inputs": {
+      "TellOnce.cfg": "b46ae119155bff47a0dae441b3a26759070074efaf276d910bfff03a5c159f96",
       "TellOnce.map.py": "fb48339c3dfc74e1770616f75ce726b0d0a566ba3aecaeeffc746c2fc49384d1",
       "TellOnce.tla": "fa8bccf828c18eb906cc356ad8ac7f2eaae256e8d4863ed3c9be069b6a74b791",
       "TellOnceOwed.chart.cfg": "f90d908902c0e13ecd034b9a87ac9e0a4108280738c432560368c77d8b14a5fb"
     },
-    "chart": "c9fa30f460f976749cbaf385a306c8d2fc5f8df2df4882033385ef76b07e309f"
+    "chart": "c9fa30f460f976749cbaf385a306c8d2fc5f8df2df4882033385ef76b07e309f",
+    "tables": {
+      "states.tsv": "0b2140850731ddd86e5e94f8e8a6d297676446b7a0fb3a7c78df3df8cd917acd",
+      "arrows.tsv": "6a23b6b0ce97dea22f4882461a8642677b47448dd7aeecd2c4e7b59d41f4d842"
+    }
   }
 }

@@ -49,13 +49,33 @@
   },
   "classes": [],
   "codeLike": [],
+  "map": {
+    "runs": [
+      "MainFix.chart.cfg",
+      "MainFix.cfg"
+    ],
+    "states": 975,
+    "arrows": 2647
+  },
+  "also": {
+    "cfg": "MainFix.cfg",
+    "modelStates": 329948,
+    "modelTransitions": 805548,
+    "states": 910,
+    "arrows": 2506
+  },
   "drawnFrom": {
-    "command": "statechart from-spec MainFix.tla --config MainFix.chart.cfg --title 'Main went red: what has jbus filed when a pass dies?'",
+    "command": "statechart from-spec MainFix.tla --config MainFix.chart.cfg --also-config MainFix.cfg --title 'Main went red: what has jbus filed when a pass dies?'",
     "inputs": {
+      "MainFix.cfg": "003b378505bb807cebe0f25c3ff1c0541dedc4b6197d4277d7df2cf6a4fd0c12",
       "MainFix.chart.cfg": "e66af407597e529064e137a9d3e1d0bddf4be5145bb84ed6cedcb3fd1f4f7f56",
       "MainFix.map.py": "92f24e35ac034ef9417e32b305edc249cf1ec6334a661ee6fe51c9facfc18b5c",
       "MainFix.tla": "3dd7f5dc0b31ce6b0e5da8ee5b73e073268937e8194ead78e633126d4aea42e6"
     },
-    "chart": "b7af77bf8084d32d211b77a59bd142d48b31e5771b874920b3e9dd8f7021db87"
+    "chart": "b7af77bf8084d32d211b77a59bd142d48b31e5771b874920b3e9dd8f7021db87",
+    "tables": {
+      "states.tsv": "ee145de26b2bb5de8f6c6f76cfbba37d7d2aacebee4c8b6e763f4bd464132967",
+      "arrows.tsv": "833f7e9171b4f55de6873e5aa19b66d0a9fa2c061afed15993a820ddfbb2fe54"
+    }
   }
 }

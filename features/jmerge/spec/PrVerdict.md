@@ -61,13 +61,14 @@ st-model-upkeep-run found that no accept lifted it, since `Repo.judged` passed `
 S=$PWD/features/skill-library/skills/statechart/scripts
 W=$(mktemp -d) && cp features/jmerge/spec/PrVerdict.* "$W"
 (cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
-    statechart from-spec PrVerdict.tla --config PrVerdict.chart.cfg \
+    statechart from-spec PrVerdict.tla \
     --title "Why isn't my pull request merging?" --out out)
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `PrVerdict-statechart/`.
-`PrVerdict.chart.cfg` moves main once (1,518,172 model states), and `PrVerdict.map.py` labels each state by main and what jmerge last said, and a row jbus held for its failed checks as held.
+It draws from `PrVerdict.cfg`, the bounds the canaries check: main moves once (1,518,172 model states), and `PrVerdict.map.py` labels each state by main and what jmerge last said, and a row jbus held for its failed checks as held.
 The chart has 21 states and draws 56 of its 175 steps, at least one way out of each state but merged, and no state breaks the rule.
+`states.tsv` and `arrows.tsv` beside it list all 46 states and every arrow between them, 377 in all, with the action and its count of model steps, and the chart's tab lists them too.
 Then draw its Excalidraw file and the charts page again, from the repo root:
 
 ```sh

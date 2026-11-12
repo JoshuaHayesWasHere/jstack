@@ -1,0 +1,122 @@
+state	group	status	start	chart	states in CrewProof.chart.cfg	within in CrewProof.chart.cfg	states in CrewProof.cfg	within in CrewProof.cfg
+Checked and proved at this head, edits not committed: a rebase record left behind	The rebase record	works		s0	112	88	5376	6912
+Checked and proved at this head, edits not committed: a scoped review is owed	A scoped review owed	works		s1	36	12	1728	1440
+Checked and proved at this head, edits not committed: rebasing	Rebasing	works		s2	336	224	16128	18816
+Checked and proved at this head, edits not committed: reviewed, a finding to answer	A finding to answer	works		s3	24	8	1152	960
+Checked and proved at this head, edits not committed: reviewed, no scoped review owed	Nothing owed	works		s4	36	0	1728	864
+Checked and proved at this head, edits not committed: reviewed, no scoped review owed, pushed	Nothing owed	works		s5	72	36	3456	3456
+Checked and proved at this head, edits not committed: the Result is written, no review yet	Result written	works		s6	4	0	144	72
+Checked and proved at this head, edits not committed: the pull request is in conflict	In conflict	works		s7	224	176	10752	13824
+Checked and proved at this head: a rebase record left behind	The rebase record	wrong		s8	6376	12328	19992	37632
+Checked and proved at this head: a scoped review is owed	A scoped review owed	works		s9	1332	804	4860	3978
+Checked and proved at this head: a scoped review is owed, none could be launched, yours to decide	A scoped review owed	works		s10	180	108	432	270
+Checked and proved at this head: its scoped review is written	A scoped review owed	works		s11	1800	1080	4320	2700
+Checked and proved at this head: rebased, not pushed	Rebasing	works		s12	1392	1584	4176	4752
+Checked and proved at this head: rebased, not pushed, a dropped line has no line in the Result	A drop not written	works		s13	696	792	2088	2376
+Checked and proved at this head: rebasing	Rebasing	works		s14	336	224	16128	18816
+Checked and proved at this head: reviewed, a finding to answer	A finding to answer	works		s15	168	104	1512	1572
+Checked and proved at this head: reviewed, no scoped review owed	Nothing owed	works		s16	180	60	2160	1584
+Checked and proved at this head: reviewed, no scoped review owed, pushed	Nothing owed	works		s17	576	480	4644	5598
+Checked and proved at this head: the Result is written, no review yet	Result written	works		s18	8	0	156	72
+Checked and proved at this head: the pull request is in conflict	In conflict	works		s19	5904	9488	24660	41238
+Checked and proved at this head: the rebase is pushed, its record not removed yet	The rebase record	works		s20	4656	1280	15600	5568
+Checked and proved at this head: the review runs	In review	works		s21	8	0	156	72
+Checked and proved at this head: the scoped launch is marked, no reviewer launched yet	At work	works		s22	180	0	432	0
+Checked and proved at this head: the scoped review runs	In review	works		s23	1140	1284	2736	3060
+Checked at this head, not proved, edits not committed: at work, no Result	At work	works		s24	5	0	216	108
+Checked at this head, not proved, edits not committed: the Result is written, no review yet	Result written	works		s25	5	0	216	108
+Checked at this head, not proved: a rebase record left behind	The rebase record	wrong		s26	5040	8640	10584	18144
+Checked at this head, not proved: a scoped review is owed	A scoped review owed	works		s27	900	540	1944	1215
+Checked at this head, not proved: at work, no Result	At work	works		s28	14	0	246	108
+Checked at this head, not proved: rebased, not pushed	Rebasing	works		s29	1120	800	3024	2160
+Checked at this head, not proved: rebased, not pushed, a dropped line has no line in the Result	A drop not written	works		s30	560	400	1512	1080
+Checked at this head, not proved: reviewed, a finding to answer	A finding to answer	works		s31	600	360	1296	810
+Checked at this head, not proved: reviewed, no scoped review owed	Nothing owed	works		s32	540	180	1458	486
+Checked at this head, not proved: reviewed, no scoped review owed, pushed	Nothing owed	works		s33	2160	1800	4374	3645
+Checked at this head, not proved: the Result is written, no review yet	Result written	works		s34	34	0	300	108
+Checked at this head, not proved: the pull request is in conflict	In conflict	works		s35	4480	6000	9828	13446
+Checked at this head, not proved: the rebase is pushed, its record not removed yet	The rebase record	works		s36	4480	0	9072	0
+Checked, nothing to prove at this head, edits not committed: a rebase record left behind	The rebase record				0	0	896	1152
+Checked, nothing to prove at this head, edits not committed: a scoped review is owed	A scoped review owed				0	0	288	240
+Checked, nothing to prove at this head, edits not committed: rebasing	Rebasing				0	0	2688	3136
+Checked, nothing to prove at this head, edits not committed: reviewed, a finding to answer	A finding to answer				0	0	192	160
+Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed	Nothing owed				0	0	288	144
+Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed, pushed	Nothing owed				0	0	576	576
+Checked, nothing to prove at this head, edits not committed: the Result is written, no review yet	Result written				0	0	24	12
+Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	In conflict				0	0	1792	2304
+Checked, nothing to prove at this head: a rebase record left behind	The rebase record				0	0	3332	6272
+Checked, nothing to prove at this head: a scoped review is owed	A scoped review owed				0	0	810	663
+Checked, nothing to prove at this head: a scoped review is owed, none could be launched, yours to decide	A scoped review owed				0	0	72	45
+Checked, nothing to prove at this head: its scoped review is written	A scoped review owed				0	0	720	450
+Checked, nothing to prove at this head: rebased, not pushed	Rebasing				0	0	696	792
+Checked, nothing to prove at this head: rebased, not pushed, a dropped line has no line in the Result	A drop not written				0	0	348	396
+Checked, nothing to prove at this head: rebasing	Rebasing				0	0	2688	3136
+Checked, nothing to prove at this head: reviewed, a finding to answer	A finding to answer				0	0	252	262
+Checked, nothing to prove at this head: reviewed, no scoped review owed	Nothing owed				0	0	360	264
+Checked, nothing to prove at this head: reviewed, no scoped review owed, pushed	Nothing owed				0	0	774	933
+Checked, nothing to prove at this head: the Result is written, no review yet	Result written				0	0	26	12
+Checked, nothing to prove at this head: the pull request is in conflict	In conflict				0	0	4110	6873
+Checked, nothing to prove at this head: the rebase is pushed, its record not removed yet	The rebase record				0	0	2600	928
+Checked, nothing to prove at this head: the review runs	In review				0	0	26	12
+Checked, nothing to prove at this head: the scoped launch is marked, no reviewer launched yet	At work				0	0	72	0
+Checked, nothing to prove at this head: the scoped review runs	In review				0	0	456	510
+No check at this head, edits not committed: at work, no Result	At work	works		s75	4	0	150	72
+No check at this head: a rebase record left behind	The rebase record	works		s37	504	360	11074	13398
+No check at this head: a scoped review is owed	A scoped review owed	works		s38	156	0	3549	1764
+No check at this head: at work, no Result	At work	works	yes	s39	37	0	1011	504
+No check at this head: rebased, not pushed	Rebasing	works		s40	1008	720	22148	26796
+No check at this head: rebased, not pushed, a dropped line has no line in the Result	A drop not written	works		s41	504	360	11074	13398
+No check at this head: reviewed, a finding to answer	A finding to answer	works		s42	104	0	2366	1176
+No check at this head: reviewed, no scoped review owed	Nothing owed	works		s43	468	156	10647	8841
+No check at this head: the Result is written, no review yet	Result written	works		s44	36	0	768	384
+No check at this head: the pull request is in conflict	In conflict	works		s45	1008	720	22148	26796
+The check did not pass at this head, edits not committed: at work, no Result	At work	works		s76	3	0	147	72
+The check did not pass at this head: a rebase record left behind	The rebase record	works		s46	504	360	4998	5922
+The check did not pass at this head: a scoped review is owed	A scoped review owed	works		s47	144	0	1575	756
+The check did not pass at this head: at work, no Result	At work	works		s48	18	0	363	180
+The check did not pass at this head: rebased, not pushed	Rebasing	works		s49	1008	720	9996	11844
+The check did not pass at this head: rebased, not pushed, a dropped line has no line in the Result	A drop not written	works		s50	504	360	4998	5922
+The check did not pass at this head: reviewed, a finding to answer	A finding to answer	works		s51	96	0	1050	504
+The check did not pass at this head: reviewed, no scoped review owed	Nothing owed	works		s52	432	144	4725	3843
+The check did not pass at this head: the Result is written, no review yet	Result written	works		s53	27	0	384	192
+The check did not pass at this head: the pull request is in conflict	In conflict	works		s54	1008	720	9996	11844
+the check runs in the background: a rebase record left behind	The rebase record				0	0	10780	10682
+the check runs in the background: a scoped review is owed	A scoped review owed				0	0	3066	2982
+the check runs in the background: at work, no Result	At work				0	0	1008	1395
+the check runs in the background: rebased, not pushed	Rebasing				0	0	17444	14308
+the check runs in the background: rebased, not pushed, a dropped line has no line in the Result	A drop not written				0	0	8722	7154
+the check runs in the background: reviewed, a finding to answer	A finding to answer				0	0	2044	1988
+the check runs in the background: reviewed, no scoped review owed	Nothing owed				0	0	8316	6993
+the check runs in the background: reviewed, no scoped review owed, pushed	Nothing owed				0	0	882	1512
+the check runs in the background: the Result is written, no review yet	Result written				0	0	576	528
+the check runs in the background: the pull request is in conflict	In conflict				0	0	21560	21364
+the check runs: a rebase record left behind	The rebase record	works		s55	5376	4368	18032	13132
+the check runs: a scoped review is owed	A scoped review owed	works		s56	1536	1236	5460	3927
+the check runs: at work, no Result	At work	works		s57	250	197	1308	933
+the check runs: rebased, not pushed	Rebasing	works		s58	9968	8176	29596	22148
+the check runs: rebased, not pushed, a dropped line has no line in the Result	A drop not written	works		s59	4984	4088	14798	11074
+the check runs: reviewed, a finding to answer	A finding to answer	works		s60	1024	824	3640	2618
+the check runs: reviewed, no scoped review owed	Nothing owed	works		s61	4356	3528	14301	10458
+the check runs: reviewed, no scoped review owed, pushed	Nothing owed	works		s62	252	180	2079	1323
+the check runs: the Result is written, no review yet	Result written	works		s63	288	225	1216	848
+the check runs: the pull request is in conflict	In conflict	works		s64	10752	8736	36064	26264
+the proof runs in the background: a rebase record left behind	The rebase record				0	0	21952	21168
+the proof runs in the background: a scoped review is owed	A scoped review owed				0	0	4032	3888
+the proof runs in the background: at work, no Result	At work				0	0	1184	2838
+the proof runs in the background: rebased, not pushed	Rebasing				0	0	6272	6048
+the proof runs in the background: rebased, not pushed, a dropped line has no line in the Result	A drop not written				0	0	3136	3024
+the proof runs in the background: reviewed, a finding to answer	A finding to answer				0	0	2688	2592
+the proof runs in the background: reviewed, no scoped review owed	Nothing owed				0	0	3024	2916
+the proof runs in the background: reviewed, no scoped review owed, pushed	Nothing owed				0	0	9072	8748
+the proof runs in the background: the Result is written, no review yet	Result written				0	0	1296	2946
+the proof runs in the background: the pull request is in conflict	In conflict				0	0	20384	19656
+the proof runs: a rebase record left behind	The rebase record	works		s65	12096	12096	21952	21168
+the proof runs: a scoped review is owed	A scoped review owed	works		s66	2160	2160	4032	3888
+the proof runs: at work, no Result	At work	works		s67	24	24	416	582
+the proof runs: rebased, not pushed	Rebasing	works		s68	2688	2688	6272	6048
+the proof runs: rebased, not pushed, a dropped line has no line in the Result	A drop not written	works		s69	1344	1344	3136	3024
+the proof runs: reviewed, a finding to answer	A finding to answer	works		s70	1440	1440	2688	2592
+the proof runs: reviewed, no scoped review owed	Nothing owed	works		s71	1296	1296	3024	2916
+the proof runs: reviewed, no scoped review owed, pushed	Nothing owed	works		s72	5184	5184	9072	8748
+the proof runs: the Result is written, no review yet	Result written	works		s73	72	72	528	690
+the proof runs: the pull request is in conflict	In conflict	works		s74	10752	10752	20384	19656

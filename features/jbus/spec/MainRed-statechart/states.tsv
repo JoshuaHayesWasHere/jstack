@@ -1,0 +1,43 @@
+state	group	status	start	chart	states in MainRed.chart.cfg	within in MainRed.chart.cfg	states in MainRed.cfg	within in MainRed.cfg
+Main green, the Mac red: a fix row out	Red, a fix row out	works		s0	2670	4682	0	0
+Main green, the Mac red: a revert open	Red, a revert open	works		s1	1382	2026	0	0
+Main green, the Mac red: a revert open and a fix row out	Red, a revert open and a fix row out	works		s2	3318	6964	0	0
+Main green, the Mac red: nothing open to fix it	Red, nothing open yet	works		s3	1216	1500	0	0
+Main green, the Mac red: two reverts open	Red, a revert open	works		s4	148	196	0	0
+Main green, the Mac red: two reverts open and a fix row out	Red, a revert open and a fix row out	works		s5	358	720	0	0
+Main green: a fix row out	Not red	works		s6	4261	8854	9627	13198
+Main green: a revert open	Not red	works		s7	240	184	0	0
+Main green: a revert open and a fix row out	Not red	works		s8	496	660	0	0
+Main green: nothing open to fix it	Not red	works	yes	s9	1678	2471	2841	2032
+Main red, the Mac red: a fix row out	Red, a fix row out	works		s10	12602	30008	0	0
+Main red, the Mac red: a revert open	Red, a revert open	works		s11	4122	8380	0	0
+Main red, the Mac red: a revert open and a fix row out	Red, a revert open and a fix row out	works		s12	21372	60172	0	0
+Main red, the Mac red: nothing open to fix it	Red, nothing open yet	works		s13	2376	3688	0	0
+Main red, the Mac red: two reverts open	Red, a revert open	works		s14	1278	2782	0	0
+Main red, the Mac red: two reverts open and a fix row out	Red, a revert open and a fix row out	works		s15	7508	22780	0	0
+Main red: a fix row out	Red, a fix row out	works		s16	16964	46756	72068	165142
+Main red: a revert open	Red, a revert open	works		s17	3246	7968	7440	15458
+Main red: a revert open and a fix row out	Red, a revert open and a fix row out	works		s18	13588	40272	31329	77341
+Main red: nothing open to fix it	Red, nothing open yet	works		s19	3013	6317	11553	19517
+Main red: two reverts open	Red, a revert open	works		s20	240	328	0	0
+Main red: two reverts open and a fix row out	Red, a revert open and a fix row out	works		s21	1152	2400	0	0
+Main's run going, the Mac red: a fix row out	Red, a fix row out	works		s22	684	1374	0	0
+Main's run going, the Mac red: a revert open	Red, a revert open	works		s23	1054	2228	0	0
+Main's run going, the Mac red: a revert open and a fix row out	Red, a revert open and a fix row out	works		s24	824	2012	0	0
+Main's run going, the Mac red: nothing open to fix it	Red, nothing open yet	works		s25	1158	2048	0	0
+Main's run going, the Mac red: two reverts open	Red, a revert open	works		s26	44	80	0	0
+Main's run going, the Mac red: two reverts open and a fix row out	Red, a revert open and a fix row out	works		s27	140	364	0	0
+Main's run going: a fix row out	Not red	works		s28	1014	2588	3560	7086
+Main's run going: a revert open	Not red	works		s29	304	448	0	0
+Main's run going: a revert open and a fix row out	Not red	works		s30	144	240	0	0
+Main's run going: nothing open to fix it	Not red	works		s31	1572	3531	3364	5504
+jbus reruns main's failed run, the Mac red: a fix row out	Red, a fix row out	works		s32	680	1362	0	0
+jbus reruns main's failed run, the Mac red: a revert open	Red, a revert open	works		s33	1014	1988	0	0
+jbus reruns main's failed run, the Mac red: a revert open and a fix row out	Red, a revert open and a fix row out	works		s34	812	1956	0	0
+jbus reruns main's failed run, the Mac red: nothing open to fix it	Red, nothing open yet	works		s35	1146	1952	0	0
+jbus reruns main's failed run, the Mac red: two reverts open	Red, a revert open	works		s36	44	80	0	0
+jbus reruns main's failed run, the Mac red: two reverts open and a fix row out	Red, a revert open and a fix row out	works		s37	140	364	0	0
+jbus reruns main's failed run: a fix row out	Not red	works		s38	996	2504	3344	6082
+jbus reruns main's failed run: a revert open	Not red	works		s39	304	448	0	0
+jbus reruns main's failed run: a revert open and a fix row out	Not red	works		s40	144	240	0	0
+jbus reruns main's failed run: nothing open to fix it	Not red	works		s41	1511	3160	2708	3222

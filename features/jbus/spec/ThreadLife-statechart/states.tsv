@@ -1,0 +1,124 @@
+state	group	status	start	chart	states in ThreadLife.cfg	within in ThreadLife.cfg
+Gated: the launch is your gate	Gated	works		r0s0 r1s43	164	370
+Its home's: a Result paused on other rows	Its home's	works		r0s1 r1s0	2640	8280
+Its home's: a Result that ends it	Its home's	works		r0s1 r1s1	1440	2160
+Its home's: a Result that leaves something	Its home's	works		r0s1 r1s2	2160	3240
+Its home's: a Result that owes its pull request, ended	Its home's	works		r0s1 r1s3	720	1080
+Its home's: a Result that owes its pull request, told once to open it, ended	Its home's	works		r0s1 r1s4	720	1080
+Its home's: a Result that owes its pull request, told once to open it, its turn is hung	Its home's	works		r0s1 r1s5	240	360
+Its home's: a Result that owes its pull request, told once to open it, its turn is quiet	Its home's	works		r0s1 r1s6	240	360
+Its home's: a Result that owes its pull request, told once to open it, its turn waits on a request	Its home's	works		r0s1 r1s7	240	360
+Its home's: a Result that owes its pull request, told once to open it, its turn waits on a test slot	Its home's	works		r0s1 r1s8	240	360
+Its home's: a Result that owes its pull request, told once to open it, its turn writes	Its home's	works		r0s1 r1s9	240	360
+Its home's: its pull request merged or closed	Its home's	works		r0s1 r1s12	2160	3240
+Its home's: its pull request open	Its home's	works		r0s1 r1s13	2160	3240
+Its home's: its turn completed, no Result	Its home's	works		r0s1 r1s14	80	120
+Its home's: its turn completed, no Result, 1 of 2 carry-ons sent	Its home's	works		r0s1 r1s15	80	120
+Its home's: its turn completed, no Result, 2 of 2 carry-ons sent	Its home's	works		r0s1 r1s16	80	120
+Its home's: its turn failed, no Result	Its home's	works		r0s1 r1s17	80	120
+Its home's: its turn failed, no Result, 1 of 2 carry-ons sent	Its home's	works		r0s1 r1s18	80	120
+Its home's: its turn failed, no Result, 2 of 2 carry-ons sent	Its home's	works		r0s1 r1s19	80	120
+Its home's: its turn is hung, no Result	Its home's	works		r0s1 r1s20	80	120
+Its home's: its turn is hung, no Result, 1 of 2 carry-ons sent	Its home's	works		r0s1 r1s21	80	120
+Its home's: its turn is hung, no Result, 2 of 2 carry-ons sent	Its home's	works		r0s1 r1s22	80	120
+Its home's: its turn is quiet, no Result	Its home's	works		r0s1 r1s23	80	120
+Its home's: its turn is quiet, no Result, 1 of 2 carry-ons sent	Its home's	works		r0s1 r1s24	80	120
+Its home's: its turn is quiet, no Result, 2 of 2 carry-ons sent	Its home's	works		r0s1 r1s25	80	120
+Its home's: its turn waits on a request, no Result	Its home's	works		r0s1 r1s26	80	120
+Its home's: its turn waits on a request, no Result, 1 of 2 carry-ons sent	Its home's	works		r0s1 r1s27	80	120
+Its home's: its turn waits on a request, no Result, 2 of 2 carry-ons sent	Its home's	works		r0s1 r1s28	80	120
+Its home's: its turn waits on a test slot, no Result	Its home's	works		r0s1 r1s29	80	120
+Its home's: its turn waits on a test slot, no Result, 1 of 2 carry-ons sent	Its home's	works		r0s1 r1s30	80	120
+Its home's: its turn waits on a test slot, no Result, 2 of 2 carry-ons sent	Its home's	works		r0s1 r1s31	80	120
+Its home's: its turn was rolled back, no Result	Its home's	works		r0s1 r1s32	80	120
+Its home's: its turn was rolled back, no Result, 1 of 2 carry-ons sent	Its home's	works		r0s1 r1s33	80	120
+Its home's: its turn was rolled back, no Result, 2 of 2 carry-ons sent	Its home's	works		r0s1 r1s34	80	120
+Its home's: its turn writes, no Result	Its home's	works		r0s1 r1s35	80	120
+Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	Its home's	works		r0s1 r1s36	80	120
+Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	Its home's	works		r0s1 r1s37	80	120
+Launching: the record says intent	Launching	works		r0s2 r1s44	2	1
+Launching: the record says intent, a retry	Launching	works		r0s2 r1s45	2	1
+Launching: the record says launch it once more	Launching	works		r0s2 r1s46	2	1
+Launching: the reply is lost, T3 Code made no thread	Launching	works		r0s2 r1s47	4	2
+Launching: the reply is lost, T3 Code made the thread	Launching	works		r0s2 r1s48	104	244
+Launching: the reply is lost, the connection dropped, T3 Code made no thread	Launching	works		r0s2 r1s49	2	1
+Launching: the reply is lost, the connection dropped, T3 Code made the thread	Launching	works		r0s2 r1s50	52	122
+Not launched: no launch record	Launching	works	yes	r0s3 r1s38	2	1
+Out: a Result paused on other rows	Out	works		r0s4 r1s0	660	1740
+Out: a Result that ends it	Out	works		r0s4 r1s1	360	360
+Out: a Result that leaves something	Out	works		r0s4 r1s2	540	540
+Out: a Result that owes its pull request, ended	Out	works		r0s4 r1s3	180	180
+Out: a Result that owes its pull request, told once to open it, ended	Out	works		r0s4 r1s4	180	180
+Out: a Result that owes its pull request, told once to open it, its turn is hung	Out	works		r0s4 r1s5	60	60
+Out: a Result that owes its pull request, told once to open it, its turn is quiet	Out	works		r0s4 r1s6	60	60
+Out: a Result that owes its pull request, told once to open it, its turn waits on a request	Out	works		r0s4 r1s7	60	60
+Out: a Result that owes its pull request, told once to open it, its turn waits on a test slot	Out	works		r0s4 r1s8	60	60
+Out: a Result that owes its pull request, told once to open it, its turn writes	Out	works		r0s4 r1s9	60	60
+Out: its pull request merged or closed	Out	works		r0s4 r1s12	540	540
+Out: its pull request open	Out	works		r0s4 r1s13	540	540
+Out: its turn completed, no Result	Out	works		r0s4 r1s14	20	20
+Out: its turn completed, no Result, 1 of 2 carry-ons sent	Out	works		r0s4 r1s15	20	20
+Out: its turn completed, no Result, 2 of 2 carry-ons sent	Out	works		r0s4 r1s16	20	20
+Out: its turn failed, no Result	Out	works		r0s4 r1s17	20	20
+Out: its turn failed, no Result, 1 of 2 carry-ons sent	Out	works		r0s4 r1s18	20	20
+Out: its turn failed, no Result, 2 of 2 carry-ons sent	Out	works		r0s4 r1s19	20	20
+Out: its turn is hung, no Result	Out	works		r0s4 r1s20	20	20
+Out: its turn is hung, no Result, 1 of 2 carry-ons sent	Out	works		r0s4 r1s21	20	20
+Out: its turn is hung, no Result, 2 of 2 carry-ons sent	Out	works		r0s4 r1s22	20	20
+Out: its turn is quiet, no Result	Out	works		r0s4 r1s23	20	20
+Out: its turn is quiet, no Result, 1 of 2 carry-ons sent	Out	works		r0s4 r1s24	20	20
+Out: its turn is quiet, no Result, 2 of 2 carry-ons sent	Out	works		r0s4 r1s25	20	20
+Out: its turn waits on a request, no Result	Out	works		r0s4 r1s26	20	20
+Out: its turn waits on a request, no Result, 1 of 2 carry-ons sent	Out	works		r0s4 r1s27	20	20
+Out: its turn waits on a request, no Result, 2 of 2 carry-ons sent	Out	works		r0s4 r1s28	20	20
+Out: its turn waits on a test slot, no Result	Out	works		r0s4 r1s29	20	20
+Out: its turn waits on a test slot, no Result, 1 of 2 carry-ons sent	Out	works		r0s4 r1s30	20	20
+Out: its turn waits on a test slot, no Result, 2 of 2 carry-ons sent	Out	works		r0s4 r1s31	20	20
+Out: its turn was rolled back, no Result	Out	works		r0s4 r1s32	20	20
+Out: its turn was rolled back, no Result, 1 of 2 carry-ons sent	Out	works		r0s4 r1s33	20	20
+Out: its turn was rolled back, no Result, 2 of 2 carry-ons sent	Out	works		r0s4 r1s34	20	20
+Out: its turn writes, no Result	Out	works		r0s4 r1s35	20	20
+Out: its turn writes, no Result, 1 of 2 carry-ons sent	Out	works		r0s4 r1s36	20	20
+Out: its turn writes, no Result, 2 of 2 carry-ons sent	Out	works		r0s4 r1s37	20	20
+Put away: archived, scratch cleared	Put away	works		r0s5 r1s10	3150	2925
+Put away: archived, scratch kept	Put away	works		r0s5 r1s11	3150	2925
+Put away: settled, nothing held, scratch cleared	Put away	works		r0s5 r1s39	3150	2925
+Put away: settled, nothing held, scratch kept	Put away	works		r0s5 r1s40	3150	2925
+Put away: settled, work held, scratch cleared	Put away	works		r0s5 r1s41	3150	2925
+Put away: settled, work held, scratch kept	Put away	works		r0s5 r1s42	3150	2925
+Yours, its home has no thread: a Result paused on other rows	Yours	works		r0s6 r1s0	1320	4140
+Yours, its home has no thread: a Result that ends it	Yours	works		r0s6 r1s1	720	1080
+Yours, its home has no thread: a Result that leaves something	Yours	works		r0s6 r1s2	1080	1620
+Yours, its home has no thread: a Result that owes its pull request, ended	Yours	works		r0s6 r1s3	360	540
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, ended	Yours	works		r0s6 r1s4	360	540
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn is hung	Yours	works		r0s6 r1s5	120	180
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn is quiet	Yours	works		r0s6 r1s6	120	180
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn waits on a request	Yours	works		r0s6 r1s7	120	180
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn waits on a test slot	Yours	works		r0s6 r1s8	120	180
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn writes	Yours	works		r0s6 r1s9	120	180
+Yours, its home has no thread: its pull request merged or closed	Yours	works		r0s6 r1s12	1080	1620
+Yours, its home has no thread: its pull request open	Yours	works		r0s6 r1s13	1080	1620
+Yours, its home has no thread: its turn completed, no Result	Yours	works		r0s6 r1s14	40	60
+Yours, its home has no thread: its turn completed, no Result, 1 of 2 carry-ons sent	Yours	works		r0s6 r1s15	40	60
+Yours, its home has no thread: its turn completed, no Result, 2 of 2 carry-ons sent	Yours	works		r0s6 r1s16	40	60
+Yours, its home has no thread: its turn failed, no Result	Yours	works		r0s6 r1s17	40	60
+Yours, its home has no thread: its turn failed, no Result, 1 of 2 carry-ons sent	Yours	works		r0s6 r1s18	40	60
+Yours, its home has no thread: its turn failed, no Result, 2 of 2 carry-ons sent	Yours	works		r0s6 r1s19	40	60
+Yours, its home has no thread: its turn is hung, no Result	Yours	works		r0s6 r1s20	40	60
+Yours, its home has no thread: its turn is hung, no Result, 1 of 2 carry-ons sent	Yours	works		r0s6 r1s21	40	60
+Yours, its home has no thread: its turn is hung, no Result, 2 of 2 carry-ons sent	Yours	works		r0s6 r1s22	40	60
+Yours, its home has no thread: its turn is quiet, no Result	Yours	works		r0s6 r1s23	40	60
+Yours, its home has no thread: its turn is quiet, no Result, 1 of 2 carry-ons sent	Yours	works		r0s6 r1s24	40	60
+Yours, its home has no thread: its turn is quiet, no Result, 2 of 2 carry-ons sent	Yours	works		r0s6 r1s25	40	60
+Yours, its home has no thread: its turn waits on a request, no Result	Yours	works		r0s6 r1s26	40	60
+Yours, its home has no thread: its turn waits on a request, no Result, 1 of 2 carry-ons sent	Yours	works		r0s6 r1s27	40	60
+Yours, its home has no thread: its turn waits on a request, no Result, 2 of 2 carry-ons sent	Yours	works		r0s6 r1s28	40	60
+Yours, its home has no thread: its turn waits on a test slot, no Result	Yours	works		r0s6 r1s29	40	60
+Yours, its home has no thread: its turn waits on a test slot, no Result, 1 of 2 carry-ons sent	Yours	works		r0s6 r1s30	40	60
+Yours, its home has no thread: its turn waits on a test slot, no Result, 2 of 2 carry-ons sent	Yours	works		r0s6 r1s31	40	60
+Yours, its home has no thread: its turn was rolled back, no Result	Yours	works		r0s6 r1s32	40	60
+Yours, its home has no thread: its turn was rolled back, no Result, 1 of 2 carry-ons sent	Yours	works		r0s6 r1s33	40	60
+Yours, its home has no thread: its turn was rolled back, no Result, 2 of 2 carry-ons sent	Yours	works		r0s6 r1s34	40	60
+Yours, its home has no thread: its turn writes, no Result	Yours	works		r0s6 r1s35	40	60
+Yours, its home has no thread: its turn writes, no Result, 1 of 2 carry-ons sent	Yours	works		r0s6 r1s36	40	60
+Yours, its home has no thread: its turn writes, no Result, 2 of 2 carry-ons sent	Yours	works		r0s6 r1s37	40	60

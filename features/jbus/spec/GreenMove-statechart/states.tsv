@@ -1,0 +1,27 @@
+state	group	status	start	chart	states in GreenMove.cfg	within in GreenMove.cfg
+A pass died, green.json owes the install: no tool, so jbus does not start	A step owed after a pass died	works		s0	1285	1571
+A pass died, green.json owes the install: the tool runs another tree than the link	A step owed after a pass died	works		s1	733	918
+A pass died, green.json owes the install: the tool runs the linked tree	A step owed after a pass died	works		s2	748	891
+A pass died, green.json owes the relink: the tool runs the linked tree	A step owed after a pass died	works		s25	1022	1294
+Going back: green.json owes the install of the tree it came from, no tool, so jbus does not start	Going back after uv refused	works		s3	119	6
+Going back: green.json owes the install of the tree it came from, the tool runs another tree than the link	Going back after uv refused	works		s4	127	6
+Going back: the link back, the tool to install again, no tool, so jbus does not start	Going back after uv refused	works		s5	471	27
+Going back: the link back, the tool to install again, the tool runs another tree than the link	Going back after uv refused	works		s6	181	9
+Going back: the link back, the tool to install again, the tool runs the linked tree	Going back after uv refused	works		s7	314	18
+Going back: the link points back, the new tree to remove, no tool, so jbus does not start	Going back after uv refused	works		s8	119	6
+Going back: the link points back, the new tree to remove, the tool runs another tree than the link	Going back after uv refused	works		s9	8	0
+Going back: the link points back, the new tree to remove, the tool runs the linked tree	Going back after uv refused	works		s10	119	6
+Going back: uv refused the install, no tool, so jbus does not start	Going back after uv refused	works		s11	508	24
+Going back: uv refused the install, the tool runs another tree than the link	Going back after uv refused	works		s12	524	24
+Moving: green.json owes the install, the link on the new tree, no tool, so jbus does not start	Moving to the new tip	works		s13	508	24
+Moving: green.json owes the install, the link on the new tree, the tool runs another tree than the link	Moving to the new tip	works		s14	524	24
+Moving: green.json owes the install, the link on the old tree, no tool, so jbus does not start	Moving to the new tip	works		s15	306	12
+Moving: green.json owes the install, the link on the old tree, the tool runs another tree than the link	Moving to the new tip	works		s16	28	0
+Moving: green.json owes the install, the link on the old tree, the tool runs the linked tree	Moving to the new tip	works		s17	434	20
+Moving: the link on the new tree, uv installs, no tool, so jbus does not start	Moving to the new tip	works		s18	822	42
+Moving: the link on the new tree, uv installs, the tool runs another tree than the link	Moving to the new tip	works		s19	540	24
+Moving: the link on the new tree, uv installs, the tool runs the linked tree	Moving to the new tip	works		s20	314	18
+Moving: the old trees removed, the layouts to put, the tool runs the linked tree	Moving to the new tip	works		s21	497	45
+Moving: the tool installed, the old trees still on disk, the tool runs the linked tree	Moving to the new tip	works		s22	1022	54
+Settled: at main's green tip, the tool runs the linked tree	Settled	works	yes	s23	222	285
+Settled: main's green tip is newer, the tool runs the linked tree	Settled	works		s24	119	169

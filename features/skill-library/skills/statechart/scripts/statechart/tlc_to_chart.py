@@ -4,6 +4,7 @@ stateDiagram-v2. `statechart` runs it once for the overview and once for each bu
 import copy
 import json
 import math
+import os
 import re
 import sys
 
@@ -116,6 +117,17 @@ statechart runs it once for the overview and once for each bug chart.
   --out FILE             The Mermaid chart. Default: stdout.
   --story FILE           The reader stories, one per bug.
   --summary FILE         The counts for the chart and the bugs, as JSON.
+  --tables DIR           Write states.tsv and arrows.tsv in DIR: every chart state of the models
+                         and every arrow between two of them, below. summary.json's map counts
+                         their rows and names the runs they count.
+  --cfg NAME             The name of the config the --dot graph comes from, for the tables'
+                         columns. Default: the --dot file's name.
+  --second-cfg NAME      The same for the --fixed-dot or --against-dot graph.
+  --also-dot FILE        The state graph of another config of the same spec, at other bounds,
+                         which the chart does not draw. The tables list what it reaches, and
+                         summary.json's also counts what it reaches that the chart's graph does
+                         not.
+  --also-cfg NAME        The name of the config of --also-dot.
   -h, --help             Print this help, and exit 0.
 
 Each bug replays on the second model by its screens and step words, which are what the reader
@@ -173,7 +185,20 @@ thick green border. The legend then shows that border. A thick blue border marks
 states that work. On other states of the path, the numbered arrows show it. A group cannot have
 the name of a status, such as "Breaks a rule".
 
-Writes only the files that --out, --story, and --summary name.
+The tables are tab-separated, with a header line, and no field holds a tab or a line break.
+states.tsv has one row per chart state: state (its label, as the chart's states are named), group,
+status (works, wrong or fixed, empty for a state only --also-dot reaches), start (yes when a start
+state of a run is in it), chart (the Mermaid ids it is drawn as: one id, or one per region, empty
+when not drawn), and per run "states in NAME" (its model states) and "within in NAME" (its model
+steps from one of them to another). arrows.tsv has one row per step between two chart states,
+or with a label within one that the chart draws a loop on, by from, to, label and action, the
+TLA+ action TLC names: chart (each drawn arrow it is, as
+"from>to" in Mermaid ids, an arrow from a box with the box's id, empty when not drawn), and per
+run "steps in NAME" (its model steps). A model step that stays in one model state is in neither,
+as summary.json's modelTransitions leaves it out, so per run the states add up to the run's
+model states, and the steps within and between to its model steps.
+
+Writes only the files that --out, --story, --summary, and --tables name.
 
 Exit codes
   0  It wrote the chart.
@@ -280,6 +305,11 @@ def parse_args(argv):
         "out": None,
         "story": None,
         "summary": None,
+        "tables": None,
+        "cfg": None,
+        "secondCfg": None,
+        "alsoDot": None,
+        "alsoCfg": None,
     }
     one = {
         "--dot": "dot",
@@ -295,6 +325,11 @@ def parse_args(argv):
         "--out": "out",
         "--story": "story",
         "--summary": "summary",
+        "--tables": "tables",
+        "--cfg": "cfg",
+        "--second-cfg": "secondCfg",
+        "--also-dot": "alsoDot",
+        "--also-cfg": "alsoCfg",
     }
     many = {
         "--traces": "traces",
@@ -389,6 +424,8 @@ def check_args(args):
         fail("--proof writes the regions proof; it needs --regions.")
     if args["regionsAll"] and not args["regions"]:
         fail("--regions-all writes every regions arrow; it needs --regions.")
+    if args["alsoDot"] and not args["tables"]:
+        fail("--also-dot adds to the tables; it needs --tables.")
     if args["regions"] and (
         args["view"] != "customer" or args["flat"] or args["pathOnly"] or args["highlight"] != 0
     ):
@@ -1604,8 +1641,22 @@ def chart(args):
         )
         if not sound:
             scoped = every_arrow
+        shown = keep if sound else [set(m) for m in moves]
+
+        def drawn_as(source, target, label):
+            """The region arrows drawn for a step between two flat states: in each region, its
+            move there when the chart draws that move, a loop where the region may stay."""
+            a, b = split(source), split(target)
+            return " ".join(
+                f"{rid[i][a[i]]}>{rid[i][b[i]]}"
+                for i in (0, 1)
+                if SEP.join([a[i], norm(label), b[i]]) in shown[i]
+                and SEP.join([a[i], norm(label), b[i]]) in moves[i]
+            )
 
         return {
+            "ids": {k: f"{rid[0][split(k)[0]]} {rid[1][split(k)[1]]}" for k in nodes},
+            "drawnAs": drawn_as,
             "mermaid": scoped["mermaid"],
             "states": [len(beside[0]), len(beside[1])],
             "transitions": scoped["count"],
@@ -1759,6 +1810,15 @@ def chart(args):
             folded.update(id(t) for t in same)
             from_box.append({**same[0], "box": box})
 
+    flat_drawn = {
+        edge_id(t["from"], t["to"]): (
+            f"{box_ids[box_of[t['from']]] if id(t) in folded else state_ids[t['from']]}"
+            f">{state_ids[t['to']]}",
+            set(t["labels"]),
+        )
+        for t in transitions
+    }
+
     out = head(drawn)
     for box, members in boxes.items():
         out.append(f'  state "{escape_mermaid_quotes(wrap(box))}" as {box_ids[box]} {{')
@@ -1899,6 +1959,145 @@ def chart(args):
             return "same screens, but the rule holds" if s["ruleHolds"] else "unchanged"
         return s["reason"] if s.get("reason") is not None else show(s["key"])
 
+    def tally(m, keys):
+        """A run's model states and the steps that stay in one chart state, by chart state, and
+        its steps between two chart states, by (from, to, label, action). A step that stays in a
+        chart state the chart draws a loop on is an arrow from the state to itself where it has
+        a label, so the loop has a row: a region chart draws no such loop."""
+        g = m["graph"]
+        states, arrows = {}, {}
+        for k in keys.values():
+            states.setdefault(k, [0, 0])[0] += 1
+        for e in g["edges"]:
+            a, b = keys[e["from"]], keys[e["to"]]
+            looped = a == b and not drew_regions and edge_id(a, a) in flat_drawn
+            if a == b and not looped:
+                states[a][1] += 1
+                continue
+            before, after = g["nodes"][e["from"]]["vars"], g["nodes"][e["to"]]["vars"]
+            label = step_label(e["action"], before, after) or ""
+            if looped and not label:
+                states[a][1] += 1
+                continue
+            row = (a, b, label, e["action"])
+            arrows[row] = arrows.get(row, 0) + 1
+        return states, arrows
+
+    def write_tables():
+        """states.tsv and arrows.tsv: every chart state of each run and every arrow between two,
+        and the counts summary.json keeps of them."""
+        runs = [(args["cfg"] or os.path.basename(args["dot"]), main, now)]
+        if second:
+            runs.append((args["secondCfg"] or os.path.basename(second_dot), second, second_q))
+        also_q = None
+        if args["alsoDot"]:
+            with open(args["alsoDot"], encoding="utf-8") as handle:
+                also = model_of(parse_dot(handle.read()))
+            also_q = quotient(also)
+            runs.append((args["alsoCfg"] or os.path.basename(args["alsoDot"]), also, also_q))
+        tallies = [tally(m, q["keys"]) for _, m, q in runs]
+        also_groups = {}
+        if also_q and grouping:
+            for n in also["graph"]["nodes"].values():
+                g = call(mapping.group, n["vars"], also["facts"](n["vars"]))
+                also_groups.setdefault(also_q["keys"][n["id"]], set()).add(
+                    re.sub(r"\s+", " ", g or "").strip()
+                )
+        keys = sorted({k for states, _ in tallies for k in states})
+        starts = {k for _, _, q in runs for k in q["initial"]}
+
+        def clean(text):
+            return re.sub(r"[\t\r\n]+", " ", text)
+
+        def group(k):
+            if k in all_nodes:
+                return group_of(k)
+            gs = also_groups.get(k, set())
+            return next(iter(gs)) if len(gs) == 1 else ""
+
+        def ids(k):
+            if drew_regions:
+                return regions["ids"].get(k, "")
+            return state_ids.get(k, "")
+
+        names = [name for name, _, _ in runs]
+        state_rows = [
+            "\t".join(
+                [
+                    "state",
+                    "group",
+                    "status",
+                    "start",
+                    "chart",
+                    *(f"{w} in {n}" for n in names for w in ("states", "within")),
+                ]
+            )
+        ]
+        for k in keys:
+            counts = [str(c) for states, _ in tallies for c in states.get(k, [0, 0])]
+            state_rows.append(
+                "\t".join(
+                    [
+                        clean(show(k)),
+                        clean(group(k)),
+                        status(k) if k in all_nodes else "",
+                        "yes" if k in starts else "",
+                        ids(k),
+                        *counts,
+                    ]
+                )
+            )
+
+        def arrow_ids(a, b, label, here):
+            if not label or a not in all_nodes or b not in all_nodes or not here:
+                return ""
+            said = label if here == "main" else in_second(label)
+            if drew_regions:
+                return regions["drawnAs"](a, b, said)
+            pair = flat_drawn.get(edge_id(a, b))
+            return pair[0] if pair and said in pair[1] else ""
+
+        rows = sorted(
+            {r for _, arrows in tallies for r in arrows},
+            key=lambda r: (locale_key(r[0]), locale_key(r[1]), locale_key(r[2]), r[3]),
+        )
+        arrow_rows = [
+            "\t".join(["from", "to", "label", "action", "chart", *(f"steps in {n}" for n in names)])
+        ]
+        for r in rows:
+            counts = [arrows.get(r, 0) for _, arrows in tallies]
+            here = "main" if counts[0] else "second" if second and counts[1] else None
+            arrow_rows.append(
+                "\t".join(
+                    [
+                        *(clean(show(k)) for k in r[:2]),
+                        clean(r[2]),
+                        clean(r[3]),
+                        arrow_ids(*r[:3], here),
+                        *(str(c) for c in counts),
+                    ]
+                )
+            )
+        for name, lines in (("states.tsv", state_rows), ("arrows.tsv", arrow_rows)):
+            with open(os.path.join(args["tables"], name), "w", encoding="utf-8") as handle:
+                handle.write("\n".join(lines) + "\n")
+        out = {"map": {"runs": names, "states": len(keys), "arrows": len(rows)}}
+        if also_q:
+            last = len(runs) - 1
+            drawn_runs = range(last)
+            out["also"] = {
+                "cfg": names[last],
+                "modelStates": len(also["graph"]["nodes"]),
+                "modelTransitions": len(also["graph"]["edges"]),
+                "states": sum(
+                    1 for k in tallies[last][0] if not any(k in tallies[j][0] for j in drawn_runs)
+                ),
+                "arrows": sum(
+                    1 for r in tallies[last][1] if not any(r in tallies[j][1] for j in drawn_runs)
+                ),
+            }
+        return out
+
     summary = {"view": args["view"]}
     if role:
         summary["second"] = {
@@ -1967,6 +2166,8 @@ def chart(args):
         for i, c in enumerate(classes)
     ]
     summary["codeLike"] = code_like
+    if args["tables"]:
+        summary.update(write_tables())
     if args["summary"]:
         with open(args["summary"], "w", encoding="utf-8") as handle:
             handle.write(json.dumps(summary, indent=2, ensure_ascii=False) + "\n")

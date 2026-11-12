@@ -1,0 +1,229 @@
+state	group	status	start	chart	states in Setup.chart.cfg	within in Setup.chart.cfg	states in Setup.cfg	within in Setup.cfg
+Installed, uninstall removes it all: Expert in thread 1 starting, a webhook no record names	Installed	works		r0s0 r1s0	2128	1176	2128	1176
+Installed, uninstall removes it all: Expert in thread 1 starting, its webhook kept, posting into thread 1	Installed	works		r0s0 r1s1	280	0	280	0
+Installed, uninstall removes it all: Expert in thread 1 starting, its webhook kept, posting into thread 2	Installed	works		r0s0 r1s2	224	112	224	112
+Installed, uninstall removes it all: Expert in thread 1 starting, no webhook	Installed	works		r0s0 r1s3	1232	616	1232	616
+Installed, uninstall removes it all: Expert in thread 1, a webhook no record names, its turn stopped	Installed	works		r0s0 r1s4	784	0	784	0
+Installed, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 1	Installed	works		r0s0 r1s5	280	0	280	0
+Installed, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Installed	works		r0s0 r1s6	112	0	112	0
+Installed, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Installed	works		r0s0 r1s7	112	0	112	0
+Installed, uninstall removes it all: Expert in thread 1, no webhook, its turn stopped	Installed	works		r0s0 r1s8	336	0	336	0
+Installed, uninstall removes it all: Expert in thread 2 starting, a webhook no record names	Installed	works		r0s0 r1s9	2128	1176	2128	1176
+Installed, uninstall removes it all: Expert in thread 2 starting, its webhook kept, posting into thread 1	Installed	works		r0s0 r1s10	224	112	224	112
+Installed, uninstall removes it all: Expert in thread 2 starting, its webhook kept, posting into thread 2	Installed	works		r0s0 r1s11	280	0	280	0
+Installed, uninstall removes it all: Expert in thread 2 starting, no webhook	Installed	works		r0s0 r1s12	1232	616	1232	616
+Installed, uninstall removes it all: Expert in thread 2, a webhook no record names, its turn stopped	Installed	works		r0s0 r1s13	784	0	784	0
+Installed, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Installed	works		r0s0 r1s14	112	0	112	0
+Installed, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 2	Installed	works		r0s0 r1s15	280	0	280	0
+Installed, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Installed	works		r0s0 r1s16	112	0	112	0
+Installed, uninstall removes it all: Expert in thread 2, no webhook, its turn stopped	Installed	works		r0s0 r1s17	336	0	336	0
+Installed, uninstall removes it all: No expert yet	Installed	works		r0s0 r1s18	56	0	56	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, a webhook no record names	Installed				0	0	2128	1176
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 1	Installed				0	0	280	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 2	Installed				0	0	224	112
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, no webhook	Installed				0	0	1232	616
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, a webhook no record names, its turn stopped	Installed				0	0	784	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1	Installed				0	0	280	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Installed				0	0	112	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Installed				0	0	112	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, no webhook, its turn stopped	Installed				0	0	336	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, a webhook no record names	Installed				0	0	2128	1176
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 1	Installed				0	0	224	112
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 2	Installed				0	0	280	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, no webhook	Installed				0	0	1232	616
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, a webhook no record names, its turn stopped	Installed				0	0	784	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Installed				0	0	112	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2	Installed				0	0	280	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Installed				0	0	112	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, no webhook, its turn stopped	Installed				0	0	336	0
+Installed, uninstall removes it all; The mirror holds its own entry: No expert yet	Installed				0	0	56	0
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, a webhook no record names	Installed				0	0	4256	6608
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 1	Installed				0	0	560	560
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 2	Installed				0	0	448	672
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, no webhook	Installed				0	0	2464	3696
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, a webhook no record names, its turn stopped	Installed				0	0	1568	1568
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1	Installed				0	0	560	560
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Installed				0	0	224	224
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Installed				0	0	224	224
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, no webhook, its turn stopped	Installed				0	0	672	672
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, a webhook no record names	Installed				0	0	4256	6608
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 1	Installed				0	0	448	672
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 2	Installed				0	0	560	560
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, no webhook	Installed				0	0	2464	3696
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, a webhook no record names, its turn stopped	Installed				0	0	1568	1568
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Installed				0	0	224	224
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2	Installed				0	0	560	560
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Installed				0	0	224	224
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, no webhook, its turn stopped	Installed				0	0	672	672
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: No expert yet	Installed				0	0	112	112
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, a webhook no record names	Installed				0	0	2128	1176
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 1	Installed				0	0	280	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 2	Installed				0	0	224	112
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, no webhook	Installed				0	0	1232	616
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, a webhook no record names, its turn stopped	Installed				0	0	784	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1	Installed				0	0	280	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Installed				0	0	112	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Installed				0	0	112	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, no webhook, its turn stopped	Installed				0	0	336	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, a webhook no record names	Installed				0	0	2128	1176
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 1	Installed				0	0	224	112
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 2	Installed				0	0	280	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, no webhook	Installed				0	0	1232	616
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, a webhook no record names, its turn stopped	Installed				0	0	784	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Installed				0	0	112	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2	Installed				0	0	280	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Installed				0	0	112	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, no webhook, its turn stopped	Installed				0	0	336	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: No expert yet	Installed				0	0	56	0
+Installing, uninstall removes it all: Expert in thread 1 starting, a webhook no record names		works		r0s1 r1s0	13680	19188	13680	19188
+Installing, uninstall removes it all: Expert in thread 1 starting, its webhook kept, posting into thread 1		works		r0s1 r1s1	1800	1530	1800	1530
+Installing, uninstall removes it all: Expert in thread 1 starting, its webhook kept, posting into thread 2		works		r0s1 r1s2	1440	1944	1440	1944
+Installing, uninstall removes it all: Expert in thread 1 starting, no webhook		works		r0s1 r1s3	7920	10692	7920	10692
+Installing, uninstall removes it all: Expert in thread 1, a webhook no record names, its turn stopped		works		r0s1 r1s4	5040	4284	5040	4284
+Installing, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 1		works		r0s1 r1s5	1800	1530	1800	1530
+Installing, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped		works		r0s1 r1s6	720	612	720	612
+Installing, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped		works		r0s1 r1s7	720	612	720	612
+Installing, uninstall removes it all: Expert in thread 1, no webhook, its turn stopped		works		r0s1 r1s8	2160	1836	2160	1836
+Installing, uninstall removes it all: Expert in thread 2 starting, a webhook no record names		works		r0s1 r1s9	13680	19188	13680	19188
+Installing, uninstall removes it all: Expert in thread 2 starting, its webhook kept, posting into thread 1		works		r0s1 r1s10	1440	1944	1440	1944
+Installing, uninstall removes it all: Expert in thread 2 starting, its webhook kept, posting into thread 2		works		r0s1 r1s11	1800	1530	1800	1530
+Installing, uninstall removes it all: Expert in thread 2 starting, no webhook		works		r0s1 r1s12	7920	10692	7920	10692
+Installing, uninstall removes it all: Expert in thread 2, a webhook no record names, its turn stopped		works		r0s1 r1s13	5040	4284	5040	4284
+Installing, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped		works		r0s1 r1s14	720	612	720	612
+Installing, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 2		works		r0s1 r1s15	1800	1530	1800	1530
+Installing, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped		works		r0s1 r1s16	720	612	720	612
+Installing, uninstall removes it all: Expert in thread 2, no webhook, its turn stopped		works		r0s1 r1s17	2160	1836	2160	1836
+Installing, uninstall removes it all: No expert yet		works		r0s1 r1s18	360	306	360	306
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, a webhook no record names					0	0	13680	19188
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 1					0	0	1800	1530
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 2					0	0	1440	1944
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, no webhook					0	0	7920	10692
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, a webhook no record names, its turn stopped					0	0	5040	4284
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1					0	0	1800	1530
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped					0	0	720	612
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped					0	0	720	612
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, no webhook, its turn stopped					0	0	2160	1836
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, a webhook no record names					0	0	13680	19188
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 1					0	0	1440	1944
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 2					0	0	1800	1530
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, no webhook					0	0	7920	10692
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, a webhook no record names, its turn stopped					0	0	5040	4284
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped					0	0	720	612
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2					0	0	1800	1530
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped					0	0	720	612
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, no webhook, its turn stopped					0	0	2160	1836
+Installing, uninstall removes it all; The mirror holds its own entry: No expert yet					0	0	360	306
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, a webhook no record names					0	0	27360	65736
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 1					0	0	3600	6660
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 2					0	0	2880	6768
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, no webhook					0	0	15840	37224
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, a webhook no record names, its turn stopped					0	0	10080	18648
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1					0	0	3600	6660
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped					0	0	1440	2664
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped					0	0	1440	2664
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, no webhook, its turn stopped					0	0	4320	7992
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, a webhook no record names					0	0	27360	65736
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 1					0	0	2880	6768
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 2					0	0	3600	6660
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, no webhook					0	0	15840	37224
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, a webhook no record names, its turn stopped					0	0	10080	18648
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped					0	0	1440	2664
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2					0	0	3600	6660
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped					0	0	1440	2664
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, no webhook, its turn stopped					0	0	4320	7992
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: No expert yet					0	0	720	1332
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, a webhook no record names					0	0	13680	19188
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 1					0	0	1800	1530
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 2					0	0	1440	1944
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, no webhook					0	0	7920	10692
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, a webhook no record names, its turn stopped					0	0	5040	4284
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1					0	0	1800	1530
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped					0	0	720	612
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped					0	0	720	612
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, no webhook, its turn stopped					0	0	2160	1836
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, a webhook no record names					0	0	13680	19188
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 1					0	0	1440	1944
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 2					0	0	1800	1530
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, no webhook					0	0	7920	10692
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, a webhook no record names, its turn stopped					0	0	5040	4284
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped					0	0	720	612
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2					0	0	1800	1530
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped					0	0	720	612
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, no webhook, its turn stopped					0	0	2160	1836
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: No expert yet					0	0	360	306
+Nothing of jstack's on disk: Expert in thread 1 starting, a webhook no record names		works		r0s2 r1s0	76	42	76	42
+Nothing of jstack's on disk: Expert in thread 1 starting, its webhook kept, posting into thread 1		works		r0s2 r1s1	10	0	10	0
+Nothing of jstack's on disk: Expert in thread 1 starting, its webhook kept, posting into thread 2		works		r0s2 r1s2	8	4	8	4
+Nothing of jstack's on disk: Expert in thread 1 starting, no webhook		works		r0s2 r1s3	44	22	44	22
+Nothing of jstack's on disk: Expert in thread 1, a webhook no record names, its turn stopped		works		r0s2 r1s4	28	0	28	0
+Nothing of jstack's on disk: Expert in thread 1, its webhook kept, posting into thread 1		works		r0s2 r1s5	10	0	10	0
+Nothing of jstack's on disk: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped		works		r0s2 r1s6	4	0	4	0
+Nothing of jstack's on disk: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped		works		r0s2 r1s7	4	0	4	0
+Nothing of jstack's on disk: Expert in thread 1, no webhook, its turn stopped		works		r0s2 r1s8	12	0	12	0
+Nothing of jstack's on disk: Expert in thread 2 starting, a webhook no record names		works		r0s2 r1s9	76	42	76	42
+Nothing of jstack's on disk: Expert in thread 2 starting, its webhook kept, posting into thread 1		works		r0s2 r1s10	8	4	8	4
+Nothing of jstack's on disk: Expert in thread 2 starting, its webhook kept, posting into thread 2		works		r0s2 r1s11	10	0	10	0
+Nothing of jstack's on disk: Expert in thread 2 starting, no webhook		works		r0s2 r1s12	44	22	44	22
+Nothing of jstack's on disk: Expert in thread 2, a webhook no record names, its turn stopped		works		r0s2 r1s13	28	0	28	0
+Nothing of jstack's on disk: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped		works		r0s2 r1s14	4	0	4	0
+Nothing of jstack's on disk: Expert in thread 2, its webhook kept, posting into thread 2		works		r0s2 r1s15	10	0	10	0
+Nothing of jstack's on disk: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped		works		r0s2 r1s16	4	0	4	0
+Nothing of jstack's on disk: Expert in thread 2, no webhook, its turn stopped		works		r0s2 r1s17	12	0	12	0
+Nothing of jstack's on disk: No expert yet		works	yes	r0s2 r1s18	2	0	2	0
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 1 starting, a webhook no record names					0	0	76	42
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 1					0	0	10	0
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 2					0	0	8	4
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 1 starting, no webhook					0	0	44	22
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 1, a webhook no record names, its turn stopped					0	0	28	0
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1					0	0	10	0
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped					0	0	4	0
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped					0	0	4	0
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 1, no webhook, its turn stopped					0	0	12	0
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 2 starting, a webhook no record names					0	0	76	42
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 1					0	0	8	4
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 2					0	0	10	0
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 2 starting, no webhook					0	0	44	22
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 2, a webhook no record names, its turn stopped					0	0	28	0
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped					0	0	4	0
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2					0	0	10	0
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped					0	0	4	0
+Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 2, no webhook, its turn stopped					0	0	12	0
+Nothing of jstack's on disk; The mirror holds its own entry: No expert yet					0	0	2	0
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, a webhook no record names					0	0	152	236
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 1					0	0	20	20
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 2					0	0	16	24
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, no webhook					0	0	88	132
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 1, a webhook no record names, its turn stopped					0	0	56	56
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1					0	0	20	20
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped					0	0	8	8
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped					0	0	8	8
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 1, no webhook, its turn stopped					0	0	24	24
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, a webhook no record names					0	0	152	236
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 1					0	0	16	24
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 2					0	0	20	20
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, no webhook					0	0	88	132
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 2, a webhook no record names, its turn stopped					0	0	56	56
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped					0	0	8	8
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2					0	0	20	20
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped					0	0	8	8
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: Expert in thread 2, no webhook, its turn stopped					0	0	24	24
+Nothing of jstack's on disk; The mirror's entry is in its backup, not linked: No expert yet					0	0	4	4
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, a webhook no record names					0	0	76	42
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 1					0	0	10	0
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 2					0	0	8	4
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, no webhook					0	0	44	22
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, a webhook no record names, its turn stopped					0	0	28	0
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1					0	0	10	0
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped					0	0	4	0
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped					0	0	4	0
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, no webhook, its turn stopped					0	0	12	0
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, a webhook no record names					0	0	76	42
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 1					0	0	8	4
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 2					0	0	10	0
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, no webhook					0	0	44	22
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, a webhook no record names, its turn stopped					0	0	28	0
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped					0	0	4	0
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2					0	0	10	0
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped					0	0	4	0
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, no webhook, its turn stopped					0	0	12	0
+Nothing of jstack's on disk; The mirror's entry links to ~/.claude's, its own in a backup: No expert yet					0	0	2	0

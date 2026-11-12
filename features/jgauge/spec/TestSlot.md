@@ -109,9 +109,9 @@ A wake recorded before its send claims the slot for `HOLDS` even when the send f
 
 ```sh
 S=$PWD/features/skill-library/skills/statechart/scripts
-W=$(mktemp -d) && cp features/jgauge/spec/TestSlot.tla features/jgauge/spec/TestSlot.chart.cfg features/jgauge/spec/TestSlot.map.py "$W"
+W=$(mktemp -d) && cp features/jgauge/spec/TestSlot.tla features/jgauge/spec/TestSlot.chart.cfg features/jgauge/spec/TestSlot.cfg features/jgauge/spec/TestSlot.map.py "$W"
 (cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
-    statechart from-spec TestSlot.tla --config TestSlot.chart.cfg \
+    statechart from-spec TestSlot.tla --config TestSlot.chart.cfg --also-config TestSlot.cfg \
     --expect-broken WokenGetsSlot \
     --title "Who holds a test slot, who waits on one, and what the ledger keeps?" \
     --out TestSlot-statechart)
@@ -122,6 +122,7 @@ Then copy the files of `$W/TestSlot-statechart` into `TestSlot-statechart/`, all
 `TestSlot.cfg` has 672,971 states in the mode that passes and 927,474 in today's mode, more than the chart's state graph can hold.
 So the chart is drawn from `TestSlot.chart.cfg`: today's code, where only the short lane's crew can be killed, and the full room keeps no holders file (`Chart = TRUE`), which the short room draws.
 That is 96,720 model states, and it draws one numbered path for the one bug.
+`--also-config TestSlot.cfg` runs today's mode of the whole machine once more for the tables alone: its 927,474 states add 116 states and 786 arrows, and `states.tsv` and `arrows.tsv` list all 274 states and 1,216 arrows, between them or, for each loop the chart draws, within one, each with its action and its count of model steps in each run.
 `TestSlot.map.py` labels each state by what the machine's files say, and names each join of values in its header.
 
 ## What the model leaves out

@@ -1,0 +1,153 @@
+state	group	status	start	chart	states in OneList.chart.cfg	within in OneList.chart.cfg
+A gate that holds, asked by the home: No gate yet	No gate yet	works	yes	r0s2 r1s0	2	3
+A gate that holds, asked by the home: Status: answered in gates-moved.md, its question answered, not on your list, settled	Answered, moved aside	works		r0s2 r1s1	2	3
+A gate that holds, asked by the home: Status: answered in gates-moved.md, its question answered, on your list, settled	Answered, moved aside	works		r0s2 r1s2	2	1
+A gate that holds, asked by the home: Status: answered in gates-moved.md, its question asked, waiting for you, not on your list, you owe an answer	Answered, moved aside	works		r0s2 r1s4	2	1
+A gate that holds, asked by the home: Status: answered in gates-moved.md, its question asked, waiting for you, on your list, you owe an answer	Answered, moved aside	works		r0s2 r1s6	2	3
+A gate that holds, asked by the home: Status: answered in gates-moved.md, not on your list, settled	Answered, moved aside	works		r0s2 r1s8	2	3
+A gate that holds, asked by the home: Status: answered in gates-moved.md, on your list, settled	Answered, moved aside	works		r0s2 r1s9	2	1
+A gate that holds, asked by the home: Status: answered in gates.md, its question answered, not on your list, settled	Answered in gates.md	works		r0s2 r1s10	2	3
+A gate that holds, asked by the home: Status: answered in gates.md, its question answered, on your list, settled	Answered in gates.md	works		r0s2 r1s11	2	1
+A gate that holds, asked by the home: Status: answered in gates.md, its question asked, waiting for you, not on your list, you owe an answer	Answered in gates.md	works		r0s2 r1s13	2	1
+A gate that holds, asked by the home: Status: answered in gates.md, its question asked, waiting for you, on your list, you owe an answer	Answered in gates.md	works		r0s2 r1s15	2	3
+A gate that holds, asked by the home: Status: answered in gates.md, not on your list, settled	Answered in gates.md	works		r0s2 r1s17	2	3
+A gate that holds, asked by the home: Status: answered in gates.md, on your list, settled	Answered in gates.md	works		r0s2 r1s18	2	1
+A gate that holds, asked by the home: Status: done in gates-moved.md, its question answered, not on your list, settled	Done, moved aside	works		r0s2 r1s19	2	3
+A gate that holds, asked by the home: Status: done in gates-moved.md, its question answered, on your list, settled	Done, moved aside	works		r0s2 r1s20	2	1
+A gate that holds, asked by the home: Status: done in gates-moved.md, its question asked, waiting for you, not on your list, you owe an answer	Done, moved aside	works		r0s2 r1s22	2	1
+A gate that holds, asked by the home: Status: done in gates-moved.md, its question asked, waiting for you, on your list, you owe an answer	Done, moved aside	works		r0s2 r1s24	2	3
+A gate that holds, asked by the home: Status: done in gates-moved.md, not on your list, settled	Done, moved aside	works		r0s2 r1s26	2	3
+A gate that holds, asked by the home: Status: done in gates-moved.md, on your list, settled	Done, moved aside	works		r0s2 r1s27	2	1
+A gate that holds, asked by the home: Status: done in gates.md, its question answered, not on your list, settled	Done in gates.md	works		r0s2 r1s28	2	3
+A gate that holds, asked by the home: Status: done in gates.md, its question answered, on your list, settled	Done in gates.md	works		r0s2 r1s29	2	1
+A gate that holds, asked by the home: Status: done in gates.md, its question asked, waiting for you, not on your list, you owe an answer	Done in gates.md	works		r0s2 r1s31	2	1
+A gate that holds, asked by the home: Status: done in gates.md, its question asked, waiting for you, on your list, you owe an answer	Done in gates.md	works		r0s2 r1s33	2	3
+A gate that holds, asked by the home: Status: done in gates.md, not on your list, settled	Done in gates.md	works		r0s2 r1s35	2	3
+A gate that holds, asked by the home: Status: done in gates.md, on your list, settled	Done in gates.md	works		r0s2 r1s36	2	1
+A gate that holds, asked by the home: Status: open in gates-moved.md, its question answered, not on your list, settled	Open, moved aside	works		r0s2 r1s37	2	3
+A gate that holds, asked by the home: Status: open in gates-moved.md, its question answered, on your list, settled	Open, moved aside	works		r0s2 r1s38	2	1
+A gate that holds, asked by the home: Status: open in gates-moved.md, its question asked, waiting for you, not on your list, you owe an answer	Open, moved aside	works		r0s2 r1s39	2	1
+A gate that holds, asked by the home: Status: open in gates-moved.md, its question asked, waiting for you, on your list, you owe an answer	Open, moved aside	works		r0s2 r1s40	2	3
+A gate that holds, asked by the home: Status: open in gates.md, its question answered, not on your list, settled	Open in gates.md	works		r0s2 r1s42	2	3
+A gate that holds, asked by the home: Status: open in gates.md, its question answered, on your list, settled	Open in gates.md	works		r0s2 r1s43	2	1
+A gate that holds, asked by the home: Status: open in gates.md, its question asked, waiting for you, not on your list, you owe an answer	Open in gates.md	works		r0s2 r1s44	2	1
+A gate that holds, asked by the home: Status: open in gates.md, its question asked, waiting for you, on your list, you owe an answer	Open in gates.md	works		r0s2 r1s45	2	3
+A gate that holds, asked by the home: Status: open in gates.md, not on your list, you owe an answer	Open in gates.md	works		r0s2 r1s47	2	1
+A gate that holds, asked by the home: Status: open in gates.md, on your list, you owe an answer	Open in gates.md	works		r0s2 r1s48	2	3
+A gate that holds: No gate yet	No gate yet	works	yes	r0s1 r1s0	2	3
+A gate that holds: Status: answered in gates-moved.md, its question answered, not on your list, settled	Answered, moved aside	works		r0s1 r1s1	2	3
+A gate that holds: Status: answered in gates-moved.md, its question answered, on your list, settled	Answered, moved aside	works		r0s1 r1s2	2	1
+A gate that holds: Status: answered in gates-moved.md, its question asked, waiting for you, not on your list, you owe an answer	Answered, moved aside	works		r0s1 r1s4	2	1
+A gate that holds: Status: answered in gates-moved.md, its question asked, waiting for you, on your list, you owe an answer	Answered, moved aside	works		r0s1 r1s6	2	3
+A gate that holds: Status: answered in gates-moved.md, not on your list, settled	Answered, moved aside	works		r0s1 r1s8	2	3
+A gate that holds: Status: answered in gates-moved.md, on your list, settled	Answered, moved aside	works		r0s1 r1s9	2	1
+A gate that holds: Status: answered in gates.md, its question answered, not on your list, settled	Answered in gates.md	works		r0s1 r1s10	2	3
+A gate that holds: Status: answered in gates.md, its question answered, on your list, settled	Answered in gates.md	works		r0s1 r1s11	2	1
+A gate that holds: Status: answered in gates.md, its question asked, waiting for you, not on your list, you owe an answer	Answered in gates.md	works		r0s1 r1s13	2	1
+A gate that holds: Status: answered in gates.md, its question asked, waiting for you, on your list, you owe an answer	Answered in gates.md	works		r0s1 r1s15	2	3
+A gate that holds: Status: answered in gates.md, not on your list, settled	Answered in gates.md	works		r0s1 r1s17	2	3
+A gate that holds: Status: answered in gates.md, on your list, settled	Answered in gates.md	works		r0s1 r1s18	2	1
+A gate that holds: Status: done in gates-moved.md, its question answered, not on your list, settled	Done, moved aside	works		r0s1 r1s19	2	3
+A gate that holds: Status: done in gates-moved.md, its question answered, on your list, settled	Done, moved aside	works		r0s1 r1s20	2	1
+A gate that holds: Status: done in gates-moved.md, its question asked, waiting for you, not on your list, you owe an answer	Done, moved aside	works		r0s1 r1s22	2	1
+A gate that holds: Status: done in gates-moved.md, its question asked, waiting for you, on your list, you owe an answer	Done, moved aside	works		r0s1 r1s24	2	3
+A gate that holds: Status: done in gates-moved.md, not on your list, settled	Done, moved aside	works		r0s1 r1s26	2	3
+A gate that holds: Status: done in gates-moved.md, on your list, settled	Done, moved aside	works		r0s1 r1s27	2	1
+A gate that holds: Status: done in gates.md, its question answered, not on your list, settled	Done in gates.md	works		r0s1 r1s28	2	3
+A gate that holds: Status: done in gates.md, its question answered, on your list, settled	Done in gates.md	works		r0s1 r1s29	2	1
+A gate that holds: Status: done in gates.md, its question asked, waiting for you, not on your list, you owe an answer	Done in gates.md	works		r0s1 r1s31	2	1
+A gate that holds: Status: done in gates.md, its question asked, waiting for you, on your list, you owe an answer	Done in gates.md	works		r0s1 r1s33	2	3
+A gate that holds: Status: done in gates.md, not on your list, settled	Done in gates.md	works		r0s1 r1s35	2	3
+A gate that holds: Status: done in gates.md, on your list, settled	Done in gates.md	works		r0s1 r1s36	2	1
+A gate that holds: Status: open in gates-moved.md, its question answered, not on your list, settled	Open, moved aside	works		r0s1 r1s37	2	3
+A gate that holds: Status: open in gates-moved.md, its question answered, on your list, settled	Open, moved aside	works		r0s1 r1s38	2	1
+A gate that holds: Status: open in gates-moved.md, its question asked, waiting for you, not on your list, you owe an answer	Open, moved aside	works		r0s1 r1s39	2	1
+A gate that holds: Status: open in gates-moved.md, its question asked, waiting for you, on your list, you owe an answer	Open, moved aside	works		r0s1 r1s40	2	3
+A gate that holds: Status: open in gates.md, its question answered, not on your list, settled	Open in gates.md	works		r0s1 r1s42	2	3
+A gate that holds: Status: open in gates.md, its question answered, on your list, settled	Open in gates.md	works		r0s1 r1s43	2	1
+A gate that holds: Status: open in gates.md, its question asked, waiting for you, not on your list, you owe an answer	Open in gates.md	works		r0s1 r1s44	2	1
+A gate that holds: Status: open in gates.md, its question asked, waiting for you, on your list, you owe an answer	Open in gates.md	works		r0s1 r1s45	2	3
+A gate that holds: Status: open in gates.md, not on your list, you owe an answer	Open in gates.md	works		r0s1 r1s47	2	1
+A gate that holds: Status: open in gates.md, on your list, you owe an answer	Open in gates.md	works		r0s1 r1s48	2	3
+A gate, asked by the home: No gate yet	No gate yet	works	yes	r0s3 r1s0	2	3
+A gate, asked by the home: Status: answered in gates-moved.md, its question answered, not on your list, settled	Answered, moved aside	works		r0s3 r1s1	2	3
+A gate, asked by the home: Status: answered in gates-moved.md, its question answered, on your list, settled	Answered, moved aside	works		r0s3 r1s2	2	1
+A gate, asked by the home: Status: answered in gates-moved.md, its question asked, waiting for you, not on your list, settled	Answered, moved aside	works		r0s3 r1s3	2	1
+A gate, asked by the home: Status: answered in gates-moved.md, its question asked, waiting for you, on your list, settled	Answered, moved aside	works		r0s3 r1s5	2	1
+A gate, asked by the home: Status: answered in gates-moved.md, its question closed by silence with its default, not on your list, settled	Answered, moved aside	works		r0s3 r1s7	2	3
+A gate, asked by the home: Status: answered in gates-moved.md, not on your list, settled	Answered, moved aside	works		r0s3 r1s8	2	3
+A gate, asked by the home: Status: answered in gates-moved.md, on your list, settled	Answered, moved aside	works		r0s3 r1s9	2	1
+A gate, asked by the home: Status: answered in gates.md, its question answered, not on your list, settled	Answered in gates.md	works		r0s3 r1s10	2	3
+A gate, asked by the home: Status: answered in gates.md, its question answered, on your list, settled	Answered in gates.md	works		r0s3 r1s11	2	1
+A gate, asked by the home: Status: answered in gates.md, its question asked, waiting for you, not on your list, settled	Answered in gates.md	works		r0s3 r1s12	2	1
+A gate, asked by the home: Status: answered in gates.md, its question asked, waiting for you, on your list, settled	Answered in gates.md	works		r0s3 r1s14	2	1
+A gate, asked by the home: Status: answered in gates.md, its question closed by silence with its default, not on your list, settled	Answered in gates.md	works		r0s3 r1s16	2	1
+A gate, asked by the home: Status: answered in gates.md, not on your list, settled	Answered in gates.md	works		r0s3 r1s17	2	3
+A gate, asked by the home: Status: answered in gates.md, on your list, settled	Answered in gates.md	works		r0s3 r1s18	2	1
+A gate, asked by the home: Status: done in gates-moved.md, its question answered, not on your list, settled	Done, moved aside	works		r0s3 r1s19	2	3
+A gate, asked by the home: Status: done in gates-moved.md, its question answered, on your list, settled	Done, moved aside	works		r0s3 r1s20	2	1
+A gate, asked by the home: Status: done in gates-moved.md, its question asked, waiting for you, not on your list, settled	Done, moved aside	works		r0s3 r1s21	2	1
+A gate, asked by the home: Status: done in gates-moved.md, its question asked, waiting for you, on your list, settled	Done, moved aside	works		r0s3 r1s23	2	1
+A gate, asked by the home: Status: done in gates-moved.md, its question closed by silence with its default, not on your list, settled	Done, moved aside	works		r0s3 r1s25	2	3
+A gate, asked by the home: Status: done in gates-moved.md, not on your list, settled	Done, moved aside	works		r0s3 r1s26	2	3
+A gate, asked by the home: Status: done in gates-moved.md, on your list, settled	Done, moved aside	works		r0s3 r1s27	2	1
+A gate, asked by the home: Status: done in gates.md, its question answered, not on your list, settled	Done in gates.md	works		r0s3 r1s28	2	3
+A gate, asked by the home: Status: done in gates.md, its question answered, on your list, settled	Done in gates.md	works		r0s3 r1s29	2	1
+A gate, asked by the home: Status: done in gates.md, its question asked, waiting for you, not on your list, settled	Done in gates.md	works		r0s3 r1s30	2	1
+A gate, asked by the home: Status: done in gates.md, its question asked, waiting for you, on your list, settled	Done in gates.md	works		r0s3 r1s32	2	1
+A gate, asked by the home: Status: done in gates.md, its question closed by silence with its default, not on your list, settled	Done in gates.md	works		r0s3 r1s34	2	3
+A gate, asked by the home: Status: done in gates.md, not on your list, settled	Done in gates.md	works		r0s3 r1s35	2	3
+A gate, asked by the home: Status: done in gates.md, on your list, settled	Done in gates.md	works		r0s3 r1s36	2	1
+A gate, asked by the home: Status: open in gates-moved.md, its question answered, not on your list, settled	Open, moved aside	works		r0s3 r1s37	2	3
+A gate, asked by the home: Status: open in gates-moved.md, its question answered, on your list, settled	Open, moved aside	works		r0s3 r1s38	2	1
+A gate, asked by the home: Status: open in gates-moved.md, its question asked, waiting for you, not on your list, you owe an answer	Open, moved aside	works		r0s3 r1s39	2	1
+A gate, asked by the home: Status: open in gates-moved.md, its question asked, waiting for you, on your list, you owe an answer	Open, moved aside	works		r0s3 r1s40	2	1
+A gate, asked by the home: Status: open in gates-moved.md, its question closed by silence with its default, not on your list, settled	Open, moved aside	works		r0s3 r1s41	2	3
+A gate, asked by the home: Status: open in gates.md, its question answered, not on your list, settled	Open in gates.md	works		r0s3 r1s42	2	3
+A gate, asked by the home: Status: open in gates.md, its question answered, on your list, settled	Open in gates.md	works		r0s3 r1s43	2	1
+A gate, asked by the home: Status: open in gates.md, its question asked, waiting for you, not on your list, you owe an answer	Open in gates.md	works		r0s3 r1s44	2	1
+A gate, asked by the home: Status: open in gates.md, its question asked, waiting for you, on your list, you owe an answer	Open in gates.md	works		r0s3 r1s45	2	1
+A gate, asked by the home: Status: open in gates.md, its question closed by silence with its default, not on your list, settled	Open in gates.md	works		r0s3 r1s46	2	3
+A gate, asked by the home: Status: open in gates.md, not on your list, you owe an answer	Open in gates.md	works		r0s3 r1s47	2	1
+A gate, asked by the home: Status: open in gates.md, on your list, you owe an answer	Open in gates.md	works		r0s3 r1s48	2	3
+A gate: No gate yet	No gate yet	works	yes	r0s0 r1s0	2	3
+A gate: Status: answered in gates-moved.md, its question answered, not on your list, settled	Answered, moved aside	works		r0s0 r1s1	2	3
+A gate: Status: answered in gates-moved.md, its question answered, on your list, settled	Answered, moved aside	works		r0s0 r1s2	2	1
+A gate: Status: answered in gates-moved.md, its question asked, waiting for you, not on your list, settled	Answered, moved aside	works		r0s0 r1s3	2	1
+A gate: Status: answered in gates-moved.md, its question asked, waiting for you, on your list, settled	Answered, moved aside	works		r0s0 r1s5	2	1
+A gate: Status: answered in gates-moved.md, its question closed by silence with its default, not on your list, settled	Answered, moved aside	works		r0s0 r1s7	2	3
+A gate: Status: answered in gates-moved.md, not on your list, settled	Answered, moved aside	works		r0s0 r1s8	2	3
+A gate: Status: answered in gates-moved.md, on your list, settled	Answered, moved aside	works		r0s0 r1s9	2	1
+A gate: Status: answered in gates.md, its question answered, not on your list, settled	Answered in gates.md	works		r0s0 r1s10	2	3
+A gate: Status: answered in gates.md, its question answered, on your list, settled	Answered in gates.md	works		r0s0 r1s11	2	1
+A gate: Status: answered in gates.md, its question asked, waiting for you, not on your list, settled	Answered in gates.md	works		r0s0 r1s12	2	1
+A gate: Status: answered in gates.md, its question asked, waiting for you, on your list, settled	Answered in gates.md	works		r0s0 r1s14	2	1
+A gate: Status: answered in gates.md, its question closed by silence with its default, not on your list, settled	Answered in gates.md	works		r0s0 r1s16	2	1
+A gate: Status: answered in gates.md, not on your list, settled	Answered in gates.md	works		r0s0 r1s17	2	3
+A gate: Status: answered in gates.md, on your list, settled	Answered in gates.md	works		r0s0 r1s18	2	1
+A gate: Status: done in gates-moved.md, its question answered, not on your list, settled	Done, moved aside	works		r0s0 r1s19	2	3
+A gate: Status: done in gates-moved.md, its question answered, on your list, settled	Done, moved aside	works		r0s0 r1s20	2	1
+A gate: Status: done in gates-moved.md, its question asked, waiting for you, not on your list, settled	Done, moved aside	works		r0s0 r1s21	2	1
+A gate: Status: done in gates-moved.md, its question asked, waiting for you, on your list, settled	Done, moved aside	works		r0s0 r1s23	2	1
+A gate: Status: done in gates-moved.md, its question closed by silence with its default, not on your list, settled	Done, moved aside	works		r0s0 r1s25	2	3
+A gate: Status: done in gates-moved.md, not on your list, settled	Done, moved aside	works		r0s0 r1s26	2	3
+A gate: Status: done in gates-moved.md, on your list, settled	Done, moved aside	works		r0s0 r1s27	2	1
+A gate: Status: done in gates.md, its question answered, not on your list, settled	Done in gates.md	works		r0s0 r1s28	2	3
+A gate: Status: done in gates.md, its question answered, on your list, settled	Done in gates.md	works		r0s0 r1s29	2	1
+A gate: Status: done in gates.md, its question asked, waiting for you, not on your list, settled	Done in gates.md	works		r0s0 r1s30	2	1
+A gate: Status: done in gates.md, its question asked, waiting for you, on your list, settled	Done in gates.md	works		r0s0 r1s32	2	1
+A gate: Status: done in gates.md, its question closed by silence with its default, not on your list, settled	Done in gates.md	works		r0s0 r1s34	2	3
+A gate: Status: done in gates.md, not on your list, settled	Done in gates.md	works		r0s0 r1s35	2	3
+A gate: Status: done in gates.md, on your list, settled	Done in gates.md	works		r0s0 r1s36	2	1
+A gate: Status: open in gates-moved.md, its question answered, not on your list, settled	Open, moved aside	works		r0s0 r1s37	2	3
+A gate: Status: open in gates-moved.md, its question answered, on your list, settled	Open, moved aside	works		r0s0 r1s38	2	1
+A gate: Status: open in gates-moved.md, its question asked, waiting for you, not on your list, you owe an answer	Open, moved aside	works		r0s0 r1s39	2	1
+A gate: Status: open in gates-moved.md, its question asked, waiting for you, on your list, you owe an answer	Open, moved aside	works		r0s0 r1s40	2	1
+A gate: Status: open in gates-moved.md, its question closed by silence with its default, not on your list, settled	Open, moved aside	works		r0s0 r1s41	2	3
+A gate: Status: open in gates.md, its question answered, not on your list, settled	Open in gates.md	works		r0s0 r1s42	2	3
+A gate: Status: open in gates.md, its question answered, on your list, settled	Open in gates.md	works		r0s0 r1s43	2	1
+A gate: Status: open in gates.md, its question asked, waiting for you, not on your list, you owe an answer	Open in gates.md	works		r0s0 r1s44	2	1
+A gate: Status: open in gates.md, its question asked, waiting for you, on your list, you owe an answer	Open in gates.md	works		r0s0 r1s45	2	1
+A gate: Status: open in gates.md, its question closed by silence with its default, not on your list, settled	Open in gates.md	works		r0s0 r1s46	2	3
+A gate: Status: open in gates.md, not on your list, you owe an answer	Open in gates.md	works		r0s0 r1s47	2	1
+A gate: Status: open in gates.md, on your list, you owe an answer	Open in gates.md	works		r0s0 r1s48	2	3

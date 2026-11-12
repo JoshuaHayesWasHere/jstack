@@ -54,7 +54,7 @@ No state breaks a rule.
 
 The spec draws upload.mmd back unchanged.
 
-Wrote chart.mmd, stories.md, summary.json in Upload-statechart.
+Wrote chart.mmd, stories.md, summary.json, states.tsv, arrows.tsv in Upload-statechart.
 """
     )
     assert r.stderr == ""
@@ -90,7 +90,7 @@ Chart: 4 states and 8 transitions from 4 model states.
 {SYNC_STORY}
 The spec draws sync.mmd back unchanged.
 
-Wrote chart.mmd, bug-1.mmd, stories.md, summary.json in Sync-statechart.
+Wrote chart.mmd, bug-1.mmd, stories.md, summary.json, states.tsv, arrows.tsv in Sync-statechart.
 """
     )
     assert re.search(
@@ -122,7 +122,7 @@ Chart: 4 states and 9 transitions from 4 model states.
 {SYNC_STORY}
 With the fix, step 2 (the server confirms) cannot happen, so you stay at: Offline | Waiting to sync.
 
-Wrote chart.mmd, bug-1.mmd, stories.md, summary.json in Sync-statechart.
+Wrote chart.mmd, bug-1.mmd, stories.md, summary.json, states.tsv, arrows.tsv in Sync-statechart.
 """
     )
     summary = json.loads(read(tmp_path / "Sync-statechart" / "summary.json"))
@@ -177,11 +177,13 @@ them):
     Offline | Waiting to sync --> Offline | Synced : the server confirms
   5 difference(s)
 
-Wrote chart.mmd, stories.md, summary.json in Sync-statechart.
+Wrote chart.mmd, stories.md, summary.json, states.tsv, arrows.tsv in Sync-statechart.
 """
     )
     assert sorted(os.listdir(tmp_path / "Sync-statechart")) == [
+        "arrows.tsv",
         "chart.mmd",
+        "states.tsv",
         "stories.md",
         "summary.json",
         "tlc",
@@ -234,13 +236,9 @@ echo png > "$png"
             if c
         )
         assert re.search(r"\nBroken as expected: NeverSyncedWhileOffline\.\n", r.stdout)
-        assert (
-            r.stdout.split("\n")[-2]
-            == f"Wrote {', '.join([*written, 'stories.md', 'summary.json'])} in Sync-statechart."
-        )
-        assert sorted(os.listdir(work / "Sync-statechart")) == sorted(
-            [*written, "stories.md", "summary.json", "tlc"]
-        )
+        files = [*written, "stories.md", "summary.json", "states.tsv", "arrows.tsv"]
+        assert r.stdout.split("\n")[-2] == f"Wrote {', '.join(files)} in Sync-statechart."
+        assert sorted(os.listdir(work / "Sync-statechart")) == sorted([*files, "tlc"])
 
 
 @needs_tlc
@@ -319,7 +317,8 @@ def test_from_spec_checks_a_rule_listed_as_property_and_invariant_once_and_chart
     assert re.search(r"\nRule broken: `NoDoubleCharge`\n", r.stdout)
     assert (
         r.stdout.split("\n")[-2]
-        == "Wrote chart.mmd, bug-1.mmd, stories.md, summary.json in Pay-statechart."
+        == "Wrote chart.mmd, bug-1.mmd, stories.md, summary.json, states.tsv, arrows.tsv in"
+        " Pay-statechart."
     )
     unknown = node("statechart", ["from-spec", "Pay.tla", "--expect-broken", "Nope"], tmp_path)
     assert re.search(r", whose rules are NoDoubleCharge\.\n", unknown.stderr)
@@ -535,8 +534,8 @@ This is the only way to get here in the model.
 2. The bank charges you. Now: Paying, charged
 3. The bank charges you. Now: Paying, charged twice
 
-Wrote chart.mmd, bug-1.mmd, bug-1-developer.mmd, bug-1-layered.mmd, stories.md, summary.json in \
-Pay-statechart.
+Wrote chart.mmd, bug-1.mmd, bug-1-developer.mmd, bug-1-layered.mmd, stories.md, summary.json, \
+states.tsv, arrows.tsv in Pay-statechart.
 """
     )
     assert re.search(
@@ -544,10 +543,12 @@ Pay-statechart.
         read(tmp_path / "Pay-statechart" / "bug-1-layered.mmd"),
     )
     assert sorted(os.listdir(tmp_path / "Pay-statechart")) == [
+        "arrows.tsv",
         "bug-1-developer.mmd",
         "bug-1-layered.mmd",
         "bug-1.mmd",
         "chart.mmd",
+        "states.tsv",
         "stories.md",
         "summary.json",
         "tlc",
@@ -789,7 +790,7 @@ In the agreed chart, step 2 (the save times out) cannot happen, so you stay at: 
 
 Broken as expected: NoFalseSaved.
 
-Wrote chart.mmd, bug-1.mmd, stories.md, summary.json in SaveCode-statechart.
+Wrote chart.mmd, bug-1.mmd, stories.md, summary.json, states.tsv, arrows.tsv in SaveCode-statechart.
 """
     )
     uncited_warning = """SaveCode.tla: TypeOK holds, but a rule can also hold because the model \

@@ -58,13 +58,24 @@
     }
   ],
   "codeLike": [],
+  "map": {
+    "runs": [
+      "GhBudget.cfg"
+    ],
+    "states": 27,
+    "arrows": 74
+  },
   "drawnFrom": {
-    "command": "statechart from-spec GhBudget.tla --title 'Does the gh budget hold, and does the call log keep each full log?' --expect-broken HeldWhenLow --png",
+    "command": "statechart from-spec GhBudget.tla --title 'Does the gh budget hold, and does the call log keep each full log?' --expect-broken HeldWhenLow",
     "inputs": {
       "GhBudget.cfg": "6bd47c2b9a19c390e593849d4cc3a8932cda2bc0fc4cf66218a749ccd0d4a957",
       "GhBudget.map.py": "47f4cef236f0b159dc661b119414eb567ca8bd47162d6e03ab8eb71a342b5257",
       "GhBudget.tla": "8464181d4539d0832c19bbe949d7476240cef2208cb41ff5d98ff89eb17d825a"
     },
-    "chart": "c2508f9a5a95246c8b81ed7c717cb30dccd385bbd346ea68a0f3cafe5562ebd0"
+    "chart": "c2508f9a5a95246c8b81ed7c717cb30dccd385bbd346ea68a0f3cafe5562ebd0",
+    "tables": {
+      "states.tsv": "5bb1c7348d7bb160657218c93320b61276a5e63d193ce4949c85fdbd3e773da1",
+      "arrows.tsv": "ba6e48caee12fb602633bff3dd92ae0fb005d77614af95c0b91439810012f800"
+    }
   }
 }

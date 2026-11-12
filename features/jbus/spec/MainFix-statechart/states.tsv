@@ -1,0 +1,976 @@
+state	group	status	start	chart	states in MainFix.chart.cfg	within in MainFix.chart.cfg	states in MainFix.cfg	within in MainFix.cfg
+Main and main's Mac red, after a pass that died: a revert on record; main: no fix row; main's Mac: no fix row	After a pass died	works		r0s0 r1s2	4	0	672	1648
+Main and main's Mac red, after a pass that died: a revert on record; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	252	429
+Main and main's Mac red, after a pass that died: a revert on record; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	116	115
+Main and main's Mac red, after a pass that died: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued	After a pass died				0	0	252	429
+Main and main's Mac red, after a pass that died: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	105	100
+Main and main's Mac red, after a pass that died: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main and main's Mac red, after a pass that died: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	20	15
+Main and main's Mac red, after a pass that died: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	9	0
+Main and main's Mac red, after a pass that died: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main and main's Mac red, after a pass that died: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	116	115
+Main and main's Mac red, after a pass that died: a revert on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	48	72
+Main and main's Mac red, after a pass that died: a revert on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	20	15
+Main and main's Mac red, after a pass that died: a revert on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main and main's Mac red, after a pass that died: a revert on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	31	30
+Main and main's Mac red, after a pass that died: a revert on record; main: no fix row; main's Mac: no fix row; the shots row: its fix row queued	After a pass died				0	0	416	800
+Main and main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row	After a pass died	works		r0s0 r1s5	4	0	672	1648
+Main and main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	168	286
+Main and main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	48	46
+Main and main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued	After a pass died				0	0	168	286
+Main and main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	42	40
+Main and main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	2	0
+Main and main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	8	6
+Main and main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	2	0
+Main and main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	2	0
+Main and main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	48	46
+Main and main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	32	48
+Main and main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	8	6
+Main and main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	2	0
+Main and main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	14	12
+Main and main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the shots row: its fix row queued	After a pass died				0	0	312	568
+Main and main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row	After a pass died	works		r0s0 r1s8	2	0	336	824
+Main and main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	84	143
+Main and main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	23
+Main and main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued	After a pass died				0	0	84	143
+Main and main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	21	20
+Main and main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	1	0
+Main and main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	4	3
+Main and main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	1	0
+Main and main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	1	0
+Main and main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	23
+Main and main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	16	24
+Main and main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	4	3
+Main and main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	1	0
+Main and main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	7	6
+Main and main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the shots row: its fix row queued	After a pass died				0	0	156	284
+Main and main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row	After a pass died	works		r0s0 r1s19	1	0	336	824
+Main and main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	168	286
+Main and main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	92	92
+Main and main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued	After a pass died				0	0	168	286
+Main and main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	84	80
+Main and main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	8	0
+Main and main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	16	12
+Main and main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	8	0
+Main and main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	8	0
+Main and main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	92	92
+Main and main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	32	48
+Main and main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	16	12
+Main and main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	8	0
+Main and main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	24
+Main and main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the shots row: its fix row queued	After a pass died				0	0	260	516
+Main and main's Mac red, after a pass that died: no revert; main: its fix row queued; main's Mac: its fix row queued	After a pass died	works		r0s0 r1s13	3	0	1008	2472
+Main and main's Mac red, after a pass that died: no revert; main: its fix row queued; main's Mac: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	504	858
+Main and main's Mac red, after a pass that died: no revert; main: its fix row queued; main's Mac: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	276	276
+Main and main's Mac red, after a pass that died: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued	After a pass died				0	0	504	858
+Main and main's Mac red, after a pass that died: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	252	240
+Main and main's Mac red, after a pass that died: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	0
+Main and main's Mac red, after a pass that died: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	48	36
+Main and main's Mac red, after a pass that died: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	24	0
+Main and main's Mac red, after a pass that died: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	0
+Main and main's Mac red, after a pass that died: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	276	276
+Main and main's Mac red, after a pass that died: no revert; main: its fix row queued; main's Mac: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	96	144
+Main and main's Mac red, after a pass that died: no revert; main: its fix row queued; main's Mac: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	48	36
+Main and main's Mac red, after a pass that died: no revert; main: its fix row queued; main's Mac: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	0
+Main and main's Mac red, after a pass that died: no revert; main: its fix row queued; main's Mac: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	72	72
+Main and main's Mac red, after a pass that died: no revert; main: its fix row queued; main's Mac: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	780	1548
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: its fix row queued	After a pass died	works		r0s0 r1s15	3	0	1008	2472
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	504	858
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	276	276
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: its fix row queued; the browser run: its fix row queued	After a pass died				0	0	504	858
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	252	240
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	0
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	48	36
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	24	0
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	0
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: its fix row queued; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	276	276
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	96	144
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	48	36
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	0
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	72	72
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	780	1548
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: no fix row	After a pass died	works		r0s0 r1s16	4	0	1344	3296
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	672	1144
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	368	368
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued	After a pass died				0	0	672	1144
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	336	320
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	32	0
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	64	48
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	32	0
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	32	0
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	368	368
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	128	192
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	64	48
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	32	0
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	96	96
+Main and main's Mac red, after a pass that died: no revert; main: no fix row; main's Mac: no fix row; the shots row: its fix row queued	After a pass died				0	0	1040	2064
+Main and main's Mac red, after a pass that died: the revert merged; main: no fix row; main's Mac: no fix row	After a pass died	works		r0s0 r1s23	4	0	672	1648
+Main and main's Mac red, after a pass that died: the revert merged; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	252	429
+Main and main's Mac red, after a pass that died: the revert merged; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	116	115
+Main and main's Mac red, after a pass that died: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued	After a pass died				0	0	252	429
+Main and main's Mac red, after a pass that died: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	105	100
+Main and main's Mac red, after a pass that died: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main and main's Mac red, after a pass that died: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	20	15
+Main and main's Mac red, after a pass that died: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	9	0
+Main and main's Mac red, after a pass that died: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main and main's Mac red, after a pass that died: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	116	115
+Main and main's Mac red, after a pass that died: the revert merged; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	48	72
+Main and main's Mac red, after a pass that died: the revert merged; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	20	15
+Main and main's Mac red, after a pass that died: the revert merged; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main and main's Mac red, after a pass that died: the revert merged; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	31	30
+Main and main's Mac red, after a pass that died: the revert merged; main: no fix row; main's Mac: no fix row; the shots row: its fix row queued	After a pass died				0	0	416	800
+Main and main's Mac red, between passes: a revert on record; main: no fix row; main's Mac: no fix row	Between passes	works		r0s1 r1s2	2	0	672	1648
+Main and main's Mac red, between passes: a revert on record; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued	Between passes				0	0	168	286
+Main and main's Mac red, between passes: a revert on record; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	48	46
+Main and main's Mac red, between passes: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued	Between passes				0	0	168	286
+Main and main's Mac red, between passes: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	42	40
+Main and main's Mac red, between passes: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main and main's Mac red, between passes: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	8	6
+Main and main's Mac red, between passes: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	2	0
+Main and main's Mac red, between passes: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main and main's Mac red, between passes: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	48	46
+Main and main's Mac red, between passes: a revert on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued	Between passes				0	0	32	48
+Main and main's Mac red, between passes: a revert on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	8	6
+Main and main's Mac red, between passes: a revert on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main and main's Mac red, between passes: a revert on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	14	12
+Main and main's Mac red, between passes: a revert on record; main: no fix row; main's Mac: no fix row; the shots row: its fix row queued	Between passes				0	0	312	568
+Main and main's Mac red, between passes: no revert; main: its fix row queued; main's Mac: its fix row queued	Between passes	works		r0s1 r1s13	3	0	1008	2472
+Main and main's Mac red, between passes: no revert; main: its fix row queued; main's Mac: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	252	429
+Main and main's Mac red, between passes: no revert; main: its fix row queued; main's Mac: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	72	69
+Main and main's Mac red, between passes: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued	Between passes				0	0	252	429
+Main and main's Mac red, between passes: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	63	60
+Main and main's Mac red, between passes: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	3	0
+Main and main's Mac red, between passes: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	12	9
+Main and main's Mac red, between passes: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	3	0
+Main and main's Mac red, between passes: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	3	0
+Main and main's Mac red, between passes: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	72	69
+Main and main's Mac red, between passes: no revert; main: its fix row queued; main's Mac: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	48	72
+Main and main's Mac red, between passes: no revert; main: its fix row queued; main's Mac: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	12	9
+Main and main's Mac red, between passes: no revert; main: its fix row queued; main's Mac: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	3	0
+Main and main's Mac red, between passes: no revert; main: its fix row queued; main's Mac: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	21	18
+Main and main's Mac red, between passes: no revert; main: its fix row queued; main's Mac: its fix row queued; the shots row: its fix row queued	Between passes				0	0	468	852
+Main and main's Mac red, between passes: no revert; main: no fix row; main's Mac: no fix row	Between passes	works		r0s1 r1s16	3	0	1008	2472
+Main and main's Mac red, between passes: no revert; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued	Between passes				0	0	252	429
+Main and main's Mac red, between passes: no revert; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	72	69
+Main and main's Mac red, between passes: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued	Between passes				0	0	252	429
+Main and main's Mac red, between passes: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	63	60
+Main and main's Mac red, between passes: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	3	0
+Main and main's Mac red, between passes: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	12	9
+Main and main's Mac red, between passes: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	3	0
+Main and main's Mac red, between passes: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	3	0
+Main and main's Mac red, between passes: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	72	69
+Main and main's Mac red, between passes: no revert; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued	Between passes				0	0	48	72
+Main and main's Mac red, between passes: no revert; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	12	9
+Main and main's Mac red, between passes: no revert; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	3	0
+Main and main's Mac red, between passes: no revert; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	21	18
+Main and main's Mac red, between passes: no revert; main: no fix row; main's Mac: no fix row; the shots row: its fix row queued	Between passes				0	0	468	852
+Main and main's Mac red, between passes: the revert merged; main: no fix row; main's Mac: no fix row	Between passes	works		r0s1 r1s23	2	0	672	1648
+Main and main's Mac red, between passes: the revert merged; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued	Between passes				0	0	168	286
+Main and main's Mac red, between passes: the revert merged; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	48	46
+Main and main's Mac red, between passes: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued	Between passes				0	0	168	286
+Main and main's Mac red, between passes: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	42	40
+Main and main's Mac red, between passes: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main and main's Mac red, between passes: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	8	6
+Main and main's Mac red, between passes: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	2	0
+Main and main's Mac red, between passes: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main and main's Mac red, between passes: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	48	46
+Main and main's Mac red, between passes: the revert merged; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued	Between passes				0	0	32	48
+Main and main's Mac red, between passes: the revert merged; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	8	6
+Main and main's Mac red, between passes: the revert merged; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main and main's Mac red, between passes: the revert merged; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	14	12
+Main and main's Mac red, between passes: the revert merged; main: no fix row; main's Mac: no fix row; the shots row: its fix row queued	Between passes				0	0	312	568
+Main and main's Mac red, jbus in a pass: a revert on record; main: no fix row; main's Mac: no fix row	In a pass	works		r0s2 r1s2	7	5	1768	1500
+Main and main's Mac red, jbus in a pass: a revert on record; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued	In a pass				0	0	744	624
+Main and main's Mac red, jbus in a pass: a revert on record; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	460	438
+Main and main's Mac red, jbus in a pass: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued	In a pass				0	0	884	834
+Main and main's Mac red, jbus in a pass: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	414	396
+Main and main's Mac red, jbus in a pass: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	46	44
+Main and main's Mac red, jbus in a pass: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	92	86
+Main and main's Mac red, jbus in a pass: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	46	44
+Main and main's Mac red, jbus in a pass: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	46	44
+Main and main's Mac red, jbus in a pass: a revert on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	466	447
+Main and main's Mac red, jbus in a pass: a revert on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	168	140
+Main and main's Mac red, jbus in a pass: a revert on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	80	68
+Main and main's Mac red, jbus in a pass: a revert on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	46	44
+Main and main's Mac red, jbus in a pass: a revert on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	136	125
+Main and main's Mac red, jbus in a pass: a revert on record; main: no fix row; main's Mac: no fix row; the shots row: its fix row queued	In a pass				0	0	1376	1272
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row	In a pass	works		r0s2 r1s5	9	7	2408	2044
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued	In a pass				0	0	616	518
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	184	152
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued	In a pass				0	0	616	518
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	161	133
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	9	7
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	32	26
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	9	7
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	9	7
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	184	152
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	120	100
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	32	26
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	9	7
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	55	45
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the shots row: its fix row queued	In a pass				0	0	1136	958
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row	In a pass	works		r0s2 r1s8	3	1	700	336
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued	In a pass				0	0	182	84
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	56	24
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued	In a pass				0	0	182	84
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	49	21
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	3	1
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	10	4
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	3	1
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	3	1
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	56	24
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	36	16
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	10	4
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	3	1
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	17	7
+Main and main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row; the shots row: its fix row queued	In a pass				0	0	334	156
+Main and main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row	In a pass	works		r0s2 r1s19	4	3	1068	828
+Main and main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued	In a pass				0	0	562	456
+Main and main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	404	390
+Main and main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued	In a pass				0	0	702	666
+Main and main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	365	354
+Main and main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main and main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	82	78
+Main and main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	43	42
+Main and main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main and main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	410	399
+Main and main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	132	108
+Main and main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	70	60
+Main and main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main and main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	119	111
+Main and main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; main's Mac: no fix row; the shots row: its fix row queued	In a pass				0	0	1042	960
+Main and main's Mac red, jbus in a pass: no revert; main: its fix row queued; main's Mac: its fix row queued	In a pass	works		r0s2 r1s13	18	12	3372	2568
+Main and main's Mac red, jbus in a pass: no revert; main: its fix row queued; main's Mac: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	1770	1410
+Main and main's Mac red, jbus in a pass: no revert; main: its fix row queued; main's Mac: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	1260	1194
+Main and main's Mac red, jbus in a pass: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued	In a pass				0	0	2190	2040
+Main and main's Mac red, jbus in a pass: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	1137	1083
+Main and main's Mac red, jbus in a pass: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	135	129
+Main and main's Mac red, jbus in a pass: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	258	240
+Main and main's Mac red, jbus in a pass: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	135	129
+Main and main's Mac red, jbus in a pass: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	135	129
+Main and main's Mac red, jbus in a pass: no revert; main: its fix row queued; main's Mac: its fix row queued; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	1278	1221
+Main and main's Mac red, jbus in a pass: no revert; main: its fix row queued; main's Mac: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	420	336
+Main and main's Mac red, jbus in a pass: no revert; main: its fix row queued; main's Mac: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	222	186
+Main and main's Mac red, jbus in a pass: no revert; main: its fix row queued; main's Mac: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	135	129
+Main and main's Mac red, jbus in a pass: no revert; main: its fix row queued; main's Mac: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	375	342
+Main and main's Mac red, jbus in a pass: no revert; main: its fix row queued; main's Mac: its fix row queued; the shots row: its fix row queued	In a pass				0	0	3258	2946
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: its fix row queued	In a pass	works		r0s2 r1s15	18	15	3372	2652
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	1770	1452
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	1260	1218
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: its fix row queued; the browser run: its fix row queued	In a pass				0	0	2190	2082
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	1137	1104
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	135	132
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	258	246
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	135	132
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	135	132
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: its fix row queued; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	1278	1245
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	420	348
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	222	192
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	135	132
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	375	351
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: its fix row queued; the shots row: its fix row queued	In a pass				0	0	3258	3012
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: no fix row	In a pass	works		r0s2 r1s16	12	8	4160	3200
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued	In a pass				0	0	2192	1768
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	1584	1528
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued	In a pass				0	0	2752	2608
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	1432	1388
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	168	164
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	320	304
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	168	164
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	168	164
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	1608	1564
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	512	416
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	272	232
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	168	164
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	464	432
+Main and main's Mac red, jbus in a pass: no revert; main: no fix row; main's Mac: no fix row; the shots row: its fix row queued	In a pass				0	0	4080	3752
+Main and main's Mac red, jbus in a pass: the revert merged; main: no fix row; main's Mac: no fix row	In a pass	works		r0s2 r1s23	4	3	1376	1136
+Main and main's Mac red, jbus in a pass: the revert merged; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued	In a pass				0	0	632	526
+Main and main's Mac red, jbus in a pass: the revert merged; main: no fix row; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	420	406
+Main and main's Mac red, jbus in a pass: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued	In a pass				0	0	772	736
+Main and main's Mac red, jbus in a pass: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	379	368
+Main and main's Mac red, jbus in a pass: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main and main's Mac red, jbus in a pass: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	84	80
+Main and main's Mac red, jbus in a pass: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	43	42
+Main and main's Mac red, jbus in a pass: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main and main's Mac red, jbus in a pass: the revert merged; main: no fix row; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	426	415
+Main and main's Mac red, jbus in a pass: the revert merged; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	144	120
+Main and main's Mac red, jbus in a pass: the revert merged; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	72	62
+Main and main's Mac red, jbus in a pass: the revert merged; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main and main's Mac red, jbus in a pass: the revert merged; main: no fix row; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	123	115
+Main and main's Mac red, jbus in a pass: the revert merged; main: no fix row; main's Mac: no fix row; the shots row: its fix row queued	In a pass				0	0	1176	1094
+Main green, after a pass that died: no revert	After a pass died	works		r0s3 r1s9	1	0	336	824
+Main green, after a pass that died: no revert; a scheduled run: its fix row queued	After a pass died				0	0	168	286
+Main green, after a pass that died: no revert; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	92	92
+Main green, after a pass that died: no revert; the browser run: its fix row queued	After a pass died				0	0	168	286
+Main green, after a pass that died: no revert; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	84	80
+Main green, after a pass that died: no revert; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	8	0
+Main green, after a pass that died: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	16	12
+Main green, after a pass that died: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	8	0
+Main green, after a pass that died: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	8	0
+Main green, after a pass that died: no revert; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	92	92
+Main green, after a pass that died: no revert; the macOS nightly: its fix row queued	After a pass died				0	0	32	48
+Main green, after a pass that died: no revert; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	16	12
+Main green, after a pass that died: no revert; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	8	0
+Main green, after a pass that died: no revert; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	24
+Main green, after a pass that died: no revert; the shots row: its fix row queued	After a pass died				0	0	260	516
+Main green, between passes: no revert	Between passes	works	yes	r0s4 r1s9	1	0	336	824
+Main green, between passes: no revert; a scheduled run: its fix row queued	Between passes				0	0	84	143
+Main green, between passes: no revert; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	24	23
+Main green, between passes: no revert; the browser run: its fix row queued	Between passes				0	0	84	143
+Main green, between passes: no revert; the browser run: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	21	20
+Main green, between passes: no revert; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	1	0
+Main green, between passes: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	4	3
+Main green, between passes: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	1	0
+Main green, between passes: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	1	0
+Main green, between passes: no revert; the browser run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	24	23
+Main green, between passes: no revert; the macOS nightly: its fix row queued	Between passes				0	0	16	24
+Main green, between passes: no revert; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	4	3
+Main green, between passes: no revert; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	1	0
+Main green, between passes: no revert; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	7	6
+Main green, between passes: no revert; the shots row: its fix row queued	Between passes				0	0	156	284
+Main green, jbus in a pass: no revert	In a pass	works		r0s5 r1s9	3	2	1040	800
+Main green, jbus in a pass: no revert; a scheduled run: its fix row queued	In a pass				0	0	548	442
+Main green, jbus in a pass: no revert; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	396	382
+Main green, jbus in a pass: no revert; the browser run: its fix row queued	In a pass				0	0	688	652
+Main green, jbus in a pass: no revert; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	358	347
+Main green, jbus in a pass: no revert; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	42	41
+Main green, jbus in a pass: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	80	76
+Main green, jbus in a pass: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	42	41
+Main green, jbus in a pass: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	42	41
+Main green, jbus in a pass: no revert; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	402	391
+Main green, jbus in a pass: no revert; the macOS nightly: its fix row queued	In a pass				0	0	128	104
+Main green, jbus in a pass: no revert; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	68	58
+Main green, jbus in a pass: no revert; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	42	41
+Main green, jbus in a pass: no revert; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	116	108
+Main green, jbus in a pass: no revert; the shots row: its fix row queued	In a pass				0	0	1020	938
+Main red, after a pass that died: a revert on record; main: no fix row	After a pass died	works		r0s6 r1s1	3	0	672	1648
+Main red, after a pass that died: a revert on record; main: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	252	429
+Main red, after a pass that died: a revert on record; main: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	116	115
+Main red, after a pass that died: a revert on record; main: no fix row; the browser run: its fix row queued	After a pass died				0	0	252	429
+Main red, after a pass that died: a revert on record; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	105	100
+Main red, after a pass that died: a revert on record; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main red, after a pass that died: a revert on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	20	15
+Main red, after a pass that died: a revert on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	9	0
+Main red, after a pass that died: a revert on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main red, after a pass that died: a revert on record; main: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	116	115
+Main red, after a pass that died: a revert on record; main: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	48	72
+Main red, after a pass that died: a revert on record; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	20	15
+Main red, after a pass that died: a revert on record; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main red, after a pass that died: a revert on record; main: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	31	30
+Main red, after a pass that died: a revert on record; main: no fix row; the shots row: its fix row queued	After a pass died				0	0	416	800
+Main red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row	After a pass died	works		r0s6 r1s4	4	0	672	1648
+Main red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	168	286
+Main red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	48	46
+Main red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued	After a pass died				0	0	168	286
+Main red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	42	40
+Main red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	2	0
+Main red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	8	6
+Main red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	2	0
+Main red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	2	0
+Main red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	48	46
+Main red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	32	48
+Main red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	8	6
+Main red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	2	0
+Main red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	14	12
+Main red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the shots row: its fix row queued	After a pass died				0	0	312	568
+Main red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row	After a pass died	works		r0s6 r1s7	2	0	336	824
+Main red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	84	143
+Main red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	23
+Main red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued	After a pass died				0	0	84	143
+Main red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	21	20
+Main red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	1	0
+Main red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	4	3
+Main red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	1	0
+Main red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	1	0
+Main red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	23
+Main red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	16	24
+Main red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	4	3
+Main red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	1	0
+Main red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	7	6
+Main red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the shots row: its fix row queued	After a pass died				0	0	156	284
+Main red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row	After a pass died	works		r0s6 r1s18	1	0	336	824
+Main red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	168	286
+Main red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	92	92
+Main red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; the browser run: its fix row queued	After a pass died				0	0	168	286
+Main red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	84	80
+Main red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	8	0
+Main red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	16	12
+Main red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	8	0
+Main red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	8	0
+Main red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	92	92
+Main red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	32	48
+Main red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	16	12
+Main red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	8	0
+Main red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	24
+Main red, after a pass that died: no revert, one named in reverts-opening.json; main: no fix row; the shots row: its fix row queued	After a pass died				0	0	260	516
+Main red, after a pass that died: no revert; main: its fix row queued	After a pass died	works		r0s6 r1s12	4	0	1344	3296
+Main red, after a pass that died: no revert; main: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	672	1144
+Main red, after a pass that died: no revert; main: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	368	368
+Main red, after a pass that died: no revert; main: its fix row queued; the browser run: its fix row queued	After a pass died				0	0	672	1144
+Main red, after a pass that died: no revert; main: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	336	320
+Main red, after a pass that died: no revert; main: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	32	0
+Main red, after a pass that died: no revert; main: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	64	48
+Main red, after a pass that died: no revert; main: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	32	0
+Main red, after a pass that died: no revert; main: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	32	0
+Main red, after a pass that died: no revert; main: its fix row queued; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	368	368
+Main red, after a pass that died: no revert; main: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	128	192
+Main red, after a pass that died: no revert; main: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	64	48
+Main red, after a pass that died: no revert; main: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	32	0
+Main red, after a pass that died: no revert; main: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	96	96
+Main red, after a pass that died: no revert; main: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	1040	2064
+Main red, after a pass that died: no revert; main: no fix row	After a pass died	works		r0s6 r1s14	5	0	1680	4120
+Main red, after a pass that died: no revert; main: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	840	1430
+Main red, after a pass that died: no revert; main: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	460	460
+Main red, after a pass that died: no revert; main: no fix row; the browser run: its fix row queued	After a pass died				0	0	840	1430
+Main red, after a pass that died: no revert; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	420	400
+Main red, after a pass that died: no revert; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	40	0
+Main red, after a pass that died: no revert; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	80	60
+Main red, after a pass that died: no revert; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	40	0
+Main red, after a pass that died: no revert; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	40	0
+Main red, after a pass that died: no revert; main: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	460	460
+Main red, after a pass that died: no revert; main: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	160	240
+Main red, after a pass that died: no revert; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	80	60
+Main red, after a pass that died: no revert; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	40	0
+Main red, after a pass that died: no revert; main: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	120	120
+Main red, after a pass that died: no revert; main: no fix row; the shots row: its fix row queued	After a pass died				0	0	1300	2580
+Main red, after a pass that died: the revert merged; main: no fix row	After a pass died	works		r0s6 r1s22	4	0	672	1648
+Main red, after a pass that died: the revert merged; main: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	252	429
+Main red, after a pass that died: the revert merged; main: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	116	115
+Main red, after a pass that died: the revert merged; main: no fix row; the browser run: its fix row queued	After a pass died				0	0	252	429
+Main red, after a pass that died: the revert merged; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	105	100
+Main red, after a pass that died: the revert merged; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main red, after a pass that died: the revert merged; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	20	15
+Main red, after a pass that died: the revert merged; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	9	0
+Main red, after a pass that died: the revert merged; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main red, after a pass that died: the revert merged; main: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	116	115
+Main red, after a pass that died: the revert merged; main: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	48	72
+Main red, after a pass that died: the revert merged; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	20	15
+Main red, after a pass that died: the revert merged; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main red, after a pass that died: the revert merged; main: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	31	30
+Main red, after a pass that died: the revert merged; main: no fix row; the shots row: its fix row queued	After a pass died				0	0	416	800
+Main red, between passes: a revert on record; main: no fix row	Between passes	works		r0s7 r1s1	2	0	672	1648
+Main red, between passes: a revert on record; main: no fix row; a scheduled run: its fix row queued	Between passes				0	0	168	286
+Main red, between passes: a revert on record; main: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	48	46
+Main red, between passes: a revert on record; main: no fix row; the browser run: its fix row queued	Between passes				0	0	168	286
+Main red, between passes: a revert on record; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	42	40
+Main red, between passes: a revert on record; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main red, between passes: a revert on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	8	6
+Main red, between passes: a revert on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	2	0
+Main red, between passes: a revert on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main red, between passes: a revert on record; main: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	48	46
+Main red, between passes: a revert on record; main: no fix row; the macOS nightly: its fix row queued	Between passes				0	0	32	48
+Main red, between passes: a revert on record; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	8	6
+Main red, between passes: a revert on record; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main red, between passes: a revert on record; main: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	14	12
+Main red, between passes: a revert on record; main: no fix row; the shots row: its fix row queued	Between passes				0	0	312	568
+Main red, between passes: no revert; main: its fix row queued	Between passes	works		r0s7 r1s12	4	0	1344	3296
+Main red, between passes: no revert; main: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	336	572
+Main red, between passes: no revert; main: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	96	92
+Main red, between passes: no revert; main: its fix row queued; the browser run: its fix row queued	Between passes				0	0	336	572
+Main red, between passes: no revert; main: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	84	80
+Main red, between passes: no revert; main: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	4	0
+Main red, between passes: no revert; main: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	16	12
+Main red, between passes: no revert; main: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	4	0
+Main red, between passes: no revert; main: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	4	0
+Main red, between passes: no revert; main: its fix row queued; the browser run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	96	92
+Main red, between passes: no revert; main: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	64	96
+Main red, between passes: no revert; main: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	16	12
+Main red, between passes: no revert; main: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	4	0
+Main red, between passes: no revert; main: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	28	24
+Main red, between passes: no revert; main: its fix row queued; the shots row: its fix row queued	Between passes				0	0	624	1136
+Main red, between passes: no revert; main: no fix row	Between passes	works		r0s7 r1s14	4	0	1344	3296
+Main red, between passes: no revert; main: no fix row; a scheduled run: its fix row queued	Between passes				0	0	336	572
+Main red, between passes: no revert; main: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	96	92
+Main red, between passes: no revert; main: no fix row; the browser run: its fix row queued	Between passes				0	0	336	572
+Main red, between passes: no revert; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	84	80
+Main red, between passes: no revert; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	4	0
+Main red, between passes: no revert; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	16	12
+Main red, between passes: no revert; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	4	0
+Main red, between passes: no revert; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	4	0
+Main red, between passes: no revert; main: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	96	92
+Main red, between passes: no revert; main: no fix row; the macOS nightly: its fix row queued	Between passes				0	0	64	96
+Main red, between passes: no revert; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	16	12
+Main red, between passes: no revert; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	4	0
+Main red, between passes: no revert; main: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	28	24
+Main red, between passes: no revert; main: no fix row; the shots row: its fix row queued	Between passes				0	0	624	1136
+Main red, between passes: the revert merged; main: no fix row	Between passes	works		r0s7 r1s22	2	0	672	1648
+Main red, between passes: the revert merged; main: no fix row; a scheduled run: its fix row queued	Between passes				0	0	168	286
+Main red, between passes: the revert merged; main: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	48	46
+Main red, between passes: the revert merged; main: no fix row; the browser run: its fix row queued	Between passes				0	0	168	286
+Main red, between passes: the revert merged; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	42	40
+Main red, between passes: the revert merged; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main red, between passes: the revert merged; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	8	6
+Main red, between passes: the revert merged; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	2	0
+Main red, between passes: the revert merged; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main red, between passes: the revert merged; main: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	48	46
+Main red, between passes: the revert merged; main: no fix row; the macOS nightly: its fix row queued	Between passes				0	0	32	48
+Main red, between passes: the revert merged; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	8	6
+Main red, between passes: the revert merged; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main red, between passes: the revert merged; main: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	14	12
+Main red, between passes: the revert merged; main: no fix row; the shots row: its fix row queued	Between passes				0	0	312	568
+Main red, jbus in a pass: a revert on record; main: no fix row	In a pass	works		r0s8 r1s1	6	4	1740	1472
+Main red, jbus in a pass: a revert on record; main: no fix row; a scheduled run: its fix row queued	In a pass				0	0	730	610
+Main red, jbus in a pass: a revert on record; main: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	452	430
+Main red, jbus in a pass: a revert on record; main: no fix row; the browser run: its fix row queued	In a pass				0	0	870	820
+Main red, jbus in a pass: a revert on record; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	407	389
+Main red, jbus in a pass: a revert on record; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	45	43
+Main red, jbus in a pass: a revert on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	90	84
+Main red, jbus in a pass: a revert on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	45	43
+Main red, jbus in a pass: a revert on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	45	43
+Main red, jbus in a pass: a revert on record; main: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	458	439
+Main red, jbus in a pass: a revert on record; main: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	164	136
+Main red, jbus in a pass: a revert on record; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	78	66
+Main red, jbus in a pass: a revert on record; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	45	43
+Main red, jbus in a pass: a revert on record; main: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	133	122
+Main red, jbus in a pass: a revert on record; main: no fix row; the shots row: its fix row queued	In a pass				0	0	1354	1250
+Main red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row	In a pass	works		r0s8 r1s4	9	7	2408	2044
+Main red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; a scheduled run: its fix row queued	In a pass				0	0	616	518
+Main red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	184	152
+Main red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued	In a pass				0	0	616	518
+Main red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	161	133
+Main red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	9	7
+Main red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	32	26
+Main red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	9	7
+Main red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	9	7
+Main red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	184	152
+Main red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	120	100
+Main red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	32	26
+Main red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	9	7
+Main red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	55	45
+Main red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; the shots row: its fix row queued	In a pass				0	0	1136	958
+Main red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row	In a pass	works		r0s8 r1s7	3	1	700	336
+Main red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; a scheduled run: its fix row queued	In a pass				0	0	182	84
+Main red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	56	24
+Main red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued	In a pass				0	0	182	84
+Main red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	49	21
+Main red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	3	1
+Main red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	10	4
+Main red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	3	1
+Main red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	3	1
+Main red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	56	24
+Main red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	36	16
+Main red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	10	4
+Main red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	3	1
+Main red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	17	7
+Main red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; the shots row: its fix row queued	In a pass				0	0	334	156
+Main red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row	In a pass	works		r0s8 r1s18	5	4	1096	856
+Main red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; a scheduled run: its fix row queued	In a pass				0	0	576	470
+Main red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	412	398
+Main red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; the browser run: its fix row queued	In a pass				0	0	716	680
+Main red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	372	361
+Main red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	44	43
+Main red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	84	80
+Main red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	44	43
+Main red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	44	43
+Main red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	418	407
+Main red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	136	112
+Main red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	72	62
+Main red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	44	43
+Main red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	122	114
+Main red, jbus in a pass: no revert, one named in reverts-opening.json; main: no fix row; the shots row: its fix row queued	In a pass				0	0	1064	982
+Main red, jbus in a pass: no revert; main: its fix row queued	In a pass	works		r0s8 r1s12	20	12	4384	3312
+Main red, jbus in a pass: no revert; main: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	2304	1824
+Main red, jbus in a pass: no revert; main: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	1648	1560
+Main red, jbus in a pass: no revert; main: its fix row queued; the browser run: its fix row queued	In a pass				0	0	2864	2664
+Main red, jbus in a pass: no revert; main: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	1488	1416
+Main red, jbus in a pass: no revert; main: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	176	168
+Main red, jbus in a pass: no revert; main: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	336	312
+Main red, jbus in a pass: no revert; main: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	176	168
+Main red, jbus in a pass: no revert; main: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	176	168
+Main red, jbus in a pass: no revert; main: its fix row queued; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	1672	1596
+Main red, jbus in a pass: no revert; main: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	544	432
+Main red, jbus in a pass: no revert; main: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	288	240
+Main red, jbus in a pass: no revert; main: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	176	168
+Main red, jbus in a pass: no revert; main: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	488	444
+Main red, jbus in a pass: no revert; main: its fix row queued; the shots row: its fix row queued	In a pass				0	0	4256	3840
+Main red, jbus in a pass: no revert; main: no fix row	In a pass	works		r0s8 r1s14	20	15	5340	4140
+Main red, jbus in a pass: no revert; main: no fix row; a scheduled run: its fix row queued	In a pass				0	0	2810	2280
+Main red, jbus in a pass: no revert; main: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	2020	1950
+Main red, jbus in a pass: no revert; main: no fix row; the browser run: its fix row queued	In a pass				0	0	3510	3330
+Main red, jbus in a pass: no revert; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	1825	1770
+Main red, jbus in a pass: no revert; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	215	210
+Main red, jbus in a pass: no revert; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	410	390
+Main red, jbus in a pass: no revert; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	215	210
+Main red, jbus in a pass: no revert; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	215	210
+Main red, jbus in a pass: no revert; main: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	2050	1995
+Main red, jbus in a pass: no revert; main: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	660	540
+Main red, jbus in a pass: no revert; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	350	300
+Main red, jbus in a pass: no revert; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	215	210
+Main red, jbus in a pass: no revert; main: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	595	555
+Main red, jbus in a pass: no revert; main: no fix row; the shots row: its fix row queued	In a pass				0	0	5210	4800
+Main red, jbus in a pass: the revert merged; main: no fix row	In a pass	works		r0s8 r1s22	4	3	1376	1136
+Main red, jbus in a pass: the revert merged; main: no fix row; a scheduled run: its fix row queued	In a pass				0	0	632	526
+Main red, jbus in a pass: the revert merged; main: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	420	406
+Main red, jbus in a pass: the revert merged; main: no fix row; the browser run: its fix row queued	In a pass				0	0	772	736
+Main red, jbus in a pass: the revert merged; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	379	368
+Main red, jbus in a pass: the revert merged; main: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main red, jbus in a pass: the revert merged; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	84	80
+Main red, jbus in a pass: the revert merged; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	43	42
+Main red, jbus in a pass: the revert merged; main: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main red, jbus in a pass: the revert merged; main: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	426	415
+Main red, jbus in a pass: the revert merged; main: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	144	120
+Main red, jbus in a pass: the revert merged; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	72	62
+Main red, jbus in a pass: the revert merged; main: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main red, jbus in a pass: the revert merged; main: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	123	115
+Main red, jbus in a pass: the revert merged; main: no fix row; the shots row: its fix row queued	In a pass				0	0	1176	1094
+Main red, then green again, after a pass that died: no revert	After a pass died	works		r0s9 r1s9	3	0	1008	2472
+Main red, then green again, after a pass that died: no revert; a scheduled run: its fix row queued	After a pass died				0	0	504	858
+Main red, then green again, after a pass that died: no revert; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	276	276
+Main red, then green again, after a pass that died: no revert; the browser run: its fix row queued	After a pass died				0	0	504	858
+Main red, then green again, after a pass that died: no revert; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	252	240
+Main red, then green again, after a pass that died: no revert; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	0
+Main red, then green again, after a pass that died: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	48	36
+Main red, then green again, after a pass that died: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	24	0
+Main red, then green again, after a pass that died: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	0
+Main red, then green again, after a pass that died: no revert; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	276	276
+Main red, then green again, after a pass that died: no revert; the macOS nightly: its fix row queued	After a pass died				0	0	96	144
+Main red, then green again, after a pass that died: no revert; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	48	36
+Main red, then green again, after a pass that died: no revert; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	0
+Main red, then green again, after a pass that died: no revert; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	72	72
+Main red, then green again, after a pass that died: no revert; the shots row: its fix row queued	After a pass died				0	0	780	1548
+Main red, then green again, after a pass that died: the revert merged	After a pass died	works		r0s9 r1s20	4	0	672	1648
+Main red, then green again, after a pass that died: the revert merged; a scheduled run: its fix row queued	After a pass died				0	0	252	429
+Main red, then green again, after a pass that died: the revert merged; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	116	115
+Main red, then green again, after a pass that died: the revert merged; the browser run: its fix row queued	After a pass died				0	0	252	429
+Main red, then green again, after a pass that died: the revert merged; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	105	100
+Main red, then green again, after a pass that died: the revert merged; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main red, then green again, after a pass that died: the revert merged; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	20	15
+Main red, then green again, after a pass that died: the revert merged; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	9	0
+Main red, then green again, after a pass that died: the revert merged; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main red, then green again, after a pass that died: the revert merged; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	116	115
+Main red, then green again, after a pass that died: the revert merged; the macOS nightly: its fix row queued	After a pass died				0	0	48	72
+Main red, then green again, after a pass that died: the revert merged; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	20	15
+Main red, then green again, after a pass that died: the revert merged; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main red, then green again, after a pass that died: the revert merged; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	31	30
+Main red, then green again, after a pass that died: the revert merged; the shots row: its fix row queued	After a pass died				0	0	416	800
+Main red, then green again, between passes: no revert	Between passes	works		r0s10 r1s9	3	0	1008	2472
+Main red, then green again, between passes: no revert; a scheduled run: its fix row queued	Between passes				0	0	252	429
+Main red, then green again, between passes: no revert; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	72	69
+Main red, then green again, between passes: no revert; the browser run: its fix row queued	Between passes				0	0	252	429
+Main red, then green again, between passes: no revert; the browser run: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	63	60
+Main red, then green again, between passes: no revert; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	3	0
+Main red, then green again, between passes: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	12	9
+Main red, then green again, between passes: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	3	0
+Main red, then green again, between passes: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	3	0
+Main red, then green again, between passes: no revert; the browser run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	72	69
+Main red, then green again, between passes: no revert; the macOS nightly: its fix row queued	Between passes				0	0	48	72
+Main red, then green again, between passes: no revert; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	12	9
+Main red, then green again, between passes: no revert; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	3	0
+Main red, then green again, between passes: no revert; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	21	18
+Main red, then green again, between passes: no revert; the shots row: its fix row queued	Between passes				0	0	468	852
+Main red, then green again, between passes: the revert merged	Between passes	works		r0s10 r1s20	2	0	672	1648
+Main red, then green again, between passes: the revert merged; a scheduled run: its fix row queued	Between passes				0	0	168	286
+Main red, then green again, between passes: the revert merged; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	48	46
+Main red, then green again, between passes: the revert merged; the browser run: its fix row queued	Between passes				0	0	168	286
+Main red, then green again, between passes: the revert merged; the browser run: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	42	40
+Main red, then green again, between passes: the revert merged; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main red, then green again, between passes: the revert merged; the browser run: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	8	6
+Main red, then green again, between passes: the revert merged; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	2	0
+Main red, then green again, between passes: the revert merged; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main red, then green again, between passes: the revert merged; the browser run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	48	46
+Main red, then green again, between passes: the revert merged; the macOS nightly: its fix row queued	Between passes				0	0	32	48
+Main red, then green again, between passes: the revert merged; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	8	6
+Main red, then green again, between passes: the revert merged; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main red, then green again, between passes: the revert merged; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	14	12
+Main red, then green again, between passes: the revert merged; the shots row: its fix row queued	Between passes				0	0	312	568
+Main red, then green again, jbus in a pass: no revert	In a pass	works		r0s11 r1s9	9	6	3120	2400
+Main red, then green again, jbus in a pass: no revert; a scheduled run: its fix row queued	In a pass				0	0	1644	1326
+Main red, then green again, jbus in a pass: no revert; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	1188	1146
+Main red, then green again, jbus in a pass: no revert; the browser run: its fix row queued	In a pass				0	0	2064	1956
+Main red, then green again, jbus in a pass: no revert; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	1074	1041
+Main red, then green again, jbus in a pass: no revert; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	126	123
+Main red, then green again, jbus in a pass: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	240	228
+Main red, then green again, jbus in a pass: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	126	123
+Main red, then green again, jbus in a pass: no revert; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	126	123
+Main red, then green again, jbus in a pass: no revert; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	1206	1173
+Main red, then green again, jbus in a pass: no revert; the macOS nightly: its fix row queued	In a pass				0	0	384	312
+Main red, then green again, jbus in a pass: no revert; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	204	174
+Main red, then green again, jbus in a pass: no revert; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	126	123
+Main red, then green again, jbus in a pass: no revert; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	348	324
+Main red, then green again, jbus in a pass: no revert; the shots row: its fix row queued	In a pass				0	0	3060	2814
+Main red, then green again, jbus in a pass: the revert merged	In a pass	works		r0s11 r1s20	4	3	1376	1136
+Main red, then green again, jbus in a pass: the revert merged; a scheduled run: its fix row queued	In a pass				0	0	632	526
+Main red, then green again, jbus in a pass: the revert merged; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	420	406
+Main red, then green again, jbus in a pass: the revert merged; the browser run: its fix row queued	In a pass				0	0	772	736
+Main red, then green again, jbus in a pass: the revert merged; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	379	368
+Main red, then green again, jbus in a pass: the revert merged; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main red, then green again, jbus in a pass: the revert merged; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	84	80
+Main red, then green again, jbus in a pass: the revert merged; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	43	42
+Main red, then green again, jbus in a pass: the revert merged; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main red, then green again, jbus in a pass: the revert merged; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	426	415
+Main red, then green again, jbus in a pass: the revert merged; the macOS nightly: its fix row queued	In a pass				0	0	144	120
+Main red, then green again, jbus in a pass: the revert merged; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	72	62
+Main red, then green again, jbus in a pass: the revert merged; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main red, then green again, jbus in a pass: the revert merged; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	123	115
+Main red, then green again, jbus in a pass: the revert merged; the shots row: its fix row queued	In a pass				0	0	1176	1094
+Main's Mac red, after a pass that died: a revert on record; main's Mac: no fix row	After a pass died	works		r0s12 r1s0	4	0	672	1648
+Main's Mac red, after a pass that died: a revert on record; main's Mac: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	252	429
+Main's Mac red, after a pass that died: a revert on record; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	116	115
+Main's Mac red, after a pass that died: a revert on record; main's Mac: no fix row; the browser run: its fix row queued	After a pass died				0	0	252	429
+Main's Mac red, after a pass that died: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	105	100
+Main's Mac red, after a pass that died: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main's Mac red, after a pass that died: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	20	15
+Main's Mac red, after a pass that died: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	9	0
+Main's Mac red, after a pass that died: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main's Mac red, after a pass that died: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	116	115
+Main's Mac red, after a pass that died: a revert on record; main's Mac: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	48	72
+Main's Mac red, after a pass that died: a revert on record; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	20	15
+Main's Mac red, after a pass that died: a revert on record; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main's Mac red, after a pass that died: a revert on record; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	31	30
+Main's Mac red, after a pass that died: a revert on record; main's Mac: no fix row; the shots row: its fix row queued	After a pass died				0	0	416	800
+Main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row	After a pass died	works		r0s12 r1s3	4	0	672	1648
+Main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	168	286
+Main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	48	46
+Main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued	After a pass died				0	0	168	286
+Main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	42	40
+Main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	2	0
+Main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	8	6
+Main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	2	0
+Main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	2	0
+Main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	48	46
+Main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	32	48
+Main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	8	6
+Main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	2	0
+Main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	14	12
+Main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the shots row: its fix row queued	After a pass died				0	0	312	568
+Main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row	After a pass died	works		r0s12 r1s6	2	0	336	824
+Main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	84	143
+Main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	23
+Main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued	After a pass died				0	0	84	143
+Main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	21	20
+Main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	1	0
+Main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	4	3
+Main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	1	0
+Main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	1	0
+Main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	23
+Main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	16	24
+Main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	4	3
+Main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	1	0
+Main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	7	6
+Main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the shots row: its fix row queued	After a pass died				0	0	156	284
+Main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main's Mac: no fix row	After a pass died	works		r0s12 r1s17	1	0	336	824
+Main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main's Mac: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	168	286
+Main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	92	92
+Main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main's Mac: no fix row; the browser run: its fix row queued	After a pass died				0	0	168	286
+Main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	84	80
+Main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	8	0
+Main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	16	12
+Main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	8	0
+Main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	8	0
+Main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	92	92
+Main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main's Mac: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	32	48
+Main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	16	12
+Main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	8	0
+Main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	24
+Main's Mac red, after a pass that died: no revert, one named in reverts-opening.json; main's Mac: no fix row; the shots row: its fix row queued	After a pass died				0	0	260	516
+Main's Mac red, after a pass that died: no revert; main's Mac: its fix row queued	After a pass died	works		r0s12 r1s10	3	0	1008	2472
+Main's Mac red, after a pass that died: no revert; main's Mac: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	504	858
+Main's Mac red, after a pass that died: no revert; main's Mac: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	276	276
+Main's Mac red, after a pass that died: no revert; main's Mac: its fix row queued; the browser run: its fix row queued	After a pass died				0	0	504	858
+Main's Mac red, after a pass that died: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	252	240
+Main's Mac red, after a pass that died: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	0
+Main's Mac red, after a pass that died: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	48	36
+Main's Mac red, after a pass that died: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	24	0
+Main's Mac red, after a pass that died: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	0
+Main's Mac red, after a pass that died: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	276	276
+Main's Mac red, after a pass that died: no revert; main's Mac: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	96	144
+Main's Mac red, after a pass that died: no revert; main's Mac: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	48	36
+Main's Mac red, after a pass that died: no revert; main's Mac: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	24	0
+Main's Mac red, after a pass that died: no revert; main's Mac: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	72	72
+Main's Mac red, after a pass that died: no revert; main's Mac: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	780	1548
+Main's Mac red, after a pass that died: no revert; main's Mac: no fix row	After a pass died	works		r0s12 r1s11	4	0	1344	3296
+Main's Mac red, after a pass that died: no revert; main's Mac: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	672	1144
+Main's Mac red, after a pass that died: no revert; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	368	368
+Main's Mac red, after a pass that died: no revert; main's Mac: no fix row; the browser run: its fix row queued	After a pass died				0	0	672	1144
+Main's Mac red, after a pass that died: no revert; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	336	320
+Main's Mac red, after a pass that died: no revert; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	32	0
+Main's Mac red, after a pass that died: no revert; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	64	48
+Main's Mac red, after a pass that died: no revert; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	32	0
+Main's Mac red, after a pass that died: no revert; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	32	0
+Main's Mac red, after a pass that died: no revert; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	368	368
+Main's Mac red, after a pass that died: no revert; main's Mac: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	128	192
+Main's Mac red, after a pass that died: no revert; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	64	48
+Main's Mac red, after a pass that died: no revert; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	32	0
+Main's Mac red, after a pass that died: no revert; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	96	96
+Main's Mac red, after a pass that died: no revert; main's Mac: no fix row; the shots row: its fix row queued	After a pass died				0	0	1040	2064
+Main's Mac red, after a pass that died: the revert merged; main's Mac: no fix row	After a pass died	works		r0s12 r1s21	4	0	672	1648
+Main's Mac red, after a pass that died: the revert merged; main's Mac: no fix row; a scheduled run: its fix row queued	After a pass died				0	0	252	429
+Main's Mac red, after a pass that died: the revert merged; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	116	115
+Main's Mac red, after a pass that died: the revert merged; main's Mac: no fix row; the browser run: its fix row queued	After a pass died				0	0	252	429
+Main's Mac red, after a pass that died: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	105	100
+Main's Mac red, after a pass that died: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main's Mac red, after a pass that died: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	After a pass died				0	0	20	15
+Main's Mac red, after a pass that died: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	9	0
+Main's Mac red, after a pass that died: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main's Mac red, after a pass that died: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	116	115
+Main's Mac red, after a pass that died: the revert merged; main's Mac: no fix row; the macOS nightly: its fix row queued	After a pass died				0	0	48	72
+Main's Mac red, after a pass that died: the revert merged; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	After a pass died				0	0	20	15
+Main's Mac red, after a pass that died: the revert merged; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	9	0
+Main's Mac red, after a pass that died: the revert merged; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	After a pass died				0	0	31	30
+Main's Mac red, after a pass that died: the revert merged; main's Mac: no fix row; the shots row: its fix row queued	After a pass died				0	0	416	800
+Main's Mac red, between passes: a revert on record; main's Mac: no fix row	Between passes	works		r0s13 r1s0	2	0	672	1648
+Main's Mac red, between passes: a revert on record; main's Mac: no fix row; a scheduled run: its fix row queued	Between passes				0	0	168	286
+Main's Mac red, between passes: a revert on record; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	48	46
+Main's Mac red, between passes: a revert on record; main's Mac: no fix row; the browser run: its fix row queued	Between passes				0	0	168	286
+Main's Mac red, between passes: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	42	40
+Main's Mac red, between passes: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main's Mac red, between passes: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	8	6
+Main's Mac red, between passes: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	2	0
+Main's Mac red, between passes: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main's Mac red, between passes: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	48	46
+Main's Mac red, between passes: a revert on record; main's Mac: no fix row; the macOS nightly: its fix row queued	Between passes				0	0	32	48
+Main's Mac red, between passes: a revert on record; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	8	6
+Main's Mac red, between passes: a revert on record; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main's Mac red, between passes: a revert on record; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	14	12
+Main's Mac red, between passes: a revert on record; main's Mac: no fix row; the shots row: its fix row queued	Between passes				0	0	312	568
+Main's Mac red, between passes: no revert; main's Mac: its fix row queued	Between passes	works		r0s13 r1s10	3	0	1008	2472
+Main's Mac red, between passes: no revert; main's Mac: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	252	429
+Main's Mac red, between passes: no revert; main's Mac: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	72	69
+Main's Mac red, between passes: no revert; main's Mac: its fix row queued; the browser run: its fix row queued	Between passes				0	0	252	429
+Main's Mac red, between passes: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	63	60
+Main's Mac red, between passes: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	3	0
+Main's Mac red, between passes: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	12	9
+Main's Mac red, between passes: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	3	0
+Main's Mac red, between passes: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	3	0
+Main's Mac red, between passes: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	72	69
+Main's Mac red, between passes: no revert; main's Mac: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	48	72
+Main's Mac red, between passes: no revert; main's Mac: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	12	9
+Main's Mac red, between passes: no revert; main's Mac: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	3	0
+Main's Mac red, between passes: no revert; main's Mac: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	21	18
+Main's Mac red, between passes: no revert; main's Mac: its fix row queued; the shots row: its fix row queued	Between passes				0	0	468	852
+Main's Mac red, between passes: no revert; main's Mac: no fix row	Between passes	works		r0s13 r1s11	4	0	1344	3296
+Main's Mac red, between passes: no revert; main's Mac: no fix row; a scheduled run: its fix row queued	Between passes				0	0	336	572
+Main's Mac red, between passes: no revert; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	96	92
+Main's Mac red, between passes: no revert; main's Mac: no fix row; the browser run: its fix row queued	Between passes				0	0	336	572
+Main's Mac red, between passes: no revert; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	84	80
+Main's Mac red, between passes: no revert; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	4	0
+Main's Mac red, between passes: no revert; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	16	12
+Main's Mac red, between passes: no revert; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	4	0
+Main's Mac red, between passes: no revert; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	4	0
+Main's Mac red, between passes: no revert; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	96	92
+Main's Mac red, between passes: no revert; main's Mac: no fix row; the macOS nightly: its fix row queued	Between passes				0	0	64	96
+Main's Mac red, between passes: no revert; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	16	12
+Main's Mac red, between passes: no revert; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	4	0
+Main's Mac red, between passes: no revert; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	28	24
+Main's Mac red, between passes: no revert; main's Mac: no fix row; the shots row: its fix row queued	Between passes				0	0	624	1136
+Main's Mac red, between passes: the revert merged; main's Mac: no fix row	Between passes	works		r0s13 r1s21	2	0	672	1648
+Main's Mac red, between passes: the revert merged; main's Mac: no fix row; a scheduled run: its fix row queued	Between passes				0	0	168	286
+Main's Mac red, between passes: the revert merged; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	48	46
+Main's Mac red, between passes: the revert merged; main's Mac: no fix row; the browser run: its fix row queued	Between passes				0	0	168	286
+Main's Mac red, between passes: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	42	40
+Main's Mac red, between passes: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main's Mac red, between passes: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	Between passes				0	0	8	6
+Main's Mac red, between passes: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	2	0
+Main's Mac red, between passes: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main's Mac red, between passes: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	48	46
+Main's Mac red, between passes: the revert merged; main's Mac: no fix row; the macOS nightly: its fix row queued	Between passes				0	0	32	48
+Main's Mac red, between passes: the revert merged; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	Between passes				0	0	8	6
+Main's Mac red, between passes: the revert merged; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	Between passes				0	0	2	0
+Main's Mac red, between passes: the revert merged; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	Between passes				0	0	14	12
+Main's Mac red, between passes: the revert merged; main's Mac: no fix row; the shots row: its fix row queued	Between passes				0	0	312	568
+Main's Mac red, jbus in a pass: a revert on record; main's Mac: no fix row	In a pass	works		r0s14 r1s0	7	5	1768	1500
+Main's Mac red, jbus in a pass: a revert on record; main's Mac: no fix row; a scheduled run: its fix row queued	In a pass				0	0	744	624
+Main's Mac red, jbus in a pass: a revert on record; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	460	438
+Main's Mac red, jbus in a pass: a revert on record; main's Mac: no fix row; the browser run: its fix row queued	In a pass				0	0	884	834
+Main's Mac red, jbus in a pass: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	414	396
+Main's Mac red, jbus in a pass: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	46	44
+Main's Mac red, jbus in a pass: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	92	86
+Main's Mac red, jbus in a pass: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	46	44
+Main's Mac red, jbus in a pass: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	46	44
+Main's Mac red, jbus in a pass: a revert on record; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	466	447
+Main's Mac red, jbus in a pass: a revert on record; main's Mac: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	168	140
+Main's Mac red, jbus in a pass: a revert on record; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	80	68
+Main's Mac red, jbus in a pass: a revert on record; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	46	44
+Main's Mac red, jbus in a pass: a revert on record; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	136	125
+Main's Mac red, jbus in a pass: a revert on record; main's Mac: no fix row; the shots row: its fix row queued	In a pass				0	0	1376	1272
+Main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row	In a pass	works		r0s14 r1s3	9	7	2408	2044
+Main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; a scheduled run: its fix row queued	In a pass				0	0	616	518
+Main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	184	152
+Main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued	In a pass				0	0	616	518
+Main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	161	133
+Main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	9	7
+Main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	32	26
+Main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	9	7
+Main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	9	7
+Main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	184	152
+Main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	120	100
+Main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	32	26
+Main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	9	7
+Main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	55	45
+Main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row; the shots row: its fix row queued	In a pass				0	0	1136	958
+Main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row	In a pass	works		r0s14 r1s6	3	1	700	336
+Main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; a scheduled run: its fix row queued	In a pass				0	0	182	84
+Main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	56	24
+Main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued	In a pass				0	0	182	84
+Main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	49	21
+Main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	3	1
+Main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	10	4
+Main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	3	1
+Main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	3	1
+Main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	56	24
+Main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	36	16
+Main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	10	4
+Main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	3	1
+Main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	17	7
+Main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row; the shots row: its fix row queued	In a pass				0	0	334	156
+Main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main's Mac: no fix row	In a pass	works		r0s14 r1s17	4	3	1068	828
+Main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main's Mac: no fix row; a scheduled run: its fix row queued	In a pass				0	0	562	456
+Main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	404	390
+Main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main's Mac: no fix row; the browser run: its fix row queued	In a pass				0	0	702	666
+Main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	365	354
+Main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	82	78
+Main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	43	42
+Main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	410	399
+Main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main's Mac: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	132	108
+Main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	70	60
+Main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	119	111
+Main's Mac red, jbus in a pass: no revert, one named in reverts-opening.json; main's Mac: no fix row; the shots row: its fix row queued	In a pass				0	0	1042	960
+Main's Mac red, jbus in a pass: no revert; main's Mac: its fix row queued	In a pass	works		r0s14 r1s10	15	12	3288	2568
+Main's Mac red, jbus in a pass: no revert; main's Mac: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	1728	1410
+Main's Mac red, jbus in a pass: no revert; main's Mac: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	1236	1194
+Main's Mac red, jbus in a pass: no revert; main's Mac: its fix row queued; the browser run: its fix row queued	In a pass				0	0	2148	2040
+Main's Mac red, jbus in a pass: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	1116	1083
+Main's Mac red, jbus in a pass: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	132	129
+Main's Mac red, jbus in a pass: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	252	240
+Main's Mac red, jbus in a pass: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	132	129
+Main's Mac red, jbus in a pass: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	132	129
+Main's Mac red, jbus in a pass: no revert; main's Mac: its fix row queued; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	1254	1221
+Main's Mac red, jbus in a pass: no revert; main's Mac: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	408	336
+Main's Mac red, jbus in a pass: no revert; main's Mac: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	216	186
+Main's Mac red, jbus in a pass: no revert; main's Mac: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	132	129
+Main's Mac red, jbus in a pass: no revert; main's Mac: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	366	342
+Main's Mac red, jbus in a pass: no revert; main's Mac: its fix row queued; the shots row: its fix row queued	In a pass				0	0	3192	2946
+Main's Mac red, jbus in a pass: no revert; main's Mac: no fix row	In a pass	works		r0s14 r1s11	12	8	4160	3200
+Main's Mac red, jbus in a pass: no revert; main's Mac: no fix row; a scheduled run: its fix row queued	In a pass				0	0	2192	1768
+Main's Mac red, jbus in a pass: no revert; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	1584	1528
+Main's Mac red, jbus in a pass: no revert; main's Mac: no fix row; the browser run: its fix row queued	In a pass				0	0	2752	2608
+Main's Mac red, jbus in a pass: no revert; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	1432	1388
+Main's Mac red, jbus in a pass: no revert; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	168	164
+Main's Mac red, jbus in a pass: no revert; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	320	304
+Main's Mac red, jbus in a pass: no revert; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	168	164
+Main's Mac red, jbus in a pass: no revert; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	168	164
+Main's Mac red, jbus in a pass: no revert; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	1608	1564
+Main's Mac red, jbus in a pass: no revert; main's Mac: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	512	416
+Main's Mac red, jbus in a pass: no revert; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	272	232
+Main's Mac red, jbus in a pass: no revert; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	168	164
+Main's Mac red, jbus in a pass: no revert; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	464	432
+Main's Mac red, jbus in a pass: no revert; main's Mac: no fix row; the shots row: its fix row queued	In a pass				0	0	4080	3752
+Main's Mac red, jbus in a pass: the revert merged; main's Mac: no fix row	In a pass	works		r0s14 r1s21	4	3	1376	1136
+Main's Mac red, jbus in a pass: the revert merged; main's Mac: no fix row; a scheduled run: its fix row queued	In a pass				0	0	632	526
+Main's Mac red, jbus in a pass: the revert merged; main's Mac: no fix row; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	420	406
+Main's Mac red, jbus in a pass: the revert merged; main's Mac: no fix row; the browser run: its fix row queued	In a pass				0	0	772	736
+Main's Mac red, jbus in a pass: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	379	368
+Main's Mac red, jbus in a pass: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main's Mac red, jbus in a pass: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued	In a pass				0	0	84	80
+Main's Mac red, jbus in a pass: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	43	42
+Main's Mac red, jbus in a pass: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main's Mac red, jbus in a pass: the revert merged; main's Mac: no fix row; the browser run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	426	415
+Main's Mac red, jbus in a pass: the revert merged; main's Mac: no fix row; the macOS nightly: its fix row queued	In a pass				0	0	144	120
+Main's Mac red, jbus in a pass: the revert merged; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued	In a pass				0	0	72	62
+Main's Mac red, jbus in a pass: the revert merged; main's Mac: no fix row; the macOS nightly: its fix row queued; a scheduled run: its fix row queued; the shots row: its fix row queued	In a pass				0	0	43	42
+Main's Mac red, jbus in a pass: the revert merged; main's Mac: no fix row; the macOS nightly: its fix row queued; the shots row: its fix row queued	In a pass				0	0	123	115
+Main's Mac red, jbus in a pass: the revert merged; main's Mac: no fix row; the shots row: its fix row queued	In a pass				0	0	1176	1094

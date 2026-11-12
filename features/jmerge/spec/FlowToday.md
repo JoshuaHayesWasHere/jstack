@@ -111,7 +111,8 @@ S=$PWD/features/skill-library/skills/statechart/scripts
 D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(TMPDIR=$D mktemp -d) && cp features/jmerge/spec/FlowToday.* features/jmerge/spec/FlowDesign.* "$W"
 (cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
-    statechart from-spec FlowToday.tla --config FlowToday.chart.cfg --against FlowDesign.tla --label "the design" \
+    statechart from-spec FlowToday.tla --config FlowToday.chart.cfg --against FlowDesign.tla \
+    --count-config FlowToday.cfg --label "the design" \
     --title "Does work keep flowing?" --out out)
 ```
 
@@ -120,6 +121,7 @@ No chart's PNG or Excalidraw scenes, nor the charts page, is committed: `make ch
 `FlowToday.chart.cfg` checks the four rules on the model cut by `ChartCut`: no change breaks a browser test of its own, and no brief is edited.
 The chart command holds TLC's whole state graph in memory: the whole model, 2.6M states before fl-rules-1103, took more than 27 GB before earlyoom stopped it.
 The cut, 1.19M states at #946, 1.04M since fl-no-draft and 0.97M since st-flow, needed more than 14 GB at fl-spec-readme-docs's head, and earlyoom stopped it once, so run it with that much memory free.
+`--count-config FlowToday.cfg` has TLC count the whole model's states with no graph kept, 7,024,508 at st-chart-every-arrow in about a minute, so the chart's tab says how many states the chart and its tables leave out.
 TLC also keeps a disk queue of states under `TMPDIR`, and the cut's queue outgrew a `/tmp` tmpfs the machine's other work had filled, so the block puts `TMPDIR` on a disk with room (`$HOME/.cache` here).
 With an edit and an outside break both in the cut, TLC 2.19 threw while its `-continue` run printed a path of the rule then named `NoMergeTurnsMainRed`.
 `flow_canaries.py` checks every rule on the whole model.

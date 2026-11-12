@@ -80,13 +80,33 @@
   },
   "classes": [],
   "codeLike": [],
+  "map": {
+    "runs": [
+      "TellOnceOther.chart.cfg",
+      "TellOnce.cfg"
+    ],
+    "states": 252,
+    "arrows": 409
+  },
+  "also": {
+    "cfg": "TellOnce.cfg",
+    "modelStates": 1496,
+    "modelTransitions": 3221,
+    "states": 193,
+    "arrows": 335
+  },
   "drawnFrom": {
-    "command": "statechart from-spec TellOnce.tla --config TellOnceOther.chart.cfg --title 'Does jbus act twice, or drop an act, outside a thread when a pass dies?'",
+    "command": "statechart from-spec TellOnce.tla --config TellOnceOther.chart.cfg --also-config TellOnce.cfg --title 'Does jbus act twice, or drop an act, outside a thread when a pass dies?'",
     "inputs": {
+      "TellOnce.cfg": "b46ae119155bff47a0dae441b3a26759070074efaf276d910bfff03a5c159f96",
       "TellOnce.map.py": "fb48339c3dfc74e1770616f75ce726b0d0a566ba3aecaeeffc746c2fc49384d1",
       "TellOnce.tla": "fa8bccf828c18eb906cc356ad8ac7f2eaae256e8d4863ed3c9be069b6a74b791",
       "TellOnceOther.chart.cfg": "cc6834a8a54564e26c5684f4e40f101c92b3ccc7e6f81349b08f956f94e3338e"
     },
-    "chart": "857bccdcf6342dd3bf5a62545f9370772cd16e3ed906b63ce6f071905cad02c0"
+    "chart": "857bccdcf6342dd3bf5a62545f9370772cd16e3ed906b63ce6f071905cad02c0",
+    "tables": {
+      "states.tsv": "f2313812f5caad5b2999d45cff58d2714e1f96511051e57e9fe2baa4a0bcd15d",
+      "arrows.tsv": "89ee798d59eb7f7960d31830e9dc50398e14c0aaeddbb04a8812f235b4537555"
+    }
   }
 }

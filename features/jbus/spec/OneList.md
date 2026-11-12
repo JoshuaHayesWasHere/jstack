@@ -33,11 +33,13 @@ The canary `Fault = "stale-streak"`, a pass that leaves the stall alert from bef
 S=features/skill-library/skills/statechart/scripts
 cd features/jbus/spec
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
-    statechart from-spec OneList.tla --config OneList.chart.cfg \
+    statechart from-spec OneList.tla --config OneList.chart.cfg --count-config OneList.cfg \
     --title "Does a gate reach my list, and leave it once I answer?"
 ```
 
 `OneList.chart.cfg` draws the gates scene alone: the other scenes have too many states to draw.
+`states.tsv` and `arrows.tsv` list its 152 states and 366 arrows between them, each with its action and its count of model steps.
+They leave out `OneList.cfg`'s alerts and marks scenes: `OneList.map.py` labels nearly each of their 39,564 model states apart, which would add 19,490 states and 139,099 arrows, a 54 MB table, so `--count-config OneList.cfg` has TLC count them for the chart's tab, which names the scenes the tables leave out.
 Its rules are about whole behaviors, which the chart does not draw: TLC's traces are in `OneList-statechart/tlc/`, which is not committed.
 
 ## What the one-list model leaves out

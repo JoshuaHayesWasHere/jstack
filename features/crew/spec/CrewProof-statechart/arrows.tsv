@@ -1,0 +1,737 @@
+from	to	label	action	chart	steps in CrewProof.chart.cfg	steps in CrewProof.cfg
+Checked and proved at this head, edits not committed: a rebase record left behind	Checked and proved at this head, edits not committed: rebasing	the head is kept under pre-rebase	RebaseKeep	s0>s2	112	5376
+Checked and proved at this head, edits not committed: a rebase record left behind	Checked and proved at this head: a rebase record left behind	the crew drops its edits	Undo	s0>s8	112	5376
+Checked and proved at this head, edits not committed: a rebase record left behind	No check at this head: a rebase record left behind	the crew commits	Commit	s0>s37	112	5376
+Checked and proved at this head, edits not committed: a rebase record left behind	the check runs: a rebase record left behind	the crew runs jgauge check	CheckCall		0	5208
+Checked and proved at this head, edits not committed: a rebase record left behind	the check runs: a rebase record left behind	the crew runs the check block	CheckStart	s0>s55	112	168
+Checked and proved at this head, edits not committed: a scoped review is owed	Checked and proved at this head, edits not committed: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict	s1>s7	24	1152
+Checked and proved at this head, edits not committed: a scoped review is owed	Checked and proved at this head: a scoped review is owed	the crew drops its edits	Undo	s1>s9	36	1728
+Checked and proved at this head, edits not committed: a scoped review is owed	No check at this head: a scoped review is owed	the crew commits	Commit	s1>s38	36	1728
+Checked and proved at this head, edits not committed: a scoped review is owed	the check runs: a scoped review is owed	the crew runs jgauge check	CheckCall		0	1674
+Checked and proved at this head, edits not committed: a scoped review is owed	the check runs: a scoped review is owed	the crew runs the check block	CheckStart	s1>s56	36	54
+Checked and proved at this head, edits not committed: rebasing	Checked and proved at this head, edits not committed: a rebase record left behind	the block is killed	Die	s2>s0	224	10752
+Checked and proved at this head, edits not committed: rebasing	Checked and proved at this head, edits not committed: the pull request is in conflict	git rebases	RebaseRun	s2>s7	112	5376
+Checked and proved at this head, edits not committed: rebasing	Checked and proved at this head, edits not committed: the pull request is in conflict	the block is killed	Die	s2>s7	112	5376
+Checked and proved at this head, edits not committed: reviewed, a finding to answer	Checked and proved at this head, edits not committed: reviewed, no scoped review owed	the crew answers the finding	Answer	s3>s4	16	768
+Checked and proved at this head, edits not committed: reviewed, a finding to answer	Checked and proved at this head, edits not committed: reviewed, no scoped review owed, pushed	the crew answers the finding	Answer	s3>s5	32	1536
+Checked and proved at this head, edits not committed: reviewed, a finding to answer	Checked and proved at this head, edits not committed: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict	s3>s7	16	768
+Checked and proved at this head, edits not committed: reviewed, a finding to answer	Checked and proved at this head: reviewed, a finding to answer	the crew drops its edits	Undo	s3>s15	24	1152
+Checked and proved at this head, edits not committed: reviewed, a finding to answer	No check at this head: reviewed, a finding to answer	the crew commits	Commit	s3>s42	24	1152
+Checked and proved at this head, edits not committed: reviewed, a finding to answer	the check runs: reviewed, a finding to answer	the crew runs jgauge check	CheckCall		0	1116
+Checked and proved at this head, edits not committed: reviewed, a finding to answer	the check runs: reviewed, a finding to answer	the crew runs the check block	CheckStart	s3>s60	24	36
+Checked and proved at this head, edits not committed: reviewed, no scoped review owed	Checked and proved at this head: reviewed, no scoped review owed	the crew drops its edits	Undo	s4>s16	36	1728
+Checked and proved at this head, edits not committed: reviewed, no scoped review owed	No check at this head: reviewed, no scoped review owed	the crew commits	Commit	s4>s43	36	1728
+Checked and proved at this head, edits not committed: reviewed, no scoped review owed	the check runs: reviewed, no scoped review owed	the crew runs jgauge check	CheckCall		0	1674
+Checked and proved at this head, edits not committed: reviewed, no scoped review owed	the check runs: reviewed, no scoped review owed	the crew runs the check block	CheckStart	s4>s61	36	54
+Checked and proved at this head, edits not committed: reviewed, no scoped review owed, pushed	Checked and proved at this head, edits not committed: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict	s5>s7	72	3456
+Checked and proved at this head, edits not committed: reviewed, no scoped review owed, pushed	Checked and proved at this head: reviewed, no scoped review owed, pushed	the crew drops its edits	Undo	s5>s17	72	3456
+Checked and proved at this head, edits not committed: reviewed, no scoped review owed, pushed	No check at this head: reviewed, no scoped review owed	the crew commits	Commit	s5>s43	72	3456
+Checked and proved at this head, edits not committed: reviewed, no scoped review owed, pushed	the check runs: reviewed, no scoped review owed, pushed	the crew runs jgauge check	CheckCall		0	3348
+Checked and proved at this head, edits not committed: reviewed, no scoped review owed, pushed	the check runs: reviewed, no scoped review owed, pushed	the crew runs the check block	CheckStart	s5>s62	72	108
+Checked and proved at this head, edits not committed: the pull request is in conflict	Checked and proved at this head, edits not committed: rebasing	the head is kept under pre-rebase	RebaseKeep	s7>s2	224	10752
+Checked and proved at this head, edits not committed: the pull request is in conflict	Checked and proved at this head: the pull request is in conflict	the crew drops its edits	Undo	s7>s19	224	10752
+Checked and proved at this head, edits not committed: the pull request is in conflict	No check at this head: the pull request is in conflict	the crew commits	Commit	s7>s45	224	10752
+Checked and proved at this head, edits not committed: the pull request is in conflict	the check runs: the pull request is in conflict	the crew runs jgauge check	CheckCall		0	10416
+Checked and proved at this head, edits not committed: the pull request is in conflict	the check runs: the pull request is in conflict	the crew runs the check block	CheckStart	s7>s64	224	336
+Checked and proved at this head, edits not committed: the Result is written, no review yet	Checked and proved at this head: the Result is written, no review yet	the crew drops its edits	Undo	s6>s18	4	144
+Checked and proved at this head, edits not committed: the Result is written, no review yet	No check at this head: the Result is written, no review yet	the crew commits	Commit	s6>s44	4	144
+Checked and proved at this head, edits not committed: the Result is written, no review yet	the check runs: the Result is written, no review yet	the crew runs jgauge check	CheckCall		0	138
+Checked and proved at this head, edits not committed: the Result is written, no review yet	the check runs: the Result is written, no review yet	the crew runs the check block	CheckStart	s6>s63	4	6
+Checked and proved at this head: a rebase record left behind	Checked and proved at this head, edits not committed: a rebase record left behind	the crew edits	Edit	s8>s0	112	5376
+Checked and proved at this head: a rebase record left behind	Checked and proved at this head: rebasing	the head is kept under pre-rebase	RebaseKeep	s8>s14	112	5376
+Checked and proved at this head: a rebase record left behind	Checked and proved at this head: the rebase is pushed, its record not removed yet	the rebase is pushed with its lease	RebasePush	s8>s20	5224	17304
+Checked and proved at this head: a scoped review is owed	Checked and proved at this head, edits not committed: a scoped review is owed	the crew edits	Edit	s9>s1	36	1728
+Checked and proved at this head: a scoped review is owed	Checked and proved at this head: a scoped review is owed, none could be launched, yours to decide	no launch tool: the home is told	SecondPass	s9>s10	180	432
+Checked and proved at this head: a scoped review is owed	Checked and proved at this head: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict	s9>s19	1056	3492
+Checked and proved at this head: a scoped review is owed	Checked and proved at this head: the scoped launch is marked, no reviewer launched yet	the crew marks the scoped launch in the git dir	SecondPass	s9>s22	180	432
+Checked and proved at this head: a scoped review is owed	Checked and proved at this head: the scoped launch is marked, no reviewer launched yet	the mark names this head: the crew finds no reviewer for it	SecondPass	s9>s22	180	432
+Checked and proved at this head: a scoped review is owed, none could be launched, yours to decide	Checked and proved at this head: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict	s10>s19	144	324
+Checked and proved at this head: its scoped review is written	Checked and proved at this head: a scoped review is owed	the second pass writes that a scoped review is needed	SecondPass	s11>s9	900	2160
+Checked and proved at this head: its scoped review is written	Checked and proved at this head: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict	s11>s19	1440	3240
+Checked and proved at this head: rebased, not pushed	Checked and proved at this head: the rebase is pushed, its record not removed yet	the rebase is pushed with its lease	RebasePush	s12>s20	1136	3408
+Checked and proved at this head: rebased, not pushed, a dropped line has no line in the Result	Checked and proved at this head: rebased, not pushed	the crew writes Dropped on rebase	WriteDropped	s13>s12	568	1704
+Checked and proved at this head: rebasing	Checked and proved at this head: a rebase record left behind	the block is killed	Die	s14>s8	224	10752
+Checked and proved at this head: rebasing	Checked and proved at this head: the pull request is in conflict	the block is killed	Die	s14>s19	112	5376
+Checked and proved at this head: rebasing	No check at this head: rebased, not pushed	git rebases	RebaseRun	s14>s40	112	5376
+Checked and proved at this head: rebasing	No check at this head: rebased, not pushed, a dropped line has no line in the Result	git rebases	RebaseRun	s14>s41	112	5376
+Checked and proved at this head: reviewed, a finding to answer	Checked and proved at this head, edits not committed: reviewed, a finding to answer	the crew edits	Edit	s15>s3	24	1152
+Checked and proved at this head: reviewed, a finding to answer	Checked and proved at this head: reviewed, no scoped review owed	the crew answers the finding	Answer	s15>s16	80	960
+Checked and proved at this head: reviewed, a finding to answer	Checked and proved at this head: reviewed, no scoped review owed, pushed	the crew answers the finding	Answer	s15>s17	256	2064
+Checked and proved at this head: reviewed, a finding to answer	Checked and proved at this head: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict	s15>s19	128	1032
+Checked and proved at this head: reviewed, no scoped review owed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed	the crew edits	Edit	s16>s4	36	1728
+Checked and proved at this head: reviewed, no scoped review owed	Checked and proved at this head: a scoped review is owed	the second pass writes that a scoped review is needed	SecondPass	s16>s9	60	720
+Checked and proved at this head: reviewed, no scoped review owed	Checked and proved at this head: reviewed, no scoped review owed, pushed	the crew pushes	Push	s16>s17	180	2160
+Checked and proved at this head: reviewed, no scoped review owed, pushed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed, pushed	the crew edits	Edit	s17>s5	72	3456
+Checked and proved at this head: reviewed, no scoped review owed, pushed	Checked and proved at this head: a scoped review is owed	the second pass writes that a scoped review is needed	SecondPass	s17>s9	192	1548
+Checked and proved at this head: reviewed, no scoped review owed, pushed	Checked and proved at this head: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict	s17>s19	576	4644
+Checked and proved at this head: the pull request is in conflict	Checked and proved at this head, edits not committed: the pull request is in conflict	the crew edits	Edit	s19>s7	224	10752
+Checked and proved at this head: the pull request is in conflict	Checked and proved at this head: rebasing	the head is kept under pre-rebase	RebaseKeep	s19>s14	224	10752
+Checked and proved at this head: the rebase is pushed, its record not removed yet	Checked and proved at this head: a rebase record left behind	the block is killed	Die	s20>s8	4656	15600
+Checked and proved at this head: the rebase is pushed, its record not removed yet	Checked and proved at this head: a scoped review is owed	the rebase record is removed	Forget	s20>s9	672	1512
+Checked and proved at this head: the rebase is pushed, its record not removed yet	Checked and proved at this head: a scoped review is owed, none could be launched, yours to decide	the rebase record is removed	Forget	s20>s10	96	216
+Checked and proved at this head: the rebase is pushed, its record not removed yet	Checked and proved at this head: its scoped review is written	the rebase record is removed	Forget	s20>s11	960	2160
+Checked and proved at this head: the rebase is pushed, its record not removed yet	Checked and proved at this head: reviewed, a finding to answer	the rebase record is removed	Forget	s20>s15	64	144
+Checked and proved at this head: the rebase is pushed, its record not removed yet	Checked and proved at this head: reviewed, no scoped review owed, pushed	the rebase record is removed	Forget	s20>s17	288	648
+Checked and proved at this head: the rebase is pushed, its record not removed yet	Checked and proved at this head: the pull request is in conflict	the rebase record is removed	Forget	s20>s19	2384	10488
+Checked and proved at this head: the rebase is pushed, its record not removed yet	Checked and proved at this head: the scoped review runs	the rebase record is removed	Forget	s20>s23	192	432
+Checked and proved at this head: the Result is written, no review yet	Checked and proved at this head, edits not committed: the Result is written, no review yet	the crew edits	Edit	s18>s6	4	144
+Checked and proved at this head: the Result is written, no review yet	Checked and proved at this head: the review runs	jbus launches the review	LaunchFirst	s18>s21	8	156
+Checked and proved at this head: the review runs	Checked and proved at this head: reviewed, a finding to answer	the reviewer writes its review	ReviewerWrites	s21>s15	16	312
+Checked and proved at this head: the review runs	Checked and proved at this head: reviewed, no scoped review owed	the reviewer writes its review	ReviewerWrites	s21>s16	16	312
+Checked and proved at this head: the scoped launch is marked, no reviewer launched yet	Checked and proved at this head: a scoped review is owed	the block is killed	Die	s22>s9	180	432
+Checked and proved at this head: the scoped launch is marked, no reviewer launched yet	Checked and proved at this head: the scoped review runs	the crew launches the scoped reviewer	Launch	s22>s23	180	432
+Checked and proved at this head: the scoped review runs	Checked and proved at this head: its scoped review is written	the block is killed	Die	s23>s11	600	1440
+Checked and proved at this head: the scoped review runs	Checked and proved at this head: its scoped review is written	the crew writes the Scoped reviewer line	ReviewerLine	s23>s11	600	1440
+Checked and proved at this head: the scoped review runs	Checked and proved at this head: its scoped review is written	the reviewer writes its review	ReviewerWrites	s23>s11	720	1728
+Checked and proved at this head: the scoped review runs	Checked and proved at this head: its scoped review is written	the scoped review writes its review, the decline not upheld	ReviewerWrites	s23>s11	240	576
+Checked and proved at this head: the scoped review runs	Checked and proved at this head: its scoped review is written	the scoped review writes its review, the decline upheld	ReviewerWrites	s23>s11	240	576
+Checked and proved at this head: the scoped review runs	Checked and proved at this head: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict	s23>s19	288	648
+Checked at this head, not proved, edits not committed: at work, no Result	Checked at this head, not proved: at work, no Result	the crew drops its edits	Undo	s24>s28	5	216
+Checked at this head, not proved, edits not committed: at work, no Result	No check at this head: at work, no Result	the crew commits	Commit	s24>s39	5	216
+Checked at this head, not proved, edits not committed: at work, no Result	the check runs: at work, no Result	the crew runs jgauge check	CheckCall		0	207
+Checked at this head, not proved, edits not committed: at work, no Result	the check runs: at work, no Result	the crew runs the check block	CheckStart	s24>s57	5	9
+Checked at this head, not proved, edits not committed: the Result is written, no review yet	Checked at this head, not proved: the Result is written, no review yet	the crew drops its edits	Undo	s25>s34	5	216
+Checked at this head, not proved, edits not committed: the Result is written, no review yet	No check at this head: the Result is written, no review yet	the crew commits	Commit	s25>s44	5	216
+Checked at this head, not proved, edits not committed: the Result is written, no review yet	the check runs: the Result is written, no review yet	the crew runs jgauge check	CheckCall		0	207
+Checked at this head, not proved, edits not committed: the Result is written, no review yet	the check runs: the Result is written, no review yet	the crew runs the check block	CheckStart	s25>s63	5	9
+Checked at this head, not proved: a rebase record left behind	Checked at this head, not proved: the rebase is pushed, its record not removed yet	the rebase is pushed with its lease	RebasePush	s26>s36	5040	10584
+Checked at this head, not proved: a rebase record left behind	Checked, nothing to prove at this head: a rebase record left behind	proved.sh writes Proved none	ProveNone		0	392
+Checked at this head, not proved: a rebase record left behind	the proof runs: a rebase record left behind	the crew runs proved.sh	ProveStart	s26>s65	5040	10192
+Checked at this head, not proved: a scoped review is owed	Checked at this head, not proved: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict	s27>s35	720	1458
+Checked at this head, not proved: a scoped review is owed	Checked, nothing to prove at this head: a scoped review is owed	proved.sh writes Proved none	ProveNone		0	72
+Checked at this head, not proved: a scoped review is owed	the proof runs: a scoped review is owed	the crew runs proved.sh	ProveStart	s27>s66	900	1872
+Checked at this head, not proved: at work, no Result	Checked at this head, not proved, edits not committed: at work, no Result	the crew edits	Edit	s28>s24	5	216
+Checked at this head, not proved: at work, no Result	Checked at this head, not proved: the Result is written, no review yet	the crew writes its Result	WriteResult	s28>s34	14	246
+Checked at this head, not proved: at work, no Result	the proof runs: at work, no Result	the crew runs proved.sh	ProveStart	s28>s67	14	220
+Checked at this head, not proved: rebased, not pushed	Checked at this head, not proved: the rebase is pushed, its record not removed yet	the rebase is pushed with its lease	RebasePush	s29>s36	1120	3024
+Checked at this head, not proved: rebased, not pushed	Checked, nothing to prove at this head: rebased, not pushed	proved.sh writes Proved none	ProveNone		0	112
+Checked at this head, not proved: rebased, not pushed	the proof runs: rebased, not pushed	the crew runs proved.sh	ProveStart	s29>s68	1120	2912
+Checked at this head, not proved: rebased, not pushed, a dropped line has no line in the Result	Checked at this head, not proved: rebased, not pushed	the crew writes Dropped on rebase	WriteDropped	s30>s29	560	1512
+Checked at this head, not proved: rebased, not pushed, a dropped line has no line in the Result	Checked, nothing to prove at this head: rebased, not pushed, a dropped line has no line in the Result	proved.sh writes Proved none	ProveNone		0	56
+Checked at this head, not proved: rebased, not pushed, a dropped line has no line in the Result	the proof runs: rebased, not pushed, a dropped line has no line in the Result	the crew runs proved.sh	ProveStart	s30>s69	560	1456
+Checked at this head, not proved: reviewed, a finding to answer	Checked at this head, not proved: reviewed, no scoped review owed	the crew answers the finding	Answer	s31>s32	240	648
+Checked at this head, not proved: reviewed, a finding to answer	Checked at this head, not proved: reviewed, no scoped review owed, pushed	the crew answers the finding	Answer	s31>s33	960	1944
+Checked at this head, not proved: reviewed, a finding to answer	Checked at this head, not proved: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict	s31>s35	480	972
+Checked at this head, not proved: reviewed, a finding to answer	Checked, nothing to prove at this head: reviewed, a finding to answer	proved.sh writes Proved none	ProveNone		0	48
+Checked at this head, not proved: reviewed, a finding to answer	the proof runs: reviewed, a finding to answer	the crew runs proved.sh	ProveStart	s31>s70	600	1248
+Checked at this head, not proved: reviewed, no scoped review owed	Checked at this head, not proved: a scoped review is owed	the second pass writes that a scoped review is needed	SecondPass	s32>s27	180	486
+Checked at this head, not proved: reviewed, no scoped review owed	Checked at this head, not proved: reviewed, no scoped review owed, pushed	the crew pushes	Push	s32>s33	540	1458
+Checked at this head, not proved: reviewed, no scoped review owed	Checked, nothing to prove at this head: reviewed, no scoped review owed	proved.sh writes Proved none	ProveNone		0	54
+Checked at this head, not proved: reviewed, no scoped review owed	the proof runs: reviewed, no scoped review owed	the crew runs proved.sh	ProveStart	s32>s71	540	1404
+Checked at this head, not proved: reviewed, no scoped review owed, pushed	Checked at this head, not proved: a scoped review is owed	the second pass writes that a scoped review is needed	SecondPass	s33>s27	720	1458
+Checked at this head, not proved: reviewed, no scoped review owed, pushed	Checked at this head, not proved: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict	s33>s35	2160	4374
+Checked at this head, not proved: reviewed, no scoped review owed, pushed	Checked, nothing to prove at this head: reviewed, no scoped review owed, pushed	proved.sh writes Proved none	ProveNone		0	162
+Checked at this head, not proved: reviewed, no scoped review owed, pushed	the proof runs: reviewed, no scoped review owed, pushed	the crew runs proved.sh	ProveStart	s33>s72	2160	4212
+Checked at this head, not proved: the pull request is in conflict	Checked, nothing to prove at this head: the pull request is in conflict	proved.sh writes Proved none	ProveNone		0	364
+Checked at this head, not proved: the pull request is in conflict	the proof runs: the pull request is in conflict	the crew runs proved.sh	ProveStart	s35>s74	4480	9464
+Checked at this head, not proved: the rebase is pushed, its record not removed yet	Checked at this head, not proved: a rebase record left behind	the block is killed	Die	s36>s26	4480	9072
+Checked at this head, not proved: the rebase is pushed, its record not removed yet	Checked at this head, not proved: a scoped review is owed	the rebase record is removed	Forget	s36>s27	480	972
+Checked at this head, not proved: the rebase is pushed, its record not removed yet	Checked at this head, not proved: reviewed, a finding to answer	the rebase record is removed	Forget	s36>s31	320	648
+Checked at this head, not proved: the rebase is pushed, its record not removed yet	Checked at this head, not proved: reviewed, no scoped review owed, pushed	the rebase record is removed	Forget	s36>s33	1440	2916
+Checked at this head, not proved: the rebase is pushed, its record not removed yet	Checked at this head, not proved: the pull request is in conflict	the rebase record is removed	Forget	s36>s35	2240	4536
+Checked at this head, not proved: the Result is written, no review yet	Checked at this head, not proved, edits not committed: the Result is written, no review yet	the crew edits	Edit	s34>s25	5	216
+Checked at this head, not proved: the Result is written, no review yet	Checked, nothing to prove at this head: the Result is written, no review yet	proved.sh writes Proved none	ProveNone		0	28
+Checked at this head, not proved: the Result is written, no review yet	the proof runs: the Result is written, no review yet	the crew runs proved.sh	ProveStart	s34>s73	34	272
+Checked, nothing to prove at this head, edits not committed: a rebase record left behind	Checked, nothing to prove at this head, edits not committed: rebasing	the head is kept under pre-rebase	RebaseKeep		0	896
+Checked, nothing to prove at this head, edits not committed: a rebase record left behind	Checked, nothing to prove at this head: a rebase record left behind	the crew drops its edits	Undo		0	896
+Checked, nothing to prove at this head, edits not committed: a rebase record left behind	No check at this head: a rebase record left behind	the crew commits	Commit		0	896
+Checked, nothing to prove at this head, edits not committed: a rebase record left behind	the check runs: a rebase record left behind	the crew runs jgauge check	CheckCall		0	868
+Checked, nothing to prove at this head, edits not committed: a rebase record left behind	the check runs: a rebase record left behind	the crew runs the check block	CheckStart		0	28
+Checked, nothing to prove at this head, edits not committed: a scoped review is owed	Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict		0	192
+Checked, nothing to prove at this head, edits not committed: a scoped review is owed	Checked, nothing to prove at this head: a scoped review is owed	the crew drops its edits	Undo		0	288
+Checked, nothing to prove at this head, edits not committed: a scoped review is owed	No check at this head: a scoped review is owed	the crew commits	Commit		0	288
+Checked, nothing to prove at this head, edits not committed: a scoped review is owed	the check runs: a scoped review is owed	the crew runs jgauge check	CheckCall		0	279
+Checked, nothing to prove at this head, edits not committed: a scoped review is owed	the check runs: a scoped review is owed	the crew runs the check block	CheckStart		0	9
+Checked, nothing to prove at this head, edits not committed: rebasing	Checked, nothing to prove at this head, edits not committed: a rebase record left behind	the block is killed	Die		0	1792
+Checked, nothing to prove at this head, edits not committed: rebasing	Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	git rebases	RebaseRun		0	896
+Checked, nothing to prove at this head, edits not committed: rebasing	Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	the block is killed	Die		0	896
+Checked, nothing to prove at this head, edits not committed: reviewed, a finding to answer	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed	the crew answers the finding	Answer		0	128
+Checked, nothing to prove at this head, edits not committed: reviewed, a finding to answer	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed, pushed	the crew answers the finding	Answer		0	256
+Checked, nothing to prove at this head, edits not committed: reviewed, a finding to answer	Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict		0	128
+Checked, nothing to prove at this head, edits not committed: reviewed, a finding to answer	Checked, nothing to prove at this head: reviewed, a finding to answer	the crew drops its edits	Undo		0	192
+Checked, nothing to prove at this head, edits not committed: reviewed, a finding to answer	No check at this head: reviewed, a finding to answer	the crew commits	Commit		0	192
+Checked, nothing to prove at this head, edits not committed: reviewed, a finding to answer	the check runs: reviewed, a finding to answer	the crew runs jgauge check	CheckCall		0	186
+Checked, nothing to prove at this head, edits not committed: reviewed, a finding to answer	the check runs: reviewed, a finding to answer	the crew runs the check block	CheckStart		0	6
+Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed	Checked, nothing to prove at this head: reviewed, no scoped review owed	the crew drops its edits	Undo		0	288
+Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed	No check at this head: reviewed, no scoped review owed	the crew commits	Commit		0	288
+Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed	the check runs: reviewed, no scoped review owed	the crew runs jgauge check	CheckCall		0	279
+Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed	the check runs: reviewed, no scoped review owed	the crew runs the check block	CheckStart		0	9
+Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed, pushed	Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict		0	576
+Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed, pushed	Checked, nothing to prove at this head: reviewed, no scoped review owed, pushed	the crew drops its edits	Undo		0	576
+Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed, pushed	No check at this head: reviewed, no scoped review owed	the crew commits	Commit		0	576
+Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed, pushed	the check runs: reviewed, no scoped review owed, pushed	the crew runs jgauge check	CheckCall		0	558
+Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed, pushed	the check runs: reviewed, no scoped review owed, pushed	the crew runs the check block	CheckStart		0	18
+Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	Checked, nothing to prove at this head, edits not committed: rebasing	the head is kept under pre-rebase	RebaseKeep		0	1792
+Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	Checked, nothing to prove at this head: the pull request is in conflict	the crew drops its edits	Undo		0	1792
+Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	No check at this head: the pull request is in conflict	the crew commits	Commit		0	1792
+Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	the check runs: the pull request is in conflict	the crew runs jgauge check	CheckCall		0	1736
+Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	the check runs: the pull request is in conflict	the crew runs the check block	CheckStart		0	56
+Checked, nothing to prove at this head, edits not committed: the Result is written, no review yet	Checked, nothing to prove at this head: the Result is written, no review yet	the crew drops its edits	Undo		0	24
+Checked, nothing to prove at this head, edits not committed: the Result is written, no review yet	No check at this head: the Result is written, no review yet	the crew commits	Commit		0	24
+Checked, nothing to prove at this head, edits not committed: the Result is written, no review yet	the check runs: the Result is written, no review yet	the crew runs jgauge check	CheckCall		0	23
+Checked, nothing to prove at this head, edits not committed: the Result is written, no review yet	the check runs: the Result is written, no review yet	the crew runs the check block	CheckStart		0	1
+Checked, nothing to prove at this head: a rebase record left behind	Checked, nothing to prove at this head, edits not committed: a rebase record left behind	the crew edits	Edit		0	896
+Checked, nothing to prove at this head: a rebase record left behind	Checked, nothing to prove at this head: rebasing	the head is kept under pre-rebase	RebaseKeep		0	896
+Checked, nothing to prove at this head: a rebase record left behind	Checked, nothing to prove at this head: the rebase is pushed, its record not removed yet	the rebase is pushed with its lease	RebasePush		0	2884
+Checked, nothing to prove at this head: a scoped review is owed	Checked, nothing to prove at this head, edits not committed: a scoped review is owed	the crew edits	Edit		0	288
+Checked, nothing to prove at this head: a scoped review is owed	Checked, nothing to prove at this head: a scoped review is owed, none could be launched, yours to decide	no launch tool: the home is told	SecondPass		0	72
+Checked, nothing to prove at this head: a scoped review is owed	Checked, nothing to prove at this head: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict		0	582
+Checked, nothing to prove at this head: a scoped review is owed	Checked, nothing to prove at this head: the scoped launch is marked, no reviewer launched yet	the crew marks the scoped launch in the git dir	SecondPass		0	72
+Checked, nothing to prove at this head: a scoped review is owed	Checked, nothing to prove at this head: the scoped launch is marked, no reviewer launched yet	the mark names this head: the crew finds no reviewer for it	SecondPass		0	72
+Checked, nothing to prove at this head: a scoped review is owed, none could be launched, yours to decide	Checked, nothing to prove at this head: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict		0	54
+Checked, nothing to prove at this head: its scoped review is written	Checked, nothing to prove at this head: a scoped review is owed	the second pass writes that a scoped review is needed	SecondPass		0	360
+Checked, nothing to prove at this head: its scoped review is written	Checked, nothing to prove at this head: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict		0	540
+Checked, nothing to prove at this head: rebased, not pushed	Checked, nothing to prove at this head: the rebase is pushed, its record not removed yet	the rebase is pushed with its lease	RebasePush		0	568
+Checked, nothing to prove at this head: rebased, not pushed, a dropped line has no line in the Result	Checked, nothing to prove at this head: rebased, not pushed	the crew writes Dropped on rebase	WriteDropped		0	284
+Checked, nothing to prove at this head: rebasing	Checked, nothing to prove at this head: a rebase record left behind	the block is killed	Die		0	1792
+Checked, nothing to prove at this head: rebasing	Checked, nothing to prove at this head: the pull request is in conflict	the block is killed	Die		0	896
+Checked, nothing to prove at this head: rebasing	No check at this head: rebased, not pushed	git rebases	RebaseRun		0	896
+Checked, nothing to prove at this head: rebasing	No check at this head: rebased, not pushed, a dropped line has no line in the Result	git rebases	RebaseRun		0	896
+Checked, nothing to prove at this head: reviewed, a finding to answer	Checked, nothing to prove at this head, edits not committed: reviewed, a finding to answer	the crew edits	Edit		0	192
+Checked, nothing to prove at this head: reviewed, a finding to answer	Checked, nothing to prove at this head: reviewed, no scoped review owed	the crew answers the finding	Answer		0	160
+Checked, nothing to prove at this head: reviewed, a finding to answer	Checked, nothing to prove at this head: reviewed, no scoped review owed, pushed	the crew answers the finding	Answer		0	344
+Checked, nothing to prove at this head: reviewed, a finding to answer	Checked, nothing to prove at this head: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict		0	172
+Checked, nothing to prove at this head: reviewed, no scoped review owed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed	the crew edits	Edit		0	288
+Checked, nothing to prove at this head: reviewed, no scoped review owed	Checked, nothing to prove at this head: a scoped review is owed	the second pass writes that a scoped review is needed	SecondPass		0	120
+Checked, nothing to prove at this head: reviewed, no scoped review owed	Checked, nothing to prove at this head: reviewed, no scoped review owed, pushed	the crew pushes	Push		0	360
+Checked, nothing to prove at this head: reviewed, no scoped review owed, pushed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed, pushed	the crew edits	Edit		0	576
+Checked, nothing to prove at this head: reviewed, no scoped review owed, pushed	Checked, nothing to prove at this head: a scoped review is owed	the second pass writes that a scoped review is needed	SecondPass		0	258
+Checked, nothing to prove at this head: reviewed, no scoped review owed, pushed	Checked, nothing to prove at this head: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict		0	774
+Checked, nothing to prove at this head: the pull request is in conflict	Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	the crew edits	Edit		0	1792
+Checked, nothing to prove at this head: the pull request is in conflict	Checked, nothing to prove at this head: rebasing	the head is kept under pre-rebase	RebaseKeep		0	1792
+Checked, nothing to prove at this head: the rebase is pushed, its record not removed yet	Checked, nothing to prove at this head: a rebase record left behind	the block is killed	Die		0	2600
+Checked, nothing to prove at this head: the rebase is pushed, its record not removed yet	Checked, nothing to prove at this head: a scoped review is owed	the rebase record is removed	Forget		0	252
+Checked, nothing to prove at this head: the rebase is pushed, its record not removed yet	Checked, nothing to prove at this head: a scoped review is owed, none could be launched, yours to decide	the rebase record is removed	Forget		0	36
+Checked, nothing to prove at this head: the rebase is pushed, its record not removed yet	Checked, nothing to prove at this head: its scoped review is written	the rebase record is removed	Forget		0	360
+Checked, nothing to prove at this head: the rebase is pushed, its record not removed yet	Checked, nothing to prove at this head: reviewed, a finding to answer	the rebase record is removed	Forget		0	24
+Checked, nothing to prove at this head: the rebase is pushed, its record not removed yet	Checked, nothing to prove at this head: reviewed, no scoped review owed, pushed	the rebase record is removed	Forget		0	108
+Checked, nothing to prove at this head: the rebase is pushed, its record not removed yet	Checked, nothing to prove at this head: the pull request is in conflict	the rebase record is removed	Forget		0	1748
+Checked, nothing to prove at this head: the rebase is pushed, its record not removed yet	Checked, nothing to prove at this head: the scoped review runs	the rebase record is removed	Forget		0	72
+Checked, nothing to prove at this head: the Result is written, no review yet	Checked, nothing to prove at this head, edits not committed: the Result is written, no review yet	the crew edits	Edit		0	24
+Checked, nothing to prove at this head: the Result is written, no review yet	Checked, nothing to prove at this head: the review runs	jbus launches the review	LaunchFirst		0	26
+Checked, nothing to prove at this head: the review runs	Checked, nothing to prove at this head: reviewed, a finding to answer	the reviewer writes its review	ReviewerWrites		0	52
+Checked, nothing to prove at this head: the review runs	Checked, nothing to prove at this head: reviewed, no scoped review owed	the reviewer writes its review	ReviewerWrites		0	52
+Checked, nothing to prove at this head: the scoped launch is marked, no reviewer launched yet	Checked, nothing to prove at this head: a scoped review is owed	the block is killed	Die		0	72
+Checked, nothing to prove at this head: the scoped launch is marked, no reviewer launched yet	Checked, nothing to prove at this head: the scoped review runs	the crew launches the scoped reviewer	Launch		0	72
+Checked, nothing to prove at this head: the scoped review runs	Checked, nothing to prove at this head: its scoped review is written	the block is killed	Die		0	240
+Checked, nothing to prove at this head: the scoped review runs	Checked, nothing to prove at this head: its scoped review is written	the crew writes the Scoped reviewer line	ReviewerLine		0	240
+Checked, nothing to prove at this head: the scoped review runs	Checked, nothing to prove at this head: its scoped review is written	the reviewer writes its review	ReviewerWrites		0	288
+Checked, nothing to prove at this head: the scoped review runs	Checked, nothing to prove at this head: its scoped review is written	the scoped review writes its review, the decline not upheld	ReviewerWrites		0	96
+Checked, nothing to prove at this head: the scoped review runs	Checked, nothing to prove at this head: its scoped review is written	the scoped review writes its review, the decline upheld	ReviewerWrites		0	96
+Checked, nothing to prove at this head: the scoped review runs	Checked, nothing to prove at this head: the pull request is in conflict	GitHub says the pull request is in conflict	Conflict		0	108
+No check at this head, edits not committed: at work, no Result	No check at this head: at work, no Result	the crew commits	Commit	s75>s39	4	150
+No check at this head, edits not committed: at work, no Result	No check at this head: at work, no Result	the crew drops its edits	Undo	s75>s39	4	150
+No check at this head, edits not committed: at work, no Result	the check runs: at work, no Result	the crew runs jgauge check	CheckCall		0	138
+No check at this head, edits not committed: at work, no Result	the check runs: at work, no Result	the crew runs the check block	CheckStart	s75>s57	4	12
+No check at this head: a rebase record left behind	the check runs: a rebase record left behind	the crew runs jgauge check	CheckCall		0	10192
+No check at this head: a rebase record left behind	the check runs: a rebase record left behind	the crew runs the check block	CheckStart	s37>s55	504	882
+No check at this head: a scoped review is owed	the check runs: a scoped review is owed	the crew runs jgauge check	CheckCall		0	3276
+No check at this head: a scoped review is owed	the check runs: a scoped review is owed	the crew runs the check block	CheckStart	s38>s56	156	273
+No check at this head: at work, no Result	No check at this head, edits not committed: at work, no Result	the crew edits	Edit	s39>s75	4	150
+No check at this head: at work, no Result	the check runs: at work, no Result	the crew runs jgauge check	CheckCall		0	924
+No check at this head: at work, no Result	the check runs: at work, no Result	the crew runs the check block	CheckStart	s39>s57	37	87
+No check at this head: rebased, not pushed	the check runs: rebased, not pushed	the crew runs jgauge check	CheckCall		0	20384
+No check at this head: rebased, not pushed	the check runs: rebased, not pushed	the crew runs the check block	CheckStart	s40>s58	1008	1764
+No check at this head: rebased, not pushed, a dropped line has no line in the Result	No check at this head: rebased, not pushed	the crew writes Dropped on rebase	WriteDropped	s41>s40	504	11074
+No check at this head: rebased, not pushed, a dropped line has no line in the Result	the check runs: rebased, not pushed, a dropped line has no line in the Result	the crew runs jgauge check	CheckCall		0	10192
+No check at this head: rebased, not pushed, a dropped line has no line in the Result	the check runs: rebased, not pushed, a dropped line has no line in the Result	the crew runs the check block	CheckStart	s41>s59	504	882
+No check at this head: reviewed, a finding to answer	No check at this head: reviewed, no scoped review owed	the crew answers the finding	Answer	s42>s43	208	4732
+No check at this head: reviewed, a finding to answer	the check runs: reviewed, a finding to answer	the crew runs jgauge check	CheckCall		0	2184
+No check at this head: reviewed, a finding to answer	the check runs: reviewed, a finding to answer	the crew runs the check block	CheckStart	s42>s60	104	182
+No check at this head: reviewed, no scoped review owed	No check at this head: a scoped review is owed	the second pass writes that a scoped review is needed	SecondPass	s43>s38	156	3549
+No check at this head: reviewed, no scoped review owed	the check runs: reviewed, no scoped review owed	the crew runs jgauge check	CheckCall		0	9828
+No check at this head: reviewed, no scoped review owed	the check runs: reviewed, no scoped review owed	the crew runs the check block	CheckStart	s43>s61	468	819
+No check at this head: the pull request is in conflict	the check runs: the pull request is in conflict	the crew runs jgauge check	CheckCall		0	20384
+No check at this head: the pull request is in conflict	the check runs: the pull request is in conflict	the crew runs the check block	CheckStart	s45>s64	1008	1764
+No check at this head: the Result is written, no review yet	the check runs: the Result is written, no review yet	the crew runs jgauge check	CheckCall		0	704
+No check at this head: the Result is written, no review yet	the check runs: the Result is written, no review yet	the crew runs the check block	CheckStart	s44>s63	36	64
+The check did not pass at this head, edits not committed: at work, no Result	No check at this head: at work, no Result	the crew commits	Commit	s76>s39	3	147
+The check did not pass at this head, edits not committed: at work, no Result	The check did not pass at this head: at work, no Result	the crew drops its edits	Undo	s76>s48	3	147
+The check did not pass at this head, edits not committed: at work, no Result	the check runs: at work, no Result	the crew runs jgauge check	CheckCall		0	138
+The check did not pass at this head, edits not committed: at work, no Result	the check runs: at work, no Result	the crew runs the check block	CheckStart	s76>s57	3	9
+The check did not pass at this head: a rebase record left behind	the check runs: a rebase record left behind	the crew runs jgauge check	CheckCall		0	4116
+The check did not pass at this head: a rebase record left behind	the check runs: a rebase record left behind	the crew runs the check block	CheckStart	s46>s55	504	882
+The check did not pass at this head: a scoped review is owed	the check runs: a scoped review is owed	the crew runs jgauge check	CheckCall		0	1323
+The check did not pass at this head: a scoped review is owed	the check runs: a scoped review is owed	the crew runs the check block	CheckStart	s47>s56	144	252
+The check did not pass at this head: at work, no Result	The check did not pass at this head, edits not committed: at work, no Result	the crew edits	Edit	s48>s76	3	147
+The check did not pass at this head: at work, no Result	the check runs: at work, no Result	the crew runs jgauge check	CheckCall		0	327
+The check did not pass at this head: at work, no Result	the check runs: at work, no Result	the crew runs the check block	CheckStart	s48>s57	18	36
+The check did not pass at this head: rebased, not pushed	the check runs: rebased, not pushed	the crew runs jgauge check	CheckCall		0	8232
+The check did not pass at this head: rebased, not pushed	the check runs: rebased, not pushed	the crew runs the check block	CheckStart	s49>s58	1008	1764
+The check did not pass at this head: rebased, not pushed, a dropped line has no line in the Result	The check did not pass at this head: rebased, not pushed	the crew writes Dropped on rebase	WriteDropped	s50>s49	504	4998
+The check did not pass at this head: rebased, not pushed, a dropped line has no line in the Result	the check runs: rebased, not pushed, a dropped line has no line in the Result	the crew runs jgauge check	CheckCall		0	4116
+The check did not pass at this head: rebased, not pushed, a dropped line has no line in the Result	the check runs: rebased, not pushed, a dropped line has no line in the Result	the crew runs the check block	CheckStart	s50>s59	504	882
+The check did not pass at this head: reviewed, a finding to answer	The check did not pass at this head: reviewed, no scoped review owed	the crew answers the finding	Answer	s51>s52	192	2100
+The check did not pass at this head: reviewed, a finding to answer	the check runs: reviewed, a finding to answer	the crew runs jgauge check	CheckCall		0	882
+The check did not pass at this head: reviewed, a finding to answer	the check runs: reviewed, a finding to answer	the crew runs the check block	CheckStart	s51>s60	96	168
+The check did not pass at this head: reviewed, no scoped review owed	The check did not pass at this head: a scoped review is owed	the second pass writes that a scoped review is needed	SecondPass	s52>s47	144	1575
+The check did not pass at this head: reviewed, no scoped review owed	the check runs: reviewed, no scoped review owed	the crew runs jgauge check	CheckCall		0	3969
+The check did not pass at this head: reviewed, no scoped review owed	the check runs: reviewed, no scoped review owed	the crew runs the check block	CheckStart	s52>s61	432	756
+The check did not pass at this head: the pull request is in conflict	the check runs: the pull request is in conflict	the crew runs jgauge check	CheckCall		0	8232
+The check did not pass at this head: the pull request is in conflict	the check runs: the pull request is in conflict	the crew runs the check block	CheckStart	s54>s64	1008	1764
+The check did not pass at this head: the Result is written, no review yet	the check runs: the Result is written, no review yet	the crew runs jgauge check	CheckCall		0	336
+The check did not pass at this head: the Result is written, no review yet	the check runs: the Result is written, no review yet	the crew runs the check block	CheckStart	s53>s63	27	48
+the check runs in the background: a rebase record left behind	Checked and proved at this head, edits not committed: a rebase record left behind	the block is killed	Die		0	588
+the check runs in the background: a rebase record left behind	Checked and proved at this head, edits not committed: a rebase record left behind	the check block ends	CheckEnd		0	336
+the check runs in the background: a rebase record left behind	Checked and proved at this head: a rebase record left behind	the block is killed	Die		0	588
+the check runs in the background: a rebase record left behind	Checked and proved at this head: a rebase record left behind	the check block ends	CheckEnd		0	336
+the check runs in the background: a rebase record left behind	Checked at this head, not proved: a rebase record left behind	the check block writes its Checked line, exit 0	CheckEnd		0	1568
+the check runs in the background: a rebase record left behind	Checked, nothing to prove at this head, edits not committed: a rebase record left behind	the block is killed	Die		0	98
+the check runs in the background: a rebase record left behind	Checked, nothing to prove at this head, edits not committed: a rebase record left behind	the check block ends	CheckEnd		0	56
+the check runs in the background: a rebase record left behind	Checked, nothing to prove at this head: a rebase record left behind	the block is killed	Die		0	98
+the check runs in the background: a rebase record left behind	Checked, nothing to prove at this head: a rebase record left behind	the check block ends	CheckEnd		0	56
+the check runs in the background: a rebase record left behind	No check at this head: a rebase record left behind	the block is killed	Die		0	4704
+the check runs in the background: a rebase record left behind	No check at this head: a rebase record left behind	the check block ends	CheckEnd		0	1274
+the check runs in the background: a rebase record left behind	The check did not pass at this head: a rebase record left behind	the block is killed	Die		0	4704
+the check runs in the background: a rebase record left behind	The check did not pass at this head: a rebase record left behind	the check block ends	CheckEnd		0	1960
+the check runs in the background: a rebase record left behind	The check did not pass at this head: a rebase record left behind	the check block writes its Checked line, exit 1	CheckEnd		0	882
+the check runs in the background: a scoped review is owed	Checked and proved at this head, edits not committed: a scoped review is owed	the block is killed	Die		0	162
+the check runs in the background: a scoped review is owed	Checked and proved at this head, edits not committed: a scoped review is owed	the check block ends	CheckEnd		0	90
+the check runs in the background: a scoped review is owed	Checked and proved at this head: a scoped review is owed	the block is killed	Die		0	162
+the check runs in the background: a scoped review is owed	Checked and proved at this head: a scoped review is owed	the check block ends	CheckEnd		0	90
+the check runs in the background: a scoped review is owed	Checked at this head, not proved: a scoped review is owed	the check block writes its Checked line, exit 0	CheckEnd		0	462
+the check runs in the background: a scoped review is owed	Checked, nothing to prove at this head, edits not committed: a scoped review is owed	the block is killed	Die		0	27
+the check runs in the background: a scoped review is owed	Checked, nothing to prove at this head, edits not committed: a scoped review is owed	the check block ends	CheckEnd		0	15
+the check runs in the background: a scoped review is owed	Checked, nothing to prove at this head: a scoped review is owed	the block is killed	Die		0	27
+the check runs in the background: a scoped review is owed	Checked, nothing to prove at this head: a scoped review is owed	the check block ends	CheckEnd		0	15
+the check runs in the background: a scoped review is owed	No check at this head: a scoped review is owed	the block is killed	Die		0	1365
+the check runs in the background: a scoped review is owed	No check at this head: a scoped review is owed	the check block ends	CheckEnd		0	357
+the check runs in the background: a scoped review is owed	The check did not pass at this head: a scoped review is owed	the block is killed	Die		0	1323
+the check runs in the background: a scoped review is owed	The check did not pass at this head: a scoped review is owed	the check block ends	CheckEnd		0	546
+the check runs in the background: a scoped review is owed	The check did not pass at this head: a scoped review is owed	the check block writes its Checked line, exit 1	CheckEnd		0	252
+the check runs in the background: at work, no Result	Checked at this head, not proved, edits not committed: at work, no Result	the block is killed	Die		0	18
+the check runs in the background: at work, no Result	Checked at this head, not proved, edits not committed: at work, no Result	the check block ends	CheckEnd		0	9
+the check runs in the background: at work, no Result	Checked at this head, not proved: at work, no Result	the block is killed	Die		0	18
+the check runs in the background: at work, no Result	Checked at this head, not proved: at work, no Result	the check block ends	CheckEnd		0	9
+the check runs in the background: at work, no Result	Checked at this head, not proved: at work, no Result	the check block writes its Checked line, exit 0	CheckEnd		0	90
+the check runs in the background: at work, no Result	No check at this head, edits not committed: at work, no Result	the block is killed	Die		0	99
+the check runs in the background: at work, no Result	No check at this head, edits not committed: at work, no Result	the check block ends	CheckEnd		0	63
+the check runs in the background: at work, no Result	No check at this head: at work, no Result	the block is killed	Die		0	540
+the check runs in the background: at work, no Result	No check at this head: at work, no Result	the check block ends	CheckEnd		0	225
+the check runs in the background: at work, no Result	The check did not pass at this head, edits not committed: at work, no Result	the block is killed	Die		0	99
+the check runs in the background: at work, no Result	The check did not pass at this head, edits not committed: at work, no Result	the check block ends	CheckEnd		0	63
+the check runs in the background: at work, no Result	The check did not pass at this head: at work, no Result	the block is killed	Die		0	234
+the check runs in the background: at work, no Result	The check did not pass at this head: at work, no Result	the check block ends	CheckEnd		0	108
+the check runs in the background: at work, no Result	The check did not pass at this head: at work, no Result	the check block writes its Checked line, exit 1	CheckEnd		0	54
+the check runs in the background: rebased, not pushed	Checked at this head, not proved: rebased, not pushed	the check block writes its Checked line, exit 0	CheckEnd		0	3136
+the check runs in the background: rebased, not pushed	No check at this head: rebased, not pushed	the block is killed	Die		0	8036
+the check runs in the background: rebased, not pushed	No check at this head: rebased, not pushed	the check block ends	CheckEnd		0	1764
+the check runs in the background: rebased, not pushed	The check did not pass at this head: rebased, not pushed	the block is killed	Die		0	9408
+the check runs in the background: rebased, not pushed	The check did not pass at this head: rebased, not pushed	the check block ends	CheckEnd		0	3920
+the check runs in the background: rebased, not pushed	The check did not pass at this head: rebased, not pushed	the check block writes its Checked line, exit 1	CheckEnd		0	1764
+the check runs in the background: rebased, not pushed, a dropped line has no line in the Result	Checked at this head, not proved: rebased, not pushed, a dropped line has no line in the Result	the check block writes its Checked line, exit 0	CheckEnd		0	1568
+the check runs in the background: rebased, not pushed, a dropped line has no line in the Result	No check at this head: rebased, not pushed, a dropped line has no line in the Result	the block is killed	Die		0	4018
+the check runs in the background: rebased, not pushed, a dropped line has no line in the Result	No check at this head: rebased, not pushed, a dropped line has no line in the Result	the check block ends	CheckEnd		0	882
+the check runs in the background: rebased, not pushed, a dropped line has no line in the Result	The check did not pass at this head: rebased, not pushed, a dropped line has no line in the Result	the block is killed	Die		0	4704
+the check runs in the background: rebased, not pushed, a dropped line has no line in the Result	The check did not pass at this head: rebased, not pushed, a dropped line has no line in the Result	the check block ends	CheckEnd		0	1960
+the check runs in the background: rebased, not pushed, a dropped line has no line in the Result	The check did not pass at this head: rebased, not pushed, a dropped line has no line in the Result	the check block writes its Checked line, exit 1	CheckEnd		0	882
+the check runs in the background: reviewed, a finding to answer	Checked and proved at this head, edits not committed: reviewed, a finding to answer	the block is killed	Die		0	108
+the check runs in the background: reviewed, a finding to answer	Checked and proved at this head, edits not committed: reviewed, a finding to answer	the check block ends	CheckEnd		0	60
+the check runs in the background: reviewed, a finding to answer	Checked and proved at this head: reviewed, a finding to answer	the block is killed	Die		0	108
+the check runs in the background: reviewed, a finding to answer	Checked and proved at this head: reviewed, a finding to answer	the check block ends	CheckEnd		0	60
+the check runs in the background: reviewed, a finding to answer	Checked at this head, not proved: reviewed, a finding to answer	the check block writes its Checked line, exit 0	CheckEnd		0	308
+the check runs in the background: reviewed, a finding to answer	Checked, nothing to prove at this head, edits not committed: reviewed, a finding to answer	the block is killed	Die		0	18
+the check runs in the background: reviewed, a finding to answer	Checked, nothing to prove at this head, edits not committed: reviewed, a finding to answer	the check block ends	CheckEnd		0	10
+the check runs in the background: reviewed, a finding to answer	Checked, nothing to prove at this head: reviewed, a finding to answer	the block is killed	Die		0	18
+the check runs in the background: reviewed, a finding to answer	Checked, nothing to prove at this head: reviewed, a finding to answer	the check block ends	CheckEnd		0	10
+the check runs in the background: reviewed, a finding to answer	No check at this head: reviewed, a finding to answer	the block is killed	Die		0	910
+the check runs in the background: reviewed, a finding to answer	No check at this head: reviewed, a finding to answer	the check block ends	CheckEnd		0	238
+the check runs in the background: reviewed, a finding to answer	The check did not pass at this head: reviewed, a finding to answer	the block is killed	Die		0	882
+the check runs in the background: reviewed, a finding to answer	The check did not pass at this head: reviewed, a finding to answer	the check block ends	CheckEnd		0	364
+the check runs in the background: reviewed, a finding to answer	The check did not pass at this head: reviewed, a finding to answer	the check block writes its Checked line, exit 1	CheckEnd		0	168
+the check runs in the background: reviewed, no scoped review owed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed	the block is killed	Die		0	108
+the check runs in the background: reviewed, no scoped review owed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed	the check block ends	CheckEnd		0	54
+the check runs in the background: reviewed, no scoped review owed	Checked and proved at this head: reviewed, no scoped review owed	the block is killed	Die		0	108
+the check runs in the background: reviewed, no scoped review owed	Checked and proved at this head: reviewed, no scoped review owed	the check block ends	CheckEnd		0	54
+the check runs in the background: reviewed, no scoped review owed	Checked at this head, not proved: reviewed, no scoped review owed	the check block writes its Checked line, exit 0	CheckEnd		0	1386
+the check runs in the background: reviewed, no scoped review owed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed	the block is killed	Die		0	18
+the check runs in the background: reviewed, no scoped review owed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed	the check block ends	CheckEnd		0	9
+the check runs in the background: reviewed, no scoped review owed	Checked, nothing to prove at this head: reviewed, no scoped review owed	the block is killed	Die		0	18
+the check runs in the background: reviewed, no scoped review owed	Checked, nothing to prove at this head: reviewed, no scoped review owed	the check block ends	CheckEnd		0	9
+the check runs in the background: reviewed, no scoped review owed	No check at this head: reviewed, no scoped review owed	the block is killed	Die		0	4095
+the check runs in the background: reviewed, no scoped review owed	No check at this head: reviewed, no scoped review owed	the check block ends	CheckEnd		0	1071
+the check runs in the background: reviewed, no scoped review owed	The check did not pass at this head: reviewed, no scoped review owed	the block is killed	Die		0	3969
+the check runs in the background: reviewed, no scoped review owed	The check did not pass at this head: reviewed, no scoped review owed	the check block ends	CheckEnd		0	1638
+the check runs in the background: reviewed, no scoped review owed	The check did not pass at this head: reviewed, no scoped review owed	the check block writes its Checked line, exit 1	CheckEnd		0	756
+the check runs in the background: reviewed, no scoped review owed, pushed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed, pushed	the block is killed	Die		0	378
+the check runs in the background: reviewed, no scoped review owed, pushed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed, pushed	the check block ends	CheckEnd		0	216
+the check runs in the background: reviewed, no scoped review owed, pushed	Checked and proved at this head: reviewed, no scoped review owed, pushed	the block is killed	Die		0	378
+the check runs in the background: reviewed, no scoped review owed, pushed	Checked and proved at this head: reviewed, no scoped review owed, pushed	the check block ends	CheckEnd		0	216
+the check runs in the background: reviewed, no scoped review owed, pushed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed, pushed	the block is killed	Die		0	63
+the check runs in the background: reviewed, no scoped review owed, pushed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed, pushed	the check block ends	CheckEnd		0	36
+the check runs in the background: reviewed, no scoped review owed, pushed	Checked, nothing to prove at this head: reviewed, no scoped review owed, pushed	the block is killed	Die		0	63
+the check runs in the background: reviewed, no scoped review owed, pushed	Checked, nothing to prove at this head: reviewed, no scoped review owed, pushed	the check block ends	CheckEnd		0	36
+the check runs in the background: reviewed, no scoped review owed, pushed	the check runs in the background: reviewed, no scoped review owed	the crew commits	Commit		0	441
+the check runs in the background: the pull request is in conflict	Checked and proved at this head, edits not committed: the pull request is in conflict	the block is killed	Die		0	1176
+the check runs in the background: the pull request is in conflict	Checked and proved at this head, edits not committed: the pull request is in conflict	the check block ends	CheckEnd		0	672
+the check runs in the background: the pull request is in conflict	Checked and proved at this head: the pull request is in conflict	the block is killed	Die		0	1176
+the check runs in the background: the pull request is in conflict	Checked and proved at this head: the pull request is in conflict	the check block ends	CheckEnd		0	672
+the check runs in the background: the pull request is in conflict	Checked at this head, not proved: the pull request is in conflict	the check block writes its Checked line, exit 0	CheckEnd		0	3136
+the check runs in the background: the pull request is in conflict	Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	the block is killed	Die		0	196
+the check runs in the background: the pull request is in conflict	Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	the check block ends	CheckEnd		0	112
+the check runs in the background: the pull request is in conflict	Checked, nothing to prove at this head: the pull request is in conflict	the block is killed	Die		0	196
+the check runs in the background: the pull request is in conflict	Checked, nothing to prove at this head: the pull request is in conflict	the check block ends	CheckEnd		0	112
+the check runs in the background: the pull request is in conflict	No check at this head: the pull request is in conflict	the block is killed	Die		0	9408
+the check runs in the background: the pull request is in conflict	No check at this head: the pull request is in conflict	the check block ends	CheckEnd		0	2548
+the check runs in the background: the pull request is in conflict	The check did not pass at this head: the pull request is in conflict	the block is killed	Die		0	9408
+the check runs in the background: the pull request is in conflict	The check did not pass at this head: the pull request is in conflict	the check block ends	CheckEnd		0	3920
+the check runs in the background: the pull request is in conflict	The check did not pass at this head: the pull request is in conflict	the check block writes its Checked line, exit 1	CheckEnd		0	1764
+the check runs in the background: the Result is written, no review yet	Checked and proved at this head, edits not committed: the Result is written, no review yet	the block is killed	Die		0	12
+the check runs in the background: the Result is written, no review yet	Checked and proved at this head, edits not committed: the Result is written, no review yet	the check block ends	CheckEnd		0	6
+the check runs in the background: the Result is written, no review yet	Checked and proved at this head: the Result is written, no review yet	the block is killed	Die		0	12
+the check runs in the background: the Result is written, no review yet	Checked and proved at this head: the Result is written, no review yet	the check block ends	CheckEnd		0	6
+the check runs in the background: the Result is written, no review yet	Checked at this head, not proved, edits not committed: the Result is written, no review yet	the block is killed	Die		0	18
+the check runs in the background: the Result is written, no review yet	Checked at this head, not proved, edits not committed: the Result is written, no review yet	the check block ends	CheckEnd		0	9
+the check runs in the background: the Result is written, no review yet	Checked at this head, not proved: the Result is written, no review yet	the block is killed	Die		0	18
+the check runs in the background: the Result is written, no review yet	Checked at this head, not proved: the Result is written, no review yet	the check block ends	CheckEnd		0	9
+the check runs in the background: the Result is written, no review yet	Checked at this head, not proved: the Result is written, no review yet	the check block writes its Checked line, exit 0	CheckEnd		0	96
+the check runs in the background: the Result is written, no review yet	Checked, nothing to prove at this head, edits not committed: the Result is written, no review yet	the block is killed	Die		0	2
+the check runs in the background: the Result is written, no review yet	Checked, nothing to prove at this head, edits not committed: the Result is written, no review yet	the check block ends	CheckEnd		0	1
+the check runs in the background: the Result is written, no review yet	Checked, nothing to prove at this head: the Result is written, no review yet	the block is killed	Die		0	2
+the check runs in the background: the Result is written, no review yet	Checked, nothing to prove at this head: the Result is written, no review yet	the check block ends	CheckEnd		0	1
+the check runs in the background: the Result is written, no review yet	No check at this head: the Result is written, no review yet	the block is killed	Die		0	272
+the check runs in the background: the Result is written, no review yet	No check at this head: the Result is written, no review yet	the check block ends	CheckEnd		0	64
+the check runs in the background: the Result is written, no review yet	The check did not pass at this head: the Result is written, no review yet	the block is killed	Die		0	240
+the check runs in the background: the Result is written, no review yet	The check did not pass at this head: the Result is written, no review yet	the check block ends	CheckEnd		0	96
+the check runs in the background: the Result is written, no review yet	The check did not pass at this head: the Result is written, no review yet	the check block writes its Checked line, exit 1	CheckEnd		0	48
+the check runs: a rebase record left behind	Checked and proved at this head, edits not committed: a rebase record left behind	jgauge check says done	CheckAnswer		0	1008
+the check runs: a rebase record left behind	Checked and proved at this head, edits not committed: a rebase record left behind	jgauge check says lost	CheckAnswer		0	336
+the check runs: a rebase record left behind	Checked and proved at this head, edits not committed: a rebase record left behind	jgauge check says running	CheckAnswer		0	336
+the check runs: a rebase record left behind	Checked and proved at this head, edits not committed: a rebase record left behind	jgauge check says waiting	CheckAnswer		0	504
+the check runs: a rebase record left behind	Checked and proved at this head, edits not committed: a rebase record left behind	the block is killed	Die	s55>s0	392	2772
+the check runs: a rebase record left behind	Checked and proved at this head, edits not committed: a rebase record left behind	the check block ends	CheckEnd	s55>s0	224	336
+the check runs: a rebase record left behind	Checked at this head, not proved: a rebase record left behind	jgauge check says done, Checked line exit 0	CheckAnswer		0	1176
+the check runs: a rebase record left behind	Checked at this head, not proved: a rebase record left behind	the check block writes its Checked line, exit 0	CheckEnd	s55>s26	896	1568
+the check runs: a rebase record left behind	Checked, nothing to prove at this head, edits not committed: a rebase record left behind	jgauge check says done	CheckAnswer		0	168
+the check runs: a rebase record left behind	Checked, nothing to prove at this head, edits not committed: a rebase record left behind	jgauge check says lost	CheckAnswer		0	56
+the check runs: a rebase record left behind	Checked, nothing to prove at this head, edits not committed: a rebase record left behind	jgauge check says running	CheckAnswer		0	56
+the check runs: a rebase record left behind	Checked, nothing to prove at this head, edits not committed: a rebase record left behind	jgauge check says waiting	CheckAnswer		0	84
+the check runs: a rebase record left behind	Checked, nothing to prove at this head, edits not committed: a rebase record left behind	the block is killed	Die		0	462
+the check runs: a rebase record left behind	Checked, nothing to prove at this head, edits not committed: a rebase record left behind	the check block ends	CheckEnd		0	56
+the check runs: a rebase record left behind	No check at this head: a rebase record left behind	jgauge check says lost	CheckAnswer		0	588
+the check runs: a rebase record left behind	No check at this head: a rebase record left behind	jgauge check says running	CheckAnswer		0	588
+the check runs: a rebase record left behind	No check at this head: a rebase record left behind	jgauge check says stale	CheckAnswer		0	392
+the check runs: a rebase record left behind	No check at this head: a rebase record left behind	jgauge check says waiting	CheckAnswer		0	784
+the check runs: a rebase record left behind	No check at this head: a rebase record left behind	the block is killed	Die	s55>s37	2296	7546
+the check runs: a rebase record left behind	No check at this head: a rebase record left behind	the check block ends	CheckEnd	s55>s37	504	882
+the check runs: a rebase record left behind	The check did not pass at this head: a rebase record left behind	jgauge check says done	CheckAnswer		0	588
+the check runs: a rebase record left behind	The check did not pass at this head: a rebase record left behind	jgauge check says done, Checked line exit 1	CheckAnswer		0	588
+the check runs: a rebase record left behind	The check did not pass at this head: a rebase record left behind	jgauge check says lost	CheckAnswer		0	392
+the check runs: a rebase record left behind	The check did not pass at this head: a rebase record left behind	jgauge check says running	CheckAnswer		0	392
+the check runs: a rebase record left behind	The check did not pass at this head: a rebase record left behind	jgauge check says waiting	CheckAnswer		0	588
+the check runs: a rebase record left behind	The check did not pass at this head: a rebase record left behind	the block is killed	Die	s55>s46	2688	7252
+the check runs: a rebase record left behind	The check did not pass at this head: a rebase record left behind	the check block ends	CheckEnd	s55>s46	1120	1960
+the check runs: a rebase record left behind	The check did not pass at this head: a rebase record left behind	the check block writes its Checked line, exit 1	CheckEnd	s55>s46	504	882
+the check runs: a rebase record left behind	the check runs in the background: a rebase record left behind	the call outlives 10 minutes and goes to the background	MovedToBackground		0	3724
+the check runs: a scoped review is owed	Checked and proved at this head, edits not committed: a scoped review is owed	jgauge check says done	CheckAnswer		0	324
+the check runs: a scoped review is owed	Checked and proved at this head, edits not committed: a scoped review is owed	jgauge check says lost	CheckAnswer		0	108
+the check runs: a scoped review is owed	Checked and proved at this head, edits not committed: a scoped review is owed	jgauge check says running	CheckAnswer		0	108
+the check runs: a scoped review is owed	Checked and proved at this head, edits not committed: a scoped review is owed	jgauge check says waiting	CheckAnswer		0	162
+the check runs: a scoped review is owed	Checked and proved at this head, edits not committed: a scoped review is owed	the block is killed	Die	s56>s1	108	864
+the check runs: a scoped review is owed	Checked and proved at this head, edits not committed: a scoped review is owed	the check block ends	CheckEnd	s56>s1	60	90
+the check runs: a scoped review is owed	Checked at this head, not proved: a scoped review is owed	jgauge check says done, Checked line exit 0	CheckAnswer		0	378
+the check runs: a scoped review is owed	Checked at this head, not proved: a scoped review is owed	the check block writes its Checked line, exit 0	CheckEnd	s56>s27	264	462
+the check runs: a scoped review is owed	Checked, nothing to prove at this head, edits not committed: a scoped review is owed	jgauge check says done	CheckAnswer		0	54
+the check runs: a scoped review is owed	Checked, nothing to prove at this head, edits not committed: a scoped review is owed	jgauge check says lost	CheckAnswer		0	18
+the check runs: a scoped review is owed	Checked, nothing to prove at this head, edits not committed: a scoped review is owed	jgauge check says running	CheckAnswer		0	18
+the check runs: a scoped review is owed	Checked, nothing to prove at this head, edits not committed: a scoped review is owed	jgauge check says waiting	CheckAnswer		0	27
+the check runs: a scoped review is owed	Checked, nothing to prove at this head, edits not committed: a scoped review is owed	the block is killed	Die		0	144
+the check runs: a scoped review is owed	Checked, nothing to prove at this head, edits not committed: a scoped review is owed	the check block ends	CheckEnd		0	15
+the check runs: a scoped review is owed	No check at this head: a scoped review is owed	jgauge check says lost	CheckAnswer		0	189
+the check runs: a scoped review is owed	No check at this head: a scoped review is owed	jgauge check says running	CheckAnswer		0	189
+the check runs: a scoped review is owed	No check at this head: a scoped review is owed	jgauge check says stale	CheckAnswer		0	126
+the check runs: a scoped review is owed	No check at this head: a scoped review is owed	jgauge check says waiting	CheckAnswer		0	252
+the check runs: a scoped review is owed	No check at this head: a scoped review is owed	the block is killed	Die	s56>s38	672	2310
+the check runs: a scoped review is owed	No check at this head: a scoped review is owed	the check block ends	CheckEnd	s56>s38	144	252
+the check runs: a scoped review is owed	The check did not pass at this head: a scoped review is owed	jgauge check says done	CheckAnswer		0	189
+the check runs: a scoped review is owed	The check did not pass at this head: a scoped review is owed	jgauge check says done, Checked line exit 1	CheckAnswer		0	189
+the check runs: a scoped review is owed	The check did not pass at this head: a scoped review is owed	jgauge check says lost	CheckAnswer		0	126
+the check runs: a scoped review is owed	The check did not pass at this head: a scoped review is owed	jgauge check says running	CheckAnswer		0	126
+the check runs: a scoped review is owed	The check did not pass at this head: a scoped review is owed	jgauge check says waiting	CheckAnswer		0	189
+the check runs: a scoped review is owed	The check did not pass at this head: a scoped review is owed	the block is killed	Die	s56>s47	756	2142
+the check runs: a scoped review is owed	The check did not pass at this head: a scoped review is owed	the check block ends	CheckEnd	s56>s47	312	546
+the check runs: a scoped review is owed	The check did not pass at this head: a scoped review is owed	the check block writes its Checked line, exit 1	CheckEnd	s56>s47	144	252
+the check runs: a scoped review is owed	the check runs in the background: a scoped review is owed	the call outlives 10 minutes and goes to the background	MovedToBackground		0	1071
+the check runs: at work, no Result	Checked at this head, not proved, edits not committed: at work, no Result	jgauge check says done	CheckAnswer		0	54
+the check runs: at work, no Result	Checked at this head, not proved, edits not committed: at work, no Result	jgauge check says lost	CheckAnswer		0	18
+the check runs: at work, no Result	Checked at this head, not proved, edits not committed: at work, no Result	jgauge check says running	CheckAnswer		0	18
+the check runs: at work, no Result	Checked at this head, not proved, edits not committed: at work, no Result	jgauge check says waiting	CheckAnswer		0	27
+the check runs: at work, no Result	Checked at this head, not proved, edits not committed: at work, no Result	the block is killed	Die	s57>s24	10	135
+the check runs: at work, no Result	Checked at this head, not proved, edits not committed: at work, no Result	the check block ends	CheckEnd	s57>s24	5	9
+the check runs: at work, no Result	Checked at this head, not proved: at work, no Result	jgauge check says done, Checked line exit 0	CheckAnswer		0	90
+the check runs: at work, no Result	Checked at this head, not proved: at work, no Result	the check block writes its Checked line, exit 0	CheckEnd	s57>s28	42	90
+the check runs: at work, no Result	No check at this head, edits not committed: at work, no Result	jgauge check says done	CheckAnswer		0	18
+the check runs: at work, no Result	No check at this head, edits not committed: at work, no Result	jgauge check says lost	CheckAnswer		0	9
+the check runs: at work, no Result	No check at this head, edits not committed: at work, no Result	jgauge check says running	CheckAnswer		0	9
+the check runs: at work, no Result	No check at this head, edits not committed: at work, no Result	jgauge check says stale	CheckAnswer		0	6
+the check runs: at work, no Result	No check at this head, edits not committed: at work, no Result	jgauge check says waiting	CheckAnswer		0	12
+the check runs: at work, no Result	No check at this head, edits not committed: at work, no Result	the block is killed	Die	s57>s75	15	99
+the check runs: at work, no Result	No check at this head, edits not committed: at work, no Result	the check block ends	CheckEnd	s57>s75	9	27
+the check runs: at work, no Result	No check at this head: at work, no Result	jgauge check says lost	CheckAnswer		0	60
+the check runs: at work, no Result	No check at this head: at work, no Result	jgauge check says running	CheckAnswer		0	60
+the check runs: at work, no Result	No check at this head: at work, no Result	jgauge check says stale	CheckAnswer		0	48
+the check runs: at work, no Result	No check at this head: at work, no Result	jgauge check says waiting	CheckAnswer		0	78
+the check runs: at work, no Result	No check at this head: at work, no Result	the block is killed	Die	s57>s39	120	624
+the check runs: at work, no Result	No check at this head: at work, no Result	the check block ends	CheckEnd	s57>s39	24	54
+the check runs: at work, no Result	The check did not pass at this head, edits not committed: at work, no Result	jgauge check says done	CheckAnswer		0	18
+the check runs: at work, no Result	The check did not pass at this head, edits not committed: at work, no Result	jgauge check says lost	CheckAnswer		0	9
+the check runs: at work, no Result	The check did not pass at this head, edits not committed: at work, no Result	jgauge check says running	CheckAnswer		0	9
+the check runs: at work, no Result	The check did not pass at this head, edits not committed: at work, no Result	jgauge check says stale	CheckAnswer		0	6
+the check runs: at work, no Result	The check did not pass at this head, edits not committed: at work, no Result	jgauge check says waiting	CheckAnswer		0	12
+the check runs: at work, no Result	The check did not pass at this head, edits not committed: at work, no Result	the block is killed	Die	s57>s76	15	99
+the check runs: at work, no Result	The check did not pass at this head, edits not committed: at work, no Result	the check block ends	CheckEnd	s57>s76	9	27
+the check runs: at work, no Result	The check did not pass at this head: at work, no Result	jgauge check says done	CheckAnswer		0	36
+the check runs: at work, no Result	The check did not pass at this head: at work, no Result	jgauge check says done, Checked line exit 1	CheckAnswer		0	54
+the check runs: at work, no Result	The check did not pass at this head: at work, no Result	jgauge check says lost	CheckAnswer		0	27
+the check runs: at work, no Result	The check did not pass at this head: at work, no Result	jgauge check says running	CheckAnswer		0	27
+the check runs: at work, no Result	The check did not pass at this head: at work, no Result	jgauge check says stale	CheckAnswer		0	6
+the check runs: at work, no Result	The check did not pass at this head: at work, no Result	jgauge check says waiting	CheckAnswer		0	39
+the check runs: at work, no Result	The check did not pass at this head: at work, no Result	the block is killed	Die	s57>s48	90	351
+the check runs: at work, no Result	The check did not pass at this head: at work, no Result	the check block ends	CheckEnd	s57>s48	36	72
+the check runs: at work, no Result	The check did not pass at this head: at work, no Result	the check block writes its Checked line, exit 1	CheckEnd	s57>s48	24	54
+the check runs: at work, no Result	the check runs in the background: at work, no Result	the call outlives 10 minutes and goes to the background	MovedToBackground		0	225
+the check runs: rebased, not pushed	Checked at this head, not proved: rebased, not pushed	jgauge check says done, Checked line exit 0	CheckAnswer		0	2352
+the check runs: rebased, not pushed	Checked at this head, not proved: rebased, not pushed	the check block writes its Checked line, exit 0	CheckEnd	s58>s29	1792	3136
+the check runs: rebased, not pushed	No check at this head: rebased, not pushed	jgauge check says lost	CheckAnswer		0	1176
+the check runs: rebased, not pushed	No check at this head: rebased, not pushed	jgauge check says running	CheckAnswer		0	1176
+the check runs: rebased, not pushed	No check at this head: rebased, not pushed	jgauge check says stale	CheckAnswer		0	784
+the check runs: rebased, not pushed	No check at this head: rebased, not pushed	jgauge check says waiting	CheckAnswer		0	1568
+the check runs: rebased, not pushed	No check at this head: rebased, not pushed	the block is killed	Die	s58>s40	4592	15092
+the check runs: rebased, not pushed	No check at this head: rebased, not pushed	the check block ends	CheckEnd	s58>s40	1008	1764
+the check runs: rebased, not pushed	The check did not pass at this head: rebased, not pushed	jgauge check says done	CheckAnswer		0	1176
+the check runs: rebased, not pushed	The check did not pass at this head: rebased, not pushed	jgauge check says done, Checked line exit 1	CheckAnswer		0	1176
+the check runs: rebased, not pushed	The check did not pass at this head: rebased, not pushed	jgauge check says lost	CheckAnswer		0	784
+the check runs: rebased, not pushed	The check did not pass at this head: rebased, not pushed	jgauge check says running	CheckAnswer		0	784
+the check runs: rebased, not pushed	The check did not pass at this head: rebased, not pushed	jgauge check says waiting	CheckAnswer		0	1176
+the check runs: rebased, not pushed	The check did not pass at this head: rebased, not pushed	the block is killed	Die	s58>s49	5376	14504
+the check runs: rebased, not pushed	The check did not pass at this head: rebased, not pushed	the check block ends	CheckEnd	s58>s49	2240	3920
+the check runs: rebased, not pushed	The check did not pass at this head: rebased, not pushed	the check block writes its Checked line, exit 1	CheckEnd	s58>s49	1008	1764
+the check runs: rebased, not pushed	the check runs in the background: rebased, not pushed	the call outlives 10 minutes and goes to the background	MovedToBackground		0	6860
+the check runs: rebased, not pushed, a dropped line has no line in the Result	Checked at this head, not proved: rebased, not pushed, a dropped line has no line in the Result	jgauge check says done, Checked line exit 0	CheckAnswer		0	1176
+the check runs: rebased, not pushed, a dropped line has no line in the Result	Checked at this head, not proved: rebased, not pushed, a dropped line has no line in the Result	the check block writes its Checked line, exit 0	CheckEnd	s59>s30	896	1568
+the check runs: rebased, not pushed, a dropped line has no line in the Result	No check at this head: rebased, not pushed, a dropped line has no line in the Result	jgauge check says lost	CheckAnswer		0	588
+the check runs: rebased, not pushed, a dropped line has no line in the Result	No check at this head: rebased, not pushed, a dropped line has no line in the Result	jgauge check says running	CheckAnswer		0	588
+the check runs: rebased, not pushed, a dropped line has no line in the Result	No check at this head: rebased, not pushed, a dropped line has no line in the Result	jgauge check says stale	CheckAnswer		0	392
+the check runs: rebased, not pushed, a dropped line has no line in the Result	No check at this head: rebased, not pushed, a dropped line has no line in the Result	jgauge check says waiting	CheckAnswer		0	784
+the check runs: rebased, not pushed, a dropped line has no line in the Result	No check at this head: rebased, not pushed, a dropped line has no line in the Result	the block is killed	Die	s59>s41	2296	7546
+the check runs: rebased, not pushed, a dropped line has no line in the Result	No check at this head: rebased, not pushed, a dropped line has no line in the Result	the check block ends	CheckEnd	s59>s41	504	882
+the check runs: rebased, not pushed, a dropped line has no line in the Result	The check did not pass at this head: rebased, not pushed, a dropped line has no line in the Result	jgauge check says done	CheckAnswer		0	588
+the check runs: rebased, not pushed, a dropped line has no line in the Result	The check did not pass at this head: rebased, not pushed, a dropped line has no line in the Result	jgauge check says done, Checked line exit 1	CheckAnswer		0	588
+the check runs: rebased, not pushed, a dropped line has no line in the Result	The check did not pass at this head: rebased, not pushed, a dropped line has no line in the Result	jgauge check says lost	CheckAnswer		0	392
+the check runs: rebased, not pushed, a dropped line has no line in the Result	The check did not pass at this head: rebased, not pushed, a dropped line has no line in the Result	jgauge check says running	CheckAnswer		0	392
+the check runs: rebased, not pushed, a dropped line has no line in the Result	The check did not pass at this head: rebased, not pushed, a dropped line has no line in the Result	jgauge check says waiting	CheckAnswer		0	588
+the check runs: rebased, not pushed, a dropped line has no line in the Result	The check did not pass at this head: rebased, not pushed, a dropped line has no line in the Result	the block is killed	Die	s59>s50	2688	7252
+the check runs: rebased, not pushed, a dropped line has no line in the Result	The check did not pass at this head: rebased, not pushed, a dropped line has no line in the Result	the check block ends	CheckEnd	s59>s50	1120	1960
+the check runs: rebased, not pushed, a dropped line has no line in the Result	The check did not pass at this head: rebased, not pushed, a dropped line has no line in the Result	the check block writes its Checked line, exit 1	CheckEnd	s59>s50	504	882
+the check runs: rebased, not pushed, a dropped line has no line in the Result	the check runs in the background: rebased, not pushed, a dropped line has no line in the Result	the call outlives 10 minutes and goes to the background	MovedToBackground		0	3430
+the check runs: reviewed, a finding to answer	Checked and proved at this head, edits not committed: reviewed, a finding to answer	jgauge check says done	CheckAnswer		0	216
+the check runs: reviewed, a finding to answer	Checked and proved at this head, edits not committed: reviewed, a finding to answer	jgauge check says lost	CheckAnswer		0	72
+the check runs: reviewed, a finding to answer	Checked and proved at this head, edits not committed: reviewed, a finding to answer	jgauge check says running	CheckAnswer		0	72
+the check runs: reviewed, a finding to answer	Checked and proved at this head, edits not committed: reviewed, a finding to answer	jgauge check says waiting	CheckAnswer		0	108
+the check runs: reviewed, a finding to answer	Checked and proved at this head, edits not committed: reviewed, a finding to answer	the block is killed	Die	s60>s3	72	576
+the check runs: reviewed, a finding to answer	Checked and proved at this head, edits not committed: reviewed, a finding to answer	the check block ends	CheckEnd	s60>s3	40	60
+the check runs: reviewed, a finding to answer	Checked at this head, not proved: reviewed, a finding to answer	jgauge check says done, Checked line exit 0	CheckAnswer		0	252
+the check runs: reviewed, a finding to answer	Checked at this head, not proved: reviewed, a finding to answer	the check block writes its Checked line, exit 0	CheckEnd	s60>s31	176	308
+the check runs: reviewed, a finding to answer	Checked, nothing to prove at this head, edits not committed: reviewed, a finding to answer	jgauge check says done	CheckAnswer		0	36
+the check runs: reviewed, a finding to answer	Checked, nothing to prove at this head, edits not committed: reviewed, a finding to answer	jgauge check says lost	CheckAnswer		0	12
+the check runs: reviewed, a finding to answer	Checked, nothing to prove at this head, edits not committed: reviewed, a finding to answer	jgauge check says running	CheckAnswer		0	12
+the check runs: reviewed, a finding to answer	Checked, nothing to prove at this head, edits not committed: reviewed, a finding to answer	jgauge check says waiting	CheckAnswer		0	18
+the check runs: reviewed, a finding to answer	Checked, nothing to prove at this head, edits not committed: reviewed, a finding to answer	the block is killed	Die		0	96
+the check runs: reviewed, a finding to answer	Checked, nothing to prove at this head, edits not committed: reviewed, a finding to answer	the check block ends	CheckEnd		0	10
+the check runs: reviewed, a finding to answer	No check at this head: reviewed, a finding to answer	jgauge check says lost	CheckAnswer		0	126
+the check runs: reviewed, a finding to answer	No check at this head: reviewed, a finding to answer	jgauge check says running	CheckAnswer		0	126
+the check runs: reviewed, a finding to answer	No check at this head: reviewed, a finding to answer	jgauge check says stale	CheckAnswer		0	84
+the check runs: reviewed, a finding to answer	No check at this head: reviewed, a finding to answer	jgauge check says waiting	CheckAnswer		0	168
+the check runs: reviewed, a finding to answer	No check at this head: reviewed, a finding to answer	the block is killed	Die	s60>s42	448	1540
+the check runs: reviewed, a finding to answer	No check at this head: reviewed, a finding to answer	the check block ends	CheckEnd	s60>s42	96	168
+the check runs: reviewed, a finding to answer	The check did not pass at this head: reviewed, a finding to answer	jgauge check says done	CheckAnswer		0	126
+the check runs: reviewed, a finding to answer	The check did not pass at this head: reviewed, a finding to answer	jgauge check says done, Checked line exit 1	CheckAnswer		0	126
+the check runs: reviewed, a finding to answer	The check did not pass at this head: reviewed, a finding to answer	jgauge check says lost	CheckAnswer		0	84
+the check runs: reviewed, a finding to answer	The check did not pass at this head: reviewed, a finding to answer	jgauge check says running	CheckAnswer		0	84
+the check runs: reviewed, a finding to answer	The check did not pass at this head: reviewed, a finding to answer	jgauge check says waiting	CheckAnswer		0	126
+the check runs: reviewed, a finding to answer	The check did not pass at this head: reviewed, a finding to answer	the block is killed	Die	s60>s51	504	1428
+the check runs: reviewed, a finding to answer	The check did not pass at this head: reviewed, a finding to answer	the check block ends	CheckEnd	s60>s51	208	364
+the check runs: reviewed, a finding to answer	The check did not pass at this head: reviewed, a finding to answer	the check block writes its Checked line, exit 1	CheckEnd	s60>s51	96	168
+the check runs: reviewed, a finding to answer	the check runs in the background: reviewed, a finding to answer	the call outlives 10 minutes and goes to the background	MovedToBackground		0	714
+the check runs: reviewed, no scoped review owed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed	jgauge check says done	CheckAnswer		0	324
+the check runs: reviewed, no scoped review owed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed	jgauge check says lost	CheckAnswer		0	108
+the check runs: reviewed, no scoped review owed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed	jgauge check says running	CheckAnswer		0	108
+the check runs: reviewed, no scoped review owed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed	jgauge check says waiting	CheckAnswer		0	162
+the check runs: reviewed, no scoped review owed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed	the block is killed	Die	s61>s4	72	810
+the check runs: reviewed, no scoped review owed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed	the check block ends	CheckEnd	s61>s4	36	54
+the check runs: reviewed, no scoped review owed	Checked at this head, not proved: reviewed, no scoped review owed	jgauge check says done, Checked line exit 0	CheckAnswer		0	1134
+the check runs: reviewed, no scoped review owed	Checked at this head, not proved: reviewed, no scoped review owed	the check block writes its Checked line, exit 0	CheckEnd	s61>s32	792	1386
+the check runs: reviewed, no scoped review owed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed	jgauge check says done	CheckAnswer		0	54
+the check runs: reviewed, no scoped review owed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed	jgauge check says lost	CheckAnswer		0	18
+the check runs: reviewed, no scoped review owed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed	jgauge check says running	CheckAnswer		0	18
+the check runs: reviewed, no scoped review owed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed	jgauge check says waiting	CheckAnswer		0	27
+the check runs: reviewed, no scoped review owed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed	the block is killed	Die		0	135
+the check runs: reviewed, no scoped review owed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed	the check block ends	CheckEnd		0	9
+the check runs: reviewed, no scoped review owed	No check at this head: reviewed, no scoped review owed	jgauge check says lost	CheckAnswer		0	567
+the check runs: reviewed, no scoped review owed	No check at this head: reviewed, no scoped review owed	jgauge check says running	CheckAnswer		0	567
+the check runs: reviewed, no scoped review owed	No check at this head: reviewed, no scoped review owed	jgauge check says stale	CheckAnswer		0	378
+the check runs: reviewed, no scoped review owed	No check at this head: reviewed, no scoped review owed	jgauge check says waiting	CheckAnswer		0	756
+the check runs: reviewed, no scoped review owed	No check at this head: reviewed, no scoped review owed	the block is killed	Die	s61>s43	2016	6930
+the check runs: reviewed, no scoped review owed	No check at this head: reviewed, no scoped review owed	the check block ends	CheckEnd	s61>s43	432	756
+the check runs: reviewed, no scoped review owed	The check did not pass at this head: reviewed, no scoped review owed	jgauge check says done	CheckAnswer		0	567
+the check runs: reviewed, no scoped review owed	The check did not pass at this head: reviewed, no scoped review owed	jgauge check says done, Checked line exit 1	CheckAnswer		0	567
+the check runs: reviewed, no scoped review owed	The check did not pass at this head: reviewed, no scoped review owed	jgauge check says lost	CheckAnswer		0	378
+the check runs: reviewed, no scoped review owed	The check did not pass at this head: reviewed, no scoped review owed	jgauge check says running	CheckAnswer		0	378
+the check runs: reviewed, no scoped review owed	The check did not pass at this head: reviewed, no scoped review owed	jgauge check says waiting	CheckAnswer		0	567
+the check runs: reviewed, no scoped review owed	The check did not pass at this head: reviewed, no scoped review owed	the block is killed	Die	s61>s52	2268	6426
+the check runs: reviewed, no scoped review owed	The check did not pass at this head: reviewed, no scoped review owed	the check block ends	CheckEnd	s61>s52	936	1638
+the check runs: reviewed, no scoped review owed	The check did not pass at this head: reviewed, no scoped review owed	the check block writes its Checked line, exit 1	CheckEnd	s61>s52	432	756
+the check runs: reviewed, no scoped review owed	the check runs in the background: reviewed, no scoped review owed	the call outlives 10 minutes and goes to the background	MovedToBackground		0	3024
+the check runs: reviewed, no scoped review owed, pushed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed, pushed	jgauge check says done	CheckAnswer		0	648
+the check runs: reviewed, no scoped review owed, pushed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed, pushed	jgauge check says lost	CheckAnswer		0	216
+the check runs: reviewed, no scoped review owed, pushed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed, pushed	jgauge check says running	CheckAnswer		0	216
+the check runs: reviewed, no scoped review owed, pushed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed, pushed	jgauge check says waiting	CheckAnswer		0	324
+the check runs: reviewed, no scoped review owed, pushed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed, pushed	the block is killed	Die	s62>s5	252	1782
+the check runs: reviewed, no scoped review owed, pushed	Checked and proved at this head, edits not committed: reviewed, no scoped review owed, pushed	the check block ends	CheckEnd	s62>s5	144	216
+the check runs: reviewed, no scoped review owed, pushed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed, pushed	jgauge check says done	CheckAnswer		0	108
+the check runs: reviewed, no scoped review owed, pushed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed, pushed	jgauge check says lost	CheckAnswer		0	36
+the check runs: reviewed, no scoped review owed, pushed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed, pushed	jgauge check says running	CheckAnswer		0	36
+the check runs: reviewed, no scoped review owed, pushed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed, pushed	jgauge check says waiting	CheckAnswer		0	54
+the check runs: reviewed, no scoped review owed, pushed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed, pushed	the block is killed	Die		0	297
+the check runs: reviewed, no scoped review owed, pushed	Checked, nothing to prove at this head, edits not committed: reviewed, no scoped review owed, pushed	the check block ends	CheckEnd		0	36
+the check runs: reviewed, no scoped review owed, pushed	the check runs in the background: reviewed, no scoped review owed, pushed	the call outlives 10 minutes and goes to the background	MovedToBackground		0	189
+the check runs: the pull request is in conflict	Checked and proved at this head, edits not committed: the pull request is in conflict	jgauge check says done	CheckAnswer		0	2016
+the check runs: the pull request is in conflict	Checked and proved at this head, edits not committed: the pull request is in conflict	jgauge check says lost	CheckAnswer		0	672
+the check runs: the pull request is in conflict	Checked and proved at this head, edits not committed: the pull request is in conflict	jgauge check says running	CheckAnswer		0	672
+the check runs: the pull request is in conflict	Checked and proved at this head, edits not committed: the pull request is in conflict	jgauge check says waiting	CheckAnswer		0	1008
+the check runs: the pull request is in conflict	Checked and proved at this head, edits not committed: the pull request is in conflict	the block is killed	Die	s64>s7	784	5544
+the check runs: the pull request is in conflict	Checked and proved at this head, edits not committed: the pull request is in conflict	the check block ends	CheckEnd	s64>s7	448	672
+the check runs: the pull request is in conflict	Checked at this head, not proved: the pull request is in conflict	jgauge check says done, Checked line exit 0	CheckAnswer		0	2352
+the check runs: the pull request is in conflict	Checked at this head, not proved: the pull request is in conflict	the check block writes its Checked line, exit 0	CheckEnd	s64>s35	1792	3136
+the check runs: the pull request is in conflict	Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	jgauge check says done	CheckAnswer		0	336
+the check runs: the pull request is in conflict	Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	jgauge check says lost	CheckAnswer		0	112
+the check runs: the pull request is in conflict	Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	jgauge check says running	CheckAnswer		0	112
+the check runs: the pull request is in conflict	Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	jgauge check says waiting	CheckAnswer		0	168
+the check runs: the pull request is in conflict	Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	the block is killed	Die		0	924
+the check runs: the pull request is in conflict	Checked, nothing to prove at this head, edits not committed: the pull request is in conflict	the check block ends	CheckEnd		0	112
+the check runs: the pull request is in conflict	No check at this head: the pull request is in conflict	jgauge check says lost	CheckAnswer		0	1176
+the check runs: the pull request is in conflict	No check at this head: the pull request is in conflict	jgauge check says running	CheckAnswer		0	1176
+the check runs: the pull request is in conflict	No check at this head: the pull request is in conflict	jgauge check says stale	CheckAnswer		0	784
+the check runs: the pull request is in conflict	No check at this head: the pull request is in conflict	jgauge check says waiting	CheckAnswer		0	1568
+the check runs: the pull request is in conflict	No check at this head: the pull request is in conflict	the block is killed	Die	s64>s45	4592	15092
+the check runs: the pull request is in conflict	No check at this head: the pull request is in conflict	the check block ends	CheckEnd	s64>s45	1008	1764
+the check runs: the pull request is in conflict	The check did not pass at this head: the pull request is in conflict	jgauge check says done	CheckAnswer		0	1176
+the check runs: the pull request is in conflict	The check did not pass at this head: the pull request is in conflict	jgauge check says done, Checked line exit 1	CheckAnswer		0	1176
+the check runs: the pull request is in conflict	The check did not pass at this head: the pull request is in conflict	jgauge check says lost	CheckAnswer		0	784
+the check runs: the pull request is in conflict	The check did not pass at this head: the pull request is in conflict	jgauge check says running	CheckAnswer		0	784
+the check runs: the pull request is in conflict	The check did not pass at this head: the pull request is in conflict	jgauge check says waiting	CheckAnswer		0	1176
+the check runs: the pull request is in conflict	The check did not pass at this head: the pull request is in conflict	the block is killed	Die	s64>s54	5376	14504
+the check runs: the pull request is in conflict	The check did not pass at this head: the pull request is in conflict	the check block ends	CheckEnd	s64>s54	2240	3920
+the check runs: the pull request is in conflict	The check did not pass at this head: the pull request is in conflict	the check block writes its Checked line, exit 1	CheckEnd	s64>s54	1008	1764
+the check runs: the pull request is in conflict	the check runs in the background: the pull request is in conflict	the call outlives 10 minutes and goes to the background	MovedToBackground		0	7448
+the check runs: the Result is written, no review yet	Checked and proved at this head, edits not committed: the Result is written, no review yet	jgauge check says done	CheckAnswer		0	36
+the check runs: the Result is written, no review yet	Checked and proved at this head, edits not committed: the Result is written, no review yet	jgauge check says lost	CheckAnswer		0	12
+the check runs: the Result is written, no review yet	Checked and proved at this head, edits not committed: the Result is written, no review yet	jgauge check says running	CheckAnswer		0	12
+the check runs: the Result is written, no review yet	Checked and proved at this head, edits not committed: the Result is written, no review yet	jgauge check says waiting	CheckAnswer		0	18
+the check runs: the Result is written, no review yet	Checked and proved at this head, edits not committed: the Result is written, no review yet	the block is killed	Die	s63>s6	8	90
+the check runs: the Result is written, no review yet	Checked and proved at this head, edits not committed: the Result is written, no review yet	the check block ends	CheckEnd	s63>s6	4	6
+the check runs: the Result is written, no review yet	Checked at this head, not proved, edits not committed: the Result is written, no review yet	jgauge check says done	CheckAnswer		0	54
+the check runs: the Result is written, no review yet	Checked at this head, not proved, edits not committed: the Result is written, no review yet	jgauge check says lost	CheckAnswer		0	18
+the check runs: the Result is written, no review yet	Checked at this head, not proved, edits not committed: the Result is written, no review yet	jgauge check says running	CheckAnswer		0	18
+the check runs: the Result is written, no review yet	Checked at this head, not proved, edits not committed: the Result is written, no review yet	jgauge check says waiting	CheckAnswer		0	27
+the check runs: the Result is written, no review yet	Checked at this head, not proved, edits not committed: the Result is written, no review yet	the block is killed	Die	s63>s25	10	135
+the check runs: the Result is written, no review yet	Checked at this head, not proved, edits not committed: the Result is written, no review yet	the check block ends	CheckEnd	s63>s25	5	9
+the check runs: the Result is written, no review yet	Checked at this head, not proved: the Result is written, no review yet	jgauge check says done, Checked line exit 0	CheckAnswer		0	96
+the check runs: the Result is written, no review yet	Checked at this head, not proved: the Result is written, no review yet	the check block writes its Checked line, exit 0	CheckEnd	s63>s34	54	96
+the check runs: the Result is written, no review yet	Checked, nothing to prove at this head, edits not committed: the Result is written, no review yet	jgauge check says done	CheckAnswer		0	6
+the check runs: the Result is written, no review yet	Checked, nothing to prove at this head, edits not committed: the Result is written, no review yet	jgauge check says lost	CheckAnswer		0	2
+the check runs: the Result is written, no review yet	Checked, nothing to prove at this head, edits not committed: the Result is written, no review yet	jgauge check says running	CheckAnswer		0	2
+the check runs: the Result is written, no review yet	Checked, nothing to prove at this head, edits not committed: the Result is written, no review yet	jgauge check says waiting	CheckAnswer		0	3
+the check runs: the Result is written, no review yet	Checked, nothing to prove at this head, edits not committed: the Result is written, no review yet	the block is killed	Die		0	15
+the check runs: the Result is written, no review yet	Checked, nothing to prove at this head, edits not committed: the Result is written, no review yet	the check block ends	CheckEnd		0	1
+the check runs: the Result is written, no review yet	No check at this head: the Result is written, no review yet	jgauge check says lost	CheckAnswer		0	48
+the check runs: the Result is written, no review yet	No check at this head: the Result is written, no review yet	jgauge check says running	CheckAnswer		0	48
+the check runs: the Result is written, no review yet	No check at this head: the Result is written, no review yet	jgauge check says stale	CheckAnswer		0	32
+the check runs: the Result is written, no review yet	No check at this head: the Result is written, no review yet	jgauge check says waiting	CheckAnswer		0	64
+the check runs: the Result is written, no review yet	No check at this head: the Result is written, no review yet	the block is killed	Die	s63>s44	135	528
+the check runs: the Result is written, no review yet	No check at this head: the Result is written, no review yet	the check block ends	CheckEnd	s63>s44	27	48
+the check runs: the Result is written, no review yet	The check did not pass at this head: the Result is written, no review yet	jgauge check says done	CheckAnswer		0	48
+the check runs: the Result is written, no review yet	The check did not pass at this head: the Result is written, no review yet	jgauge check says done, Checked line exit 1	CheckAnswer		0	48
+the check runs: the Result is written, no review yet	The check did not pass at this head: the Result is written, no review yet	jgauge check says lost	CheckAnswer		0	32
+the check runs: the Result is written, no review yet	The check did not pass at this head: the Result is written, no review yet	jgauge check says running	CheckAnswer		0	32
+the check runs: the Result is written, no review yet	The check did not pass at this head: the Result is written, no review yet	jgauge check says waiting	CheckAnswer		0	48
+the check runs: the Result is written, no review yet	The check did not pass at this head: the Result is written, no review yet	the block is killed	Die	s63>s53	135	448
+the check runs: the Result is written, no review yet	The check did not pass at this head: the Result is written, no review yet	the check block ends	CheckEnd	s63>s53	54	96
+the check runs: the Result is written, no review yet	The check did not pass at this head: the Result is written, no review yet	the check block writes its Checked line, exit 1	CheckEnd	s63>s53	27	48
+the check runs: the Result is written, no review yet	the check runs in the background: the Result is written, no review yet	the call outlives 10 minutes and goes to the background	MovedToBackground		0	208
+the proof runs in the background: a rebase record left behind	Checked and proved at this head: a rebase record left behind	proved.sh writes its Proved line	ProveEnd		0	7840
+the proof runs in the background: a rebase record left behind	Checked at this head, not proved: a rebase record left behind	proved.sh ends	ProveEnd		0	7056
+the proof runs in the background: a rebase record left behind	Checked at this head, not proved: a rebase record left behind	the block is killed	Die		0	21952
+the proof runs in the background: a scoped review is owed	Checked and proved at this head: a scoped review is owed	proved.sh writes its Proved line	ProveEnd		0	1440
+the proof runs in the background: a scoped review is owed	Checked at this head, not proved: a scoped review is owed	proved.sh ends	ProveEnd		0	1296
+the proof runs in the background: a scoped review is owed	Checked at this head, not proved: a scoped review is owed	the block is killed	Die		0	4032
+the proof runs in the background: at work, no Result	Checked at this head, not proved, edits not committed: at work, no Result	proved.sh ends	ProveEnd		0	264
+the proof runs in the background: at work, no Result	Checked at this head, not proved, edits not committed: at work, no Result	the block is killed	Die		0	384
+the proof runs in the background: at work, no Result	Checked at this head, not proved: at work, no Result	proved.sh ends	ProveEnd		0	286
+the proof runs in the background: at work, no Result	Checked at this head, not proved: at work, no Result	the block is killed	Die		0	416
+the proof runs in the background: at work, no Result	No check at this head: at work, no Result	proved.sh ends	ProveEnd		0	264
+the proof runs in the background: at work, no Result	No check at this head: at work, no Result	the block is killed	Die		0	384
+the proof runs in the background: rebased, not pushed	Checked and proved at this head: rebased, not pushed	proved.sh writes its Proved line	ProveEnd		0	2240
+the proof runs in the background: rebased, not pushed	Checked at this head, not proved: rebased, not pushed	proved.sh ends	ProveEnd		0	2016
+the proof runs in the background: rebased, not pushed	Checked at this head, not proved: rebased, not pushed	the block is killed	Die		0	6272
+the proof runs in the background: rebased, not pushed, a dropped line has no line in the Result	Checked and proved at this head: rebased, not pushed, a dropped line has no line in the Result	proved.sh writes its Proved line	ProveEnd		0	1120
+the proof runs in the background: rebased, not pushed, a dropped line has no line in the Result	Checked at this head, not proved: rebased, not pushed, a dropped line has no line in the Result	proved.sh ends	ProveEnd		0	1008
+the proof runs in the background: rebased, not pushed, a dropped line has no line in the Result	Checked at this head, not proved: rebased, not pushed, a dropped line has no line in the Result	the block is killed	Die		0	3136
+the proof runs in the background: reviewed, a finding to answer	Checked and proved at this head: reviewed, a finding to answer	proved.sh writes its Proved line	ProveEnd		0	960
+the proof runs in the background: reviewed, a finding to answer	Checked at this head, not proved: reviewed, a finding to answer	proved.sh ends	ProveEnd		0	864
+the proof runs in the background: reviewed, a finding to answer	Checked at this head, not proved: reviewed, a finding to answer	the block is killed	Die		0	2688
+the proof runs in the background: reviewed, no scoped review owed	Checked and proved at this head: reviewed, no scoped review owed	proved.sh writes its Proved line	ProveEnd		0	1080
+the proof runs in the background: reviewed, no scoped review owed	Checked at this head, not proved: reviewed, no scoped review owed	proved.sh ends	ProveEnd		0	972
+the proof runs in the background: reviewed, no scoped review owed	Checked at this head, not proved: reviewed, no scoped review owed	the block is killed	Die		0	3024
+the proof runs in the background: reviewed, no scoped review owed, pushed	Checked and proved at this head: reviewed, no scoped review owed, pushed	proved.sh writes its Proved line	ProveEnd		0	3240
+the proof runs in the background: reviewed, no scoped review owed, pushed	Checked at this head, not proved: reviewed, no scoped review owed, pushed	proved.sh ends	ProveEnd		0	2916
+the proof runs in the background: reviewed, no scoped review owed, pushed	Checked at this head, not proved: reviewed, no scoped review owed, pushed	the block is killed	Die		0	9072
+the proof runs in the background: the pull request is in conflict	Checked and proved at this head: the pull request is in conflict	proved.sh writes its Proved line	ProveEnd		0	7280
+the proof runs in the background: the pull request is in conflict	Checked at this head, not proved: the pull request is in conflict	proved.sh ends	ProveEnd		0	6552
+the proof runs in the background: the pull request is in conflict	Checked at this head, not proved: the pull request is in conflict	the block is killed	Die		0	20384
+the proof runs in the background: the Result is written, no review yet	Checked and proved at this head: the Result is written, no review yet	proved.sh writes its Proved line	ProveEnd		0	196
+the proof runs in the background: the Result is written, no review yet	Checked at this head, not proved, edits not committed: the Result is written, no review yet	proved.sh ends	ProveEnd		0	264
+the proof runs in the background: the Result is written, no review yet	Checked at this head, not proved, edits not committed: the Result is written, no review yet	the block is killed	Die		0	384
+the proof runs in the background: the Result is written, no review yet	Checked at this head, not proved: the Result is written, no review yet	proved.sh ends	ProveEnd		0	166
+the proof runs in the background: the Result is written, no review yet	Checked at this head, not proved: the Result is written, no review yet	the block is killed	Die		0	528
+the proof runs in the background: the Result is written, no review yet	No check at this head: the Result is written, no review yet	proved.sh ends	ProveEnd		0	264
+the proof runs in the background: the Result is written, no review yet	No check at this head: the Result is written, no review yet	the block is killed	Die		0	384
+the proof runs: a rebase record left behind	Checked and proved at this head: a rebase record left behind	proved.sh writes its Proved line	ProveEnd	s65>s8	4032	7840
+the proof runs: a rebase record left behind	Checked at this head, not proved: a rebase record left behind	proved.sh ends	ProveEnd	s65>s26	4032	7056
+the proof runs: a rebase record left behind	Checked at this head, not proved: a rebase record left behind	the block is killed	Die	s65>s26	12096	21952
+the proof runs: a rebase record left behind	the proof runs in the background: a rebase record left behind	the call outlives 10 minutes and goes to the background	MovedToBackground		0	14896
+the proof runs: a scoped review is owed	Checked and proved at this head: a scoped review is owed	proved.sh writes its Proved line	ProveEnd	s66>s9	720	1440
+the proof runs: a scoped review is owed	Checked at this head, not proved: a scoped review is owed	proved.sh ends	ProveEnd	s66>s27	720	1296
+the proof runs: a scoped review is owed	Checked at this head, not proved: a scoped review is owed	the block is killed	Die	s66>s27	2160	4032
+the proof runs: a scoped review is owed	the proof runs in the background: a scoped review is owed	the call outlives 10 minutes and goes to the background	MovedToBackground		0	2736
+the proof runs: at work, no Result	Checked at this head, not proved: at work, no Result	proved.sh ends	ProveEnd	s67>s28	16	286
+the proof runs: at work, no Result	Checked at this head, not proved: at work, no Result	the block is killed	Die	s67>s28	24	416
+the proof runs: at work, no Result	the proof runs in the background: at work, no Result	the call outlives 10 minutes and goes to the background	MovedToBackground		0	286
+the proof runs: rebased, not pushed	Checked and proved at this head: rebased, not pushed	proved.sh writes its Proved line	ProveEnd	s68>s12	896	2240
+the proof runs: rebased, not pushed	Checked at this head, not proved: rebased, not pushed	proved.sh ends	ProveEnd	s68>s29	896	2016
+the proof runs: rebased, not pushed	Checked at this head, not proved: rebased, not pushed	the block is killed	Die	s68>s29	2688	6272
+the proof runs: rebased, not pushed	the proof runs in the background: rebased, not pushed	the call outlives 10 minutes and goes to the background	MovedToBackground		0	4256
+the proof runs: rebased, not pushed, a dropped line has no line in the Result	Checked and proved at this head: rebased, not pushed, a dropped line has no line in the Result	proved.sh writes its Proved line	ProveEnd	s69>s13	448	1120
+the proof runs: rebased, not pushed, a dropped line has no line in the Result	Checked at this head, not proved: rebased, not pushed, a dropped line has no line in the Result	proved.sh ends	ProveEnd	s69>s30	448	1008
+the proof runs: rebased, not pushed, a dropped line has no line in the Result	Checked at this head, not proved: rebased, not pushed, a dropped line has no line in the Result	the block is killed	Die	s69>s30	1344	3136
+the proof runs: rebased, not pushed, a dropped line has no line in the Result	the proof runs in the background: rebased, not pushed, a dropped line has no line in the Result	the call outlives 10 minutes and goes to the background	MovedToBackground		0	2128
+the proof runs: reviewed, a finding to answer	Checked and proved at this head: reviewed, a finding to answer	proved.sh writes its Proved line	ProveEnd	s70>s15	480	960
+the proof runs: reviewed, a finding to answer	Checked at this head, not proved: reviewed, a finding to answer	proved.sh ends	ProveEnd	s70>s31	480	864
+the proof runs: reviewed, a finding to answer	Checked at this head, not proved: reviewed, a finding to answer	the block is killed	Die	s70>s31	1440	2688
+the proof runs: reviewed, a finding to answer	the proof runs in the background: reviewed, a finding to answer	the call outlives 10 minutes and goes to the background	MovedToBackground		0	1824
+the proof runs: reviewed, no scoped review owed	Checked and proved at this head: reviewed, no scoped review owed	proved.sh writes its Proved line	ProveEnd	s71>s16	432	1080
+the proof runs: reviewed, no scoped review owed	Checked at this head, not proved: reviewed, no scoped review owed	proved.sh ends	ProveEnd	s71>s32	432	972
+the proof runs: reviewed, no scoped review owed	Checked at this head, not proved: reviewed, no scoped review owed	the block is killed	Die	s71>s32	1296	3024
+the proof runs: reviewed, no scoped review owed	the proof runs in the background: reviewed, no scoped review owed	the call outlives 10 minutes and goes to the background	MovedToBackground		0	2052
+the proof runs: reviewed, no scoped review owed, pushed	Checked and proved at this head: reviewed, no scoped review owed, pushed	proved.sh writes its Proved line	ProveEnd	s72>s17	1728	3240
+the proof runs: reviewed, no scoped review owed, pushed	Checked at this head, not proved: reviewed, no scoped review owed, pushed	proved.sh ends	ProveEnd	s72>s33	1728	2916
+the proof runs: reviewed, no scoped review owed, pushed	Checked at this head, not proved: reviewed, no scoped review owed, pushed	the block is killed	Die	s72>s33	5184	9072
+the proof runs: reviewed, no scoped review owed, pushed	the proof runs in the background: reviewed, no scoped review owed, pushed	the call outlives 10 minutes and goes to the background	MovedToBackground		0	6156
+the proof runs: the pull request is in conflict	Checked and proved at this head: the pull request is in conflict	proved.sh writes its Proved line	ProveEnd	s74>s19	3584	7280
+the proof runs: the pull request is in conflict	Checked at this head, not proved: the pull request is in conflict	proved.sh ends	ProveEnd	s74>s35	3584	6552
+the proof runs: the pull request is in conflict	Checked at this head, not proved: the pull request is in conflict	the block is killed	Die	s74>s35	10752	20384
+the proof runs: the pull request is in conflict	the proof runs in the background: the pull request is in conflict	the call outlives 10 minutes and goes to the background	MovedToBackground		0	13832
+the proof runs: the Result is written, no review yet	Checked and proved at this head: the Result is written, no review yet	proved.sh writes its Proved line	ProveEnd	s73>s18	24	196
+the proof runs: the Result is written, no review yet	Checked at this head, not proved: the Result is written, no review yet	proved.sh ends	ProveEnd	s73>s34	24	166
+the proof runs: the Result is written, no review yet	Checked at this head, not proved: the Result is written, no review yet	the block is killed	Die	s73>s34	72	528
+the proof runs: the Result is written, no review yet	the proof runs in the background: the Result is written, no review yet	the call outlives 10 minutes and goes to the background	MovedToBackground		0	362

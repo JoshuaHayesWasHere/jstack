@@ -1,0 +1,45 @@
+state	group	status	start	chart	states in MergeRun.chart.cfg	within in MergeRun.chart.cfg	states in MergeRun.cfg	within in MergeRun.cfg
+A pass moved a stale stamp aside and has not told of its run: a run is out; a record waits for the next pass	Lines on their way				0	0	60	96
+A pass moved a stale stamp aside and has not told of its run: a run is out; a run was said to have left no record	Lines heard, a run is out	works		r0s0 r1s0	1	0	267	504
+A pass moved a stale stamp aside and has not told of its run: a run is out; a run was said to have left no record, a record waits for the next pass	Lines on their way				0	0	60	96
+A pass moved a stale stamp aside and has not told of its run: a run is out; every record written was sent	Lines heard, a run is out				0	0	30	48
+A pass moved a stale stamp aside and has not told of its run: a run is out; no record yet	Lines heard, a run is out	works		r0s0 r1s7	1	0	15	24
+A pass moved a stale stamp aside and has not told of its run: no run out; a record waits for the next pass	Lines on their way				0	0	192	324
+A pass moved a stale stamp aside and has not told of its run: no run out; a run was said to have left no record	Lines heard, no run out	works		r0s0 r1s9	8	11	408	699
+A pass moved a stale stamp aside and has not told of its run: no run out; a run was said to have left no record, a record waits for the next pass	Lines on their way				0	0	192	324
+A pass moved a stale stamp aside and has not told of its run: no run out; every record written was sent	Lines heard, no run out				0	0	96	162
+A pass moved a stale stamp aside and has not told of its run: no run out; no record yet	Lines heard, no run out	works		r0s0 r1s17	8	11	48	81
+A pass told of a run that left no record and has not cleared it: a run is out; a run was said to have left no record	Lines heard, a run is out	works		r0s1 r1s0	1	0	156	288
+A pass told of a run that left no record and has not cleared it: a run is out; a run was said to have left no record, a record waits for the next pass	Lines on their way				0	0	60	96
+A pass told of a run that left no record and has not cleared it: no run out; a run was said to have left no record	Lines heard, no run out	works		r0s1 r1s9	8	11	276	471
+A pass told of a run that left no record and has not cleared it: no run out; a run was said to have left no record, a record waits for the next pass	Lines on their way				0	0	192	324
+Between passes: a run is out, a start stamp past a minute; a record waits for the next pass	Lines on their way	works		r0s2 r1s1	5	7	1005	3477
+Between passes: a run is out, a start stamp past a minute; a run was said to have left no record	Lines heard, a run is out				0	0	738	2889
+Between passes: a run is out, a start stamp past a minute; a run was said to have left no record, a record waits for the next pass	Lines on their way				0	0	420	1419
+Between passes: a run is out, a start stamp past a minute; every record written was sent	Lines heard, a run is out	works		r0s2 r1s2	2	3	342	1167
+Between passes: a run is out, a start stamp past a minute; no record yet	Lines heard, a run is out	works		r0s2 r1s3	18	52	126	444
+Between passes: a run is out, a start stamp under a minute old; a record waits for the next pass	Lines on their way	works		r0s2 r1s4	5	7	1005	3537
+Between passes: a run is out, a start stamp under a minute old; a run was said to have left no record	Lines heard, a run is out				0	0	723	2946
+Between passes: a run is out, a start stamp under a minute old; a run was said to have left no record, a record waits for the next pass	Lines on their way				0	0	390	1341
+Between passes: a run is out, a start stamp under a minute old; every record written was sent	Lines heard, a run is out	works		r0s2 r1s5	2	3	342	1197
+Between passes: a run is out, a start stamp under a minute old; no record yet	Lines heard, a run is out	works		r0s2 r1s6	18	53	126	459
+Between passes: a run is out; a record waits for the next pass	Lines on their way				0	0	60	96
+Between passes: a run is out; a run was said to have left no record	Lines heard, a run is out	works		r0s2 r1s0	4	5	810	2493
+Between passes: a run is out; a run was said to have left no record, a record waits for the next pass	Lines on their way				0	0	480	1428
+Between passes: a run is out; every record written was sent	Lines heard, a run is out				0	0	30	48
+Between passes: a run is out; no record yet	Lines heard, a run is out	works		r0s2 r1s7	1	0	15	24
+Between passes: no run out, a start stamp past a minute; a record waits for the next pass	Lines on their way	works		r0s2 r1s10	7	9	915	2601
+Between passes: no run out, a start stamp past a minute; a run was said to have left no record	Lines heard, no run out				0	0	360	1026
+Between passes: no run out, a start stamp past a minute; a run was said to have left no record, a record waits for the next pass	Lines on their way				0	0	336	999
+Between passes: no run out, a start stamp past a minute; every record written was sent	Lines heard, no run out	works		r0s2 r1s11	3	4	297	834
+Between passes: no run out, a start stamp past a minute; no record yet	Lines heard, no run out	works		r0s2 r1s12	15	37	81	219
+Between passes: no run out, a start stamp under a minute old; a record waits for the next pass	Lines on their way	works		r0s2 r1s13	5	7	765	2343
+Between passes: no run out, a start stamp under a minute old; a run was said to have left no record	Lines heard, no run out				0	0	312	981
+Between passes: no run out, a start stamp under a minute old; a run was said to have left no record, a record waits for the next pass	Lines on their way				0	0	240	741
+Between passes: no run out, a start stamp under a minute old; every record written was sent	Lines heard, no run out	works		r0s2 r1s14	2	3	252	783
+Between passes: no run out, a start stamp under a minute old; no record yet	Lines heard, no run out	works		r0s2 r1s15	15	44	81	252
+Between passes: no run out; a record waits for the next pass	Lines on their way	works		r0s2 r1s8	14	22	1197	3507
+Between passes: no run out; a run was said to have left no record	Lines heard, no run out	works		r0s2 r1s9	32	84	1476	4233
+Between passes: no run out; a run was said to have left no record, a record waits for the next pass	Lines on their way				0	0	1536	4704
+Between passes: no run out; every record written was sent	Lines heard, no run out	works		r0s2 r1s16	6	10	351	960
+Between passes: no run out; no record yet	Lines heard, no run out	works	yes	r0s2 r1s17	10	13	78	159

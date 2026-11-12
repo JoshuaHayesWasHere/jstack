@@ -6,6 +6,7 @@ outside the tests marked `browser`."""
 
 import contextlib
 import fcntl
+import hashlib
 import html
 import importlib
 import json
@@ -204,6 +205,125 @@ def test_each_charts_tab_says_what_the_model_covers_and_that_the_chart_joins_its
     ):
         assert f"{count:,}" in cover, (count, cover)
     assert "joins the model states a user cannot tell apart" in cover, cover
+
+
+@pytest.mark.parametrize("chart", CHARTS, ids=lambda chart: chart.parent.name)
+def test_a_chart_drawn_at_cut_bounds_names_on_its_tab_the_checked_cfg_and_what_it_reaches(
+    chart, tmp_path
+):
+    """A chart drawn from a chart cfg is not the model TLC checks: its tab names the cfg the
+    model's tests check, with its bounds and its count of states, from a run at those bounds,
+    and says how much of it the tables hold."""
+    summary = json.loads(read(chart.parent / "summary.json"))
+    command = summary["drawnFrom"]["command"]
+    model = re.search(r"from-spec (\S+)\.tla", command)[1]
+    cfg = re.search(r"--config (\S+)", command)
+    checked = f"{model}.cfg"
+    if not cfg or cfg[1] == checked or not (chart.parent.parent / checked).is_file():
+        pytest.skip("drawn from the cfg TLC checks")
+    run = summary.get("also") or summary.get("checked")
+    assert run and run["cfg"] == checked, (
+        f"{chart.parent.name} is drawn from {cfg[1]}: draw it with --also-config {checked}, or"
+        f" --count-config {checked} where labelling its states costs too much"
+    )
+    out = tmp_path / "index.html"
+    assert site(REPO, out, "--flow", str(FLOW)).returncode == 0
+    name = chart.parent.name.removesuffix("-statechart")
+    panel = re.search(
+        rf'<section class="chart-panel" data-chart="{name}".*?</header>', read(out), re.S
+    )[0]
+    cover = html.unescape(re.search(r'<div class="coverage">(.*?)</div>', panel, re.S)[1])
+    larger = re.sub(r"<[^>]+>", "", cover[cover.index("At other bounds:") :])
+    assert f"TLC also checks {checked}" in larger, cover
+    assert f"{run['modelStates']:,} states" in larger, cover
+    constants, constraints = cfg_bounds(chart.parent.parent / checked)
+    for bound in [*constants, *constraints]:
+        assert bound in larger, (bound, cover)
+    if summary.get("also"):
+        assert "the tables list them" in larger, cover
+    else:
+        assert "are in neither" in larger, cover
+
+
+def table(path):
+    """A tab-separated table the statechart command writes: its header and its rows, each a dict
+    by the header's names."""
+    head, *lines = read(path).rstrip("\n").split("\n")
+    names = head.split("\t")
+    return names, [dict(zip(names, line.split("\t"), strict=True)) for line in lines]
+
+
+DRAWN_ID = re.compile(r"^(s\d+|r\ds\d+)$")
+DRAWN_ARROW = re.compile(r"^\s*(\w+) --> (\w+)", re.M)
+
+
+@pytest.mark.parametrize("chart", CHARTS, ids=lambda chart: chart.parent.name)
+def test_each_charts_tables_hold_every_state_and_arrow_of_its_model(chart):
+    """states.tsv and arrows.tsv beside a chart list every chart state of its model and every
+    arrow between two of them, so nothing the model reaches is only in the model: the model
+    states of the classes add up to TLC's count, their steps, between two classes or within one,
+    to TLC's count of steps, and each state and arrow chart.mmd draws names its row. The tables
+    are the ones the command drew, as summary.json's drawnFrom hashes them."""
+    folder = chart.parent
+    summary = json.loads(read(folder / "summary.json"))
+    drawn = summary["drawnFrom"]
+    missing = [t for t in ("states.tsv", "arrows.tsv") if not (folder / t).is_file()]
+    assert not missing, f"{folder.name} has no {', '.join(missing)}: run {drawn['command']}"
+    for name, digest in drawn.get("tables", {}).items():
+        assert hashlib.sha256((folder / name).read_bytes()).hexdigest() == digest, (
+            f"{folder.name}/{name} is not the one {drawn['command']} drew"
+        )
+    assert sorted(drawn.get("tables", {})) == ["arrows.tsv", "states.tsv"], drawn
+    _, states = table(folder / "states.tsv")
+    _, arrows = table(folder / "arrows.tsv")
+    whole = summary["map"]
+    assert (len(states), len(arrows)) == (whole["states"], whole["arrows"]), whole
+    run = whole["runs"][0]
+    assert sum(int(s[f"states in {run}"]) for s in states) == summary["modelStates"]
+    within = sum(int(s[f"within in {run}"]) for s in states)
+    between = sum(int(a[f"steps in {run}"]) for a in arrows)
+    assert within + between == summary["modelTransitions"], (within, between)
+    named = {s["state"] for s in states}
+    assert len(named) == len(states)
+    lost = [a for a in arrows if a["from"] not in named or a["to"] not in named]
+    assert not lost, lost[:3]
+    text = read(chart)
+    shown = {i for s in states for i in s["chart"].split()}
+    leaves = {i for _, i in LEAF.findall(text) if DRAWN_ID.match(i)}
+    assert leaves == shown, (sorted(leaves - shown), sorted(shown - leaves))
+    lit = {i for a in arrows for i in a["chart"].split()}
+    lines = {f"{a}>{b}" for a, b in DRAWN_ARROW.findall(text)}
+    assert lines == lit, (sorted(lines - lit)[:5], sorted(lit - lines)[:5])
+
+
+def test_each_charts_tab_lists_every_state_and_arrow_and_each_row_lights_what_is_drawn(tmp_path):
+    """A chart's tab has its states.tsv and arrows.tsv as tables, one row each, and a row lights
+    only states and arrows the chart on that tab draws."""
+    out = tmp_path / "index.html"
+    assert site(REPO, out, "--flow", str(FLOW)).returncode == 0
+    page = read(out)
+    for chart in CHARTS:
+        name = chart.parent.name.removesuffix("-statechart")
+        panel = re.search(
+            rf'<section class="chart-panel" data-chart="{name}".*?</section>', page, re.S
+        )[0]
+        _, states = table(chart.parent / "states.tsv")
+        _, arrows = table(chart.parent / "arrows.tsv")
+        tables = re.search(r'<details class="tables">.*?</details>', panel, re.S)[0]
+        assert 'class="table-filter"' in tables, name
+        for kind, rows in (("states", states), ("arrows", arrows)):
+            body = re.search(
+                rf'<table class="map map-{kind}">.*?<tbody>(.*?)</tbody>', tables, re.S
+            )[1]
+            assert body.count("<tr ") == len(rows), (name, kind)
+        ids = set(re.findall(r'class="st" id="[^"]*" data-id="(\w+)"', panel))
+        edges = set(re.findall(r'class="edge" d="[^"]*" data-from="(\w+)" data-to="(\w+)"', panel))
+        for light, lit_edges in re.findall(
+            r'<tr tabindex="0" data-light="([^"]*)" data-edges="([^"]*)"', tables
+        ):
+            assert set(light.split()) <= ids, (name, light)
+            pairs = {tuple(e.split(">")) for e in html.unescape(lit_edges).split()}
+            assert pairs <= edges, (name, pairs - edges)
 
 
 def test_the_overview_lists_the_models_with_no_chart_and_the_state_no_model_has(tmp_path):
@@ -540,6 +660,33 @@ PROBE = """<script>
         await frame();
         overview.groups.push(group(panel, box));
       }
+      // A tap on a drawn arrow's row and on a state's row lights them; the filter keeps rows.
+      const tables = panel.querySelector(".tables");
+      tables.open = true;
+      const arrowRows = [...tables.querySelectorAll(".map-arrows tbody tr")];
+      const drawnRow = arrowRows.find((r) => r.dataset.edges);
+      drawnRow.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await frame();
+      const arrowLit = panel.querySelectorAll("svg.chart .edge.near").length;
+      const stateRows = [...tables.querySelectorAll(".map-states tbody tr")];
+      const stateRow = stateRows.find((r) => r.dataset.light);
+      stateRow.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await frame();
+      const lit = (id) => panel.querySelector(`svg.chart .st[data-id="${CSS.escape(id)}"]`);
+      const stateLit = stateRow.dataset.light.split(" ").every((id) =>
+        lit(id).classList.contains("near"));
+      const filter = tables.querySelector(".table-filter");
+      const rows = tables.querySelectorAll("tbody tr");
+      filter.value = stateRow.cells[0].textContent;
+      filter.dispatchEvent(new Event("input"));
+      const kept = [...rows].filter((r) => !r.hidden);
+      const table = {
+        arrowLit, stateLit, rows: rows.length, kept: kept.length,
+        keptHold: kept.every((r) =>
+          r.textContent.toLowerCase().includes(filter.value.toLowerCase())),
+      };
+      filter.value = ""; filter.dispatchEvent(new Event("input"));
+      tables.open = false;
       scrollTo(0, 0);
       zoom("fit"); await frame();
       zoom("in"); await frame();
@@ -548,7 +695,7 @@ PROBE = """<script>
       const outside = look().label;
       zoom("fit"); await frame();
       out.charts[tab.dataset.chart] = {
-        ...opened, zoomIn: inside, zoomOut: outside, fit: look(), overview,
+        ...opened, zoomIn: inside, zoomOut: outside, fit: look(), overview, table,
       };
     }
     out.mapOpens = {};
@@ -709,6 +856,17 @@ def test_the_page_opens_on_the_map_and_each_overview_box_moves_its_chart_to_that
             assert g["found"] == g["lit"] == g["states"], (name, g)
             assert g["boxLit"] and g["onScreen"], (name, g)
             assert g["inside"] == g["states"], (name, g)
+
+
+@pytest.mark.browser
+def test_a_tap_on_a_row_of_a_charts_tables_lights_it_and_the_filter_keeps_the_rows_that_match(
+    tmp_path,
+):
+    said = probed(tmp_path, DESK)
+    for name, chart in said["charts"].items():
+        t = chart["table"]
+        assert t["arrowLit"] >= 1 and t["stateLit"], (name, t)
+        assert 1 <= t["kept"] < t["rows"] and t["keptHold"], (name, t)
 
 
 @pytest.mark.browser

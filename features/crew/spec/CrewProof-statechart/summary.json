@@ -82,13 +82,33 @@
     }
   ],
   "codeLike": [],
+  "map": {
+    "runs": [
+      "CrewProof.chart.cfg",
+      "CrewProof.cfg"
+    ],
+    "states": 121,
+    "arrows": 736
+  },
+  "also": {
+    "cfg": "CrewProof.cfg",
+    "modelStates": 681275,
+    "modelTransitions": 1899867,
+    "states": 44,
+    "arrows": 484
+  },
   "drawnFrom": {
-    "command": "statechart from-spec CrewProof.tla --config CrewProof.chart.cfg --title 'Does the proof on the brief match the head, and does a rebase leave its record?' --expect-broken RebaseRecorded --png",
+    "command": "statechart from-spec CrewProof.tla --config CrewProof.chart.cfg --also-config CrewProof.cfg --title 'Does the proof on the brief match the head, and does a rebase leave its record?' --expect-broken RebaseRecorded",
     "inputs": {
+      "CrewProof.cfg": "c13e244e98c33c0bb12b9224c041936430b27adcb4f669e12ae3e169a1038a9c",
       "CrewProof.chart.cfg": "d5ead165c6c163545d1fe32b7bcf9b08685fdf27f9c37a75d18c16a756ca2b3c",
       "CrewProof.map.py": "50b476e74dd0a358d287e91b4628a04d045a99e5584f30dd681640513958eb51",
       "CrewProof.tla": "367c59a28a8960b5f904f7925bb39ea5caee7174c52f7ee1202e29c959a133a8"
     },
-    "chart": "6a978f350ddd0e9791985694934ffae798c6fd991e6c92f0e3247304a02cdc1a"
+    "chart": "6a978f350ddd0e9791985694934ffae798c6fd991e6c92f0e3247304a02cdc1a",
+    "tables": {
+      "states.tsv": "84325a6317010570064a8181f4cce05a0e74874104f2550880a77a76c603f29d",
+      "arrows.tsv": "9722dbb495d4df6ec03345aba8b96e83a53de12ecc14bbc9beaffed906b44c4f"
+    }
   }
 }

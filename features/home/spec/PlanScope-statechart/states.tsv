@@ -1,0 +1,429 @@
+state	group	status	start	chart	states in PlanScope.chart.cfg	within in PlanScope.chart.cfg
+Scope s archived, its note not yet cleared: the entry closed; no fix	Archived, still clearing	works		r0s0 r1s0	3	1
+Scope s archived, its note not yet cleared: the entry closed; the fix counted in the catch-all	Archived, still clearing	works		r0s0 r1s6	6	2
+Scope s archived, its note not yet cleared: the entry closed; the fix counted in the catch-all, the move at work	Archived, still clearing	works		r0s0 r1s7	3	1
+Scope s archived, its note not yet cleared: the entry in its plan and in plan-done.md, its close cut short; no fix	Archived, still clearing	works		r0s0 r1s8	3	1
+Scope s archived, its note not yet cleared: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all	Archived, still clearing	works		r0s0 r1s14	6	2
+Scope s archived, its note not yet cleared: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all, the move at work	Archived, still clearing	works		r0s0 r1s15	3	1
+Scope s archived, its note not yet cleared: the entry proposed or planned (in plan-archived.md); no fix	Archived, still clearing	works		r0s0 r1s24	1	0
+Scope s archived, its note not yet cleared: the entry proposed or planned (in plan-archived.md); the fix counted in the catch-all	Archived, still clearing	works		r0s0 r1s27	2	0
+Scope s archived, its note not yet cleared: the entry proposed or planned (in plan-archived.md); the fix counted in the catch-all, the move at work	Archived, still clearing	works		r0s0 r1s28	1	0
+Scope s archived, its note not yet cleared: the entry's row out (in plan-archived.md); no fix	Archived, still clearing	works		r0s0 r1s37	1	0
+Scope s archived, its note not yet cleared: the entry's row out (in plan-archived.md); the fix counted in the catch-all	Archived, still clearing	works		r0s0 r1s40	2	0
+Scope s archived, its note not yet cleared: the entry's row out (in plan-archived.md); the fix counted in the catch-all, the move at work	Archived, still clearing	works		r0s0 r1s41	1	0
+Scope s archived, its note not yet cleared: the entry's rows over (in plan-archived.md); no fix	Archived, still clearing	works		r0s0 r1s50	1	0
+Scope s archived, its note not yet cleared: the entry's rows over (in plan-archived.md); the fix counted in the catch-all	Archived, still clearing	works		r0s0 r1s53	2	0
+Scope s archived, its note not yet cleared: the entry's rows over (in plan-archived.md); the fix counted in the catch-all, the move at work	Archived, still clearing	works		r0s0 r1s54	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry closed; no fix	Archiving	works		r0s1 r1s0	3	1
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry closed; the fix counted in s	Archiving	works		r0s1 r1s1	3	1
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry closed; the fix counted in s and the catch-all	Archiving	works		r0s1 r1s2	3	1
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry closed; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s1 r1s3	12	10
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry closed; the fix counted in s, not where its home reads it	Archiving	wrong		r0s1 r1s4	3	1
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry closed; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s1 r1s5	6	5
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry closed; the fix counted in the catch-all	Archiving	works		r0s1 r1s6	3	1
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry closed; the fix counted in the catch-all, the move at work	Archiving	works		r0s1 r1s7	3	1
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry in its plan and in plan-done.md, its close cut short; no fix	Archiving	works		r0s1 r1s8	3	2
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s	Archiving	works		r0s1 r1s9	3	2
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all	Archiving	works		r0s1 r1s10	3	2
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s1 r1s11	12	14
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s, not where its home reads it	Archiving	wrong		r0s1 r1s12	3	2
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s1 r1s13	6	7
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all	Archiving	works		r0s1 r1s14	3	2
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all, the move at work	Archiving	works		r0s1 r1s15	3	2
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry in its plan and in plan-done.md, the close at work; no fix	Archiving	works		r0s1 r1s16	3	2
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry in its plan and in plan-done.md, the close at work; the fix counted in s	Archiving	works		r0s1 r1s17	3	2
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all	Archiving	works		r0s1 r1s18	3	2
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s1 r1s19	12	14
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry in its plan and in plan-done.md, the close at work; the fix counted in s, not where its home reads it	Archiving	wrong		r0s1 r1s20	3	2
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry in its plan and in plan-done.md, the close at work; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s1 r1s21	6	7
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all	Archiving	works		r0s1 r1s22	3	2
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all, the move at work	Archiving	works		r0s1 r1s23	3	2
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry proposed or planned; no fix	Archiving	works		r0s1 r1s29	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry proposed or planned; the fix counted in s	Archiving	works		r0s1 r1s30	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry proposed or planned; the fix counted in s and the catch-all	Archiving	works		r0s1 r1s31	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry proposed or planned; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s1 r1s32	4	2
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry proposed or planned; the fix counted in s, not where its home reads it	Archiving	wrong		r0s1 r1s33	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry proposed or planned; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s1 r1s34	2	1
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry proposed or planned; the fix counted in the catch-all	Archiving	works		r0s1 r1s35	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry proposed or planned; the fix counted in the catch-all, the move at work	Archiving	works		r0s1 r1s36	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry's row out; no fix	Archiving	works		r0s1 r1s42	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry's row out; the fix counted in s	Archiving	works		r0s1 r1s43	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry's row out; the fix counted in s and the catch-all	Archiving	works		r0s1 r1s44	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry's row out; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s1 r1s45	4	2
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry's row out; the fix counted in s, not where its home reads it	Archiving	wrong		r0s1 r1s46	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry's row out; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s1 r1s47	2	1
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry's row out; the fix counted in the catch-all	Archiving	works		r0s1 r1s48	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry's row out; the fix counted in the catch-all, the move at work	Archiving	works		r0s1 r1s49	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry's rows over; no fix	Archiving	works		r0s1 r1s55	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry's rows over; the fix counted in s	Archiving	works		r0s1 r1s56	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry's rows over; the fix counted in s and the catch-all	Archiving	works		r0s1 r1s57	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry's rows over; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s1 r1s58	4	2
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry's rows over; the fix counted in s, not where its home reads it	Archiving	wrong		r0s1 r1s59	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry's rows over; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s1 r1s60	2	1
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry's rows over; the fix counted in the catch-all	Archiving	works		r0s1 r1s61	1	0
+Scope s archiving, its gate asked of the catch-all, gates.md still there: the entry's rows over; the fix counted in the catch-all, the move at work	Archiving	works		r0s1 r1s62	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry closed; no fix	Archiving	works		r0s2 r1s0	3	1
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry closed; the fix counted in s	Archiving	works		r0s2 r1s1	3	1
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry closed; the fix counted in s and the catch-all	Archiving	works		r0s2 r1s2	3	1
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry closed; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s2 r1s3	12	10
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry closed; the fix counted in s, not where its home reads it	Archiving	wrong		r0s2 r1s4	3	1
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry closed; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s2 r1s5	6	5
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry closed; the fix counted in the catch-all	Archiving	works		r0s2 r1s6	3	1
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry closed; the fix counted in the catch-all, the move at work	Archiving	works		r0s2 r1s7	3	1
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry in its plan and in plan-done.md, its close cut short; no fix	Archiving	works		r0s2 r1s8	3	2
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s	Archiving	works		r0s2 r1s9	3	2
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all	Archiving	works		r0s2 r1s10	3	2
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s2 r1s11	12	14
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s, not where its home reads it	Archiving	wrong		r0s2 r1s12	3	2
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s2 r1s13	6	7
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all	Archiving	works		r0s2 r1s14	3	2
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all, the move at work	Archiving	works		r0s2 r1s15	3	2
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry in its plan and in plan-done.md, the close at work; no fix	Archiving	works		r0s2 r1s16	3	2
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry in its plan and in plan-done.md, the close at work; the fix counted in s	Archiving	works		r0s2 r1s17	3	2
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all	Archiving	works		r0s2 r1s18	3	2
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s2 r1s19	12	14
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry in its plan and in plan-done.md, the close at work; the fix counted in s, not where its home reads it	Archiving	wrong		r0s2 r1s20	3	2
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry in its plan and in plan-done.md, the close at work; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s2 r1s21	6	7
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all	Archiving	works		r0s2 r1s22	3	2
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all, the move at work	Archiving	works		r0s2 r1s23	3	2
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry proposed or planned; no fix	Archiving	works		r0s2 r1s29	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry proposed or planned; the fix counted in s	Archiving	works		r0s2 r1s30	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry proposed or planned; the fix counted in s and the catch-all	Archiving	works		r0s2 r1s31	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry proposed or planned; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s2 r1s32	4	2
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry proposed or planned; the fix counted in s, not where its home reads it	Archiving	wrong		r0s2 r1s33	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry proposed or planned; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s2 r1s34	2	1
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry proposed or planned; the fix counted in the catch-all	Archiving	works		r0s2 r1s35	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry proposed or planned; the fix counted in the catch-all, the move at work	Archiving	works		r0s2 r1s36	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry's row out; no fix	Archiving	works		r0s2 r1s42	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry's row out; the fix counted in s	Archiving	works		r0s2 r1s43	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry's row out; the fix counted in s and the catch-all	Archiving	works		r0s2 r1s44	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry's row out; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s2 r1s45	4	2
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry's row out; the fix counted in s, not where its home reads it	Archiving	wrong		r0s2 r1s46	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry's row out; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s2 r1s47	2	1
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry's row out; the fix counted in the catch-all	Archiving	works		r0s2 r1s48	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry's row out; the fix counted in the catch-all, the move at work	Archiving	works		r0s2 r1s49	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry's rows over; no fix	Archiving	works		r0s2 r1s55	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry's rows over; the fix counted in s	Archiving	works		r0s2 r1s56	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry's rows over; the fix counted in s and the catch-all	Archiving	works		r0s2 r1s57	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry's rows over; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s2 r1s58	4	2
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry's rows over; the fix counted in s, not where its home reads it	Archiving	wrong		r0s2 r1s59	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry's rows over; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s2 r1s60	2	1
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry's rows over; the fix counted in the catch-all	Archiving	works		r0s2 r1s61	1	0
+Scope s archiving, its gates asked of the catch-all, gates.md moved aside: the entry's rows over; the fix counted in the catch-all, the move at work	Archiving	works		r0s2 r1s62	1	0
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry closed; no fix	Archiving	works		r0s4 r1s0	6	5
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry closed; the fix counted in s	Archiving	works		r0s4 r1s1	3	1
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry closed; the fix counted in s and the catch-all	Archiving	works		r0s4 r1s2	12	10
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry closed; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s4 r1s3	6	5
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry closed; the fix counted in s, not where its home reads it	Archiving	wrong		r0s4 r1s4	3	1
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry closed; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s4 r1s5	3	1
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry closed; the fix counted in the catch-all	Archiving	works		r0s4 r1s6	6	5
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry closed; the fix counted in the catch-all, the move at work	Archiving	works		r0s4 r1s7	6	5
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry in its plan and in plan-done.md, its close cut short; no fix	Archiving	works		r0s4 r1s8	6	7
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s	Archiving	works		r0s4 r1s9	3	2
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all	Archiving	works		r0s4 r1s10	12	14
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s4 r1s11	6	7
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s, not where its home reads it	Archiving	wrong		r0s4 r1s12	3	2
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s4 r1s13	3	2
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all	Archiving	works		r0s4 r1s14	6	7
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all, the move at work	Archiving	works		r0s4 r1s15	6	7
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry in its plan and in plan-done.md, the close at work; no fix	Archiving	works		r0s4 r1s16	6	7
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry in its plan and in plan-done.md, the close at work; the fix counted in s	Archiving	works		r0s4 r1s17	3	2
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all	Archiving	works		r0s4 r1s18	12	14
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s4 r1s19	6	7
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry in its plan and in plan-done.md, the close at work; the fix counted in s, not where its home reads it	Archiving	wrong		r0s4 r1s20	3	2
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry in its plan and in plan-done.md, the close at work; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s4 r1s21	3	2
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all	Archiving	works		r0s4 r1s22	6	7
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all, the move at work	Archiving	works		r0s4 r1s23	6	7
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry proposed or planned; no fix	Archiving	works		r0s4 r1s29	2	1
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry proposed or planned; the fix counted in s	Archiving	works		r0s4 r1s30	1	0
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry proposed or planned; the fix counted in s and the catch-all	Archiving	works		r0s4 r1s31	4	2
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry proposed or planned; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s4 r1s32	2	1
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry proposed or planned; the fix counted in s, not where its home reads it	Archiving	wrong		r0s4 r1s33	1	0
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry proposed or planned; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s4 r1s34	1	0
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry proposed or planned; the fix counted in the catch-all	Archiving	works		r0s4 r1s35	2	1
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry proposed or planned; the fix counted in the catch-all, the move at work	Archiving	works		r0s4 r1s36	2	1
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry's row out; no fix	Archiving	works		r0s4 r1s42	2	1
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry's row out; the fix counted in s	Archiving	works		r0s4 r1s43	1	0
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry's row out; the fix counted in s and the catch-all	Archiving	works		r0s4 r1s44	4	2
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry's row out; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s4 r1s45	2	1
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry's row out; the fix counted in s, not where its home reads it	Archiving	wrong		r0s4 r1s46	1	0
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry's row out; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s4 r1s47	1	0
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry's row out; the fix counted in the catch-all	Archiving	works		r0s4 r1s48	2	1
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry's row out; the fix counted in the catch-all, the move at work	Archiving	works		r0s4 r1s49	2	1
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry's rows over; no fix	Archiving	works		r0s4 r1s55	2	1
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry's rows over; the fix counted in s	Archiving	works		r0s4 r1s56	1	0
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry's rows over; the fix counted in s and the catch-all	Archiving	works		r0s4 r1s57	4	2
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry's rows over; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s4 r1s58	2	1
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry's rows over; the fix counted in s, not where its home reads it	Archiving	wrong		r0s4 r1s59	1	0
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry's rows over; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s4 r1s60	1	0
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry's rows over; the fix counted in the catch-all	Archiving	works		r0s4 r1s61	2	1
+Scope s archiving, its note and the older one in log/, jbus retire at work: the entry's rows over; the fix counted in the catch-all, the move at work	Archiving	works		r0s4 r1s62	2	1
+Scope s archiving, its note and the older one in log/: the entry closed; no fix	Archiving	works		r0s3 r1s0	3	1
+Scope s archiving, its note and the older one in log/: the entry closed; the fix counted in s	Archiving	works		r0s3 r1s1	3	1
+Scope s archiving, its note and the older one in log/: the entry closed; the fix counted in s and the catch-all	Archiving	works		r0s3 r1s2	6	2
+Scope s archiving, its note and the older one in log/: the entry closed; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s3 r1s3	12	10
+Scope s archiving, its note and the older one in log/: the entry closed; the fix counted in s, not where its home reads it	Archiving	wrong		r0s3 r1s4	3	1
+Scope s archiving, its note and the older one in log/: the entry closed; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s3 r1s5	6	5
+Scope s archiving, its note and the older one in log/: the entry closed; the fix counted in the catch-all	Archiving	works		r0s3 r1s6	3	1
+Scope s archiving, its note and the older one in log/: the entry closed; the fix counted in the catch-all, the move at work	Archiving	works		r0s3 r1s7	3	1
+Scope s archiving, its note and the older one in log/: the entry in its plan and in plan-done.md, its close cut short; no fix	Archiving	works		r0s3 r1s8	3	2
+Scope s archiving, its note and the older one in log/: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s	Archiving	works		r0s3 r1s9	3	2
+Scope s archiving, its note and the older one in log/: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all	Archiving	works		r0s3 r1s10	6	4
+Scope s archiving, its note and the older one in log/: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s3 r1s11	12	14
+Scope s archiving, its note and the older one in log/: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s, not where its home reads it	Archiving	wrong		r0s3 r1s12	3	2
+Scope s archiving, its note and the older one in log/: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s3 r1s13	6	7
+Scope s archiving, its note and the older one in log/: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all	Archiving	works		r0s3 r1s14	3	2
+Scope s archiving, its note and the older one in log/: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all, the move at work	Archiving	works		r0s3 r1s15	3	2
+Scope s archiving, its note and the older one in log/: the entry in its plan and in plan-done.md, the close at work; no fix	Archiving	works		r0s3 r1s16	3	2
+Scope s archiving, its note and the older one in log/: the entry in its plan and in plan-done.md, the close at work; the fix counted in s	Archiving	works		r0s3 r1s17	3	2
+Scope s archiving, its note and the older one in log/: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all	Archiving	works		r0s3 r1s18	6	4
+Scope s archiving, its note and the older one in log/: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s3 r1s19	12	14
+Scope s archiving, its note and the older one in log/: the entry in its plan and in plan-done.md, the close at work; the fix counted in s, not where its home reads it	Archiving	wrong		r0s3 r1s20	3	2
+Scope s archiving, its note and the older one in log/: the entry in its plan and in plan-done.md, the close at work; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s3 r1s21	6	7
+Scope s archiving, its note and the older one in log/: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all	Archiving	works		r0s3 r1s22	3	2
+Scope s archiving, its note and the older one in log/: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all, the move at work	Archiving	works		r0s3 r1s23	3	2
+Scope s archiving, its note and the older one in log/: the entry proposed or planned; no fix	Archiving	works		r0s3 r1s29	1	0
+Scope s archiving, its note and the older one in log/: the entry proposed or planned; the fix counted in s	Archiving	works		r0s3 r1s30	1	0
+Scope s archiving, its note and the older one in log/: the entry proposed or planned; the fix counted in s and the catch-all	Archiving	works		r0s3 r1s31	2	0
+Scope s archiving, its note and the older one in log/: the entry proposed or planned; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s3 r1s32	4	2
+Scope s archiving, its note and the older one in log/: the entry proposed or planned; the fix counted in s, not where its home reads it	Archiving	wrong		r0s3 r1s33	1	0
+Scope s archiving, its note and the older one in log/: the entry proposed or planned; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s3 r1s34	2	1
+Scope s archiving, its note and the older one in log/: the entry proposed or planned; the fix counted in the catch-all	Archiving	works		r0s3 r1s35	1	0
+Scope s archiving, its note and the older one in log/: the entry proposed or planned; the fix counted in the catch-all, the move at work	Archiving	works		r0s3 r1s36	1	0
+Scope s archiving, its note and the older one in log/: the entry's row out; no fix	Archiving	works		r0s3 r1s42	1	0
+Scope s archiving, its note and the older one in log/: the entry's row out; the fix counted in s	Archiving	works		r0s3 r1s43	1	0
+Scope s archiving, its note and the older one in log/: the entry's row out; the fix counted in s and the catch-all	Archiving	works		r0s3 r1s44	2	0
+Scope s archiving, its note and the older one in log/: the entry's row out; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s3 r1s45	4	2
+Scope s archiving, its note and the older one in log/: the entry's row out; the fix counted in s, not where its home reads it	Archiving	wrong		r0s3 r1s46	1	0
+Scope s archiving, its note and the older one in log/: the entry's row out; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s3 r1s47	2	1
+Scope s archiving, its note and the older one in log/: the entry's row out; the fix counted in the catch-all	Archiving	works		r0s3 r1s48	1	0
+Scope s archiving, its note and the older one in log/: the entry's row out; the fix counted in the catch-all, the move at work	Archiving	works		r0s3 r1s49	1	0
+Scope s archiving, its note and the older one in log/: the entry's rows over; no fix	Archiving	works		r0s3 r1s55	1	0
+Scope s archiving, its note and the older one in log/: the entry's rows over; the fix counted in s	Archiving	works		r0s3 r1s56	1	0
+Scope s archiving, its note and the older one in log/: the entry's rows over; the fix counted in s and the catch-all	Archiving	works		r0s3 r1s57	2	0
+Scope s archiving, its note and the older one in log/: the entry's rows over; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s3 r1s58	4	2
+Scope s archiving, its note and the older one in log/: the entry's rows over; the fix counted in s, not where its home reads it	Archiving	wrong		r0s3 r1s59	1	0
+Scope s archiving, its note and the older one in log/: the entry's rows over; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s3 r1s60	2	1
+Scope s archiving, its note and the older one in log/: the entry's rows over; the fix counted in the catch-all	Archiving	works		r0s3 r1s61	1	0
+Scope s archiving, its note and the older one in log/: the entry's rows over; the fix counted in the catch-all, the move at work	Archiving	works		r0s3 r1s62	1	0
+Scope s archiving, its note kept in log/: the entry closed; no fix	Archiving	works		r0s5 r1s0	3	1
+Scope s archiving, its note kept in log/: the entry closed; the fix counted in s	Archiving	works		r0s5 r1s1	3	1
+Scope s archiving, its note kept in log/: the entry closed; the fix counted in s and the catch-all	Archiving	works		r0s5 r1s2	3	1
+Scope s archiving, its note kept in log/: the entry closed; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s5 r1s3	12	10
+Scope s archiving, its note kept in log/: the entry closed; the fix counted in s, not where its home reads it	Archiving	wrong		r0s5 r1s4	3	1
+Scope s archiving, its note kept in log/: the entry closed; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s5 r1s5	6	5
+Scope s archiving, its note kept in log/: the entry closed; the fix counted in the catch-all	Archiving	works		r0s5 r1s6	3	1
+Scope s archiving, its note kept in log/: the entry closed; the fix counted in the catch-all, the move at work	Archiving	works		r0s5 r1s7	3	1
+Scope s archiving, its note kept in log/: the entry in its plan and in plan-done.md, its close cut short; no fix	Archiving	works		r0s5 r1s8	3	2
+Scope s archiving, its note kept in log/: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s	Archiving	works		r0s5 r1s9	3	2
+Scope s archiving, its note kept in log/: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all	Archiving	works		r0s5 r1s10	3	2
+Scope s archiving, its note kept in log/: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s5 r1s11	12	14
+Scope s archiving, its note kept in log/: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s, not where its home reads it	Archiving	wrong		r0s5 r1s12	3	2
+Scope s archiving, its note kept in log/: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s5 r1s13	6	7
+Scope s archiving, its note kept in log/: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all	Archiving	works		r0s5 r1s14	3	2
+Scope s archiving, its note kept in log/: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all, the move at work	Archiving	works		r0s5 r1s15	3	2
+Scope s archiving, its note kept in log/: the entry in its plan and in plan-done.md, the close at work; no fix	Archiving	works		r0s5 r1s16	3	2
+Scope s archiving, its note kept in log/: the entry in its plan and in plan-done.md, the close at work; the fix counted in s	Archiving	works		r0s5 r1s17	3	2
+Scope s archiving, its note kept in log/: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all	Archiving	works		r0s5 r1s18	3	2
+Scope s archiving, its note kept in log/: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s5 r1s19	12	14
+Scope s archiving, its note kept in log/: the entry in its plan and in plan-done.md, the close at work; the fix counted in s, not where its home reads it	Archiving	wrong		r0s5 r1s20	3	2
+Scope s archiving, its note kept in log/: the entry in its plan and in plan-done.md, the close at work; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s5 r1s21	6	7
+Scope s archiving, its note kept in log/: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all	Archiving	works		r0s5 r1s22	3	2
+Scope s archiving, its note kept in log/: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all, the move at work	Archiving	works		r0s5 r1s23	3	2
+Scope s archiving, its note kept in log/: the entry proposed or planned; no fix	Archiving	works		r0s5 r1s29	1	0
+Scope s archiving, its note kept in log/: the entry proposed or planned; the fix counted in s	Archiving	works		r0s5 r1s30	1	0
+Scope s archiving, its note kept in log/: the entry proposed or planned; the fix counted in s and the catch-all	Archiving	works		r0s5 r1s31	1	0
+Scope s archiving, its note kept in log/: the entry proposed or planned; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s5 r1s32	4	2
+Scope s archiving, its note kept in log/: the entry proposed or planned; the fix counted in s, not where its home reads it	Archiving	wrong		r0s5 r1s33	1	0
+Scope s archiving, its note kept in log/: the entry proposed or planned; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s5 r1s34	2	1
+Scope s archiving, its note kept in log/: the entry proposed or planned; the fix counted in the catch-all	Archiving	works		r0s5 r1s35	1	0
+Scope s archiving, its note kept in log/: the entry proposed or planned; the fix counted in the catch-all, the move at work	Archiving	works		r0s5 r1s36	1	0
+Scope s archiving, its note kept in log/: the entry's row out; no fix	Archiving	works		r0s5 r1s42	1	0
+Scope s archiving, its note kept in log/: the entry's row out; the fix counted in s	Archiving	works		r0s5 r1s43	1	0
+Scope s archiving, its note kept in log/: the entry's row out; the fix counted in s and the catch-all	Archiving	works		r0s5 r1s44	1	0
+Scope s archiving, its note kept in log/: the entry's row out; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s5 r1s45	4	2
+Scope s archiving, its note kept in log/: the entry's row out; the fix counted in s, not where its home reads it	Archiving	wrong		r0s5 r1s46	1	0
+Scope s archiving, its note kept in log/: the entry's row out; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s5 r1s47	2	1
+Scope s archiving, its note kept in log/: the entry's row out; the fix counted in the catch-all	Archiving	works		r0s5 r1s48	1	0
+Scope s archiving, its note kept in log/: the entry's row out; the fix counted in the catch-all, the move at work	Archiving	works		r0s5 r1s49	1	0
+Scope s archiving, its note kept in log/: the entry's rows over; no fix	Archiving	works		r0s5 r1s55	1	0
+Scope s archiving, its note kept in log/: the entry's rows over; the fix counted in s	Archiving	works		r0s5 r1s56	1	0
+Scope s archiving, its note kept in log/: the entry's rows over; the fix counted in s and the catch-all	Archiving	works		r0s5 r1s57	1	0
+Scope s archiving, its note kept in log/: the entry's rows over; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s5 r1s58	4	2
+Scope s archiving, its note kept in log/: the entry's rows over; the fix counted in s, not where its home reads it	Archiving	wrong		r0s5 r1s59	1	0
+Scope s archiving, its note kept in log/: the entry's rows over; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s5 r1s60	2	1
+Scope s archiving, its note kept in log/: the entry's rows over; the fix counted in the catch-all	Archiving	works		r0s5 r1s61	1	0
+Scope s archiving, its note kept in log/: the entry's rows over; the fix counted in the catch-all, the move at work	Archiving	works		r0s5 r1s62	1	0
+Scope s archiving, its note written: the entry closed; no fix	Archiving	works		r0s6 r1s0	3	1
+Scope s archiving, its note written: the entry closed; the fix counted in s	Archiving	works		r0s6 r1s1	3	1
+Scope s archiving, its note written: the entry closed; the fix counted in s and the catch-all	Archiving	works		r0s6 r1s2	3	1
+Scope s archiving, its note written: the entry closed; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s6 r1s3	12	10
+Scope s archiving, its note written: the entry closed; the fix counted in s, not where its home reads it	Archiving	wrong		r0s6 r1s4	3	1
+Scope s archiving, its note written: the entry closed; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s6 r1s5	6	5
+Scope s archiving, its note written: the entry closed; the fix counted in the catch-all	Archiving	works		r0s6 r1s6	3	1
+Scope s archiving, its note written: the entry closed; the fix counted in the catch-all, the move at work	Archiving	works		r0s6 r1s7	3	1
+Scope s archiving, its note written: the entry in its plan and in plan-done.md, its close cut short; no fix	Archiving	works		r0s6 r1s8	3	2
+Scope s archiving, its note written: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s	Archiving	works		r0s6 r1s9	3	2
+Scope s archiving, its note written: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all	Archiving	works		r0s6 r1s10	3	2
+Scope s archiving, its note written: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s6 r1s11	12	14
+Scope s archiving, its note written: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s, not where its home reads it	Archiving	wrong		r0s6 r1s12	3	2
+Scope s archiving, its note written: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s6 r1s13	6	7
+Scope s archiving, its note written: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all	Archiving	works		r0s6 r1s14	3	2
+Scope s archiving, its note written: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all, the move at work	Archiving	works		r0s6 r1s15	3	2
+Scope s archiving, its note written: the entry in its plan and in plan-done.md, the close at work; no fix	Archiving	works		r0s6 r1s16	3	2
+Scope s archiving, its note written: the entry in its plan and in plan-done.md, the close at work; the fix counted in s	Archiving	works		r0s6 r1s17	3	2
+Scope s archiving, its note written: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all	Archiving	works		r0s6 r1s18	3	2
+Scope s archiving, its note written: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s6 r1s19	12	14
+Scope s archiving, its note written: the entry in its plan and in plan-done.md, the close at work; the fix counted in s, not where its home reads it	Archiving	wrong		r0s6 r1s20	3	2
+Scope s archiving, its note written: the entry in its plan and in plan-done.md, the close at work; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s6 r1s21	6	7
+Scope s archiving, its note written: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all	Archiving	works		r0s6 r1s22	3	2
+Scope s archiving, its note written: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all, the move at work	Archiving	works		r0s6 r1s23	3	2
+Scope s archiving, its note written: the entry proposed or planned; no fix	Archiving	works		r0s6 r1s29	1	0
+Scope s archiving, its note written: the entry proposed or planned; the fix counted in s	Archiving	works		r0s6 r1s30	1	0
+Scope s archiving, its note written: the entry proposed or planned; the fix counted in s and the catch-all	Archiving	works		r0s6 r1s31	1	0
+Scope s archiving, its note written: the entry proposed or planned; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s6 r1s32	4	2
+Scope s archiving, its note written: the entry proposed or planned; the fix counted in s, not where its home reads it	Archiving	wrong		r0s6 r1s33	1	0
+Scope s archiving, its note written: the entry proposed or planned; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s6 r1s34	2	1
+Scope s archiving, its note written: the entry proposed or planned; the fix counted in the catch-all	Archiving	works		r0s6 r1s35	1	0
+Scope s archiving, its note written: the entry proposed or planned; the fix counted in the catch-all, the move at work	Archiving	works		r0s6 r1s36	1	0
+Scope s archiving, its note written: the entry's row out; no fix	Archiving	works		r0s6 r1s42	1	0
+Scope s archiving, its note written: the entry's row out; the fix counted in s	Archiving	works		r0s6 r1s43	1	0
+Scope s archiving, its note written: the entry's row out; the fix counted in s and the catch-all	Archiving	works		r0s6 r1s44	1	0
+Scope s archiving, its note written: the entry's row out; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s6 r1s45	4	2
+Scope s archiving, its note written: the entry's row out; the fix counted in s, not where its home reads it	Archiving	wrong		r0s6 r1s46	1	0
+Scope s archiving, its note written: the entry's row out; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s6 r1s47	2	1
+Scope s archiving, its note written: the entry's row out; the fix counted in the catch-all	Archiving	works		r0s6 r1s48	1	0
+Scope s archiving, its note written: the entry's row out; the fix counted in the catch-all, the move at work	Archiving	works		r0s6 r1s49	1	0
+Scope s archiving, its note written: the entry's rows over; no fix	Archiving	works		r0s6 r1s55	1	0
+Scope s archiving, its note written: the entry's rows over; the fix counted in s	Archiving	works		r0s6 r1s56	1	0
+Scope s archiving, its note written: the entry's rows over; the fix counted in s and the catch-all	Archiving	works		r0s6 r1s57	1	0
+Scope s archiving, its note written: the entry's rows over; the fix counted in s and the catch-all, the move at work	Archiving	works		r0s6 r1s58	4	2
+Scope s archiving, its note written: the entry's rows over; the fix counted in s, not where its home reads it	Archiving	wrong		r0s6 r1s59	1	0
+Scope s archiving, its note written: the entry's rows over; the fix counted in s, not where its home reads it, the move at work	Archiving	works		r0s6 r1s60	2	1
+Scope s archiving, its note written: the entry's rows over; the fix counted in the catch-all	Archiving	works		r0s6 r1s61	1	0
+Scope s archiving, its note written: the entry's rows over; the fix counted in the catch-all, the move at work	Archiving	works		r0s6 r1s62	1	0
+Scope s handed to the catch-all: the entry closed; no fix	Handed to the catch-all	works		r0s7 r1s0	1	0
+Scope s handed to the catch-all: the entry closed; the fix counted in the catch-all	Handed to the catch-all	works		r0s7 r1s6	6	2
+Scope s handed to the catch-all: the entry closed; the fix counted in the catch-all, the move at work	Handed to the catch-all	works		r0s7 r1s7	3	1
+Scope s handed to the catch-all: the entry in its plan and in plan-done.md, its close cut short; no fix	Handed to the catch-all	works		r0s7 r1s8	1	0
+Scope s handed to the catch-all: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all	Handed to the catch-all	works		r0s7 r1s14	6	2
+Scope s handed to the catch-all: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all, the move at work	Handed to the catch-all	works		r0s7 r1s15	3	1
+Scope s handed to the catch-all: the entry proposed or planned (in plan-archived.md); the fix counted in the catch-all	Handed to the catch-all	works		r0s7 r1s27	2	0
+Scope s handed to the catch-all: the entry proposed or planned (in plan-archived.md); the fix counted in the catch-all, the move at work	Handed to the catch-all	works		r0s7 r1s28	1	0
+Scope s handed to the catch-all: the entry's row out (in plan-archived.md); no fix	Handed to the catch-all	works		r0s7 r1s37	1	0
+Scope s handed to the catch-all: the entry's row out (in plan-archived.md); the fix counted in the catch-all	Handed to the catch-all	works		r0s7 r1s40	2	0
+Scope s handed to the catch-all: the entry's row out (in plan-archived.md); the fix counted in the catch-all, the move at work	Handed to the catch-all	works		r0s7 r1s41	1	0
+Scope s handed to the catch-all: the entry's rows over (in plan-archived.md); the fix counted in the catch-all	Handed to the catch-all	works		r0s7 r1s53	2	0
+Scope s handed to the catch-all: the entry's rows over (in plan-archived.md); the fix counted in the catch-all, the move at work	Handed to the catch-all	works		r0s7 r1s54	1	0
+Scope s retired: the entry closed; no fix	Retired	works		r0s8 r1s0	2	0
+Scope s retired: the entry in its plan and in plan-done.md, its close cut short; no fix	Retired	works		r0s8 r1s8	2	0
+Scope s retired: the entry proposed or planned (in plan-archived.md); no fix	Retired	works		r0s8 r1s24	1	0
+Scope s retired: the entry's rows over (in plan-archived.md); no fix	Retired	works		r0s8 r1s50	1	0
+Scope s working: the entry closed; no fix	Working	works		r0s9 r1s0	3	1
+Scope s working: the entry closed; the fix counted in s	Working	works		r0s9 r1s1	3	1
+Scope s working: the entry closed; the fix counted in s and the catch-all	Working	works		r0s9 r1s2	3	1
+Scope s working: the entry closed; the fix counted in s and the catch-all, the move at work	Working	works		r0s9 r1s3	12	10
+Scope s working: the entry closed; the fix counted in s, not where its home reads it	Working	wrong		r0s9 r1s4	3	1
+Scope s working: the entry closed; the fix counted in s, not where its home reads it, the move at work	Working	works		r0s9 r1s5	6	5
+Scope s working: the entry closed; the fix counted in the catch-all	Working	works		r0s9 r1s6	3	1
+Scope s working: the entry closed; the fix counted in the catch-all, the move at work	Working	works		r0s9 r1s7	3	1
+Scope s working: the entry in its plan and in plan-done.md, its close cut short; no fix	Working	works		r0s9 r1s8	3	2
+Scope s working: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s	Working	works		r0s9 r1s9	3	2
+Scope s working: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all	Working	works		r0s9 r1s10	3	2
+Scope s working: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all, the move at work	Working	works		r0s9 r1s11	12	14
+Scope s working: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s, not where its home reads it	Working	wrong		r0s9 r1s12	3	2
+Scope s working: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s, not where its home reads it, the move at work	Working	works		r0s9 r1s13	6	7
+Scope s working: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all	Working	works		r0s9 r1s14	3	2
+Scope s working: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all, the move at work	Working	works		r0s9 r1s15	3	2
+Scope s working: the entry in its plan and in plan-done.md, the close at work; no fix	Working	works		r0s9 r1s16	3	2
+Scope s working: the entry in its plan and in plan-done.md, the close at work; the fix counted in s	Working	works		r0s9 r1s17	3	2
+Scope s working: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all	Working	works		r0s9 r1s18	3	2
+Scope s working: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all, the move at work	Working	works		r0s9 r1s19	12	14
+Scope s working: the entry in its plan and in plan-done.md, the close at work; the fix counted in s, not where its home reads it	Working	wrong		r0s9 r1s20	3	2
+Scope s working: the entry in its plan and in plan-done.md, the close at work; the fix counted in s, not where its home reads it, the move at work	Working	works		r0s9 r1s21	6	7
+Scope s working: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all	Working	works		r0s9 r1s22	3	2
+Scope s working: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all, the move at work	Working	works		r0s9 r1s23	3	2
+Scope s working: the entry proposed or planned; no fix	Working	works	yes	r0s9 r1s29	1	0
+Scope s working: the entry proposed or planned; the fix counted in s	Working	works		r0s9 r1s30	1	0
+Scope s working: the entry proposed or planned; the fix counted in s and the catch-all	Working	works		r0s9 r1s31	1	0
+Scope s working: the entry proposed or planned; the fix counted in s and the catch-all, the move at work	Working	works		r0s9 r1s32	4	2
+Scope s working: the entry proposed or planned; the fix counted in s, not where its home reads it	Working	wrong		r0s9 r1s33	1	0
+Scope s working: the entry proposed or planned; the fix counted in s, not where its home reads it, the move at work	Working	works		r0s9 r1s34	2	1
+Scope s working: the entry proposed or planned; the fix counted in the catch-all	Working	works		r0s9 r1s35	1	0
+Scope s working: the entry proposed or planned; the fix counted in the catch-all, the move at work	Working	works		r0s9 r1s36	1	0
+Scope s working: the entry's row out; no fix	Working	works		r0s9 r1s42	1	0
+Scope s working: the entry's row out; the fix counted in s	Working	works		r0s9 r1s43	1	0
+Scope s working: the entry's row out; the fix counted in s and the catch-all	Working	works		r0s9 r1s44	1	0
+Scope s working: the entry's row out; the fix counted in s and the catch-all, the move at work	Working	works		r0s9 r1s45	4	2
+Scope s working: the entry's row out; the fix counted in s, not where its home reads it	Working	wrong		r0s9 r1s46	1	0
+Scope s working: the entry's row out; the fix counted in s, not where its home reads it, the move at work	Working	works		r0s9 r1s47	2	1
+Scope s working: the entry's row out; the fix counted in the catch-all	Working	works		r0s9 r1s48	1	0
+Scope s working: the entry's row out; the fix counted in the catch-all, the move at work	Working	works		r0s9 r1s49	1	0
+Scope s working: the entry's rows over; no fix	Working	works		r0s9 r1s55	1	0
+Scope s working: the entry's rows over; the fix counted in s	Working	works		r0s9 r1s56	1	0
+Scope s working: the entry's rows over; the fix counted in s and the catch-all	Working	works		r0s9 r1s57	1	0
+Scope s working: the entry's rows over; the fix counted in s and the catch-all, the move at work	Working	works		r0s9 r1s58	4	2
+Scope s working: the entry's rows over; the fix counted in s, not where its home reads it	Working	wrong		r0s9 r1s59	1	0
+Scope s working: the entry's rows over; the fix counted in s, not where its home reads it, the move at work	Working	works		r0s9 r1s60	2	1
+Scope s working: the entry's rows over; the fix counted in the catch-all	Working	works		r0s9 r1s61	1	0
+Scope s working: the entry's rows over; the fix counted in the catch-all, the move at work	Working	works		r0s9 r1s62	1	0
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry closed; no fix	Archived, still clearing	works		r0s11 r1s0	9	9
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry closed; the fix counted in s and the catch-all	Archived, still clearing	works		r0s11 r1s2	18	18
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry closed; the fix counted in s and the catch-all, the move at work	Archived, still clearing	works		r0s11 r1s3	9	9
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry closed; the fix counted in the catch-all	Archived, still clearing	works		r0s11 r1s6	18	18
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry closed; the fix counted in the catch-all, the move at work	Archived, still clearing	works		r0s11 r1s7	9	9
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry in its plan and in plan-done.md, its close cut short; no fix	Archived, still clearing	works		r0s11 r1s8	9	9
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all	Archived, still clearing	works		r0s11 r1s10	18	18
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all, the move at work	Archived, still clearing	works		r0s11 r1s11	9	9
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all	Archived, still clearing	works		r0s11 r1s14	18	18
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all, the move at work	Archived, still clearing	works		r0s11 r1s15	9	9
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry in its plan and in plan-done.md, the close at work; no fix	Archived, still clearing	works		r0s11 r1s16	3	1
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all	Archived, still clearing	works		r0s11 r1s18	6	2
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all, the move at work	Archived, still clearing	works		r0s11 r1s19	3	1
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all	Archived, still clearing	works		r0s11 r1s22	3	1
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all, the move at work	Archived, still clearing	works		r0s11 r1s23	3	1
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry proposed or planned (in plan-archived.md); no fix	Archived, still clearing	works		r0s11 r1s24	3	2
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry proposed or planned (in plan-archived.md); the fix counted in s and the catch-all	Archived, still clearing	works		r0s11 r1s25	6	4
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry proposed or planned (in plan-archived.md); the fix counted in s and the catch-all, the move at work	Archived, still clearing	works		r0s11 r1s26	3	2
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry proposed or planned (in plan-archived.md); the fix counted in the catch-all	Archived, still clearing	works		r0s11 r1s27	6	4
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry proposed or planned (in plan-archived.md); the fix counted in the catch-all, the move at work	Archived, still clearing	works		r0s11 r1s28	3	2
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry's row out (in plan-archived.md); no fix	Archived, still clearing	works		r0s11 r1s37	3	2
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry's row out (in plan-archived.md); the fix counted in s and the catch-all	Archived, still clearing	works		r0s11 r1s38	6	4
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry's row out (in plan-archived.md); the fix counted in s and the catch-all, the move at work	Archived, still clearing	works		r0s11 r1s39	3	2
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry's row out (in plan-archived.md); the fix counted in the catch-all	Archived, still clearing	works		r0s11 r1s40	6	4
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry's row out (in plan-archived.md); the fix counted in the catch-all, the move at work	Archived, still clearing	works		r0s11 r1s41	3	2
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry's rows over (in plan-archived.md); no fix	Archived, still clearing	works		r0s11 r1s50	3	2
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry's rows over (in plan-archived.md); the fix counted in s and the catch-all	Archived, still clearing	works		r0s11 r1s51	6	4
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry's rows over (in plan-archived.md); the fix counted in s and the catch-all, the move at work	Archived, still clearing	works		r0s11 r1s52	3	2
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry's rows over (in plan-archived.md); the fix counted in the catch-all	Archived, still clearing	works		r0s11 r1s53	6	4
+Scope s's plan archived, its home-id still there, jbus retire at work: the entry's rows over (in plan-archived.md); the fix counted in the catch-all, the move at work	Archived, still clearing	works		r0s11 r1s54	3	2
+Scope s's plan archived, its home-id still there: the entry closed; no fix	Archived, still clearing	works		r0s10 r1s0	3	1
+Scope s's plan archived, its home-id still there: the entry closed; the fix counted in s and the catch-all	Archived, still clearing	works		r0s10 r1s2	6	2
+Scope s's plan archived, its home-id still there: the entry closed; the fix counted in s and the catch-all, the move at work	Archived, still clearing	works		r0s10 r1s3	9	9
+Scope s's plan archived, its home-id still there: the entry closed; the fix counted in the catch-all	Archived, still clearing	works		r0s10 r1s6	6	2
+Scope s's plan archived, its home-id still there: the entry closed; the fix counted in the catch-all, the move at work	Archived, still clearing	works		r0s10 r1s7	3	1
+Scope s's plan archived, its home-id still there: the entry in its plan and in plan-done.md, its close cut short; no fix	Archived, still clearing	works		r0s10 r1s8	3	1
+Scope s's plan archived, its home-id still there: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all	Archived, still clearing	works		r0s10 r1s10	6	2
+Scope s's plan archived, its home-id still there: the entry in its plan and in plan-done.md, its close cut short; the fix counted in s and the catch-all, the move at work	Archived, still clearing	works		r0s10 r1s11	9	9
+Scope s's plan archived, its home-id still there: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all	Archived, still clearing	works		r0s10 r1s14	6	2
+Scope s's plan archived, its home-id still there: the entry in its plan and in plan-done.md, its close cut short; the fix counted in the catch-all, the move at work	Archived, still clearing	works		r0s10 r1s15	3	1
+Scope s's plan archived, its home-id still there: the entry in its plan and in plan-done.md, the close at work; no fix	Archived, still clearing	works		r0s10 r1s16	3	1
+Scope s's plan archived, its home-id still there: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all	Archived, still clearing	works		r0s10 r1s18	6	2
+Scope s's plan archived, its home-id still there: the entry in its plan and in plan-done.md, the close at work; the fix counted in s and the catch-all, the move at work	Archived, still clearing	works		r0s10 r1s19	9	9
+Scope s's plan archived, its home-id still there: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all	Archived, still clearing	works		r0s10 r1s22	6	2
+Scope s's plan archived, its home-id still there: the entry in its plan and in plan-done.md, the close at work; the fix counted in the catch-all, the move at work	Archived, still clearing	works		r0s10 r1s23	3	1
+Scope s's plan archived, its home-id still there: the entry proposed or planned (in plan-archived.md); no fix	Archived, still clearing	works		r0s10 r1s24	1	0
+Scope s's plan archived, its home-id still there: the entry proposed or planned (in plan-archived.md); the fix counted in s and the catch-all	Archived, still clearing	works		r0s10 r1s25	2	0
+Scope s's plan archived, its home-id still there: the entry proposed or planned (in plan-archived.md); the fix counted in s and the catch-all, the move at work	Archived, still clearing	works		r0s10 r1s26	3	2
+Scope s's plan archived, its home-id still there: the entry proposed or planned (in plan-archived.md); the fix counted in the catch-all	Archived, still clearing	works		r0s10 r1s27	2	0
+Scope s's plan archived, its home-id still there: the entry proposed or planned (in plan-archived.md); the fix counted in the catch-all, the move at work	Archived, still clearing	works		r0s10 r1s28	1	0
+Scope s's plan archived, its home-id still there: the entry's row out (in plan-archived.md); no fix	Archived, still clearing	works		r0s10 r1s37	1	0
+Scope s's plan archived, its home-id still there: the entry's row out (in plan-archived.md); the fix counted in s and the catch-all	Archived, still clearing	works		r0s10 r1s38	2	0
+Scope s's plan archived, its home-id still there: the entry's row out (in plan-archived.md); the fix counted in s and the catch-all, the move at work	Archived, still clearing	works		r0s10 r1s39	3	2
+Scope s's plan archived, its home-id still there: the entry's row out (in plan-archived.md); the fix counted in the catch-all	Archived, still clearing	works		r0s10 r1s40	2	0
+Scope s's plan archived, its home-id still there: the entry's row out (in plan-archived.md); the fix counted in the catch-all, the move at work	Archived, still clearing	works		r0s10 r1s41	1	0
+Scope s's plan archived, its home-id still there: the entry's rows over (in plan-archived.md); no fix	Archived, still clearing	works		r0s10 r1s50	1	0
+Scope s's plan archived, its home-id still there: the entry's rows over (in plan-archived.md); the fix counted in s and the catch-all	Archived, still clearing	works		r0s10 r1s51	2	0
+Scope s's plan archived, its home-id still there: the entry's rows over (in plan-archived.md); the fix counted in s and the catch-all, the move at work	Archived, still clearing	works		r0s10 r1s52	3	2
+Scope s's plan archived, its home-id still there: the entry's rows over (in plan-archived.md); the fix counted in the catch-all	Archived, still clearing	works		r0s10 r1s53	2	0
+Scope s's plan archived, its home-id still there: the entry's rows over (in plan-archived.md); the fix counted in the catch-all, the move at work	Archived, still clearing	works		r0s10 r1s54	1	0

@@ -1,0 +1,378 @@
+from	to	label	action	chart	steps in PrVerdict.cfg
+Main as its check saw it: GitHub has not decided whether it merges	Main as its check saw it: jmerge judges it next	GitHub decides it merges cleanly or not	GitHubDecides	r1s0>r1s13	144
+Main as its check saw it: GitHub has not decided whether it merges	Main moved past its check: GitHub has not decided whether it merges	other work merges into main	MainMoves	r0s0>r0s1	432
+Main as its check saw it: GitHub has not decided whether it merges	Main moved past its check: GitHub has not decided whether it merges	the one ahead in line merges	OtherMerges	r0s0>r0s1	288
+Main as its check saw it: GitHub has not decided whether it merges	Main moved past its check: GitHub has not decided whether it merges	you accept the one ahead, and it merges	AcceptOther	r0s0>r0s1	288
+Main as its check saw it: GitHub has not decided whether it merges	Main red: GitHub has not decided whether it merges	other work merges into main	MainMoves	r0s0>r0s2	432
+Main as its check saw it: held: a drop or decline the review did not uphold	Main as its check saw it: jmerge judges it next	jbus holds its row: its check failed at three heads, or two that name no test	Twice		64
+Main as its check saw it: held: a drop or decline the review did not uphold	Main as its check saw it: merged	you accept it, and it merges	Accept	r1s4>r1s14	112
+Main as its check saw it: held: a drop or decline the review did not uphold	Main moved past its check: held: a drop or decline the review did not uphold	other work merges into main	MainMoves	r0s0>r0s1	768
+Main as its check saw it: held: a drop or decline the review did not uphold	Main moved past its check: held: a drop or decline the review did not uphold	the one ahead in line merges	OtherMerges	r0s0>r0s1	672
+Main as its check saw it: held: a drop or decline the review did not uphold	Main moved past its check: held: a drop or decline the review did not uphold	you accept the one ahead, and it merges	AcceptOther	r0s0>r0s1	672
+Main as its check saw it: held: a drop or decline the review did not uphold	Main moved past its check: jmerge judges it next	other work merges into main	MainMoves	r0s0>r0s1	576
+Main as its check saw it: held: a drop or decline the review did not uphold	Main moved past its check: jmerge judges it next	the one ahead in line merges	OtherMerges	r0s0>r0s1	480
+Main as its check saw it: held: a drop or decline the review did not uphold	Main moved past its check: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther	r0s0>r0s1	480
+Main as its check saw it: held: a drop or decline the review did not uphold	Main red: held: a drop or decline the review did not uphold	other work merges into main	MainMoves	r0s0>r0s2	768
+Main as its check saw it: held: a drop or decline the review did not uphold	Main red: jmerge judges it next	other work merges into main	MainMoves	r0s0>r0s2	576
+Main as its check saw it: held: it touches a protected path	Main as its check saw it: jmerge judges it next	jbus holds its row: its check failed at three heads, or two that name no test	Twice		32
+Main as its check saw it: held: it touches a protected path	Main as its check saw it: merged	you accept it, and it merges	Accept	r1s5>r1s14	56
+Main as its check saw it: held: it touches a protected path	Main moved past its check: held: it touches a protected path	other work merges into main	MainMoves	r0s0>r0s1	384
+Main as its check saw it: held: it touches a protected path	Main moved past its check: held: it touches a protected path	the one ahead in line merges	OtherMerges	r0s0>r0s1	336
+Main as its check saw it: held: it touches a protected path	Main moved past its check: held: it touches a protected path	you accept the one ahead, and it merges	AcceptOther	r0s0>r0s1	336
+Main as its check saw it: held: it touches a protected path	Main moved past its check: jmerge judges it next	other work merges into main	MainMoves	r0s0>r0s1	288
+Main as its check saw it: held: it touches a protected path	Main moved past its check: jmerge judges it next	the one ahead in line merges	OtherMerges	r0s0>r0s1	240
+Main as its check saw it: held: it touches a protected path	Main moved past its check: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther	r0s0>r0s1	240
+Main as its check saw it: held: it touches a protected path	Main red: held: it touches a protected path	other work merges into main	MainMoves	r0s0>r0s2	384
+Main as its check saw it: held: it touches a protected path	Main red: jmerge judges it next	other work merges into main	MainMoves	r0s0>r0s2	288
+Main as its check saw it: held: its check failed twice	Main as its check saw it: held: its row has no go	jmerge judges it	Judge		808
+Main as its check saw it: held: its check failed twice	Main as its check saw it: held: its row is over, and no accept lifts it	jmerge judges it	Judge		768
+Main as its check saw it: held: its check failed twice	Main as its check saw it: its check failed	you approve its row	Approve		608
+Main as its check saw it: held: its check failed twice	Main as its check saw it: jmerge judges it next	you approve its row	Approve	r1s6>r1s13	4640
+Main as its check saw it: held: its check failed twice	Main as its check saw it: waits on its review	jmerge judges it	Judge		2096
+Main as its check saw it: held: its check failed twice	Main moved past its check: held: its check failed twice	other work merges into main	MainMoves	r0s0>r0s1	8304
+Main as its check saw it: held: its check failed twice	Main moved past its check: held: its check failed twice	the one ahead in line merges	OtherMerges	r0s0>r0s1	8016
+Main as its check saw it: held: its check failed twice	Main moved past its check: held: its check failed twice	you accept the one ahead, and it merges	AcceptOther	r0s0>r0s1	8016
+Main as its check saw it: held: its check failed twice	Main red: held: its check failed twice	other work merges into main	MainMoves	r0s0>r0s2	8304
+Main as its check saw it: held: its row has no go	Main as its check saw it: jmerge judges it next	you approve its row	Approve		1552
+Main as its check saw it: held: its row has no go	Main moved past its check: held: its row has no go	other work merges into main	MainMoves	r0s0>r0s1	1536
+Main as its check saw it: held: its row has no go	Main moved past its check: held: its row has no go	the one ahead in line merges	OtherMerges	r0s0>r0s1	1344
+Main as its check saw it: held: its row has no go	Main moved past its check: held: its row has no go	you accept the one ahead, and it merges	AcceptOther	r0s0>r0s1	1344
+Main as its check saw it: held: its row has no go	Main moved past its check: jmerge judges it next	other work merges into main	MainMoves	r0s0>r0s1	1440
+Main as its check saw it: held: its row has no go	Main moved past its check: jmerge judges it next	the one ahead in line merges	OtherMerges	r0s0>r0s1	1200
+Main as its check saw it: held: its row has no go	Main moved past its check: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther	r0s0>r0s1	1200
+Main as its check saw it: held: its row has no go	Main red: held: its row has no go	other work merges into main	MainMoves	r0s0>r0s2	1536
+Main as its check saw it: held: its row has no go	Main red: jmerge judges it next	other work merges into main	MainMoves	r0s0>r0s2	1440
+Main as its check saw it: held: its row is over, and no accept lifts it	Main as its check saw it: merged	you accept it, and it merges	Accept	r1s8>r1s14	224
+Main as its check saw it: held: its row is over, and no accept lifts it	Main moved past its check: held: its row is over, and no accept lifts it	other work merges into main	MainMoves	r0s0>r0s1	3072
+Main as its check saw it: held: its row is over, and no accept lifts it	Main moved past its check: held: its row is over, and no accept lifts it	the one ahead in line merges	OtherMerges	r0s0>r0s1	2688
+Main as its check saw it: held: its row is over, and no accept lifts it	Main moved past its check: held: its row is over, and no accept lifts it	you accept the one ahead, and it merges	AcceptOther	r0s0>r0s1	2688
+Main as its check saw it: held: its row is over, and no accept lifts it	Main moved past its check: jmerge judges it next	other work merges into main	MainMoves	r0s0>r0s1	2496
+Main as its check saw it: held: its row is over, and no accept lifts it	Main moved past its check: jmerge judges it next	the one ahead in line merges	OtherMerges	r0s0>r0s1	2112
+Main as its check saw it: held: its row is over, and no accept lifts it	Main moved past its check: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther	r0s0>r0s1	2112
+Main as its check saw it: held: its row is over, and no accept lifts it	Main red: held: its row is over, and no accept lifts it	other work merges into main	MainMoves	r0s0>r0s2	3072
+Main as its check saw it: held: its row is over, and no accept lifts it	Main red: jmerge judges it next	other work merges into main	MainMoves	r0s0>r0s2	2496
+Main as its check saw it: held: merging is off	Main as its check saw it: jmerge judges it next	you turn merging on	MergeOn	r1s9>r1s13	72
+Main as its check saw it: held: merging is off	Main moved past its check: jmerge judges it next	other work merges into main	MainMoves	r0s0>r0s1 r1s9>r1s13	216
+Main as its check saw it: held: merging is off	Main moved past its check: jmerge judges it next	the one ahead in line merges	OtherMerges	r0s0>r0s1 r1s9>r1s13	144
+Main as its check saw it: held: merging is off	Main moved past its check: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther	r0s0>r0s1 r1s9>r1s13	144
+Main as its check saw it: held: merging is off	Main red: jmerge judges it next	other work merges into main	MainMoves	r0s0>r0s2 r1s9>r1s13	216
+Main as its check saw it: its check failed	Main as its check saw it: held: its check failed twice	jbus holds its row: its check failed at three heads, or two that name no test	Twice		576
+Main as its check saw it: its check failed	Main as its check saw it: jmerge judges it next	GitHub decides it merges cleanly or not	GitHubDecides	r1s12>r1s13	1664
+Main as its check saw it: its check failed	Main as its check saw it: jmerge judges it next	its crew rebases and fixes it	CrewFix	r1s12>r1s13	2944
+Main as its check saw it: its check failed	Main moved past its check: its check failed	other work merges into main	MainMoves	r0s0>r0s1	3648
+Main as its check saw it: its check failed	Main moved past its check: its check failed	the one ahead in line merges	OtherMerges	r0s0>r0s1	3264
+Main as its check saw it: its check failed	Main moved past its check: its check failed	you accept the one ahead, and it merges	AcceptOther	r0s0>r0s1	3264
+Main as its check saw it: its check failed	Main red: its check failed	other work merges into main	MainMoves	r0s0>r0s2	3648
+Main as its check saw it: jmerge judges it next	Main as its check saw it: GitHub has not decided whether it merges	jmerge judges it	Judge	r1s13>r1s0	1251
+Main as its check saw it: jmerge judges it next	Main as its check saw it: held: a drop or decline the review did not uphold	jmerge judges it	Judge	r1s13>r1s4	6336
+Main as its check saw it: jmerge judges it next	Main as its check saw it: held: a drop or decline the review did not uphold	you approve its row	Approve		64
+Main as its check saw it: jmerge judges it next	Main as its check saw it: held: it touches a protected path	jmerge judges it	Judge	r1s13>r1s5	3168
+Main as its check saw it: jmerge judges it next	Main as its check saw it: held: it touches a protected path	you approve its row	Approve	r1s13>r1s5	32
+Main as its check saw it: jmerge judges it next	Main as its check saw it: held: its check failed twice	jbus holds its row: its check failed at three heads, or two that name no test	Twice	r1s13>r1s6	4672
+Main as its check saw it: jmerge judges it next	Main as its check saw it: held: its check failed twice	jmerge judges it	Judge		3300
+Main as its check saw it: jmerge judges it next	Main as its check saw it: held: its row has no go	jbus holds its row: its check failed at three heads, or two that name no test	Twice		128
+Main as its check saw it: jmerge judges it next	Main as its check saw it: held: its row has no go	jmerge judges it	Judge	r1s13>r1s7	10788
+Main as its check saw it: jmerge judges it next	Main as its check saw it: held: its row is over, and no accept lifts it	jmerge judges it	Judge	r1s13>r1s8	20640
+Main as its check saw it: jmerge judges it next	Main as its check saw it: held: merging is off	jmerge judges it	Judge	r1s13>r1s9	694
+Main as its check saw it: jmerge judges it next	Main as its check saw it: its check failed	jmerge judges it	Judge	r1s13>r1s12	17104
+Main as its check saw it: jmerge judges it next	Main as its check saw it: merged	jmerge merges it	Merge	r1s13>r1s14	805
+Main as its check saw it: jmerge judges it next	Main as its check saw it: merged	you accept it, and it merges	Accept	r1s13>r1s14	296
+Main as its check saw it: jmerge judges it next	Main as its check saw it: waits on its check	jmerge judges it	Judge	r1s13>r1s16	38894
+Main as its check saw it: jmerge judges it next	Main as its check saw it: waits on its review	jmerge judges it	Judge	r1s13>r1s17	75636
+Main as its check saw it: jmerge judges it next	Main moved past its check: GitHub has not decided whether it merges	other work merges into main	MainMoves	r0s0>r0s1	432
+Main as its check saw it: jmerge judges it next	Main moved past its check: GitHub has not decided whether it merges	the one ahead in line merges	OtherMerges	r0s0>r0s1	288
+Main as its check saw it: jmerge judges it next	Main moved past its check: GitHub has not decided whether it merges	you accept the one ahead, and it merges	AcceptOther	r0s0>r0s1	288
+Main as its check saw it: jmerge judges it next	Main moved past its check: its check failed	other work merges into main	MainMoves	r0s0>r0s1	2496
+Main as its check saw it: jmerge judges it next	Main moved past its check: its check failed	the one ahead in line merges	OtherMerges	r0s0>r0s1	2496
+Main as its check saw it: jmerge judges it next	Main moved past its check: its check failed	you accept the one ahead, and it merges	AcceptOther	r0s0>r0s1	2496
+Main as its check saw it: jmerge judges it next	Main moved past its check: jmerge judges it next	other work merges into main	MainMoves	r0s0>r0s1	271656
+Main as its check saw it: jmerge judges it next	Main moved past its check: jmerge judges it next	the one ahead in line merges	OtherMerges	r0s0>r0s1	260640
+Main as its check saw it: jmerge judges it next	Main moved past its check: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther	r0s0>r0s1	260640
+Main as its check saw it: jmerge judges it next	Main red: GitHub has not decided whether it merges	other work merges into main	MainMoves	r0s0>r0s2	432
+Main as its check saw it: jmerge judges it next	Main red: its check failed	other work merges into main	MainMoves	r0s0>r0s2	2496
+Main as its check saw it: jmerge judges it next	Main red: jmerge judges it next	other work merges into main	MainMoves	r0s0>r0s2	271656
+Main as its check saw it: waits on its check	Main as its check saw it: jmerge judges it next	its check fails	CheckEnds	r1s16>r1s13	4528
+Main as its check saw it: waits on its check	Main as its check saw it: jmerge judges it next	its check passes	CheckEnds	r1s16>r1s13	3408
+Main as its check saw it: waits on its check	Main moved past its check: waits on its check	other work merges into main	MainMoves	r0s0>r0s1	13440
+Main as its check saw it: waits on its check	Main moved past its check: waits on its check	the one ahead in line merges	OtherMerges	r0s0>r0s1	11232
+Main as its check saw it: waits on its check	Main moved past its check: waits on its check	you accept the one ahead, and it merges	AcceptOther	r0s0>r0s1	11232
+Main as its check saw it: waits on its check	Main red: waits on its check	other work merges into main	MainMoves	r0s0>r0s2	13440
+Main as its check saw it: waits on its review	Main as its check saw it: jmerge judges it next	its reviewer's round holds	Review	r1s17>r1s13	15232
+Main as its check saw it: waits on its review	Main moved past its check: waits on its review	other work merges into main	MainMoves	r0s0>r0s1	29184
+Main as its check saw it: waits on its review	Main moved past its check: waits on its review	the one ahead in line merges	OtherMerges	r0s0>r0s1	24960
+Main as its check saw it: waits on its review	Main moved past its check: waits on its review	you accept the one ahead, and it merges	AcceptOther	r0s0>r0s1	24960
+Main as its check saw it: waits on its review	Main red: waits on its review	other work merges into main	MainMoves	r0s0>r0s2	29184
+Main moved past its check: conflicts with main	Main as its check saw it: jmerge judges it next	its crew rebases and fixes it	CrewFix	r0s1>r0s0 r1s3>r1s13	9804
+Main moved past its check: conflicts with main	Main moved past its check: held: its check failed twice	jbus holds its row: its check failed at three heads, or two that name no test	Twice		16
+Main moved past its check: conflicts with main	Main moved past its check: jmerge judges it next	its check fails	CheckEnds		1952
+Main moved past its check: conflicts with main	Main moved past its check: jmerge judges it next	other work merges into main	MainMoves		1296
+Main moved past its check: conflicts with main	Main moved past its check: jmerge judges it next	the one ahead in line merges	OtherMerges		1296
+Main moved past its check: conflicts with main	Main moved past its check: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther		1296
+Main moved past its check: conflicts with main	Main red: jmerge judges it next	other work merges into main	MainMoves		1296
+Main moved past its check: GitHub has not decided whether it merges	Main moved past its check: jmerge judges it next	GitHub decides it merges cleanly or not	GitHubDecides	r1s0>r1s13	594
+Main moved past its check: GitHub has not decided whether it merges	Main red: GitHub has not decided whether it merges	other work merges into main	MainMoves		432
+Main moved past its check: GitHub merges main into it, for its failed check	Main as its check saw it: jmerge judges it next	GitHub merges main into it	GitHubMergesBase	r0s1>r0s0 r1s1>r1s13	352
+Main moved past its check: GitHub merges main into it, for its failed check	Main moved past its check: jmerge judges it next	jbus holds its row: its check failed at three heads, or two that name no test	Twice		64
+Main moved past its check: GitHub merges main into it, for its failed check	Main moved past its check: jmerge judges it next	other work merges into main	MainMoves		480
+Main moved past its check: GitHub merges main into it, for its failed check	Main red: jmerge judges it next	other work merges into main	MainMoves		480
+Main moved past its check: GitHub merges main into it, for the guards	Main as its check saw it: jmerge judges it next	GitHub merges main into it	GitHubMergesBase	r0s1>r0s0 r1s2>r1s13	42
+Main moved past its check: GitHub merges main into it, for the guards	Main moved past its check: jmerge judges it next	other work merges into main	MainMoves		60
+Main moved past its check: GitHub merges main into it, for the guards	Main red: jmerge judges it next	other work merges into main	MainMoves		60
+Main moved past its check: held: a drop or decline the review did not uphold	Main moved past its check: jmerge judges it next	GitHub decides it merges cleanly or not	GitHubDecides		192
+Main moved past its check: held: a drop or decline the review did not uphold	Main moved past its check: jmerge judges it next	jbus holds its row: its check failed at three heads, or two that name no test	Twice		96
+Main moved past its check: held: a drop or decline the review did not uphold	Main moved past its check: jmerge judges it next	other work merges into main	MainMoves		240
+Main moved past its check: held: a drop or decline the review did not uphold	Main moved past its check: jmerge judges it next	the one ahead in line merges	OtherMerges		1008
+Main moved past its check: held: a drop or decline the review did not uphold	Main moved past its check: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther		1008
+Main moved past its check: held: a drop or decline the review did not uphold	Main moved past its check: merged	you accept it, and it merges	Accept	r1s4>r1s14	136
+Main moved past its check: held: a drop or decline the review did not uphold	Main red: held: a drop or decline the review did not uphold	other work merges into main	MainMoves		528
+Main moved past its check: held: a drop or decline the review did not uphold	Main red: jmerge judges it next	other work merges into main	MainMoves		240
+Main moved past its check: held: it touches a protected path	Main moved past its check: jmerge judges it next	GitHub decides it merges cleanly or not	GitHubDecides		96
+Main moved past its check: held: it touches a protected path	Main moved past its check: jmerge judges it next	jbus holds its row: its check failed at three heads, or two that name no test	Twice		48
+Main moved past its check: held: it touches a protected path	Main moved past its check: jmerge judges it next	other work merges into main	MainMoves		120
+Main moved past its check: held: it touches a protected path	Main moved past its check: jmerge judges it next	the one ahead in line merges	OtherMerges		504
+Main moved past its check: held: it touches a protected path	Main moved past its check: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther		504
+Main moved past its check: held: it touches a protected path	Main moved past its check: merged	you accept it, and it merges	Accept	r1s5>r1s14	68
+Main moved past its check: held: it touches a protected path	Main red: held: it touches a protected path	other work merges into main	MainMoves		264
+Main moved past its check: held: it touches a protected path	Main red: jmerge judges it next	other work merges into main	MainMoves		120
+Main moved past its check: held: its check failed twice	Main moved past its check: conflicts with main	you approve its row	Approve		16
+Main moved past its check: held: its check failed twice	Main moved past its check: held: its row has no go	jmerge judges it	Judge		1212
+Main moved past its check: held: its check failed twice	Main moved past its check: held: its row is over, and no accept lifts it	jmerge judges it	Judge		1024
+Main moved past its check: held: its check failed twice	Main moved past its check: its check failed	you approve its row	Approve		1456
+Main moved past its check: held: its check failed twice	Main moved past its check: jmerge judges it next	you approve its row	Approve	r1s6>r1s13	9264
+Main moved past its check: held: its check failed twice	Main moved past its check: waits on its check	jmerge judges it	Judge		16
+Main moved past its check: held: its check failed twice	Main moved past its check: waits on its review	jmerge judges it	Judge		3904
+Main moved past its check: held: its check failed twice	Main red: held: its check failed twice	other work merges into main	MainMoves		888
+Main moved past its check: held: its row has no go	Main moved past its check: jmerge judges it next	GitHub decides it merges cleanly or not	GitHubDecides	r1s7>r1s13	384
+Main moved past its check: held: its row has no go	Main moved past its check: jmerge judges it next	other work merges into main	MainMoves		600
+Main moved past its check: held: its row has no go	Main moved past its check: jmerge judges it next	the one ahead in line merges	OtherMerges		2472
+Main moved past its check: held: its row has no go	Main moved past its check: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther		2472
+Main moved past its check: held: its row has no go	Main moved past its check: jmerge judges it next	you approve its row	Approve		4496
+Main moved past its check: held: its row has no go	Main red: held: its row has no go	other work merges into main	MainMoves		1056
+Main moved past its check: held: its row has no go	Main red: jmerge judges it next	other work merges into main	MainMoves		600
+Main moved past its check: held: its row is over, and no accept lifts it	Main moved past its check: jmerge judges it next	GitHub decides it merges cleanly or not	GitHubDecides		768
+Main moved past its check: held: its row is over, and no accept lifts it	Main moved past its check: jmerge judges it next	other work merges into main	MainMoves		960
+Main moved past its check: held: its row is over, and no accept lifts it	Main moved past its check: jmerge judges it next	the one ahead in line merges	OtherMerges		4416
+Main moved past its check: held: its row is over, and no accept lifts it	Main moved past its check: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther		4416
+Main moved past its check: held: its row is over, and no accept lifts it	Main moved past its check: merged	you accept it, and it merges	Accept	r1s8>r1s14	272
+Main moved past its check: held: its row is over, and no accept lifts it	Main red: held: its row is over, and no accept lifts it	other work merges into main	MainMoves		2112
+Main moved past its check: held: its row is over, and no accept lifts it	Main red: jmerge judges it next	other work merges into main	MainMoves		960
+Main moved past its check: held: merging is off	Main moved past its check: jmerge judges it next	other work merges into main	MainMoves	r1s9>r1s13	162
+Main moved past its check: held: merging is off	Main moved past its check: jmerge judges it next	the one ahead in line merges	OtherMerges	r1s9>r1s13	162
+Main moved past its check: held: merging is off	Main moved past its check: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther	r1s9>r1s13	162
+Main moved past its check: held: merging is off	Main moved past its check: jmerge judges it next	you turn merging on	MergeOn	r1s9>r1s13	168
+Main moved past its check: held: merging is off	Main red: jmerge judges it next	other work merges into main	MainMoves	r1s9>r1s13	162
+Main moved past its check: in jmerge's batch, whose check runs	Main moved past its check: GitHub merges main into it, for the guards	judged alone, the guards fail	Alone		12
+Main moved past its check: in jmerge's batch, whose check runs	Main moved past its check: in line behind the pull request ahead	judged alone, the guards fail	Alone		12
+Main moved past its check: in jmerge's batch, whose check runs	Main moved past its check: jmerge judges it next	other work merges into main	MainMoves		105
+Main moved past its check: in jmerge's batch, whose check runs	Main moved past its check: jmerge judges it next	the batch's check fails: it goes alone at this head	BatchFails		72
+Main moved past its check: in jmerge's batch, whose check runs	Main moved past its check: jmerge judges it next	the one ahead in line merges	OtherMerges		105
+Main moved past its check: in jmerge's batch, whose check runs	Main moved past its check: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther		105
+Main moved past its check: in jmerge's batch, whose check runs	Main moved past its check: merged	judged alone, jmerge merges it	Alone		72
+Main moved past its check: in jmerge's batch, whose check runs	Main moved past its check: merged	the batch's check passes, and jmerge merges it	BatchProves	r1s10>r1s14	48
+Main moved past its check: in jmerge's batch, whose check runs	Main moved past its check: merged over main, it fails the guards	judged alone, the guards fail	Alone	r1s10>r1s15	24
+Main moved past its check: in jmerge's batch, whose check runs	Main red: jmerge judges it next	other work merges into main	MainMoves		105
+Main moved past its check: in line behind the pull request ahead	Main moved past its check: GitHub merges main into it, for the guards	judged alone, the guards fail	Alone		3
+Main moved past its check: in line behind the pull request ahead	Main moved past its check: jmerge judges it next	jbus holds its row: its check failed at three heads, or two that name no test	Twice		64
+Main moved past its check: in line behind the pull request ahead	Main moved past its check: jmerge judges it next	the batch's check fails: it goes alone at this head	BatchFails	r1s11>r1s13	3
+Main moved past its check: in line behind the pull request ahead	Main moved past its check: jmerge judges it next	the one ahead in line merges	OtherMerges		900
+Main moved past its check: in line behind the pull request ahead	Main moved past its check: jmerge judges it next	the one ahead waits on its crew or user, and gives up the line	Release	r1s11>r1s13	245
+Main moved past its check: in line behind the pull request ahead	Main moved past its check: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther		900
+Main moved past its check: its check failed	Main as its check saw it: jmerge judges it next	its crew rebases and fixes it	CrewFix	r0s1>r0s0 r1s12>r1s13	20064
+Main moved past its check: its check failed	Main moved past its check: held: its check failed twice	jbus holds its row: its check failed at three heads, or two that name no test	Twice		1456
+Main moved past its check: its check failed	Main moved past its check: jmerge judges it next	GitHub decides it merges cleanly or not	GitHubDecides	r1s12>r1s13	8240
+Main moved past its check: its check failed	Main red: its check failed	other work merges into main	MainMoves		3192
+Main moved past its check: jmerge judges it next	Main as its check saw it: jmerge judges it next	its crew rebases and fixes it	CrewFix	r0s1>r0s0	146346
+Main moved past its check: jmerge judges it next	Main moved past its check: conflicts with main	GitHub decides it merges cleanly or not	GitHubDecides		4054
+Main moved past its check: jmerge judges it next	Main moved past its check: conflicts with main	jmerge judges it	Judge	r1s13>r1s3	25703
+Main moved past its check: jmerge judges it next	Main moved past its check: GitHub has not decided whether it merges	jmerge judges it	Judge	r1s13>r1s0	4547
+Main moved past its check: jmerge judges it next	Main moved past its check: GitHub has not decided whether it merges	other work merges into main	MainMoves		432
+Main moved past its check: jmerge judges it next	Main moved past its check: GitHub has not decided whether it merges	the one ahead in line merges	OtherMerges		432
+Main moved past its check: jmerge judges it next	Main moved past its check: GitHub has not decided whether it merges	you accept the one ahead, and it merges	AcceptOther		432
+Main moved past its check: jmerge judges it next	Main moved past its check: GitHub merges main into it, for its failed check	GitHub decides it merges cleanly or not	GitHubDecides		128
+Main moved past its check: jmerge judges it next	Main moved past its check: GitHub merges main into it, for its failed check	jmerge judges it	Judge	r1s13>r1s1	3856
+Main moved past its check: jmerge judges it next	Main moved past its check: GitHub merges main into it, for its failed check	you approve its row	Approve		64
+Main moved past its check: jmerge judges it next	Main moved past its check: GitHub merges main into it, for the guards	GitHub decides it merges cleanly or not	GitHubDecides		15
+Main moved past its check: jmerge judges it next	Main moved past its check: GitHub merges main into it, for the guards	jmerge judges it	Judge	r1s13>r1s2	264
+Main moved past its check: jmerge judges it next	Main moved past its check: GitHub merges main into it, for the guards	the guards fail on its tree over main	GuardsFail		84
+Main moved past its check: jmerge judges it next	Main moved past its check: held: a drop or decline the review did not uphold	GitHub decides it merges cleanly or not	GitHubDecides		928
+Main moved past its check: jmerge judges it next	Main moved past its check: held: a drop or decline the review did not uphold	jmerge judges it	Judge	r1s13>r1s4	15488
+Main moved past its check: jmerge judges it next	Main moved past its check: held: a drop or decline the review did not uphold	other work merges into main	MainMoves		48
+Main moved past its check: jmerge judges it next	Main moved past its check: held: a drop or decline the review did not uphold	the one ahead in line merges	OtherMerges		48
+Main moved past its check: jmerge judges it next	Main moved past its check: held: a drop or decline the review did not uphold	you accept the one ahead, and it merges	AcceptOther		48
+Main moved past its check: jmerge judges it next	Main moved past its check: held: a drop or decline the review did not uphold	you approve its row	Approve		96
+Main moved past its check: jmerge judges it next	Main moved past its check: held: it touches a protected path	GitHub decides it merges cleanly or not	GitHubDecides		464
+Main moved past its check: jmerge judges it next	Main moved past its check: held: it touches a protected path	jmerge judges it	Judge	r1s13>r1s5	7744
+Main moved past its check: jmerge judges it next	Main moved past its check: held: it touches a protected path	other work merges into main	MainMoves		24
+Main moved past its check: jmerge judges it next	Main moved past its check: held: it touches a protected path	the one ahead in line merges	OtherMerges		24
+Main moved past its check: jmerge judges it next	Main moved past its check: held: it touches a protected path	you accept the one ahead, and it merges	AcceptOther		24
+Main moved past its check: jmerge judges it next	Main moved past its check: held: it touches a protected path	you approve its row	Approve	r1s13>r1s5	48
+Main moved past its check: jmerge judges it next	Main moved past its check: held: its check failed twice	jbus holds its row: its check failed at three heads, or two that name no test	Twice	r1s13>r1s6	9264
+Main moved past its check: jmerge judges it next	Main moved past its check: held: its check failed twice	jmerge judges it	Judge		10113
+Main moved past its check: jmerge judges it next	Main moved past its check: held: its row has no go	GitHub decides it merges cleanly or not	GitHubDecides		2208
+Main moved past its check: jmerge judges it next	Main moved past its check: held: its row has no go	jbus holds its row: its check failed at three heads, or two that name no test	Twice		192
+Main moved past its check: jmerge judges it next	Main moved past its check: held: its row has no go	jmerge judges it	Judge	r1s13>r1s7	27869
+Main moved past its check: jmerge judges it next	Main moved past its check: held: its row has no go	other work merges into main	MainMoves		96
+Main moved past its check: jmerge judges it next	Main moved past its check: held: its row has no go	the one ahead in line merges	OtherMerges		96
+Main moved past its check: jmerge judges it next	Main moved past its check: held: its row has no go	you accept the one ahead, and it merges	AcceptOther		96
+Main moved past its check: jmerge judges it next	Main moved past its check: held: its row is over, and no accept lifts it	GitHub decides it merges cleanly or not	GitHubDecides		3968
+Main moved past its check: jmerge judges it next	Main moved past its check: held: its row is over, and no accept lifts it	jmerge judges it	Judge	r1s13>r1s8	51904
+Main moved past its check: jmerge judges it next	Main moved past its check: held: its row is over, and no accept lifts it	other work merges into main	MainMoves		192
+Main moved past its check: jmerge judges it next	Main moved past its check: held: its row is over, and no accept lifts it	the one ahead in line merges	OtherMerges		192
+Main moved past its check: jmerge judges it next	Main moved past its check: held: its row is over, and no accept lifts it	you accept the one ahead, and it merges	AcceptOther		192
+Main moved past its check: jmerge judges it next	Main moved past its check: held: merging is off	GitHub decides it merges cleanly or not	GitHubDecides		168
+Main moved past its check: jmerge judges it next	Main moved past its check: held: merging is off	jmerge judges it	Judge	r1s13>r1s9	1275
+Main moved past its check: jmerge judges it next	Main moved past its check: in jmerge's batch, whose check runs	it joins a batch with other pull requests	JoinBatch	r1s13>r1s10	925
+Main moved past its check: jmerge judges it next	Main moved past its check: in line behind the pull request ahead	GitHub decides it merges cleanly or not	GitHubDecides		24
+Main moved past its check: jmerge judges it next	Main moved past its check: in line behind the pull request ahead	jmerge judges it	Judge	r1s13>r1s11	3104
+Main moved past its check: jmerge judges it next	Main moved past its check: in line behind the pull request ahead	the guards fail on its tree over main	GuardsFail		46
+Main moved past its check: jmerge judges it next	Main moved past its check: in line behind the pull request ahead	you approve its row	Approve		64
+Main moved past its check: jmerge judges it next	Main moved past its check: its check failed	jmerge judges it	Judge	r1s13>r1s12	111836
+Main moved past its check: jmerge judges it next	Main moved past its check: its check failed	other work merges into main	MainMoves		2280
+Main moved past its check: jmerge judges it next	Main moved past its check: its check failed	the one ahead in line merges	OtherMerges		8400
+Main moved past its check: jmerge judges it next	Main moved past its check: its check failed	you accept the one ahead, and it merges	AcceptOther		8400
+Main moved past its check: jmerge judges it next	Main moved past its check: merged	jmerge merges it	Merge	r1s13>r1s14	480
+Main moved past its check: jmerge judges it next	Main moved past its check: merged	judged alone, jmerge merges it	Alone	r1s13>r1s14	686
+Main moved past its check: jmerge judges it next	Main moved past its check: merged	you accept it, and it merges	Accept	r1s13>r1s14	392
+Main moved past its check: jmerge judges it next	Main moved past its check: merged over main, it fails the guards	jmerge judges it	Judge		12
+Main moved past its check: jmerge judges it next	Main moved past its check: merged over main, it fails the guards	the guards fail on its tree over main	GuardsFail	r1s13>r1s15	118
+Main moved past its check: jmerge judges it next	Main moved past its check: waits on its check	jmerge judges it	Judge	r1s13>r1s16	79432
+Main moved past its check: jmerge judges it next	Main moved past its check: waits on its check	other work merges into main	MainMoves		864
+Main moved past its check: jmerge judges it next	Main moved past its check: waits on its check	the one ahead in line merges	OtherMerges		864
+Main moved past its check: jmerge judges it next	Main moved past its check: waits on its check	you accept the one ahead, and it merges	AcceptOther		864
+Main moved past its check: jmerge judges it next	Main moved past its check: waits on its review	jmerge judges it	Judge	r1s13>r1s17	201578
+Main moved past its check: jmerge judges it next	Main red: GitHub has not decided whether it merges	other work merges into main	MainMoves		432
+Main moved past its check: jmerge judges it next	Main red: held: a drop or decline the review did not uphold	other work merges into main	MainMoves		48
+Main moved past its check: jmerge judges it next	Main red: held: it touches a protected path	other work merges into main	MainMoves		24
+Main moved past its check: jmerge judges it next	Main red: held: its row has no go	other work merges into main	MainMoves		96
+Main moved past its check: jmerge judges it next	Main red: held: its row is over, and no accept lifts it	other work merges into main	MainMoves		192
+Main moved past its check: jmerge judges it next	Main red: its check failed	other work merges into main	MainMoves		2280
+Main moved past its check: jmerge judges it next	Main red: jmerge judges it next	other work merges into main	MainMoves		83226
+Main moved past its check: jmerge judges it next	Main red: waits on its check	other work merges into main	MainMoves		864
+Main moved past its check: merged over main, it fails the guards	Main as its check saw it: jmerge judges it next	its crew rebases and fixes it	CrewFix	r0s1>r0s0 r1s15>r1s13	48
+Main moved past its check: merged over main, it fails the guards	Main moved past its check: jmerge judges it next	other work merges into main	MainMoves		27
+Main moved past its check: merged over main, it fails the guards	Main moved past its check: jmerge judges it next	the one ahead in line merges	OtherMerges		27
+Main moved past its check: merged over main, it fails the guards	Main moved past its check: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther		27
+Main moved past its check: merged over main, it fails the guards	Main red: jmerge judges it next	other work merges into main	MainMoves		27
+Main moved past its check: waits on its check	Main moved past its check: jmerge judges it next	GitHub decides it merges cleanly or not	GitHubDecides		3296
+Main moved past its check: waits on its check	Main moved past its check: jmerge judges it next	its check fails	CheckEnds	r1s16>r1s13	10800
+Main moved past its check: waits on its check	Main moved past its check: jmerge judges it next	its check passes	CheckEnds	r1s16>r1s13	8640
+Main moved past its check: waits on its check	Main red: waits on its check	other work merges into main	MainMoves		9504
+Main moved past its check: waits on its review	Main as its check saw it: jmerge judges it next	its crew rebases and fixes it	CrewFix	r0s1>r0s0 r1s17>r1s13	16704
+Main moved past its check: waits on its review	Main moved past its check: jmerge judges it next	its reviewer's round holds	Review	r1s17>r1s13	57120
+Main moved past its check: waits on its review	Main red: waits on its review	other work merges into main	MainMoves		21312
+Main red: conflicts with main	Main moved past its check: jmerge judges it next	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1 r1s3>r1s13	4054
+Main red: conflicts with main	Main red: held: its check failed twice	jbus holds its row: its check failed at three heads, or two that name no test	Twice		16
+Main red: conflicts with main	Main red: jmerge judges it next	its check fails	CheckEnds		2704
+Main red: conflicts with main	Main red: jmerge judges it next	its crew rebases and fixes it	CrewFix	r1s3>r1s13	8076
+Main red: conflicts with main	Main red: jmerge judges it next	the one ahead in line merges	OtherMerges		1296
+Main red: conflicts with main	Main red: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther		1296
+Main red: GitHub has not decided whether it merges	Main moved past its check: GitHub has not decided whether it merges	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	450
+Main red: GitHub has not decided whether it merges	Main red: jmerge judges it next	GitHub decides it merges cleanly or not	GitHubDecides	r1s0>r1s13	450
+Main red: GitHub merges main into it, for the guards	Main moved past its check: jmerge judges it next	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1 r1s2>r1s13	36
+Main red: GitHub merges main into it, for the guards	Main red: jmerge judges it next	GitHub merges main into it	GitHubMergesBase	r1s2>r1s13	36
+Main red: held: a drop or decline the review did not uphold	Main moved past its check: held: a drop or decline the review did not uphold	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	800
+Main red: held: a drop or decline the review did not uphold	Main moved past its check: jmerge judges it next	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	1056
+Main red: held: a drop or decline the review did not uphold	Main red: jmerge judges it next	GitHub decides it merges cleanly or not	GitHubDecides		160
+Main red: held: a drop or decline the review did not uphold	Main red: jmerge judges it next	jbus holds its row: its check failed at three heads, or two that name no test	Twice		64
+Main red: held: a drop or decline the review did not uphold	Main red: jmerge judges it next	the one ahead in line merges	OtherMerges		1104
+Main red: held: a drop or decline the review did not uphold	Main red: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther		1104
+Main red: held: a drop or decline the review did not uphold	Main red: merged	you accept it, and it merges	Accept	r1s4>r1s14	80
+Main red: held: it touches a protected path	Main moved past its check: held: it touches a protected path	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	400
+Main red: held: it touches a protected path	Main moved past its check: jmerge judges it next	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	528
+Main red: held: it touches a protected path	Main red: jmerge judges it next	GitHub decides it merges cleanly or not	GitHubDecides		80
+Main red: held: it touches a protected path	Main red: jmerge judges it next	jbus holds its row: its check failed at three heads, or two that name no test	Twice		32
+Main red: held: it touches a protected path	Main red: jmerge judges it next	the one ahead in line merges	OtherMerges		552
+Main red: held: it touches a protected path	Main red: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther		552
+Main red: held: it touches a protected path	Main red: merged	you accept it, and it merges	Accept	r1s5>r1s14	40
+Main red: held: its check failed twice	Main moved past its check: held: its check failed twice	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	8352
+Main red: held: its check failed twice	Main red: conflicts with main	you approve its row	Approve		16
+Main red: held: its check failed twice	Main red: held: its row has no go	jmerge judges it	Judge		904
+Main red: held: its check failed twice	Main red: held: its row is over, and no accept lifts it	jmerge judges it	Judge		768
+Main red: held: its check failed twice	Main red: its check failed	you approve its row	Approve		1280
+Main red: held: its check failed twice	Main red: jmerge judges it next	you approve its row	Approve	r1s6>r1s13	7056
+Main red: held: its check failed twice	Main red: waits on its review	jmerge judges it	Judge		3288
+Main red: held: its row has no go	Main moved past its check: held: its row has no go	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	1600
+Main red: held: its row has no go	Main moved past its check: jmerge judges it next	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	2432
+Main red: held: its row has no go	Main red: jmerge judges it next	GitHub decides it merges cleanly or not	GitHubDecides	r1s7>r1s13	320
+Main red: held: its row has no go	Main red: jmerge judges it next	the one ahead in line merges	OtherMerges		2328
+Main red: held: its row has no go	Main red: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther		2328
+Main red: held: its row has no go	Main red: jmerge judges it next	you approve its row	Approve		4032
+Main red: held: its row is over, and no accept lifts it	Main moved past its check: held: its row is over, and no accept lifts it	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	3200
+Main red: held: its row is over, and no accept lifts it	Main moved past its check: jmerge judges it next	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	4480
+Main red: held: its row is over, and no accept lifts it	Main red: jmerge judges it next	GitHub decides it merges cleanly or not	GitHubDecides		640
+Main red: held: its row is over, and no accept lifts it	Main red: jmerge judges it next	the one ahead in line merges	OtherMerges		4416
+Main red: held: its row is over, and no accept lifts it	Main red: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther		4416
+Main red: held: its row is over, and no accept lifts it	Main red: merged	you accept it, and it merges	Accept	r1s8>r1s14	160
+Main red: held: merging is off	Main moved past its check: jmerge judges it next	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1 r1s9>r1s13	108
+Main red: held: merging is off	Main red: jmerge judges it next	the one ahead in line merges	OtherMerges	r1s9>r1s13	144
+Main red: held: merging is off	Main red: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther	r1s9>r1s13	144
+Main red: held: merging is off	Main red: jmerge judges it next	you turn merging on	MergeOn	r1s9>r1s13	108
+Main red: in line behind the pull request ahead	Main moved past its check: jmerge judges it next	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1 r1s11>r1s13	60
+Main red: in line behind the pull request ahead	Main red: jmerge judges it next	the one ahead in line merges	OtherMerges		84
+Main red: in line behind the pull request ahead	Main red: jmerge judges it next	the one ahead waits on its crew or user, and gives up the line	Release	r1s11>r1s13	30
+Main red: in line behind the pull request ahead	Main red: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther		84
+Main red: its check failed	Main moved past its check: its check failed	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	16464
+Main red: its check failed	Main red: held: its check failed twice	jbus holds its row: its check failed at three heads, or two that name no test	Twice		1248
+Main red: its check failed	Main red: jmerge judges it next	GitHub decides it merges cleanly or not	GitHubDecides	r1s12>r1s13	7920
+Main red: its check failed	Main red: jmerge judges it next	its crew rebases and fixes it	CrewFix	r1s12>r1s13	19824
+Main red: jmerge judges it next	Main moved past its check: GitHub has not decided whether it merges	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	450
+Main red: jmerge judges it next	Main moved past its check: held: a drop or decline the review did not uphold	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	160
+Main red: jmerge judges it next	Main moved past its check: held: it touches a protected path	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	80
+Main red: jmerge judges it next	Main moved past its check: held: its row has no go	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	320
+Main red: jmerge judges it next	Main moved past its check: held: its row is over, and no accept lifts it	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	640
+Main red: jmerge judges it next	Main moved past its check: its check failed	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	7920
+Main red: jmerge judges it next	Main moved past its check: jmerge judges it next	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	504949
+Main red: jmerge judges it next	Main moved past its check: waits on its check	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	2720
+Main red: jmerge judges it next	Main red: conflicts with main	GitHub decides it merges cleanly or not	GitHubDecides		864
+Main red: jmerge judges it next	Main red: conflicts with main	jmerge judges it	Judge	r1s13>r1s3	22529
+Main red: jmerge judges it next	Main red: GitHub has not decided whether it merges	jmerge judges it	Judge	r1s13>r1s0	3285
+Main red: jmerge judges it next	Main red: GitHub has not decided whether it merges	the one ahead in line merges	OtherMerges		432
+Main red: jmerge judges it next	Main red: GitHub has not decided whether it merges	you accept the one ahead, and it merges	AcceptOther		432
+Main red: jmerge judges it next	Main red: GitHub merges main into it, for the guards	GitHub decides it merges cleanly or not	GitHubDecides		15
+Main red: jmerge judges it next	Main red: GitHub merges main into it, for the guards	jmerge judges it	Judge	r1s13>r1s2	350
+Main red: jmerge judges it next	Main red: GitHub merges main into it, for the guards	the guards fail on its tree over main	GuardsFail		113
+Main red: jmerge judges it next	Main red: held: a drop or decline the review did not uphold	GitHub decides it merges cleanly or not	GitHubDecides		512
+Main red: jmerge judges it next	Main red: held: a drop or decline the review did not uphold	jmerge judges it	Judge	r1s13>r1s4	14016
+Main red: jmerge judges it next	Main red: held: a drop or decline the review did not uphold	the one ahead in line merges	OtherMerges		48
+Main red: jmerge judges it next	Main red: held: a drop or decline the review did not uphold	you accept the one ahead, and it merges	AcceptOther		48
+Main red: jmerge judges it next	Main red: held: a drop or decline the review did not uphold	you approve its row	Approve		64
+Main red: jmerge judges it next	Main red: held: it touches a protected path	GitHub decides it merges cleanly or not	GitHubDecides		256
+Main red: jmerge judges it next	Main red: held: it touches a protected path	jmerge judges it	Judge	r1s13>r1s5	7008
+Main red: jmerge judges it next	Main red: held: it touches a protected path	the one ahead in line merges	OtherMerges		24
+Main red: jmerge judges it next	Main red: held: it touches a protected path	you accept the one ahead, and it merges	AcceptOther		24
+Main red: jmerge judges it next	Main red: held: it touches a protected path	you approve its row	Approve	r1s13>r1s5	32
+Main red: jmerge judges it next	Main red: held: its check failed twice	jbus holds its row: its check failed at three heads, or two that name no test	Twice	r1s13>r1s6	7088
+Main red: jmerge judges it next	Main red: held: its check failed twice	jmerge judges it	Judge		8264
+Main red: jmerge judges it next	Main red: held: its row has no go	GitHub decides it merges cleanly or not	GitHubDecides		1344
+Main red: jmerge judges it next	Main red: held: its row has no go	jbus holds its row: its check failed at three heads, or two that name no test	Twice		128
+Main red: jmerge judges it next	Main red: held: its row has no go	jmerge judges it	Judge	r1s13>r1s7	24148
+Main red: jmerge judges it next	Main red: held: its row has no go	the one ahead in line merges	OtherMerges		96
+Main red: jmerge judges it next	Main red: held: its row has no go	you accept the one ahead, and it merges	AcceptOther		96
+Main red: jmerge judges it next	Main red: held: its row is over, and no accept lifts it	GitHub decides it merges cleanly or not	GitHubDecides		2304
+Main red: jmerge judges it next	Main red: held: its row is over, and no accept lifts it	jmerge judges it	Judge	r1s13>r1s8	46144
+Main red: jmerge judges it next	Main red: held: its row is over, and no accept lifts it	the one ahead in line merges	OtherMerges		192
+Main red: jmerge judges it next	Main red: held: its row is over, and no accept lifts it	you accept the one ahead, and it merges	AcceptOther		192
+Main red: jmerge judges it next	Main red: held: merging is off	GitHub decides it merges cleanly or not	GitHubDecides		108
+Main red: jmerge judges it next	Main red: held: merging is off	jmerge judges it	Judge	r1s13>r1s9	750
+Main red: jmerge judges it next	Main red: in line behind the pull request ahead	jmerge judges it	Judge	r1s13>r1s11	272
+Main red: jmerge judges it next	Main red: in line behind the pull request ahead	the guards fail on its tree over main	GuardsFail		68
+Main red: jmerge judges it next	Main red: its check failed	jmerge judges it	Judge	r1s13>r1s12	110080
+Main red: jmerge judges it next	Main red: its check failed	the one ahead in line merges	OtherMerges		8280
+Main red: jmerge judges it next	Main red: its check failed	you accept the one ahead, and it merges	AcceptOther		8280
+Main red: jmerge judges it next	Main red: merged	jmerge merges it	Merge	r1s13>r1s14	604
+Main red: jmerge judges it next	Main red: merged	you accept it, and it merges	Accept	r1s13>r1s14	232
+Main red: jmerge judges it next	Main red: merged over main, it fails the guards	the guards fail on its tree over main	GuardsFail	r1s13>r1s15	166
+Main red: jmerge judges it next	Main red: waits on its check	jmerge judges it	Judge	r1s13>r1s16	82538
+Main red: jmerge judges it next	Main red: waits on its check	the one ahead in line merges	OtherMerges		864
+Main red: jmerge judges it next	Main red: waits on its check	you accept the one ahead, and it merges	AcceptOther		864
+Main red: jmerge judges it next	Main red: waits on its review	jmerge judges it	Judge	r1s13>r1s17	196904
+Main red: merged over main, it fails the guards	Main moved past its check: jmerge judges it next	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1 r1s15>r1s13	21
+Main red: merged over main, it fails the guards	Main red: jmerge judges it next	its crew rebases and fixes it	CrewFix	r1s15>r1s13	42
+Main red: merged over main, it fails the guards	Main red: jmerge judges it next	the one ahead in line merges	OtherMerges		18
+Main red: merged over main, it fails the guards	Main red: jmerge judges it next	you accept the one ahead, and it merges	AcceptOther		18
+Main red: waits on its check	Main moved past its check: waits on its check	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	17248
+Main red: waits on its check	Main red: jmerge judges it next	GitHub decides it merges cleanly or not	GitHubDecides		2720
+Main red: waits on its check	Main red: jmerge judges it next	its check fails	CheckEnds	r1s16>r1s13	17248
+Main red: waits on its review	Main moved past its check: waits on its review	jbus's revert or fix lands, and main is green	MainFixed	r0s2>r0s1	53952
+Main red: waits on its review	Main red: jmerge judges it next	its crew rebases and fixes it	CrewFix	r1s17>r1s13	14400
+Main red: waits on its review	Main red: jmerge judges it next	its reviewer's round holds	Review	r1s17>r1s13	53952

@@ -1,0 +1,450 @@
+from	to	label	action	chart	steps in ThreadLife.cfg
+Its home's: a Result paused on other rows	Its home's: a Result that ends it	the turn ends	Ends		1440
+Its home's: a Result paused on other rows	Its home's: a Result that leaves something	the turn ends	Ends	r1s0>r1s2	1440
+Its home's: a Result paused on other rows	Its home's: its pull request open	the turn ends	Ends		1440
+Its home's: a Result that ends it	Put away: archived, scratch kept	jbus archives the thread	Archive	r0s1>r0s5 r1s1>r1s11	720
+Its home's: a Result that ends it	Put away: settled, work held, scratch kept	jbus settles the thread, its work held	Settle	r0s1>r0s5 r1s1>r1s42	720
+Its home's: a Result that owes its pull request, ended	Its home's: a Result that owes its pull request, told once to open it, its turn writes	jbus tells the crew once to open its pull request	OwesPull	r1s3>r1s9	720
+Its home's: a Result that owes its pull request, told once to open it, its turn is hung	Its home's: a Result that owes its pull request, told once to open it, its turn writes	the turn writes again	Writes	r1s5>r1s9	240
+Its home's: a Result that owes its pull request, told once to open it, its turn is quiet	Its home's: a Result that leaves something	the turn ends	Ends		720
+Its home's: a Result that owes its pull request, told once to open it, its turn is quiet	Its home's: a Result that owes its pull request, told once to open it, ended	the turn ends	Ends		720
+Its home's: a Result that owes its pull request, told once to open it, its turn is quiet	Its home's: a Result that owes its pull request, told once to open it, its turn is hung	20 min with nothing written	Hangs	r1s6>r1s5	240
+Its home's: a Result that owes its pull request, told once to open it, its turn is quiet	Its home's: a Result that owes its pull request, told once to open it, its turn waits on a test slot	the turn ends waiting on a test slot	AwaitsSlot		240
+Its home's: a Result that owes its pull request, told once to open it, its turn is quiet	Its home's: a Result that owes its pull request, told once to open it, its turn writes	the turn writes again	Writes		240
+Its home's: a Result that owes its pull request, told once to open it, its turn is quiet	Its home's: its pull request open	the turn ends	Ends		720
+Its home's: a Result that owes its pull request, told once to open it, its turn waits on a request	Its home's: a Result that owes its pull request, told once to open it, its turn writes	you answer its request	Answered	r1s7>r1s9	240
+Its home's: a Result that owes its pull request, told once to open it, its turn waits on a test slot	Its home's: a Result that owes its pull request, told once to open it, its turn writes	jbus wakes it: a test slot is free	SlotWakes	r1s8>r1s9	240
+Its home's: a Result that owes its pull request, told once to open it, its turn writes	Its home's: a Result that leaves something	the turn ends	Ends		720
+Its home's: a Result that owes its pull request, told once to open it, its turn writes	Its home's: a Result that owes its pull request, told once to open it, ended	the turn ends	Ends	r1s9>r1s4	720
+Its home's: a Result that owes its pull request, told once to open it, its turn writes	Its home's: a Result that owes its pull request, told once to open it, its turn is quiet	10 min with nothing written	Quiets	r1s9>r1s6	240
+Its home's: a Result that owes its pull request, told once to open it, its turn writes	Its home's: a Result that owes its pull request, told once to open it, its turn waits on a request	the crew asks you something	Asks	r1s9>r1s7	240
+Its home's: a Result that owes its pull request, told once to open it, its turn writes	Its home's: a Result that owes its pull request, told once to open it, its turn waits on a test slot	the turn ends waiting on a test slot	AwaitsSlot	r1s9>r1s8	240
+Its home's: a Result that owes its pull request, told once to open it, its turn writes	Its home's: its pull request open	the turn ends	Ends		720
+Its home's: its pull request merged or closed	Put away: archived, scratch kept	jbus archives the thread	Archive	r0s1>r0s5 r1s12>r1s11	1080
+Its home's: its pull request merged or closed	Put away: settled, work held, scratch kept	jbus settles the thread, its work held	Settle	r0s1>r0s5 r1s12>r1s42	1080
+Its home's: its pull request open	Its home's: its pull request merged or closed	the pull request merges or closes	Shuts	r1s13>r1s12	2160
+Its home's: its turn failed, no Result	Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	jbus tells the crew to carry on	CarryOn	r1s17>r1s36	80
+Its home's: its turn failed, no Result, 1 of 2 carry-ons sent	Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	jbus tells the crew to carry on	CarryOn	r1s18>r1s37	80
+Its home's: its turn is hung, no Result	Its home's: its turn writes, no Result	the turn writes again	Writes	r1s20>r1s35	80
+Its home's: its turn is hung, no Result, 1 of 2 carry-ons sent	Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	the turn writes again	Writes	r1s21>r1s36	80
+Its home's: its turn is hung, no Result, 2 of 2 carry-ons sent	Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	the turn writes again	Writes	r1s22>r1s37	80
+Its home's: its turn is quiet, no Result	Its home's: a Result paused on other rows	the turn ends	Ends		240
+Its home's: its turn is quiet, no Result	Its home's: a Result that ends it	the turn ends	Ends		240
+Its home's: its turn is quiet, no Result	Its home's: a Result that leaves something	the turn ends	Ends		240
+Its home's: its turn is quiet, no Result	Its home's: a Result that owes its pull request, ended	the turn ends	Ends		240
+Its home's: its turn is quiet, no Result	Its home's: its pull request open	the turn ends	Ends		240
+Its home's: its turn is quiet, no Result	Its home's: its turn completed, no Result	the turn ends	Ends		80
+Its home's: its turn is quiet, no Result	Its home's: its turn failed, no Result	the turn ends	Ends		80
+Its home's: its turn is quiet, no Result	Its home's: its turn is hung, no Result	20 min with nothing written	Hangs	r1s23>r1s20	80
+Its home's: its turn is quiet, no Result	Its home's: its turn waits on a test slot, no Result	the turn ends waiting on a test slot	AwaitsSlot		80
+Its home's: its turn is quiet, no Result	Its home's: its turn was rolled back, no Result	the turn ends	Ends		80
+Its home's: its turn is quiet, no Result	Its home's: its turn writes, no Result	the turn writes again	Writes	r1s23>r1s35	80
+Its home's: its turn is quiet, no Result, 1 of 2 carry-ons sent	Its home's: a Result paused on other rows	the turn ends	Ends		240
+Its home's: its turn is quiet, no Result, 1 of 2 carry-ons sent	Its home's: a Result that ends it	the turn ends	Ends		240
+Its home's: its turn is quiet, no Result, 1 of 2 carry-ons sent	Its home's: a Result that leaves something	the turn ends	Ends		240
+Its home's: its turn is quiet, no Result, 1 of 2 carry-ons sent	Its home's: a Result that owes its pull request, ended	the turn ends	Ends		240
+Its home's: its turn is quiet, no Result, 1 of 2 carry-ons sent	Its home's: its pull request open	the turn ends	Ends		240
+Its home's: its turn is quiet, no Result, 1 of 2 carry-ons sent	Its home's: its turn completed, no Result, 1 of 2 carry-ons sent	the turn ends	Ends		80
+Its home's: its turn is quiet, no Result, 1 of 2 carry-ons sent	Its home's: its turn failed, no Result, 1 of 2 carry-ons sent	the turn ends	Ends		80
+Its home's: its turn is quiet, no Result, 1 of 2 carry-ons sent	Its home's: its turn is hung, no Result, 1 of 2 carry-ons sent	20 min with nothing written	Hangs	r1s24>r1s21	80
+Its home's: its turn is quiet, no Result, 1 of 2 carry-ons sent	Its home's: its turn waits on a test slot, no Result, 1 of 2 carry-ons sent	the turn ends waiting on a test slot	AwaitsSlot		80
+Its home's: its turn is quiet, no Result, 1 of 2 carry-ons sent	Its home's: its turn was rolled back, no Result, 1 of 2 carry-ons sent	the turn ends	Ends		80
+Its home's: its turn is quiet, no Result, 1 of 2 carry-ons sent	Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	the turn writes again	Writes		80
+Its home's: its turn is quiet, no Result, 2 of 2 carry-ons sent	Its home's: a Result paused on other rows	the turn ends	Ends		240
+Its home's: its turn is quiet, no Result, 2 of 2 carry-ons sent	Its home's: a Result that ends it	the turn ends	Ends		240
+Its home's: its turn is quiet, no Result, 2 of 2 carry-ons sent	Its home's: a Result that leaves something	the turn ends	Ends		240
+Its home's: its turn is quiet, no Result, 2 of 2 carry-ons sent	Its home's: a Result that owes its pull request, ended	the turn ends	Ends		240
+Its home's: its turn is quiet, no Result, 2 of 2 carry-ons sent	Its home's: its pull request open	the turn ends	Ends		240
+Its home's: its turn is quiet, no Result, 2 of 2 carry-ons sent	Its home's: its turn completed, no Result, 2 of 2 carry-ons sent	the turn ends	Ends		80
+Its home's: its turn is quiet, no Result, 2 of 2 carry-ons sent	Its home's: its turn failed, no Result, 2 of 2 carry-ons sent	the turn ends	Ends		80
+Its home's: its turn is quiet, no Result, 2 of 2 carry-ons sent	Its home's: its turn is hung, no Result, 2 of 2 carry-ons sent	20 min with nothing written	Hangs	r1s25>r1s22	80
+Its home's: its turn is quiet, no Result, 2 of 2 carry-ons sent	Its home's: its turn waits on a test slot, no Result, 2 of 2 carry-ons sent	the turn ends waiting on a test slot	AwaitsSlot		80
+Its home's: its turn is quiet, no Result, 2 of 2 carry-ons sent	Its home's: its turn was rolled back, no Result, 2 of 2 carry-ons sent	the turn ends	Ends		80
+Its home's: its turn is quiet, no Result, 2 of 2 carry-ons sent	Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	the turn writes again	Writes		80
+Its home's: its turn waits on a request, no Result	Its home's: its turn writes, no Result	you answer its request	Answered	r1s26>r1s35	80
+Its home's: its turn waits on a request, no Result, 1 of 2 carry-ons sent	Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	you answer its request	Answered	r1s27>r1s36	80
+Its home's: its turn waits on a request, no Result, 2 of 2 carry-ons sent	Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	you answer its request	Answered	r1s28>r1s37	80
+Its home's: its turn waits on a test slot, no Result	Its home's: its turn writes, no Result	jbus wakes it: a test slot is free	SlotWakes	r1s29>r1s35	80
+Its home's: its turn waits on a test slot, no Result, 1 of 2 carry-ons sent	Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	jbus wakes it: a test slot is free	SlotWakes	r1s30>r1s36	80
+Its home's: its turn waits on a test slot, no Result, 2 of 2 carry-ons sent	Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	jbus wakes it: a test slot is free	SlotWakes	r1s31>r1s37	80
+Its home's: its turn writes, no Result	Its home's: a Result paused on other rows	the turn ends	Ends	r1s35>r1s0	240
+Its home's: its turn writes, no Result	Its home's: a Result that ends it	the turn ends	Ends	r1s35>r1s1	240
+Its home's: its turn writes, no Result	Its home's: a Result that leaves something	the turn ends	Ends	r1s35>r1s2	240
+Its home's: its turn writes, no Result	Its home's: a Result that owes its pull request, ended	the turn ends	Ends	r1s35>r1s3	240
+Its home's: its turn writes, no Result	Its home's: its pull request open	the turn ends	Ends	r1s35>r1s13	240
+Its home's: its turn writes, no Result	Its home's: its turn completed, no Result	the turn ends	Ends	r1s35>r1s14	80
+Its home's: its turn writes, no Result	Its home's: its turn failed, no Result	the turn ends	Ends	r1s35>r1s17	80
+Its home's: its turn writes, no Result	Its home's: its turn is quiet, no Result	10 min with nothing written	Quiets	r1s35>r1s23	80
+Its home's: its turn writes, no Result	Its home's: its turn waits on a request, no Result	the crew asks you something	Asks	r1s35>r1s26	80
+Its home's: its turn writes, no Result	Its home's: its turn waits on a test slot, no Result	the turn ends waiting on a test slot	AwaitsSlot	r1s35>r1s29	80
+Its home's: its turn writes, no Result	Its home's: its turn was rolled back, no Result	the turn ends	Ends	r1s35>r1s32	80
+Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	Its home's: a Result paused on other rows	the turn ends	Ends		240
+Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	Its home's: a Result that ends it	the turn ends	Ends		240
+Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	Its home's: a Result that leaves something	the turn ends	Ends		240
+Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	Its home's: a Result that owes its pull request, ended	the turn ends	Ends		240
+Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	Its home's: its pull request open	the turn ends	Ends		240
+Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	Its home's: its turn completed, no Result, 1 of 2 carry-ons sent	the turn ends	Ends	r1s36>r1s15	80
+Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	Its home's: its turn failed, no Result, 1 of 2 carry-ons sent	the turn ends	Ends	r1s36>r1s18	80
+Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	Its home's: its turn is quiet, no Result, 1 of 2 carry-ons sent	10 min with nothing written	Quiets	r1s36>r1s24	80
+Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	Its home's: its turn waits on a request, no Result, 1 of 2 carry-ons sent	the crew asks you something	Asks	r1s36>r1s27	80
+Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	Its home's: its turn waits on a test slot, no Result, 1 of 2 carry-ons sent	the turn ends waiting on a test slot	AwaitsSlot	r1s36>r1s30	80
+Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	Its home's: its turn was rolled back, no Result, 1 of 2 carry-ons sent	the turn ends	Ends	r1s36>r1s33	80
+Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	Its home's: a Result paused on other rows	the turn ends	Ends		240
+Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	Its home's: a Result that ends it	the turn ends	Ends		240
+Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	Its home's: a Result that leaves something	the turn ends	Ends		240
+Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	Its home's: a Result that owes its pull request, ended	the turn ends	Ends		240
+Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	Its home's: its pull request open	the turn ends	Ends		240
+Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	Its home's: its turn completed, no Result, 2 of 2 carry-ons sent	the turn ends	Ends	r1s37>r1s16	80
+Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	Its home's: its turn failed, no Result, 2 of 2 carry-ons sent	the turn ends	Ends	r1s37>r1s19	80
+Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	Its home's: its turn is quiet, no Result, 2 of 2 carry-ons sent	10 min with nothing written	Quiets	r1s37>r1s25	80
+Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	Its home's: its turn waits on a request, no Result, 2 of 2 carry-ons sent	the crew asks you something	Asks	r1s37>r1s28	80
+Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	Its home's: its turn waits on a test slot, no Result, 2 of 2 carry-ons sent	the turn ends waiting on a test slot	AwaitsSlot	r1s37>r1s31	80
+Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	Its home's: its turn was rolled back, no Result, 2 of 2 carry-ons sent	the turn ends	Ends	r1s37>r1s34	80
+Launching: the record says intent	Gated: the launch is your gate	T3 Code refuses the launch: a gate	Refused	r0s2>r0s0 r1s44>r1s43	2
+Launching: the record says intent	Launching: the reply is lost, T3 Code made no thread	no reply, or one that names no thread	Lost	r1s44>r1s47	2
+Launching: the record says intent	Launching: the reply is lost, T3 Code made the thread	no reply, or one that names no thread	Lost	r1s44>r1s48	2
+Launching: the record says intent	Launching: the reply is lost, the connection dropped, T3 Code made no thread	no reply, or one that names no thread	Lost	r1s44>r1s49	2
+Launching: the record says intent	Launching: the reply is lost, the connection dropped, T3 Code made the thread	no reply, or one that names no thread	Lost	r1s44>r1s50	2
+Launching: the record says intent	Out: its turn writes, no Result	the reply names the thread	Launched	r0s2>r0s4 r1s44>r1s35	4
+Launching: the record says intent, a retry	Gated: the launch is your gate	T3 Code refuses the launch: a gate	Refused	r0s2>r0s0 r1s45>r1s43	2
+Launching: the record says intent, a retry	Launching: the reply is lost, T3 Code made no thread	no reply, or one that names no thread	Lost		2
+Launching: the record says intent, a retry	Launching: the reply is lost, T3 Code made the thread	no reply, or one that names no thread	Lost		2
+Launching: the record says intent, a retry	Out: its turn writes, no Result	the reply names the thread	Launched	r0s2>r0s4 r1s45>r1s35	4
+Launching: the record says launch it once more	Launching: the record says intent, a retry	jbus writes the launch record	Intent	r1s46>r1s45	2
+Launching: the reply is lost, T3 Code made no thread	Gated: the launch is your gate	the lookup finds no one thread: a gate	LostGate	r0s2>r0s0 r1s47>r1s43	4
+Launching: the reply is lost, T3 Code made the thread	Gated: the launch is your gate	the lookup finds no one thread: a gate	LostGate	r0s2>r0s0 r1s48>r1s43	104
+Launching: the reply is lost, T3 Code made the thread	Out: a Result paused on other rows	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4	24
+Launching: the reply is lost, T3 Code made the thread	Out: a Result that ends it	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4	24
+Launching: the reply is lost, T3 Code made the thread	Out: a Result that leaves something	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4	24
+Launching: the reply is lost, T3 Code made the thread	Out: a Result that owes its pull request, ended	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4	24
+Launching: the reply is lost, T3 Code made the thread	Out: its pull request merged or closed	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4	24
+Launching: the reply is lost, T3 Code made the thread	Out: its pull request open	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4	24
+Launching: the reply is lost, T3 Code made the thread	Out: its turn completed, no Result	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4	8
+Launching: the reply is lost, T3 Code made the thread	Out: its turn failed, no Result	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4	8
+Launching: the reply is lost, T3 Code made the thread	Out: its turn is hung, no Result	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4	8
+Launching: the reply is lost, T3 Code made the thread	Out: its turn is quiet, no Result	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4	8
+Launching: the reply is lost, T3 Code made the thread	Out: its turn waits on a request, no Result	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4	8
+Launching: the reply is lost, T3 Code made the thread	Out: its turn waits on a test slot, no Result	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4	8
+Launching: the reply is lost, T3 Code made the thread	Out: its turn was rolled back, no Result	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4	8
+Launching: the reply is lost, T3 Code made the thread	Out: its turn writes, no Result	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4 r1s48>r1s35	8
+Launching: the reply is lost, the connection dropped, T3 Code made no thread	Launching: the record says launch it once more	no thread, the connection dropped: launch once more	Retry	r1s49>r1s46	2
+Launching: the reply is lost, the connection dropped, T3 Code made the thread	Gated: the launch is your gate	the lookup finds no one thread: a gate	LostGate	r0s2>r0s0 r1s50>r1s43	52
+Launching: the reply is lost, the connection dropped, T3 Code made the thread	Out: a Result paused on other rows	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4 r1s50>r1s0	12
+Launching: the reply is lost, the connection dropped, T3 Code made the thread	Out: a Result that ends it	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4 r1s50>r1s1	12
+Launching: the reply is lost, the connection dropped, T3 Code made the thread	Out: a Result that leaves something	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4 r1s50>r1s2	12
+Launching: the reply is lost, the connection dropped, T3 Code made the thread	Out: a Result that owes its pull request, ended	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4 r1s50>r1s3	12
+Launching: the reply is lost, the connection dropped, T3 Code made the thread	Out: its pull request merged or closed	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4 r1s50>r1s12	12
+Launching: the reply is lost, the connection dropped, T3 Code made the thread	Out: its pull request open	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4 r1s50>r1s13	12
+Launching: the reply is lost, the connection dropped, T3 Code made the thread	Out: its turn completed, no Result	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4 r1s50>r1s14	4
+Launching: the reply is lost, the connection dropped, T3 Code made the thread	Out: its turn failed, no Result	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4 r1s50>r1s17	4
+Launching: the reply is lost, the connection dropped, T3 Code made the thread	Out: its turn is hung, no Result	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4 r1s50>r1s20	4
+Launching: the reply is lost, the connection dropped, T3 Code made the thread	Out: its turn is quiet, no Result	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4 r1s50>r1s23	4
+Launching: the reply is lost, the connection dropped, T3 Code made the thread	Out: its turn waits on a request, no Result	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4 r1s50>r1s26	4
+Launching: the reply is lost, the connection dropped, T3 Code made the thread	Out: its turn waits on a test slot, no Result	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4 r1s50>r1s29	4
+Launching: the reply is lost, the connection dropped, T3 Code made the thread	Out: its turn was rolled back, no Result	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4 r1s50>r1s32	4
+Launching: the reply is lost, the connection dropped, T3 Code made the thread	Out: its turn writes, no Result	the next pass adopts the one thread that matches	Adopt	r0s2>r0s4 r1s50>r1s35	4
+Not launched: no launch record	Launching: the record says intent	jbus writes the launch record	Intent	r0s3>r0s2 r1s38>r1s44	2
+Out: a Result paused on other rows	Its home's: a Result paused on other rows	jbus tells the home the row is left	Leftover	r0s4>r0s1	360
+Out: a Result paused on other rows	Its home's: a Result paused on other rows	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	600
+Out: a Result paused on other rows	Out: a Result that ends it	the turn ends	Ends		360
+Out: a Result paused on other rows	Out: a Result that leaves something	the turn ends	Ends	r1s0>r1s2	360
+Out: a Result paused on other rows	Out: its pull request open	the turn ends	Ends		360
+Out: a Result paused on other rows	Yours, its home has no thread: a Result paused on other rows	the row is left, and its home has no thread: it is yours	Leftover	r0s4>r0s6	360
+Out: a Result that ends it	Put away: archived, scratch kept	jbus archives the thread	Archive	r0s4>r0s5 r1s1>r1s11	180
+Out: a Result that ends it	Put away: settled, work held, scratch kept	jbus settles the thread, its work held	Settle	r0s4>r0s5 r1s1>r1s42	180
+Out: a Result that leaves something	Its home's: a Result that leaves something	jbus tells the home the row is left	Leftover	r0s4>r0s1	540
+Out: a Result that leaves something	Its home's: a Result that leaves something	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	540
+Out: a Result that leaves something	Yours, its home has no thread: a Result that leaves something	the row is left, and its home has no thread: it is yours	Leftover	r0s4>r0s6	540
+Out: a Result that owes its pull request, ended	Its home's: a Result that owes its pull request, ended	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	180
+Out: a Result that owes its pull request, ended	Out: a Result that owes its pull request, told once to open it, its turn writes	jbus tells the crew once to open its pull request	OwesPull	r1s3>r1s9	180
+Out: a Result that owes its pull request, told once to open it, ended	Its home's: a Result that owes its pull request, told once to open it, ended	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	180
+Out: a Result that owes its pull request, told once to open it, its turn is hung	Its home's: a Result that owes its pull request, told once to open it, its turn is hung	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	60
+Out: a Result that owes its pull request, told once to open it, its turn is hung	Out: a Result that owes its pull request, told once to open it, its turn writes	the turn writes again	Writes	r1s5>r1s9	60
+Out: a Result that owes its pull request, told once to open it, its turn is quiet	Its home's: a Result that owes its pull request, told once to open it, its turn is quiet	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	60
+Out: a Result that owes its pull request, told once to open it, its turn is quiet	Out: a Result that leaves something	the turn ends	Ends		180
+Out: a Result that owes its pull request, told once to open it, its turn is quiet	Out: a Result that owes its pull request, told once to open it, ended	the turn ends	Ends		180
+Out: a Result that owes its pull request, told once to open it, its turn is quiet	Out: a Result that owes its pull request, told once to open it, its turn is hung	20 min with nothing written	Hangs	r1s6>r1s5	60
+Out: a Result that owes its pull request, told once to open it, its turn is quiet	Out: a Result that owes its pull request, told once to open it, its turn waits on a test slot	the turn ends waiting on a test slot	AwaitsSlot		60
+Out: a Result that owes its pull request, told once to open it, its turn is quiet	Out: a Result that owes its pull request, told once to open it, its turn writes	the turn writes again	Writes		60
+Out: a Result that owes its pull request, told once to open it, its turn is quiet	Out: its pull request open	the turn ends	Ends		180
+Out: a Result that owes its pull request, told once to open it, its turn waits on a request	Its home's: a Result that owes its pull request, told once to open it, its turn waits on a request	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	60
+Out: a Result that owes its pull request, told once to open it, its turn waits on a request	Out: a Result that owes its pull request, told once to open it, its turn writes	you answer its request	Answered	r1s7>r1s9	60
+Out: a Result that owes its pull request, told once to open it, its turn waits on a test slot	Its home's: a Result that owes its pull request, told once to open it, its turn waits on a test slot	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	60
+Out: a Result that owes its pull request, told once to open it, its turn waits on a test slot	Out: a Result that owes its pull request, told once to open it, its turn writes	jbus wakes it: a test slot is free	SlotWakes	r1s8>r1s9	60
+Out: a Result that owes its pull request, told once to open it, its turn writes	Out: a Result that leaves something	the turn ends	Ends		180
+Out: a Result that owes its pull request, told once to open it, its turn writes	Out: a Result that owes its pull request, told once to open it, ended	the turn ends	Ends	r1s9>r1s4	180
+Out: a Result that owes its pull request, told once to open it, its turn writes	Out: a Result that owes its pull request, told once to open it, its turn is quiet	10 min with nothing written	Quiets	r1s9>r1s6	60
+Out: a Result that owes its pull request, told once to open it, its turn writes	Out: a Result that owes its pull request, told once to open it, its turn waits on a request	the crew asks you something	Asks	r1s9>r1s7	60
+Out: a Result that owes its pull request, told once to open it, its turn writes	Out: a Result that owes its pull request, told once to open it, its turn waits on a test slot	the turn ends waiting on a test slot	AwaitsSlot	r1s9>r1s8	60
+Out: a Result that owes its pull request, told once to open it, its turn writes	Out: its pull request open	the turn ends	Ends		180
+Out: its pull request merged or closed	Put away: archived, scratch kept	jbus archives the thread	Archive	r0s4>r0s5 r1s12>r1s11	270
+Out: its pull request merged or closed	Put away: settled, work held, scratch kept	jbus settles the thread, its work held	Settle	r0s4>r0s5 r1s12>r1s42	270
+Out: its pull request open	Its home's: its pull request open	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	540
+Out: its pull request open	Out: its pull request merged or closed	the pull request merges or closes	Shuts	r1s13>r1s12	540
+Out: its turn completed, no Result	Its home's: its turn completed, no Result	jbus tells the home the row is left	Leftover	r0s4>r0s1	20
+Out: its turn completed, no Result	Its home's: its turn completed, no Result	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn completed, no Result	Yours, its home has no thread: its turn completed, no Result	the row is left, and its home has no thread: it is yours	Leftover	r0s4>r0s6	20
+Out: its turn completed, no Result, 1 of 2 carry-ons sent	Its home's: its turn completed, no Result, 1 of 2 carry-ons sent	jbus tells the home the row is left	Leftover	r0s4>r0s1	20
+Out: its turn completed, no Result, 1 of 2 carry-ons sent	Its home's: its turn completed, no Result, 1 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn completed, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn completed, no Result, 1 of 2 carry-ons sent	the row is left, and its home has no thread: it is yours	Leftover	r0s4>r0s6	20
+Out: its turn completed, no Result, 2 of 2 carry-ons sent	Its home's: its turn completed, no Result, 2 of 2 carry-ons sent	jbus tells the home the row is left	Leftover	r0s4>r0s1	20
+Out: its turn completed, no Result, 2 of 2 carry-ons sent	Its home's: its turn completed, no Result, 2 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn completed, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn completed, no Result, 2 of 2 carry-ons sent	the row is left, and its home has no thread: it is yours	Leftover	r0s4>r0s6	20
+Out: its turn failed, no Result	Its home's: its turn failed, no Result	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn failed, no Result	Out: its turn writes, no Result, 1 of 2 carry-ons sent	jbus tells the crew to carry on	CarryOn	r1s17>r1s36	20
+Out: its turn failed, no Result, 1 of 2 carry-ons sent	Its home's: its turn failed, no Result, 1 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn failed, no Result, 1 of 2 carry-ons sent	Out: its turn writes, no Result, 2 of 2 carry-ons sent	jbus tells the crew to carry on	CarryOn	r1s18>r1s37	20
+Out: its turn failed, no Result, 2 of 2 carry-ons sent	Its home's: its turn failed, no Result, 2 of 2 carry-ons sent	jbus tells the home the crew stopped after two carry-ons	Stopped	r0s4>r0s1	20
+Out: its turn failed, no Result, 2 of 2 carry-ons sent	Its home's: its turn failed, no Result, 2 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn is hung, no Result	Its home's: its turn is hung, no Result	jbus tells the home the row is left	Leftover	r0s4>r0s1	20
+Out: its turn is hung, no Result	Its home's: its turn is hung, no Result	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn is hung, no Result	Out: its turn writes, no Result	the turn writes again	Writes	r1s20>r1s35	20
+Out: its turn is hung, no Result	Yours, its home has no thread: its turn is hung, no Result	the row is left, and its home has no thread: it is yours	Leftover	r0s4>r0s6	20
+Out: its turn is hung, no Result, 1 of 2 carry-ons sent	Its home's: its turn is hung, no Result, 1 of 2 carry-ons sent	jbus tells the home the row is left	Leftover	r0s4>r0s1	20
+Out: its turn is hung, no Result, 1 of 2 carry-ons sent	Its home's: its turn is hung, no Result, 1 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn is hung, no Result, 1 of 2 carry-ons sent	Out: its turn writes, no Result, 1 of 2 carry-ons sent	the turn writes again	Writes	r1s21>r1s36	20
+Out: its turn is hung, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn is hung, no Result, 1 of 2 carry-ons sent	the row is left, and its home has no thread: it is yours	Leftover	r0s4>r0s6	20
+Out: its turn is hung, no Result, 2 of 2 carry-ons sent	Its home's: its turn is hung, no Result, 2 of 2 carry-ons sent	jbus tells the home the row is left	Leftover	r0s4>r0s1	20
+Out: its turn is hung, no Result, 2 of 2 carry-ons sent	Its home's: its turn is hung, no Result, 2 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn is hung, no Result, 2 of 2 carry-ons sent	Out: its turn writes, no Result, 2 of 2 carry-ons sent	the turn writes again	Writes	r1s22>r1s37	20
+Out: its turn is hung, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn is hung, no Result, 2 of 2 carry-ons sent	the row is left, and its home has no thread: it is yours	Leftover	r0s4>r0s6	20
+Out: its turn is quiet, no Result	Its home's: its turn is quiet, no Result	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn is quiet, no Result	Out: a Result paused on other rows	the turn ends	Ends		60
+Out: its turn is quiet, no Result	Out: a Result that ends it	the turn ends	Ends		60
+Out: its turn is quiet, no Result	Out: a Result that leaves something	the turn ends	Ends		60
+Out: its turn is quiet, no Result	Out: a Result that owes its pull request, ended	the turn ends	Ends		60
+Out: its turn is quiet, no Result	Out: its pull request open	the turn ends	Ends		60
+Out: its turn is quiet, no Result	Out: its turn completed, no Result	the turn ends	Ends		20
+Out: its turn is quiet, no Result	Out: its turn failed, no Result	the turn ends	Ends		20
+Out: its turn is quiet, no Result	Out: its turn is hung, no Result	20 min with nothing written	Hangs	r1s23>r1s20	20
+Out: its turn is quiet, no Result	Out: its turn waits on a test slot, no Result	the turn ends waiting on a test slot	AwaitsSlot		20
+Out: its turn is quiet, no Result	Out: its turn was rolled back, no Result	the turn ends	Ends		20
+Out: its turn is quiet, no Result	Out: its turn writes, no Result	the turn writes again	Writes	r1s23>r1s35	20
+Out: its turn is quiet, no Result, 1 of 2 carry-ons sent	Its home's: its turn is quiet, no Result, 1 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn is quiet, no Result, 1 of 2 carry-ons sent	Out: a Result paused on other rows	the turn ends	Ends		60
+Out: its turn is quiet, no Result, 1 of 2 carry-ons sent	Out: a Result that ends it	the turn ends	Ends		60
+Out: its turn is quiet, no Result, 1 of 2 carry-ons sent	Out: a Result that leaves something	the turn ends	Ends		60
+Out: its turn is quiet, no Result, 1 of 2 carry-ons sent	Out: a Result that owes its pull request, ended	the turn ends	Ends		60
+Out: its turn is quiet, no Result, 1 of 2 carry-ons sent	Out: its pull request open	the turn ends	Ends		60
+Out: its turn is quiet, no Result, 1 of 2 carry-ons sent	Out: its turn completed, no Result, 1 of 2 carry-ons sent	the turn ends	Ends		20
+Out: its turn is quiet, no Result, 1 of 2 carry-ons sent	Out: its turn failed, no Result, 1 of 2 carry-ons sent	the turn ends	Ends		20
+Out: its turn is quiet, no Result, 1 of 2 carry-ons sent	Out: its turn is hung, no Result, 1 of 2 carry-ons sent	20 min with nothing written	Hangs	r1s24>r1s21	20
+Out: its turn is quiet, no Result, 1 of 2 carry-ons sent	Out: its turn waits on a test slot, no Result, 1 of 2 carry-ons sent	the turn ends waiting on a test slot	AwaitsSlot		20
+Out: its turn is quiet, no Result, 1 of 2 carry-ons sent	Out: its turn was rolled back, no Result, 1 of 2 carry-ons sent	the turn ends	Ends		20
+Out: its turn is quiet, no Result, 1 of 2 carry-ons sent	Out: its turn writes, no Result, 1 of 2 carry-ons sent	the turn writes again	Writes		20
+Out: its turn is quiet, no Result, 2 of 2 carry-ons sent	Its home's: its turn is quiet, no Result, 2 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn is quiet, no Result, 2 of 2 carry-ons sent	Out: a Result paused on other rows	the turn ends	Ends		60
+Out: its turn is quiet, no Result, 2 of 2 carry-ons sent	Out: a Result that ends it	the turn ends	Ends		60
+Out: its turn is quiet, no Result, 2 of 2 carry-ons sent	Out: a Result that leaves something	the turn ends	Ends		60
+Out: its turn is quiet, no Result, 2 of 2 carry-ons sent	Out: a Result that owes its pull request, ended	the turn ends	Ends		60
+Out: its turn is quiet, no Result, 2 of 2 carry-ons sent	Out: its pull request open	the turn ends	Ends		60
+Out: its turn is quiet, no Result, 2 of 2 carry-ons sent	Out: its turn completed, no Result, 2 of 2 carry-ons sent	the turn ends	Ends		20
+Out: its turn is quiet, no Result, 2 of 2 carry-ons sent	Out: its turn failed, no Result, 2 of 2 carry-ons sent	the turn ends	Ends		20
+Out: its turn is quiet, no Result, 2 of 2 carry-ons sent	Out: its turn is hung, no Result, 2 of 2 carry-ons sent	20 min with nothing written	Hangs	r1s25>r1s22	20
+Out: its turn is quiet, no Result, 2 of 2 carry-ons sent	Out: its turn waits on a test slot, no Result, 2 of 2 carry-ons sent	the turn ends waiting on a test slot	AwaitsSlot		20
+Out: its turn is quiet, no Result, 2 of 2 carry-ons sent	Out: its turn was rolled back, no Result, 2 of 2 carry-ons sent	the turn ends	Ends		20
+Out: its turn is quiet, no Result, 2 of 2 carry-ons sent	Out: its turn writes, no Result, 2 of 2 carry-ons sent	the turn writes again	Writes		20
+Out: its turn waits on a request, no Result	Its home's: its turn waits on a request, no Result	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn waits on a request, no Result	Out: its turn writes, no Result	you answer its request	Answered	r1s26>r1s35	20
+Out: its turn waits on a request, no Result, 1 of 2 carry-ons sent	Its home's: its turn waits on a request, no Result, 1 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn waits on a request, no Result, 1 of 2 carry-ons sent	Out: its turn writes, no Result, 1 of 2 carry-ons sent	you answer its request	Answered	r1s27>r1s36	20
+Out: its turn waits on a request, no Result, 2 of 2 carry-ons sent	Its home's: its turn waits on a request, no Result, 2 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn waits on a request, no Result, 2 of 2 carry-ons sent	Out: its turn writes, no Result, 2 of 2 carry-ons sent	you answer its request	Answered	r1s28>r1s37	20
+Out: its turn waits on a test slot, no Result	Its home's: its turn waits on a test slot, no Result	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn waits on a test slot, no Result	Out: its turn writes, no Result	jbus wakes it: a test slot is free	SlotWakes	r1s29>r1s35	20
+Out: its turn waits on a test slot, no Result, 1 of 2 carry-ons sent	Its home's: its turn waits on a test slot, no Result, 1 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn waits on a test slot, no Result, 1 of 2 carry-ons sent	Out: its turn writes, no Result, 1 of 2 carry-ons sent	jbus wakes it: a test slot is free	SlotWakes	r1s30>r1s36	20
+Out: its turn waits on a test slot, no Result, 2 of 2 carry-ons sent	Its home's: its turn waits on a test slot, no Result, 2 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn waits on a test slot, no Result, 2 of 2 carry-ons sent	Out: its turn writes, no Result, 2 of 2 carry-ons sent	jbus wakes it: a test slot is free	SlotWakes	r1s31>r1s37	20
+Out: its turn was rolled back, no Result	Its home's: its turn was rolled back, no Result	jbus tells the home the row is left	Leftover	r0s4>r0s1	20
+Out: its turn was rolled back, no Result	Its home's: its turn was rolled back, no Result	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn was rolled back, no Result	Yours, its home has no thread: its turn was rolled back, no Result	the row is left, and its home has no thread: it is yours	Leftover	r0s4>r0s6	20
+Out: its turn was rolled back, no Result, 1 of 2 carry-ons sent	Its home's: its turn was rolled back, no Result, 1 of 2 carry-ons sent	jbus tells the home the row is left	Leftover	r0s4>r0s1	20
+Out: its turn was rolled back, no Result, 1 of 2 carry-ons sent	Its home's: its turn was rolled back, no Result, 1 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn was rolled back, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn was rolled back, no Result, 1 of 2 carry-ons sent	the row is left, and its home has no thread: it is yours	Leftover	r0s4>r0s6	20
+Out: its turn was rolled back, no Result, 2 of 2 carry-ons sent	Its home's: its turn was rolled back, no Result, 2 of 2 carry-ons sent	jbus tells the home the row is left	Leftover	r0s4>r0s1	20
+Out: its turn was rolled back, no Result, 2 of 2 carry-ons sent	Its home's: its turn was rolled back, no Result, 2 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged	r0s4>r0s1	20
+Out: its turn was rolled back, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn was rolled back, no Result, 2 of 2 carry-ons sent	the row is left, and its home has no thread: it is yours	Leftover	r0s4>r0s6	20
+Out: its turn writes, no Result	Out: a Result paused on other rows	the turn ends	Ends	r1s35>r1s0	60
+Out: its turn writes, no Result	Out: a Result that ends it	the turn ends	Ends	r1s35>r1s1	60
+Out: its turn writes, no Result	Out: a Result that leaves something	the turn ends	Ends	r1s35>r1s2	60
+Out: its turn writes, no Result	Out: a Result that owes its pull request, ended	the turn ends	Ends	r1s35>r1s3	60
+Out: its turn writes, no Result	Out: its pull request open	the turn ends	Ends	r1s35>r1s13	60
+Out: its turn writes, no Result	Out: its turn completed, no Result	the turn ends	Ends	r1s35>r1s14	20
+Out: its turn writes, no Result	Out: its turn failed, no Result	the turn ends	Ends	r1s35>r1s17	20
+Out: its turn writes, no Result	Out: its turn is quiet, no Result	10 min with nothing written	Quiets	r1s35>r1s23	20
+Out: its turn writes, no Result	Out: its turn waits on a request, no Result	the crew asks you something	Asks	r1s35>r1s26	20
+Out: its turn writes, no Result	Out: its turn waits on a test slot, no Result	the turn ends waiting on a test slot	AwaitsSlot	r1s35>r1s29	20
+Out: its turn writes, no Result	Out: its turn was rolled back, no Result	the turn ends	Ends	r1s35>r1s32	20
+Out: its turn writes, no Result, 1 of 2 carry-ons sent	Out: a Result paused on other rows	the turn ends	Ends		60
+Out: its turn writes, no Result, 1 of 2 carry-ons sent	Out: a Result that ends it	the turn ends	Ends		60
+Out: its turn writes, no Result, 1 of 2 carry-ons sent	Out: a Result that leaves something	the turn ends	Ends		60
+Out: its turn writes, no Result, 1 of 2 carry-ons sent	Out: a Result that owes its pull request, ended	the turn ends	Ends		60
+Out: its turn writes, no Result, 1 of 2 carry-ons sent	Out: its pull request open	the turn ends	Ends		60
+Out: its turn writes, no Result, 1 of 2 carry-ons sent	Out: its turn completed, no Result, 1 of 2 carry-ons sent	the turn ends	Ends	r1s36>r1s15	20
+Out: its turn writes, no Result, 1 of 2 carry-ons sent	Out: its turn failed, no Result, 1 of 2 carry-ons sent	the turn ends	Ends	r1s36>r1s18	20
+Out: its turn writes, no Result, 1 of 2 carry-ons sent	Out: its turn is quiet, no Result, 1 of 2 carry-ons sent	10 min with nothing written	Quiets	r1s36>r1s24	20
+Out: its turn writes, no Result, 1 of 2 carry-ons sent	Out: its turn waits on a request, no Result, 1 of 2 carry-ons sent	the crew asks you something	Asks	r1s36>r1s27	20
+Out: its turn writes, no Result, 1 of 2 carry-ons sent	Out: its turn waits on a test slot, no Result, 1 of 2 carry-ons sent	the turn ends waiting on a test slot	AwaitsSlot	r1s36>r1s30	20
+Out: its turn writes, no Result, 1 of 2 carry-ons sent	Out: its turn was rolled back, no Result, 1 of 2 carry-ons sent	the turn ends	Ends	r1s36>r1s33	20
+Out: its turn writes, no Result, 2 of 2 carry-ons sent	Out: a Result paused on other rows	the turn ends	Ends		60
+Out: its turn writes, no Result, 2 of 2 carry-ons sent	Out: a Result that ends it	the turn ends	Ends		60
+Out: its turn writes, no Result, 2 of 2 carry-ons sent	Out: a Result that leaves something	the turn ends	Ends		60
+Out: its turn writes, no Result, 2 of 2 carry-ons sent	Out: a Result that owes its pull request, ended	the turn ends	Ends		60
+Out: its turn writes, no Result, 2 of 2 carry-ons sent	Out: its pull request open	the turn ends	Ends		60
+Out: its turn writes, no Result, 2 of 2 carry-ons sent	Out: its turn completed, no Result, 2 of 2 carry-ons sent	the turn ends	Ends	r1s37>r1s16	20
+Out: its turn writes, no Result, 2 of 2 carry-ons sent	Out: its turn failed, no Result, 2 of 2 carry-ons sent	the turn ends	Ends	r1s37>r1s19	20
+Out: its turn writes, no Result, 2 of 2 carry-ons sent	Out: its turn is quiet, no Result, 2 of 2 carry-ons sent	10 min with nothing written	Quiets	r1s37>r1s25	20
+Out: its turn writes, no Result, 2 of 2 carry-ons sent	Out: its turn waits on a request, no Result, 2 of 2 carry-ons sent	the crew asks you something	Asks	r1s37>r1s28	20
+Out: its turn writes, no Result, 2 of 2 carry-ons sent	Out: its turn waits on a test slot, no Result, 2 of 2 carry-ons sent	the turn ends waiting on a test slot	AwaitsSlot	r1s37>r1s31	20
+Out: its turn writes, no Result, 2 of 2 carry-ons sent	Out: its turn was rolled back, no Result, 2 of 2 carry-ons sent	the turn ends	Ends	r1s37>r1s34	20
+Put away: archived, scratch kept	Put away: archived, scratch cleared	jbus clears its scratch	Clear	r1s11>r1s10	3150
+Put away: settled, nothing held, scratch cleared	Put away: archived, scratch cleared	jbus archives the thread	Archive	r1s39>r1s10	3150
+Put away: settled, nothing held, scratch kept	Put away: archived, scratch kept	jbus archives the thread	Archive		3150
+Put away: settled, nothing held, scratch kept	Put away: settled, nothing held, scratch cleared	jbus clears its scratch	Clear	r1s40>r1s39	3150
+Put away: settled, work held, scratch cleared	Put away: settled, nothing held, scratch cleared	the work held closes	Releases	r1s41>r1s39	3150
+Put away: settled, work held, scratch kept	Put away: settled, nothing held, scratch kept	the work held closes	Releases	r1s42>r1s40	3150
+Put away: settled, work held, scratch kept	Put away: settled, work held, scratch cleared	jbus clears its scratch	Clear	r1s42>r1s41	3150
+Yours, its home has no thread: a Result paused on other rows	Its home's: a Result paused on other rows	jbus tells the home the row is left	Leftover		720
+Yours, its home has no thread: a Result paused on other rows	Its home's: a Result paused on other rows	the home's stall ladder nudges the home	Nudged		1200
+Yours, its home has no thread: a Result paused on other rows	Yours, its home has no thread: a Result that ends it	the turn ends	Ends		720
+Yours, its home has no thread: a Result paused on other rows	Yours, its home has no thread: a Result that leaves something	the turn ends	Ends	r1s0>r1s2	720
+Yours, its home has no thread: a Result paused on other rows	Yours, its home has no thread: its pull request open	the turn ends	Ends		720
+Yours, its home has no thread: a Result that ends it	Put away: archived, scratch kept	jbus archives the thread	Archive	r0s6>r0s5 r1s1>r1s11	360
+Yours, its home has no thread: a Result that ends it	Put away: settled, work held, scratch kept	jbus settles the thread, its work held	Settle	r0s6>r0s5 r1s1>r1s42	360
+Yours, its home has no thread: a Result that leaves something	Its home's: a Result that leaves something	jbus tells the home the row is left	Leftover		1080
+Yours, its home has no thread: a Result that leaves something	Its home's: a Result that leaves something	the home's stall ladder nudges the home	Nudged		1080
+Yours, its home has no thread: a Result that owes its pull request, ended	Its home's: a Result that owes its pull request, ended	the home's stall ladder nudges the home	Nudged		360
+Yours, its home has no thread: a Result that owes its pull request, ended	Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn writes	jbus tells the crew once to open its pull request	OwesPull	r1s3>r1s9	360
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, ended	Its home's: a Result that owes its pull request, told once to open it, ended	the home's stall ladder nudges the home	Nudged		360
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn is hung	Its home's: a Result that owes its pull request, told once to open it, its turn is hung	the home's stall ladder nudges the home	Nudged		120
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn is hung	Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn writes	the turn writes again	Writes	r1s5>r1s9	120
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn is quiet	Its home's: a Result that owes its pull request, told once to open it, its turn is quiet	the home's stall ladder nudges the home	Nudged		120
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn is quiet	Yours, its home has no thread: a Result that leaves something	the turn ends	Ends		360
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn is quiet	Yours, its home has no thread: a Result that owes its pull request, told once to open it, ended	the turn ends	Ends		360
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn is quiet	Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn is hung	20 min with nothing written	Hangs	r1s6>r1s5	120
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn is quiet	Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn waits on a test slot	the turn ends waiting on a test slot	AwaitsSlot		120
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn is quiet	Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn writes	the turn writes again	Writes		120
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn is quiet	Yours, its home has no thread: its pull request open	the turn ends	Ends		360
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn waits on a request	Its home's: a Result that owes its pull request, told once to open it, its turn waits on a request	the home's stall ladder nudges the home	Nudged		120
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn waits on a request	Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn writes	you answer its request	Answered	r1s7>r1s9	120
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn waits on a test slot	Its home's: a Result that owes its pull request, told once to open it, its turn waits on a test slot	the home's stall ladder nudges the home	Nudged		120
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn waits on a test slot	Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn writes	jbus wakes it: a test slot is free	SlotWakes	r1s8>r1s9	120
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn writes	Yours, its home has no thread: a Result that leaves something	the turn ends	Ends		360
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn writes	Yours, its home has no thread: a Result that owes its pull request, told once to open it, ended	the turn ends	Ends	r1s9>r1s4	360
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn writes	Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn is quiet	10 min with nothing written	Quiets	r1s9>r1s6	120
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn writes	Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn waits on a request	the crew asks you something	Asks	r1s9>r1s7	120
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn writes	Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn waits on a test slot	the turn ends waiting on a test slot	AwaitsSlot	r1s9>r1s8	120
+Yours, its home has no thread: a Result that owes its pull request, told once to open it, its turn writes	Yours, its home has no thread: its pull request open	the turn ends	Ends		360
+Yours, its home has no thread: its pull request merged or closed	Put away: archived, scratch kept	jbus archives the thread	Archive	r0s6>r0s5 r1s12>r1s11	540
+Yours, its home has no thread: its pull request merged or closed	Put away: settled, work held, scratch kept	jbus settles the thread, its work held	Settle	r0s6>r0s5 r1s12>r1s42	540
+Yours, its home has no thread: its pull request open	Its home's: its pull request open	the home's stall ladder nudges the home	Nudged		1080
+Yours, its home has no thread: its pull request open	Yours, its home has no thread: its pull request merged or closed	the pull request merges or closes	Shuts	r1s13>r1s12	1080
+Yours, its home has no thread: its turn completed, no Result	Its home's: its turn completed, no Result	jbus tells the home the row is left	Leftover		40
+Yours, its home has no thread: its turn completed, no Result	Its home's: its turn completed, no Result	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn completed, no Result, 1 of 2 carry-ons sent	Its home's: its turn completed, no Result, 1 of 2 carry-ons sent	jbus tells the home the row is left	Leftover		40
+Yours, its home has no thread: its turn completed, no Result, 1 of 2 carry-ons sent	Its home's: its turn completed, no Result, 1 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn completed, no Result, 2 of 2 carry-ons sent	Its home's: its turn completed, no Result, 2 of 2 carry-ons sent	jbus tells the home the row is left	Leftover		40
+Yours, its home has no thread: its turn completed, no Result, 2 of 2 carry-ons sent	Its home's: its turn completed, no Result, 2 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn failed, no Result	Its home's: its turn failed, no Result	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn failed, no Result	Yours, its home has no thread: its turn writes, no Result, 1 of 2 carry-ons sent	jbus tells the crew to carry on	CarryOn	r1s17>r1s36	40
+Yours, its home has no thread: its turn failed, no Result, 1 of 2 carry-ons sent	Its home's: its turn failed, no Result, 1 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn failed, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn writes, no Result, 2 of 2 carry-ons sent	jbus tells the crew to carry on	CarryOn	r1s18>r1s37	40
+Yours, its home has no thread: its turn failed, no Result, 2 of 2 carry-ons sent	Its home's: its turn failed, no Result, 2 of 2 carry-ons sent	jbus tells the home the crew stopped after two carry-ons	Stopped	r0s6>r0s1	40
+Yours, its home has no thread: its turn failed, no Result, 2 of 2 carry-ons sent	Its home's: its turn failed, no Result, 2 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn is hung, no Result	Its home's: its turn is hung, no Result	jbus tells the home the row is left	Leftover		40
+Yours, its home has no thread: its turn is hung, no Result	Its home's: its turn is hung, no Result	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn is hung, no Result	Yours, its home has no thread: its turn writes, no Result	the turn writes again	Writes	r1s20>r1s35	40
+Yours, its home has no thread: its turn is hung, no Result, 1 of 2 carry-ons sent	Its home's: its turn is hung, no Result, 1 of 2 carry-ons sent	jbus tells the home the row is left	Leftover		40
+Yours, its home has no thread: its turn is hung, no Result, 1 of 2 carry-ons sent	Its home's: its turn is hung, no Result, 1 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn is hung, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn writes, no Result, 1 of 2 carry-ons sent	the turn writes again	Writes	r1s21>r1s36	40
+Yours, its home has no thread: its turn is hung, no Result, 2 of 2 carry-ons sent	Its home's: its turn is hung, no Result, 2 of 2 carry-ons sent	jbus tells the home the row is left	Leftover		40
+Yours, its home has no thread: its turn is hung, no Result, 2 of 2 carry-ons sent	Its home's: its turn is hung, no Result, 2 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn is hung, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn writes, no Result, 2 of 2 carry-ons sent	the turn writes again	Writes	r1s22>r1s37	40
+Yours, its home has no thread: its turn is quiet, no Result	Its home's: its turn is quiet, no Result	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn is quiet, no Result	Yours, its home has no thread: a Result paused on other rows	the turn ends	Ends		120
+Yours, its home has no thread: its turn is quiet, no Result	Yours, its home has no thread: a Result that ends it	the turn ends	Ends		120
+Yours, its home has no thread: its turn is quiet, no Result	Yours, its home has no thread: a Result that leaves something	the turn ends	Ends		120
+Yours, its home has no thread: its turn is quiet, no Result	Yours, its home has no thread: a Result that owes its pull request, ended	the turn ends	Ends		120
+Yours, its home has no thread: its turn is quiet, no Result	Yours, its home has no thread: its pull request open	the turn ends	Ends		120
+Yours, its home has no thread: its turn is quiet, no Result	Yours, its home has no thread: its turn completed, no Result	the turn ends	Ends		40
+Yours, its home has no thread: its turn is quiet, no Result	Yours, its home has no thread: its turn failed, no Result	the turn ends	Ends		40
+Yours, its home has no thread: its turn is quiet, no Result	Yours, its home has no thread: its turn is hung, no Result	20 min with nothing written	Hangs	r1s23>r1s20	40
+Yours, its home has no thread: its turn is quiet, no Result	Yours, its home has no thread: its turn waits on a test slot, no Result	the turn ends waiting on a test slot	AwaitsSlot		40
+Yours, its home has no thread: its turn is quiet, no Result	Yours, its home has no thread: its turn was rolled back, no Result	the turn ends	Ends		40
+Yours, its home has no thread: its turn is quiet, no Result	Yours, its home has no thread: its turn writes, no Result	the turn writes again	Writes	r1s23>r1s35	40
+Yours, its home has no thread: its turn is quiet, no Result, 1 of 2 carry-ons sent	Its home's: its turn is quiet, no Result, 1 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn is quiet, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: a Result paused on other rows	the turn ends	Ends		120
+Yours, its home has no thread: its turn is quiet, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: a Result that ends it	the turn ends	Ends		120
+Yours, its home has no thread: its turn is quiet, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: a Result that leaves something	the turn ends	Ends		120
+Yours, its home has no thread: its turn is quiet, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: a Result that owes its pull request, ended	the turn ends	Ends		120
+Yours, its home has no thread: its turn is quiet, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its pull request open	the turn ends	Ends		120
+Yours, its home has no thread: its turn is quiet, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn completed, no Result, 1 of 2 carry-ons sent	the turn ends	Ends		40
+Yours, its home has no thread: its turn is quiet, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn failed, no Result, 1 of 2 carry-ons sent	the turn ends	Ends		40
+Yours, its home has no thread: its turn is quiet, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn is hung, no Result, 1 of 2 carry-ons sent	20 min with nothing written	Hangs	r1s24>r1s21	40
+Yours, its home has no thread: its turn is quiet, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn waits on a test slot, no Result, 1 of 2 carry-ons sent	the turn ends waiting on a test slot	AwaitsSlot		40
+Yours, its home has no thread: its turn is quiet, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn was rolled back, no Result, 1 of 2 carry-ons sent	the turn ends	Ends		40
+Yours, its home has no thread: its turn is quiet, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn writes, no Result, 1 of 2 carry-ons sent	the turn writes again	Writes		40
+Yours, its home has no thread: its turn is quiet, no Result, 2 of 2 carry-ons sent	Its home's: its turn is quiet, no Result, 2 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn is quiet, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: a Result paused on other rows	the turn ends	Ends		120
+Yours, its home has no thread: its turn is quiet, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: a Result that ends it	the turn ends	Ends		120
+Yours, its home has no thread: its turn is quiet, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: a Result that leaves something	the turn ends	Ends		120
+Yours, its home has no thread: its turn is quiet, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: a Result that owes its pull request, ended	the turn ends	Ends		120
+Yours, its home has no thread: its turn is quiet, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its pull request open	the turn ends	Ends		120
+Yours, its home has no thread: its turn is quiet, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn completed, no Result, 2 of 2 carry-ons sent	the turn ends	Ends		40
+Yours, its home has no thread: its turn is quiet, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn failed, no Result, 2 of 2 carry-ons sent	the turn ends	Ends		40
+Yours, its home has no thread: its turn is quiet, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn is hung, no Result, 2 of 2 carry-ons sent	20 min with nothing written	Hangs	r1s25>r1s22	40
+Yours, its home has no thread: its turn is quiet, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn waits on a test slot, no Result, 2 of 2 carry-ons sent	the turn ends waiting on a test slot	AwaitsSlot		40
+Yours, its home has no thread: its turn is quiet, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn was rolled back, no Result, 2 of 2 carry-ons sent	the turn ends	Ends		40
+Yours, its home has no thread: its turn is quiet, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn writes, no Result, 2 of 2 carry-ons sent	the turn writes again	Writes		40
+Yours, its home has no thread: its turn waits on a request, no Result	Its home's: its turn waits on a request, no Result	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn waits on a request, no Result	Yours, its home has no thread: its turn writes, no Result	you answer its request	Answered	r1s26>r1s35	40
+Yours, its home has no thread: its turn waits on a request, no Result, 1 of 2 carry-ons sent	Its home's: its turn waits on a request, no Result, 1 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn waits on a request, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn writes, no Result, 1 of 2 carry-ons sent	you answer its request	Answered	r1s27>r1s36	40
+Yours, its home has no thread: its turn waits on a request, no Result, 2 of 2 carry-ons sent	Its home's: its turn waits on a request, no Result, 2 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn waits on a request, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn writes, no Result, 2 of 2 carry-ons sent	you answer its request	Answered	r1s28>r1s37	40
+Yours, its home has no thread: its turn waits on a test slot, no Result	Its home's: its turn waits on a test slot, no Result	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn waits on a test slot, no Result	Yours, its home has no thread: its turn writes, no Result	jbus wakes it: a test slot is free	SlotWakes	r1s29>r1s35	40
+Yours, its home has no thread: its turn waits on a test slot, no Result, 1 of 2 carry-ons sent	Its home's: its turn waits on a test slot, no Result, 1 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn waits on a test slot, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn writes, no Result, 1 of 2 carry-ons sent	jbus wakes it: a test slot is free	SlotWakes	r1s30>r1s36	40
+Yours, its home has no thread: its turn waits on a test slot, no Result, 2 of 2 carry-ons sent	Its home's: its turn waits on a test slot, no Result, 2 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn waits on a test slot, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn writes, no Result, 2 of 2 carry-ons sent	jbus wakes it: a test slot is free	SlotWakes	r1s31>r1s37	40
+Yours, its home has no thread: its turn was rolled back, no Result	Its home's: its turn was rolled back, no Result	jbus tells the home the row is left	Leftover		40
+Yours, its home has no thread: its turn was rolled back, no Result	Its home's: its turn was rolled back, no Result	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn was rolled back, no Result, 1 of 2 carry-ons sent	Its home's: its turn was rolled back, no Result, 1 of 2 carry-ons sent	jbus tells the home the row is left	Leftover		40
+Yours, its home has no thread: its turn was rolled back, no Result, 1 of 2 carry-ons sent	Its home's: its turn was rolled back, no Result, 1 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn was rolled back, no Result, 2 of 2 carry-ons sent	Its home's: its turn was rolled back, no Result, 2 of 2 carry-ons sent	jbus tells the home the row is left	Leftover		40
+Yours, its home has no thread: its turn was rolled back, no Result, 2 of 2 carry-ons sent	Its home's: its turn was rolled back, no Result, 2 of 2 carry-ons sent	the home's stall ladder nudges the home	Nudged		40
+Yours, its home has no thread: its turn writes, no Result	Yours, its home has no thread: a Result paused on other rows	the turn ends	Ends	r1s35>r1s0	120
+Yours, its home has no thread: its turn writes, no Result	Yours, its home has no thread: a Result that ends it	the turn ends	Ends	r1s35>r1s1	120
+Yours, its home has no thread: its turn writes, no Result	Yours, its home has no thread: a Result that leaves something	the turn ends	Ends	r1s35>r1s2	120
+Yours, its home has no thread: its turn writes, no Result	Yours, its home has no thread: a Result that owes its pull request, ended	the turn ends	Ends	r1s35>r1s3	120
+Yours, its home has no thread: its turn writes, no Result	Yours, its home has no thread: its pull request open	the turn ends	Ends	r1s35>r1s13	120
+Yours, its home has no thread: its turn writes, no Result	Yours, its home has no thread: its turn completed, no Result	the turn ends	Ends	r1s35>r1s14	40
+Yours, its home has no thread: its turn writes, no Result	Yours, its home has no thread: its turn failed, no Result	the turn ends	Ends	r1s35>r1s17	40
+Yours, its home has no thread: its turn writes, no Result	Yours, its home has no thread: its turn is quiet, no Result	10 min with nothing written	Quiets	r1s35>r1s23	40
+Yours, its home has no thread: its turn writes, no Result	Yours, its home has no thread: its turn waits on a request, no Result	the crew asks you something	Asks	r1s35>r1s26	40
+Yours, its home has no thread: its turn writes, no Result	Yours, its home has no thread: its turn waits on a test slot, no Result	the turn ends waiting on a test slot	AwaitsSlot	r1s35>r1s29	40
+Yours, its home has no thread: its turn writes, no Result	Yours, its home has no thread: its turn was rolled back, no Result	the turn ends	Ends	r1s35>r1s32	40
+Yours, its home has no thread: its turn writes, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: a Result paused on other rows	the turn ends	Ends		120
+Yours, its home has no thread: its turn writes, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: a Result that ends it	the turn ends	Ends		120
+Yours, its home has no thread: its turn writes, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: a Result that leaves something	the turn ends	Ends		120
+Yours, its home has no thread: its turn writes, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: a Result that owes its pull request, ended	the turn ends	Ends		120
+Yours, its home has no thread: its turn writes, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its pull request open	the turn ends	Ends		120
+Yours, its home has no thread: its turn writes, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn completed, no Result, 1 of 2 carry-ons sent	the turn ends	Ends	r1s36>r1s15	40
+Yours, its home has no thread: its turn writes, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn failed, no Result, 1 of 2 carry-ons sent	the turn ends	Ends	r1s36>r1s18	40
+Yours, its home has no thread: its turn writes, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn is quiet, no Result, 1 of 2 carry-ons sent	10 min with nothing written	Quiets	r1s36>r1s24	40
+Yours, its home has no thread: its turn writes, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn waits on a request, no Result, 1 of 2 carry-ons sent	the crew asks you something	Asks	r1s36>r1s27	40
+Yours, its home has no thread: its turn writes, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn waits on a test slot, no Result, 1 of 2 carry-ons sent	the turn ends waiting on a test slot	AwaitsSlot	r1s36>r1s30	40
+Yours, its home has no thread: its turn writes, no Result, 1 of 2 carry-ons sent	Yours, its home has no thread: its turn was rolled back, no Result, 1 of 2 carry-ons sent	the turn ends	Ends	r1s36>r1s33	40
+Yours, its home has no thread: its turn writes, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: a Result paused on other rows	the turn ends	Ends		120
+Yours, its home has no thread: its turn writes, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: a Result that ends it	the turn ends	Ends		120
+Yours, its home has no thread: its turn writes, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: a Result that leaves something	the turn ends	Ends		120
+Yours, its home has no thread: its turn writes, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: a Result that owes its pull request, ended	the turn ends	Ends		120
+Yours, its home has no thread: its turn writes, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its pull request open	the turn ends	Ends		120
+Yours, its home has no thread: its turn writes, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn completed, no Result, 2 of 2 carry-ons sent	the turn ends	Ends	r1s37>r1s16	40
+Yours, its home has no thread: its turn writes, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn failed, no Result, 2 of 2 carry-ons sent	the turn ends	Ends	r1s37>r1s19	40
+Yours, its home has no thread: its turn writes, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn is quiet, no Result, 2 of 2 carry-ons sent	10 min with nothing written	Quiets	r1s37>r1s25	40
+Yours, its home has no thread: its turn writes, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn waits on a request, no Result, 2 of 2 carry-ons sent	the crew asks you something	Asks	r1s37>r1s28	40
+Yours, its home has no thread: its turn writes, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn waits on a test slot, no Result, 2 of 2 carry-ons sent	the turn ends waiting on a test slot	AwaitsSlot	r1s37>r1s31	40
+Yours, its home has no thread: its turn writes, no Result, 2 of 2 carry-ons sent	Yours, its home has no thread: its turn was rolled back, no Result, 2 of 2 carry-ons sent	the turn ends	Ends	r1s37>r1s34	40

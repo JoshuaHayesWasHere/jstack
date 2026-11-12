@@ -57,7 +57,7 @@ S=$PWD/features/skill-library/skills/statechart/scripts
 D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainRed.* "$W"
 (cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
-    statechart from-spec MainRed.tla --config MainRed.chart.cfg \
+    statechart from-spec MainRed.tla --config MainRed.chart.cfg --also-config MainRed.cfg \
     --title "Main went red: what fixes it?" --out out)
 ```
 
@@ -65,7 +65,9 @@ Run it from the repo root.
 Then copy the files of `$W/out` into `MainRed-statechart/`, all except `tlc/`.
 `MainRed.chart.cfg` has the same rules on up to three commits, with the Mac (116,957 states), and it draws 42 chart states and 265 steps.
 TLC runs once for each rule, so drawing it takes about two minutes.
-The four commits of `MainRed.cfg` draw too many states and steps for Mermaid to render as a PNG.
+The four commits of `MainRed.cfg` draw too many states and steps for Mermaid to render as a PNG, so `--also-config MainRed.cfg` runs it once more for the tables alone.
+`states.tsv` and `arrows.tsv` list all 42 chart states and all 377 arrows between them, each with its action and its count of model steps in each run.
+`MainRed.cfg` (147,834 states) reaches no state the chart's cfg misses, and 8 arrows that it does, which the tables list and the tab names.
 No state breaks a rule, so it draws no `bug-N` chart.
 
 ## What the main-red model leaves out
