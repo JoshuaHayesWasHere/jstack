@@ -284,7 +284,7 @@ def test_each_charts_tab_lists_every_state_and_arrow_and_each_row_lights_what_is
             r'<tr tabindex="0" data-light="([^"]*)" data-edges="([^"]*)"', tables
         ):
             assert set(light.split()) <= ids, (name, light)
-            pairs = {tuple(e.split(">")) for e in lit_edges.split()}
+            pairs = {tuple(e.split(">")) for e in html.unescape(lit_edges).split()}
             assert pairs <= edges, (name, pairs - edges)
 
 
