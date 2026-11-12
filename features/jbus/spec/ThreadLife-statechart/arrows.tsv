@@ -4,6 +4,7 @@ Its home's: a Result paused on other rows	Its home's: a Result that leaves somet
 Its home's: a Result paused on other rows	Its home's: its pull request open	the turn ends	Ends		1440
 Its home's: a Result that ends it	Put away: archived, scratch kept	jbus archives the thread	Archive	r0s1>r0s5 r1s1>r1s11	720
 Its home's: a Result that ends it	Put away: settled, work held, scratch kept	jbus settles the thread, its work held	Settle	r0s1>r0s5 r1s1>r1s42	720
+Its home's: a Result that owes its pull request, ended	Its home's: a Result that owes its pull request, told once to open it, its turn writes	jbus tells the crew once to open its pull request	OwesPull	r1s3>r1s9	720
 Its home's: a Result that owes its pull request, told once to open it, its turn is hung	Its home's: a Result that owes its pull request, told once to open it, its turn writes	the turn writes again	Writes	r1s5>r1s9	240
 Its home's: a Result that owes its pull request, told once to open it, its turn is quiet	Its home's: a Result that leaves something	the turn ends	Ends		720
 Its home's: a Result that owes its pull request, told once to open it, its turn is quiet	Its home's: a Result that owes its pull request, told once to open it, ended	the turn ends	Ends		720
@@ -22,6 +23,8 @@ Its home's: a Result that owes its pull request, told once to open it, its turn 
 Its home's: its pull request merged or closed	Put away: archived, scratch kept	jbus archives the thread	Archive	r0s1>r0s5 r1s12>r1s11	1080
 Its home's: its pull request merged or closed	Put away: settled, work held, scratch kept	jbus settles the thread, its work held	Settle	r0s1>r0s5 r1s12>r1s42	1080
 Its home's: its pull request open	Its home's: its pull request merged or closed	the pull request merges or closes	Shuts	r1s13>r1s12	2160
+Its home's: its turn failed, no Result	Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	jbus tells the crew to carry on	CarryOn	r1s17>r1s36	80
+Its home's: its turn failed, no Result, 1 of 2 carry-ons sent	Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	jbus tells the crew to carry on	CarryOn	r1s18>r1s37	80
 Its home's: its turn is hung, no Result	Its home's: its turn writes, no Result	the turn writes again	Writes	r1s20>r1s35	80
 Its home's: its turn is hung, no Result, 1 of 2 carry-ons sent	Its home's: its turn writes, no Result, 1 of 2 carry-ons sent	the turn writes again	Writes	r1s21>r1s36	80
 Its home's: its turn is hung, no Result, 2 of 2 carry-ons sent	Its home's: its turn writes, no Result, 2 of 2 carry-ons sent	the turn writes again	Writes	r1s22>r1s37	80

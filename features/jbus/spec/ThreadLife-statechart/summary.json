@@ -73,13 +73,24 @@
   },
   "classes": [],
   "codeLike": [],
+  "map": {
+    "runs": [
+      "ThreadLife.cfg"
+    ],
+    "states": 123,
+    "arrows": 449
+  },
   "drawnFrom": {
-    "command": "statechart from-spec ThreadLife.tla --title 'What does jbus do with a thread, launch to archive?' --png",
+    "command": "statechart from-spec ThreadLife.tla --title 'What does jbus do with a thread, launch to archive?'",
     "inputs": {
       "ThreadLife.cfg": "75b281350ae23c8ba7533f81a323b71b79462281ab56875327f13a90c55c3b2e",
       "ThreadLife.map.py": "6772612119f94a2cb1279dcc9cf6cf4d17fb2527b21983f9624c2398da618ca1",
       "ThreadLife.tla": "4c4a5bf79075f2f30c8ad1c6eed64e7067e8274019eb9530b0b80c3c4eee2200"
     },
-    "chart": "35da96cbd3669d3936d706d800a4efd92bc4d6ec28892e0a7c9a782547c34652"
+    "chart": "35da96cbd3669d3936d706d800a4efd92bc4d6ec28892e0a7c9a782547c34652",
+    "tables": {
+      "states.tsv": "aff9b46f90ce13010d1abdfc4e5259bd0049332157d5e9f33367672d29106bf6",
+      "arrows.tsv": "59492cf43606861073c1cd58b8ae086cbb9ab86e35bd9a982df02f0a34c0c410"
+    }
   }
 }

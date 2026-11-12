@@ -19,6 +19,12 @@ A hold nobody works on: told once, held.json waits, sent.json has its key	Told o
 A hold nobody works on: told once, held.json waits, sent.json has its key, a pass is in its step	Told once: sent.json has its key	works		r0s0 r1s64	15	9	15	9
 A hold nobody works on: told once, held.json waits, the outbox held it	Told once: its key kept	works		r0s0 r1s65	3	0	3	0
 A hold nobody works on: told once, held.json waits, the outbox held it, a pass is in its step	Told once: its key kept, a pass in its step	works		r0s0 r1s66	6	3	6	3
+A hold only your accept lifts: not told, held.json waits	Not told: nothing marked				0	0	1	0
+A hold only your accept lifts: not told, held.json waits, a pass is in its step	Not told: a pass in its step or a mark written				0	0	1	0
+A hold only your accept lifts: nothing owed yet	Not told: nothing marked		yes		0	0	1	0
+A hold only your accept lifts: told once, held.json says you were told	Told once: its file says done				0	0	1	0
+A hold only your accept lifts: told once, held.json waits	Told once: no key kept yet				0	0	1	0
+A hold only your accept lifts: told once, held.json waits, a pass is in its step	Told once: no key kept yet				0	0	2	1
 A merge that changed a skill: not told, reload.json owes it	Not told: nothing marked	works		r0s1 r1s10	1	0	1	0
 A merge that changed a skill: not told, reload.json owes it, a merge was kept since	Not told: nothing marked	works		r0s1 r1s11	1	0	1	0
 A merge that changed a skill: not told, reload.json owes it, a merge was kept since, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s1 r1s12	1	0	1	0

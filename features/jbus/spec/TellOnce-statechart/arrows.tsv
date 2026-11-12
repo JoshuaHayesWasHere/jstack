@@ -30,6 +30,13 @@ A hold nobody works on: told once, held.json waits, the outbox held it, a pass i
 A hold nobody works on: told once, held.json waits, the outbox held it, a pass is in its step	A hold nobody works on: told once, held.json waits, a pass is in its step	the pass writes its next step	Step	r1s66>r1s62	1	1
 A hold nobody works on: told once, held.json waits, the outbox held it, a pass is in its step	A hold nobody works on: told once, held.json waits, the outbox held it	the outbox holds the message	Hold		3	3
 A hold nobody works on: told once, held.json waits, the outbox held it, a pass is in its step	A hold nobody works on: told once, held.json waits, the outbox held it	the pass dies	Die		6	6
+A hold only your accept lifts: not told, held.json waits	A hold only your accept lifts: not told, held.json waits, a pass is in its step	a pass reaches it and reads its marks	Begin		0	1
+A hold only your accept lifts: not told, held.json waits, a pass is in its step	A hold only your accept lifts: not told, held.json waits	the pass dies	Die		0	1
+A hold only your accept lifts: not told, held.json waits, a pass is in its step	A hold only your accept lifts: told once, held.json waits, a pass is in its step	the receiver takes it	Step		0	1
+A hold only your accept lifts: nothing owed yet	A hold only your accept lifts: not told, held.json waits	what calls for it comes to hold	Due		0	1
+A hold only your accept lifts: told once, held.json waits	A hold only your accept lifts: told once, held.json waits, a pass is in its step	a pass reaches it and reads its marks	Begin		0	1
+A hold only your accept lifts: told once, held.json waits, a pass is in its step	A hold only your accept lifts: told once, held.json says you were told	its own file says done	Step		0	1
+A hold only your accept lifts: told once, held.json waits, a pass is in its step	A hold only your accept lifts: told once, held.json waits	the pass dies	Die		0	2
 A merge that changed a skill: not told, reload.json owes it	A merge that changed a skill: not told, reload.json owes it, a merge was kept since	the key the next try names changes	Rekey	r1s10>r1s11	1	1
 A merge that changed a skill: not told, reload.json owes it	A merge that changed a skill: not told, reload.json owes it, a pass is in its step	a pass reaches it and reads its marks	Begin	r1s10>r1s13	1	1
 A merge that changed a skill: not told, reload.json owes it, a merge was kept since	A merge that changed a skill: not told, reload.json owes it, a merge was kept since, a pass is in its step	a pass reaches it and reads its marks	Begin	r1s11>r1s12	1	1

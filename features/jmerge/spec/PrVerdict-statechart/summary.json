@@ -51,13 +51,24 @@
   },
   "classes": [],
   "codeLike": [],
+  "map": {
+    "runs": [
+      "PrVerdict.cfg"
+    ],
+    "states": 46,
+    "arrows": 377
+  },
   "drawnFrom": {
-    "command": "statechart from-spec PrVerdict.tla --config PrVerdict.chart.cfg --title 'Why isn'\"'\"'t my pull request merging?' --png",
+    "command": "statechart from-spec PrVerdict.tla --title 'Why isn'\"'\"'t my pull request merging?'",
     "inputs": {
-      "PrVerdict.chart.cfg": "3d99a67bbc42e2e9290ddf0dd3061fbf7d82c47efd838e9c00aea0c88c1f6e8b",
+      "PrVerdict.cfg": "71e431d9e990b2119bce34ac17b78c91ef8bc0d94fc07b57a2b928e05d9b5877",
       "PrVerdict.map.py": "7ba954143e1c96394425cf556ca6458c0d60f4ac25fbd66ab1f5e5dce0b1eef9",
       "PrVerdict.tla": "19c5223f92a93116846fe1cb3c42a9309b31f3403ae4c9a4a63aafc7999a982f"
     },
-    "chart": "de8e19ae532a36e306a3d1bc4c4d5a192aaa87760ddd255a7bfddd8620c2b653"
+    "chart": "de8e19ae532a36e306a3d1bc4c4d5a192aaa87760ddd255a7bfddd8620c2b653",
+    "tables": {
+      "states.tsv": "4c757b07fe3ee7ed075a0f59f6a5da1d7ed3c8cfac29c8c248e3b3f8e7d3fded",
+      "arrows.tsv": "ff6ea4edd1915ad499bb6b1ed63e1f12bef6cff6dc975907dc0799eb7acc6a71"
+    }
   }
 }

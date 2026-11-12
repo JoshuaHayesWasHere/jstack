@@ -48,9 +48,9 @@ jbus reruns main's failed run, the Mac red: two reverts open and a fix row out	j
 jbus reruns main's failed run, the Mac red: two reverts open and a fix row out	Main green, the Mac red: two reverts open and a fix row out	jbus's rerun passes: a flake	RerunEnds	s37>s5	46	0
 jbus reruns main's failed run, the Mac red: two reverts open and a fix row out	Main red, the Mac red: two reverts open and a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s37>s15	48	0
 jbus reruns main's failed run: a fix row out	jbus reruns main's failed run, the Mac red: a fix row out	the Mac fails	MacEnds	s38>s32	280	0
-jbus reruns main's failed run: a fix row out	Main green: a fix row out	jbus's rerun passes: a flake	RerunEnds	s38>s6	274	540
-jbus reruns main's failed run: a fix row out	Main red: a fix row out	jbus's pass files main's fix row	Pass	s38>s16	192	972
-jbus reruns main's failed run: a fix row out	Main red: a fix row out	jbus's pass reads main red	Pass	s38>s16	162	726
+jbus reruns main's failed run: a fix row out	Main green: a fix row out	jbus's rerun passes: a flake	RerunEnds	s38>s6	274	550
+jbus reruns main's failed run: a fix row out	Main red: a fix row out	jbus's pass files main's fix row	Pass	s38>s16	192	990
+jbus reruns main's failed run: a fix row out	Main red: a fix row out	jbus's pass reads main red	Pass	s38>s16	162	732
 jbus reruns main's failed run: a fix row out	Main red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s38>s18	192	396
 jbus reruns main's failed run: a fix row out	Main's run going: a fix row out	a row's pull request merges	Merge		0	64
 jbus reruns main's failed run: a fix row out	Main's run going: a fix row out	a row's pull request merges and breaks a test	Merge		0	64
@@ -70,79 +70,79 @@ jbus reruns main's failed run: a revert open and a fix row out	Main green: a rev
 jbus reruns main's failed run: a revert open and a fix row out	Main red: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s40>s16	72	0
 jbus reruns main's failed run: a revert open and a fix row out	Main red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s40>s18	48	0
 jbus reruns main's failed run: nothing open to fix it	jbus reruns main's failed run, the Mac red: nothing open to fix it	the Mac fails	MacEnds	s41>s35	464	0
-jbus reruns main's failed run: nothing open to fix it	Main green: nothing open to fix it	jbus's rerun passes: a flake	RerunEnds	s41>s9	278	343
-jbus reruns main's failed run: nothing open to fix it	Main red: a fix row out	jbus's pass files main's fix row	Pass	s41>s16	548	1334
+jbus reruns main's failed run: nothing open to fix it	Main green: nothing open to fix it	jbus's rerun passes: a flake	RerunEnds	s41>s9	278	351
+jbus reruns main's failed run: nothing open to fix it	Main red: a fix row out	jbus's pass files main's fix row	Pass	s41>s16	548	1348
 jbus reruns main's failed run: nothing open to fix it	Main red: a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s41>s16	64	0
-jbus reruns main's failed run: nothing open to fix it	Main red: a revert open	jbus's pass reverts the one clear culprit	Pass	s41>s17	196	357
+jbus reruns main's failed run: nothing open to fix it	Main red: a revert open	jbus's pass reverts the one clear culprit	Pass	s41>s17	196	363
 jbus reruns main's failed run: nothing open to fix it	Main red: nothing open to fix it	jbus's pass reads main red	Pass	s41>s19	336	1008
 jbus reruns main's failed run: nothing open to fix it	Main's run going: nothing open to fix it	a row's pull request merges	Merge	s41>s31	30	112
 jbus reruns main's failed run: nothing open to fix it	Main's run going: nothing open to fix it	a row's pull request merges and breaks a test	Merge	s41>s31	30	112
 jbus reruns main's failed run: nothing open to fix it	Main's run going: nothing open to fix it	something outside breaks main	Outside	s41>s31	20	128
 Main green, the Mac red: a fix row out	Main green, the Mac red: a revert open	jbus's pass reverts the one clear culprit	Pass	s0>s1	12	0
-Main green, the Mac red: a fix row out	Main green, the Mac red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s0>s2	346	0
+Main green, the Mac red: a fix row out	Main green, the Mac red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s0>s2	370	0
 Main green, the Mac red: a fix row out	Main green, the Mac red: nothing open to fix it	jbus's pass sees main green and withdraws the fix row	Pass	s0>s3	24	0
 Main green, the Mac red: a fix row out	Main green, the Mac red: nothing open to fix it	jbus's pass: a red check leans on the revert already open	Pass	s0>s3	8	0
-Main green, the Mac red: a fix row out	Main green: a fix row out	the Mac passes	MacEnds	s0>s6	900	0
+Main green, the Mac red: a fix row out	Main green: a fix row out	the Mac passes	MacEnds	s0>s6	948	0
 Main green, the Mac red: a fix row out	Main's run going, the Mac red: a fix row out	a row's pull request merges	Merge	s0>s22	36	0
 Main green, the Mac red: a fix row out	Main's run going, the Mac red: a fix row out	a row's pull request merges and breaks a test	Merge	s0>s22	36	0
 Main green, the Mac red: a fix row out	Main's run going, the Mac red: a fix row out	something outside breaks main	Outside	s0>s22	36	0
 Main green, the Mac red: a fix row out	Main's run going, the Mac red: nothing open to fix it	the fix merges	FixMerges	s0>s25	12	0
-Main green, the Mac red: a revert open	Main green, the Mac red: nothing open to fix it	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s1>s3	578	0
+Main green, the Mac red: a revert open	Main green, the Mac red: nothing open to fix it	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s1>s3	600	0
 Main green, the Mac red: a revert open	Main green, the Mac red: two reverts open	jbus's pass reverts the one clear culprit	Pass	s1>s4	36	0
-Main green, the Mac red: a revert open	Main green: a revert open	the Mac passes	MacEnds	s1>s7	334	0
+Main green, the Mac red: a revert open	Main green: a revert open	the Mac passes	MacEnds	s1>s7	346	0
 Main green, the Mac red: a revert open	Main's run going, the Mac red: a revert open	a row's pull request merges	Merge	s1>s23	16	0
 Main green, the Mac red: a revert open	Main's run going, the Mac red: a revert open	a row's pull request merges and breaks a test	Merge	s1>s23	16	0
 Main green, the Mac red: a revert open	Main's run going, the Mac red: a revert open	something outside breaks main	Outside	s1>s23	16	0
 Main green, the Mac red: a revert open	Main's run going, the Mac red: nothing open to fix it	jmerge merges jbus's revert	RevertMerges	s1>s25	6	0
-Main green, the Mac red: a revert open and a fix row out	Main green, the Mac red: a fix row out	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s2>s0	1466	0
+Main green, the Mac red: a revert open and a fix row out	Main green, the Mac red: a fix row out	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s2>s0	1576	0
 Main green, the Mac red: a revert open and a fix row out	Main green, the Mac red: a revert open	jbus's pass sees main green and withdraws the fix row	Pass	s2>s1	40	0
 Main green, the Mac red: a revert open and a fix row out	Main green, the Mac red: two reverts open	jbus's pass reverts the one clear culprit	Pass	s2>s4	4	0
 Main green, the Mac red: a revert open and a fix row out	Main green, the Mac red: two reverts open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s2>s5	76	0
-Main green, the Mac red: a revert open and a fix row out	Main green: a revert open and a fix row out	the Mac passes	MacEnds	s2>s8	804	0
+Main green, the Mac red: a revert open and a fix row out	Main green: a revert open and a fix row out	the Mac passes	MacEnds	s2>s8	870	0
 Main green, the Mac red: a revert open and a fix row out	Main's run going, the Mac red: a fix row out	jmerge merges jbus's revert	RevertMerges	s2>s22	20	0
 Main green, the Mac red: a revert open and a fix row out	Main's run going, the Mac red: a revert open	the fix merges	FixMerges	s2>s23	16	0
 Main green, the Mac red: a revert open and a fix row out	Main's run going, the Mac red: a revert open and a fix row out	a row's pull request merges	Merge	s2>s24	44	0
 Main green, the Mac red: a revert open and a fix row out	Main's run going, the Mac red: a revert open and a fix row out	a row's pull request merges and breaks a test	Merge	s2>s24	44	0
 Main green, the Mac red: a revert open and a fix row out	Main's run going, the Mac red: a revert open and a fix row out	something outside breaks main	Outside	s2>s24	44	0
-Main green, the Mac red: nothing open to fix it	Main green, the Mac red: a revert open	jbus's pass reverts the one clear culprit	Pass	s3>s1	212	0
-Main green, the Mac red: nothing open to fix it	Main green: nothing open to fix it	the Mac passes	MacEnds	s3>s9	396	0
+Main green, the Mac red: nothing open to fix it	Main green, the Mac red: a revert open	jbus's pass reverts the one clear culprit	Pass	s3>s1	214	0
+Main green, the Mac red: nothing open to fix it	Main green: nothing open to fix it	the Mac passes	MacEnds	s3>s9	406	0
 Main green, the Mac red: nothing open to fix it	Main's run going, the Mac red: nothing open to fix it	a row's pull request merges	Merge	s3>s25	16	0
 Main green, the Mac red: nothing open to fix it	Main's run going, the Mac red: nothing open to fix it	a row's pull request merges and breaks a test	Merge	s3>s25	16	0
 Main green, the Mac red: nothing open to fix it	Main's run going, the Mac red: nothing open to fix it	something outside breaks main	Outside	s3>s25	16	0
 Main green, the Mac red: two reverts open	Main green, the Mac red: a revert open	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s4>s1	128	0
 Main green, the Mac red: two reverts open and a fix row out	Main green, the Mac red: a revert open and a fix row out	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s5>s2	340	0
 Main green, the Mac red: two reverts open and a fix row out	Main green, the Mac red: two reverts open	jbus's pass sees main green and withdraws the fix row	Pass	s5>s4	8	0
-Main green: a fix row out	Main green, the Mac red: a fix row out	the Mac fails	MacEnds	s6>s0	900	0
-Main green: a fix row out	Main green: nothing open to fix it	jbus's pass sees main green and withdraws the fix row	Pass	s6>s9	54	108
+Main green: a fix row out	Main green, the Mac red: a fix row out	the Mac fails	MacEnds	s6>s0	964	0
+Main green: a fix row out	Main green: nothing open to fix it	jbus's pass sees main green and withdraws the fix row	Pass	s6>s9	54	110
 Main green: a fix row out	Main's run going: a fix row out	a row's pull request merges	Merge	s6>s28	54	258
 Main green: a fix row out	Main's run going: a fix row out	a row's pull request merges and breaks a test	Merge	s6>s28	54	258
-Main green: a fix row out	Main's run going: a fix row out	something outside breaks main	Outside	s6>s28	54	536
+Main green: a fix row out	Main's run going: a fix row out	something outside breaks main	Outside	s6>s28	54	566
 Main green: a fix row out	Main's run going: a fix row out	the fix merges	FixMerges		0	20
-Main green: a fix row out	Main's run going: nothing open to fix it	the fix merges	FixMerges	s6>s31	20	236
-Main green: a revert open	Main green: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s7>s9	232	0
-Main green: a revert open	Main green: nothing open to fix it	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s7>s9	116	0
-Main green: a revert open and a fix row out	Main green: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s8>s6	452	0
-Main green: a revert open and a fix row out	Main green: a fix row out	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s8>s6	230	0
+Main green: a fix row out	Main's run going: nothing open to fix it	the fix merges	FixMerges	s6>s31	20	248
+Main green: a revert open	Main green: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s7>s9	240	0
+Main green: a revert open	Main green: nothing open to fix it	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s7>s9	120	0
+Main green: a revert open and a fix row out	Main green: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s8>s6	488	0
+Main green: a revert open and a fix row out	Main green: a fix row out	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s8>s6	248	0
 Main green: a revert open and a fix row out	Main green: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s8>s9	8	0
-Main green: nothing open to fix it	Main green, the Mac red: nothing open to fix it	the Mac fails	MacEnds	s9>s3	356	0
+Main green: nothing open to fix it	Main green, the Mac red: nothing open to fix it	the Mac fails	MacEnds	s9>s3	364	0
 Main green: nothing open to fix it	Main's run going: nothing open to fix it	a row's pull request merges	Merge	s9>s31	20	70
 Main green: nothing open to fix it	Main's run going: nothing open to fix it	a row's pull request merges and breaks a test	Merge	s9>s31	20	70
-Main green: nothing open to fix it	Main's run going: nothing open to fix it	something outside breaks main	Outside	s9>s31	19	175
+Main green: nothing open to fix it	Main's run going: nothing open to fix it	something outside breaks main	Outside	s9>s31	19	179
 Main red, the Mac red: a fix row out	jbus reruns main's failed run, the Mac red: a fix row out	jbus's pass reads main green	Pass	s10>s32	126	0
 Main red, the Mac red: a fix row out	jbus reruns main's failed run, the Mac red: a fix row out	jbus's pass reruns main's failed run once	Pass	s10>s32	126	0
 Main red, the Mac red: a fix row out	jbus reruns main's failed run, the Mac red: a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s10>s32	96	0
 Main red, the Mac red: a fix row out	jbus reruns main's failed run, the Mac red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s10>s34	132	0
-Main red, the Mac red: a fix row out	Main green, the Mac red: a fix row out	jbus's pass reads main green	Pass	s10>s0	748	0
+Main red, the Mac red: a fix row out	Main green, the Mac red: a fix row out	jbus's pass reads main green	Pass	s10>s0	808	0
 Main red, the Mac red: a fix row out	Main green, the Mac red: a fix row out	jbus's pass sees main green and withdraws the fix row	Pass	s10>s0	6	0
-Main red, the Mac red: a fix row out	Main green, the Mac red: a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s10>s0	296	0
+Main red, the Mac red: a fix row out	Main green, the Mac red: a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s10>s0	314	0
 Main red, the Mac red: a fix row out	Main green, the Mac red: a revert open	jbus's pass reverts the one clear culprit	Pass	s10>s1	44	0
-Main red, the Mac red: a fix row out	Main green, the Mac red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s10>s2	316	0
+Main red, the Mac red: a fix row out	Main green, the Mac red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s10>s2	340	0
 Main red, the Mac red: a fix row out	Main green, the Mac red: nothing open to fix it	jbus's pass sees main green and withdraws the fix row	Pass	s10>s3	104	0
 Main red, the Mac red: a fix row out	Main green, the Mac red: nothing open to fix it	jbus's pass: a red check leans on the revert already open	Pass	s10>s3	52	0
-Main red, the Mac red: a fix row out	Main red, the Mac red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s10>s12	3192	0
+Main red, the Mac red: a fix row out	Main red, the Mac red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s10>s12	3318	0
 Main red, the Mac red: a fix row out	Main red, the Mac red: nothing open to fix it	the fix merges	FixMerges	s10>s13	22	0
-Main red, the Mac red: a fix row out	Main red, the Mac red: two reverts open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s10>s15	174	0
-Main red, the Mac red: a fix row out	Main red: a fix row out	the Mac passes	MacEnds	s10>s16	3982	0
+Main red, the Mac red: a fix row out	Main red, the Mac red: two reverts open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s10>s15	198	0
+Main red, the Mac red: a fix row out	Main red: a fix row out	the Mac passes	MacEnds	s10>s16	4126	0
 Main red, the Mac red: a fix row out	Main's run going, the Mac red: a fix row out	jbus's pass reads main green	Pass	s10>s22	126	0
 Main red, the Mac red: a fix row out	Main's run going, the Mac red: a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s10>s22	48	0
 Main red, the Mac red: a fix row out	Main's run going, the Mac red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s10>s24	66	0
@@ -152,19 +152,19 @@ Main red, the Mac red: a revert open	jbus reruns main's failed run, the Mac red:
 Main red, the Mac red: a revert open	jbus reruns main's failed run, the Mac red: a revert open	jbus's pass: a red check leans on the revert already open	Pass	s11>s33	64	0
 Main red, the Mac red: a revert open	jbus reruns main's failed run, the Mac red: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s11>s35	16	0
 Main red, the Mac red: a revert open	jbus reruns main's failed run, the Mac red: two reverts open	jbus's pass reverts the one clear culprit	Pass	s11>s36	16	0
-Main red, the Mac red: a revert open	Main green, the Mac red: a revert open	jbus's pass reads main green	Pass	s11>s1	324	0
-Main red, the Mac red: a revert open	Main green, the Mac red: a revert open	jbus's pass reverts the one clear culprit	Pass	s11>s1	28	0
-Main red, the Mac red: a revert open	Main green, the Mac red: a revert open	jbus's pass: a red check leans on the revert already open	Pass	s11>s1	120	0
-Main red, the Mac red: a revert open	Main green, the Mac red: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s11>s3	88	0
+Main red, the Mac red: a revert open	Main green, the Mac red: a revert open	jbus's pass reads main green	Pass	s11>s1	352	0
+Main red, the Mac red: a revert open	Main green, the Mac red: a revert open	jbus's pass reverts the one clear culprit	Pass	s11>s1	32	0
+Main red, the Mac red: a revert open	Main green, the Mac red: a revert open	jbus's pass: a red check leans on the revert already open	Pass	s11>s1	132	0
+Main red, the Mac red: a revert open	Main green, the Mac red: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s11>s3	104	0
 Main red, the Mac red: a revert open	Main green, the Mac red: two reverts open	jbus's pass reverts the one clear culprit	Pass	s11>s4	16	0
 Main red, the Mac red: a revert open	Main red, the Mac red: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s11>s10	16	0
-Main red, the Mac red: a revert open	Main red, the Mac red: a revert open and a fix row out	jbus's pass files main's fix row	Pass	s11>s12	774	0
-Main red, the Mac red: a revert open	Main red, the Mac red: a revert open and a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s11>s12	346	0
+Main red, the Mac red: a revert open	Main red, the Mac red: a revert open and a fix row out	jbus's pass files main's fix row	Pass	s11>s12	834	0
+Main red, the Mac red: a revert open	Main red, the Mac red: a revert open and a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s11>s12	358	0
 Main red, the Mac red: a revert open	Main red, the Mac red: nothing open to fix it	jmerge merges jbus's revert	RevertMerges	s11>s13	12	0
-Main red, the Mac red: a revert open	Main red, the Mac red: nothing open to fix it	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s11>s13	2004	0
-Main red, the Mac red: a revert open	Main red, the Mac red: two reverts open	jbus's pass reverts the one clear culprit	Pass	s11>s14	402	0
-Main red, the Mac red: a revert open	Main red, the Mac red: two reverts open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s11>s15	10	0
-Main red, the Mac red: a revert open	Main red: a revert open	the Mac passes	MacEnds	s11>s17	1230	0
+Main red, the Mac red: a revert open	Main red, the Mac red: nothing open to fix it	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s11>s13	2122	0
+Main red, the Mac red: a revert open	Main red, the Mac red: two reverts open	jbus's pass reverts the one clear culprit	Pass	s11>s14	406	0
+Main red, the Mac red: a revert open	Main red, the Mac red: two reverts open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s11>s15	14	0
+Main red, the Mac red: a revert open	Main red: a revert open	the Mac passes	MacEnds	s11>s17	1298	0
 Main red, the Mac red: a revert open	Main's run going, the Mac red: a revert open	jbus's pass reads main green	Pass	s11>s23	88	0
 Main red, the Mac red: a revert open	Main's run going, the Mac red: a revert open	jbus's pass reverts the one clear culprit	Pass	s11>s23	8	0
 Main red, the Mac red: a revert open	Main's run going, the Mac red: a revert open	jbus's pass: a red check leans on the revert already open	Pass	s11>s23	32	0
@@ -176,22 +176,22 @@ Main red, the Mac red: a revert open and a fix row out	jbus reruns main's failed
 Main red, the Mac red: a revert open and a fix row out	jbus reruns main's failed run, the Mac red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s12>s34	48	0
 Main red, the Mac red: a revert open and a fix row out	jbus reruns main's failed run, the Mac red: a revert open and a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s12>s34	168	0
 Main red, the Mac red: a revert open and a fix row out	jbus reruns main's failed run, the Mac red: two reverts open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s12>s37	48	0
-Main red, the Mac red: a revert open and a fix row out	Main green, the Mac red: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s12>s0	328	0
+Main red, the Mac red: a revert open and a fix row out	Main green, the Mac red: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s12>s0	376	0
 Main red, the Mac red: a revert open and a fix row out	Main green, the Mac red: a revert open	jbus's pass reverts the one clear culprit	Pass	s12>s1	16	0
 Main red, the Mac red: a revert open and a fix row out	Main green, the Mac red: a revert open	jbus's pass sees main green and withdraws the fix row	Pass	s12>s1	184	0
 Main red, the Mac red: a revert open and a fix row out	Main green, the Mac red: a revert open	jbus's pass: a red check leans on the revert already open	Pass	s12>s1	72	0
-Main red, the Mac red: a revert open and a fix row out	Main green, the Mac red: a revert open and a fix row out	jbus's pass reads main green	Pass	s12>s2	1184	0
-Main red, the Mac red: a revert open and a fix row out	Main green, the Mac red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s12>s2	92	0
-Main red, the Mac red: a revert open and a fix row out	Main green, the Mac red: a revert open and a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s12>s2	390	0
+Main red, the Mac red: a revert open and a fix row out	Main green, the Mac red: a revert open and a fix row out	jbus's pass reads main green	Pass	s12>s2	1292	0
+Main red, the Mac red: a revert open and a fix row out	Main green, the Mac red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s12>s2	104	0
+Main red, the Mac red: a revert open and a fix row out	Main green, the Mac red: a revert open and a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s12>s2	426	0
 Main red, the Mac red: a revert open and a fix row out	Main green, the Mac red: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s12>s3	44	0
 Main red, the Mac red: a revert open and a fix row out	Main green, the Mac red: two reverts open	jbus's pass reverts the one clear culprit	Pass	s12>s4	16	0
 Main red, the Mac red: a revert open and a fix row out	Main green, the Mac red: two reverts open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s12>s5	68	0
 Main red, the Mac red: a revert open and a fix row out	Main red, the Mac red: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s12>s10	48	0
 Main red, the Mac red: a revert open and a fix row out	Main red, the Mac red: a fix row out	jmerge merges jbus's revert	RevertMerges	s12>s10	44	0
-Main red, the Mac red: a revert open and a fix row out	Main red, the Mac red: a fix row out	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s12>s10	9990	0
+Main red, the Mac red: a revert open and a fix row out	Main red, the Mac red: a fix row out	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s12>s10	10466	0
 Main red, the Mac red: a revert open and a fix row out	Main red, the Mac red: a revert open	the fix merges	FixMerges	s12>s11	32	0
-Main red, the Mac red: a revert open and a fix row out	Main red, the Mac red: two reverts open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s12>s15	2364	0
-Main red, the Mac red: a revert open and a fix row out	Main red: a revert open and a fix row out	the Mac passes	MacEnds	s12>s18	5798	0
+Main red, the Mac red: a revert open and a fix row out	Main red, the Mac red: two reverts open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s12>s15	2480	0
+Main red, the Mac red: a revert open and a fix row out	Main red: a revert open and a fix row out	the Mac passes	MacEnds	s12>s18	6152	0
 Main red, the Mac red: a revert open and a fix row out	Main's run going, the Mac red: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s12>s22	24	0
 Main red, the Mac red: a revert open and a fix row out	Main's run going, the Mac red: a revert open and a fix row out	jbus's pass reads main green	Pass	s12>s24	240	0
 Main red, the Mac red: a revert open and a fix row out	Main's run going, the Mac red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s12>s24	24	0
@@ -201,90 +201,90 @@ Main red, the Mac red: nothing open to fix it	jbus reruns main's failed run, the
 Main red, the Mac red: nothing open to fix it	jbus reruns main's failed run, the Mac red: nothing open to fix it	jbus's pass reads main green	Pass	s13>s35	48	0
 Main red, the Mac red: nothing open to fix it	jbus reruns main's failed run, the Mac red: nothing open to fix it	jbus's pass reruns main's failed run once	Pass	s13>s35	48	0
 Main red, the Mac red: nothing open to fix it	jbus reruns main's failed run, the Mac red: nothing open to fix it	jbus's pass: a red check leans on the revert already open	Pass	s13>s35	36	0
-Main red, the Mac red: nothing open to fix it	Main green, the Mac red: a revert open	jbus's pass reverts the one clear culprit	Pass	s13>s1	70	0
-Main red, the Mac red: nothing open to fix it	Main green, the Mac red: nothing open to fix it	jbus's pass reads main green	Pass	s13>s3	178	0
-Main red, the Mac red: nothing open to fix it	Main green, the Mac red: nothing open to fix it	jbus's pass: a red check leans on the revert already open	Pass	s13>s3	68	0
-Main red, the Mac red: nothing open to fix it	Main red, the Mac red: a fix row out	jbus's pass files main's fix row	Pass	s13>s10	596	0
-Main red, the Mac red: nothing open to fix it	Main red, the Mac red: a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s13>s10	310	0
+Main red, the Mac red: nothing open to fix it	Main green, the Mac red: a revert open	jbus's pass reverts the one clear culprit	Pass	s13>s1	72	0
+Main red, the Mac red: nothing open to fix it	Main green, the Mac red: nothing open to fix it	jbus's pass reads main green	Pass	s13>s3	192	0
+Main red, the Mac red: nothing open to fix it	Main green, the Mac red: nothing open to fix it	jbus's pass: a red check leans on the revert already open	Pass	s13>s3	74	0
+Main red, the Mac red: nothing open to fix it	Main red, the Mac red: a fix row out	jbus's pass files main's fix row	Pass	s13>s10	624	0
+Main red, the Mac red: nothing open to fix it	Main red, the Mac red: a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s13>s10	322	0
 Main red, the Mac red: nothing open to fix it	Main red, the Mac red: a revert open	jbus's pass reverts the one clear culprit	Pass	s13>s11	552	0
-Main red, the Mac red: nothing open to fix it	Main red, the Mac red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s13>s12	44	0
+Main red, the Mac red: nothing open to fix it	Main red, the Mac red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s13>s12	48	0
 Main red, the Mac red: nothing open to fix it	Main red, the Mac red: two reverts open	jbus's pass reverts the one clear culprit	Pass	s13>s14	28	0
-Main red, the Mac red: nothing open to fix it	Main red: nothing open to fix it	the Mac passes	MacEnds	s13>s19	834	0
+Main red, the Mac red: nothing open to fix it	Main red: nothing open to fix it	the Mac passes	MacEnds	s13>s19	852	0
 Main red, the Mac red: nothing open to fix it	Main's run going, the Mac red: a revert open	jbus's pass reverts the one clear culprit	Pass	s13>s23	24	0
 Main red, the Mac red: nothing open to fix it	Main's run going, the Mac red: nothing open to fix it	jbus's pass reads main green	Pass	s13>s25	48	0
 Main red, the Mac red: nothing open to fix it	Main's run going, the Mac red: nothing open to fix it	jbus's pass: a red check leans on the revert already open	Pass	s13>s25	18	0
 Main red, the Mac red: two reverts open	jbus reruns main's failed run, the Mac red: a revert open	jbus's pass sees every check that holds the revert green and closes it	Pass	s14>s33	32	0
 Main red, the Mac red: two reverts open	jbus reruns main's failed run, the Mac red: two reverts open	jbus's pass reads main green	Pass	s14>s36	16	0
 Main red, the Mac red: two reverts open	jbus reruns main's failed run, the Mac red: two reverts open	jbus's pass reruns main's failed run once	Pass	s14>s36	16	0
-Main red, the Mac red: two reverts open	Main green, the Mac red: a revert open	jbus's pass sees every check that holds the revert green and closes it	Pass	s14>s1	160	0
+Main red, the Mac red: two reverts open	Main green, the Mac red: a revert open	jbus's pass sees every check that holds the revert green and closes it	Pass	s14>s1	192	0
 Main red, the Mac red: two reverts open	Main green, the Mac red: two reverts open	jbus's pass reads main green	Pass	s14>s4	40	0
 Main red, the Mac red: two reverts open	Main green, the Mac red: two reverts open	jbus's pass: a red check leans on the revert already open	Pass	s14>s4	8	0
 Main red, the Mac red: two reverts open	Main red, the Mac red: a revert open	jbus's pass sees every check that holds the revert green and closes it	Pass	s14>s11	16	0
-Main red, the Mac red: two reverts open	Main red, the Mac red: a revert open	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s14>s11	1150	0
+Main red, the Mac red: two reverts open	Main red, the Mac red: a revert open	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s14>s11	1278	0
 Main red, the Mac red: two reverts open	Main red, the Mac red: a revert open and a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s14>s12	16	0
-Main red, the Mac red: two reverts open	Main red, the Mac red: two reverts open and a fix row out	jbus's pass files main's fix row	Pass	s14>s15	236	0
+Main red, the Mac red: two reverts open	Main red, the Mac red: two reverts open and a fix row out	jbus's pass files main's fix row	Pass	s14>s15	268	0
 Main red, the Mac red: two reverts open	Main red, the Mac red: two reverts open and a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s14>s15	24	0
-Main red, the Mac red: two reverts open	Main red: two reverts open	the Mac passes	MacEnds	s14>s20	222	0
+Main red, the Mac red: two reverts open	Main red: two reverts open	the Mac passes	MacEnds	s14>s20	278	0
 Main red, the Mac red: two reverts open	Main's run going, the Mac red: a revert open	jbus's pass sees every check that holds the revert green and closes it	Pass	s14>s23	16	0
 Main red, the Mac red: two reverts open	Main's run going, the Mac red: two reverts open	jbus's pass reads main green	Pass	s14>s26	16	0
 Main red, the Mac red: two reverts open and a fix row out	jbus reruns main's failed run, the Mac red: a revert open and a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s15>s34	96	0
 Main red, the Mac red: two reverts open and a fix row out	jbus reruns main's failed run, the Mac red: two reverts open and a fix row out	jbus's pass reads main green	Pass	s15>s37	48	0
 Main red, the Mac red: two reverts open and a fix row out	jbus reruns main's failed run, the Mac red: two reverts open and a fix row out	jbus's pass reruns main's failed run once	Pass	s15>s37	48	0
 Main red, the Mac red: two reverts open and a fix row out	Main green, the Mac red: a revert open	jbus's pass sees every check that holds the revert green and closes it	Pass	s15>s1	80	0
-Main red, the Mac red: two reverts open and a fix row out	Main green, the Mac red: a revert open and a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s15>s2	592	0
+Main red, the Mac red: two reverts open and a fix row out	Main green, the Mac red: a revert open and a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s15>s2	688	0
 Main red, the Mac red: two reverts open and a fix row out	Main green, the Mac red: two reverts open	jbus's pass sees main green and withdraws the fix row	Pass	s15>s4	32	0
 Main red, the Mac red: two reverts open and a fix row out	Main green, the Mac red: two reverts open	jbus's pass: a red check leans on the revert already open	Pass	s15>s4	8	0
 Main red, the Mac red: two reverts open and a fix row out	Main green, the Mac red: two reverts open and a fix row out	jbus's pass reads main green	Pass	s15>s5	136	0
 Main red, the Mac red: two reverts open and a fix row out	Main green, the Mac red: two reverts open and a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s15>s5	40	0
 Main red, the Mac red: two reverts open and a fix row out	Main red, the Mac red: a revert open and a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s15>s12	96	0
-Main red, the Mac red: two reverts open and a fix row out	Main red, the Mac red: a revert open and a fix row out	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s15>s12	6784	0
-Main red, the Mac red: two reverts open and a fix row out	Main red: two reverts open and a fix row out	the Mac passes	MacEnds	s15>s21	1644	0
+Main red, the Mac red: two reverts open and a fix row out	Main red, the Mac red: a revert open and a fix row out	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s15>s12	7248	0
+Main red, the Mac red: two reverts open and a fix row out	Main red: two reverts open and a fix row out	the Mac passes	MacEnds	s15>s21	1876	0
 Main red, the Mac red: two reverts open and a fix row out	Main's run going, the Mac red: a revert open and a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s15>s24	48	0
 Main red, the Mac red: two reverts open and a fix row out	Main's run going, the Mac red: two reverts open and a fix row out	jbus's pass reads main green	Pass	s15>s27	48	0
-Main red: a fix row out	jbus reruns main's failed run: a fix row out	jbus's pass reads main green	Pass	s16>s38	252	1032
-Main red: a fix row out	jbus reruns main's failed run: a fix row out	jbus's pass reruns main's failed run once	Pass	s16>s38	252	852
-Main red: a fix row out	Main green: a fix row out	jbus's pass reads main green	Pass	s16>s6	1636	5464
-Main red: a fix row out	Main green: a fix row out	jbus's pass sees main green and withdraws the fix row	Pass	s16>s6	36	320
-Main red: a fix row out	Main green: nothing open to fix it	jbus's pass sees main green and withdraws the fix row	Pass	s16>s9	206	696
-Main red: a fix row out	Main red, the Mac red: a fix row out	the Mac fails	MacEnds	s16>s10	5594	0
-Main red: a fix row out	Main red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s16>s18	2482	5975
-Main red: a fix row out	Main red: nothing open to fix it	the fix merges	FixMerges	s16>s19	44	757
-Main red: a fix row out	Main's run going: a fix row out	jbus's pass reads main green	Pass	s16>s28	252	942
-Main red: a revert open	jbus reruns main's failed run: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s17>s41	224	580
-Main red: a revert open	Main green: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s17>s9	468	1062
-Main red: a revert open	Main red, the Mac red: a revert open	the Mac fails	MacEnds	s17>s11	816	0
-Main red: a revert open	Main red: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s17>s16	296	772
-Main red: a revert open	Main red: a revert open and a fix row out	jbus's pass files main's fix row	Pass	s17>s18	502	1295
+Main red: a fix row out	jbus reruns main's failed run: a fix row out	jbus's pass reads main green	Pass	s16>s38	252	1050
+Main red: a fix row out	jbus reruns main's failed run: a fix row out	jbus's pass reruns main's failed run once	Pass	s16>s38	252	870
+Main red: a fix row out	Main green: a fix row out	jbus's pass reads main green	Pass	s16>s6	1714	5980
+Main red: a fix row out	Main green: a fix row out	jbus's pass sees main green and withdraws the fix row	Pass	s16>s6	36	338
+Main red: a fix row out	Main green: nothing open to fix it	jbus's pass sees main green and withdraws the fix row	Pass	s16>s9	206	726
+Main red: a fix row out	Main red, the Mac red: a fix row out	the Mac fails	MacEnds	s16>s10	5776	0
+Main red: a fix row out	Main red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s16>s18	2622	6575
+Main red: a fix row out	Main red: nothing open to fix it	the fix merges	FixMerges	s16>s19	44	781
+Main red: a fix row out	Main's run going: a fix row out	jbus's pass reads main green	Pass	s16>s28	252	960
+Main red: a revert open	jbus reruns main's failed run: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s17>s41	224	596
+Main red: a revert open	Main green: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s17>s9	504	1170
+Main red: a revert open	Main red, the Mac red: a revert open	the Mac fails	MacEnds	s17>s11	856	0
+Main red: a revert open	Main red: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s17>s16	312	788
+Main red: a revert open	Main red: a revert open and a fix row out	jbus's pass files main's fix row	Pass	s17>s18	530	1385
 Main red: a revert open	Main red: a revert open and a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s17>s18	32	0
 Main red: a revert open	Main red: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s17>s19	96	400
-Main red: a revert open	Main red: nothing open to fix it	jmerge merges jbus's revert	RevertMerges	s17>s19	16	192
-Main red: a revert open	Main red: nothing open to fix it	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s17>s19	1670	3410
-Main red: a revert open	Main's run going: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s17>s31	112	290
-Main red: a revert open and a fix row out	jbus reruns main's failed run: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s18>s38	504	876
-Main red: a revert open and a fix row out	Main green: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s18>s6	1362	2956
-Main red: a revert open and a fix row out	Main green: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s18>s9	168	290
-Main red: a revert open and a fix row out	Main red, the Mac red: a revert open and a fix row out	the Mac fails	MacEnds	s18>s12	4002	0
-Main red: a revert open and a fix row out	Main red: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s18>s16	1452	1626
-Main red: a revert open and a fix row out	Main red: a fix row out	jmerge merges jbus's revert	RevertMerges	s18>s16	56	780
-Main red: a revert open and a fix row out	Main red: a fix row out	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s18>s16	6086	11346
-Main red: a revert open and a fix row out	Main red: a revert open	the fix merges	FixMerges	s18>s17	40	508
-Main red: a revert open and a fix row out	Main's run going: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s18>s28	252	438
-Main red: nothing open to fix it	jbus reruns main's failed run: nothing open to fix it	jbus's pass reads main green	Pass	s19>s41	110	515
-Main red: nothing open to fix it	jbus reruns main's failed run: nothing open to fix it	jbus's pass reruns main's failed run once	Pass	s19>s41	110	395
-Main red: nothing open to fix it	Main green: nothing open to fix it	jbus's pass reads main green	Pass	s19>s9	362	1340
-Main red: nothing open to fix it	Main red, the Mac red: nothing open to fix it	the Mac fails	MacEnds	s19>s13	924	0
-Main red: nothing open to fix it	Main red: a fix row out	jbus's pass files main's fix row	Pass	s19>s16	1430	5559
+Main red: a revert open	Main red: nothing open to fix it	jmerge merges jbus's revert	RevertMerges	s17>s19	16	198
+Main red: a revert open	Main red: nothing open to fix it	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s17>s19	1748	3594
+Main red: a revert open	Main's run going: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s17>s31	112	298
+Main red: a revert open and a fix row out	jbus reruns main's failed run: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s18>s38	504	900
+Main red: a revert open and a fix row out	Main green: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s18>s6	1482	3346
+Main red: a revert open and a fix row out	Main green: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s18>s9	168	302
+Main red: a revert open and a fix row out	Main red, the Mac red: a revert open and a fix row out	the Mac fails	MacEnds	s18>s12	4174	0
+Main red: a revert open and a fix row out	Main red: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s18>s16	1536	1650
+Main red: a revert open and a fix row out	Main red: a fix row out	jmerge merges jbus's revert	RevertMerges	s18>s16	56	806
+Main red: a revert open and a fix row out	Main red: a fix row out	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s18>s16	6352	12276
+Main red: a revert open and a fix row out	Main red: a revert open	the fix merges	FixMerges	s18>s17	40	528
+Main red: a revert open and a fix row out	Main's run going: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s18>s28	252	450
+Main red: nothing open to fix it	jbus reruns main's failed run: nothing open to fix it	jbus's pass reads main green	Pass	s19>s41	110	525
+Main red: nothing open to fix it	jbus reruns main's failed run: nothing open to fix it	jbus's pass reruns main's failed run once	Pass	s19>s41	110	405
+Main red: nothing open to fix it	Main green: nothing open to fix it	jbus's pass reads main green	Pass	s19>s9	376	1408
+Main red: nothing open to fix it	Main red, the Mac red: nothing open to fix it	the Mac fails	MacEnds	s19>s13	942	0
+Main red: nothing open to fix it	Main red: a fix row out	jbus's pass files main's fix row	Pass	s19>s16	1458	5739
 Main red: nothing open to fix it	Main red: a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s19>s16	40	0
-Main red: nothing open to fix it	Main red: a revert open	jbus's pass reverts the one clear culprit	Pass	s19>s17	268	778
-Main red: nothing open to fix it	Main's run going: nothing open to fix it	jbus's pass reads main green	Pass	s19>s31	110	455
-Main red: two reverts open	Main green: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s20>s9	72	0
-Main red: two reverts open	Main red: a revert open	jbus's pass sees every check that holds the revert green and closes it	Pass	s20>s17	60	0
-Main red: two reverts open	Main red: a revert open	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s20>s17	192	0
-Main red: two reverts open	Main red: a revert open and a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s20>s18	60	0
-Main red: two reverts open and a fix row out	Main green: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s21>s6	264	0
+Main red: nothing open to fix it	Main red: a revert open	jbus's pass reverts the one clear culprit	Pass	s19>s17	268	790
+Main red: nothing open to fix it	Main's run going: nothing open to fix it	jbus's pass reads main green	Pass	s19>s31	110	465
+Main red: two reverts open	Main green: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s20>s9	88	0
+Main red: two reverts open	Main red: a revert open	jbus's pass sees every check that holds the revert green and closes it	Pass	s20>s17	76	0
+Main red: two reverts open	Main red: a revert open	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s20>s17	240	0
+Main red: two reverts open	Main red: a revert open and a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s20>s18	76	0
+Main red: two reverts open and a fix row out	Main green: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s21>s6	312	0
 Main red: two reverts open and a fix row out	Main green: nothing open to fix it	jbus's pass sees every check that holds the revert green and closes it	Pass	s21>s9	24	0
-Main red: two reverts open and a fix row out	Main red: a revert open and a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s21>s18	720	0
-Main red: two reverts open and a fix row out	Main red: a revert open and a fix row out	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s21>s18	1008	0
+Main red: two reverts open and a fix row out	Main red: a revert open and a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s21>s18	816	0
+Main red: two reverts open and a fix row out	Main red: a revert open and a fix row out	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s21>s18	1152	0
 Main's run going, the Mac red: a fix row out	jbus reruns main's failed run, the Mac red: a fix row out	jbus's pass reruns main's failed run once	Pass	s22>s32	144	0
 Main's run going, the Mac red: a fix row out	jbus reruns main's failed run, the Mac red: a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s22>s32	48	0
 Main's run going, the Mac red: a fix row out	jbus reruns main's failed run, the Mac red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s22>s34	78	0
@@ -344,10 +344,10 @@ Main's run going, the Mac red: two reverts open and a fix row out	Main green, th
 Main's run going, the Mac red: two reverts open and a fix row out	Main red, the Mac red: two reverts open and a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s27>s15	48	0
 Main's run going, the Mac red: two reverts open and a fix row out	Main's run going, the Mac red: a revert open and a fix row out	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s27>s24	136	0
 Main's run going: a fix row out	jbus reruns main's failed run: a fix row out	jbus's pass	Pass		0	114
-Main's run going: a fix row out	jbus reruns main's failed run: a fix row out	jbus's pass reruns main's failed run once	Pass	s28>s38	354	960
-Main's run going: a fix row out	Main green: a fix row out	main's run passes	CheckEnds	s28>s6	280	586
-Main's run going: a fix row out	Main red: a fix row out	jbus's pass files main's fix row	Pass	s28>s16	192	972
-Main's run going: a fix row out	Main red: a fix row out	jbus's pass reads main red	Pass	s28>s16	162	726
+Main's run going: a fix row out	jbus reruns main's failed run: a fix row out	jbus's pass reruns main's failed run once	Pass	s28>s38	354	984
+Main's run going: a fix row out	Main green: a fix row out	main's run passes	CheckEnds	s28>s6	280	596
+Main's run going: a fix row out	Main red: a fix row out	jbus's pass files main's fix row	Pass	s28>s16	192	990
+Main's run going: a fix row out	Main red: a fix row out	jbus's pass reads main red	Pass	s28>s16	162	732
 Main's run going: a fix row out	Main red: a fix row out	jbus's pass reruns main's failed run once	Pass		0	216
 Main's run going: a fix row out	Main red: a revert open and a fix row out	jbus's pass reverts the one clear culprit	Pass	s28>s18	192	396
 Main's run going: a fix row out	Main's run going, the Mac red: a fix row out	the Mac fails	MacEnds	s28>s22	304	0
@@ -368,11 +368,11 @@ Main's run going: a revert open and a fix row out	Main red: a revert open and a 
 Main's run going: a revert open and a fix row out	Main's run going: a fix row out	jbus's pass sees every check that holds the revert green and closes it	Pass	s30>s28	72	0
 Main's run going: a revert open and a fix row out	Main's run going: a fix row out	the revert's check fails, it conflicts, or someone closes it	RevertStalls	s30>s28	72	0
 Main's run going: nothing open to fix it	jbus reruns main's failed run: nothing open to fix it	jbus's pass	Pass	s31>s41	92	188
-Main's run going: nothing open to fix it	jbus reruns main's failed run: nothing open to fix it	jbus's pass reruns main's failed run once	Pass	s31>s41	336	652
-Main's run going: nothing open to fix it	Main green: nothing open to fix it	main's run passes	CheckEnds	s31>s9	296	548
-Main's run going: nothing open to fix it	Main red: a fix row out	jbus's pass files main's fix row	Pass	s31>s16	548	1344
+Main's run going: nothing open to fix it	jbus reruns main's failed run: nothing open to fix it	jbus's pass reruns main's failed run once	Pass	s31>s41	336	666
+Main's run going: nothing open to fix it	Main green: nothing open to fix it	main's run passes	CheckEnds	s31>s9	296	562
+Main's run going: nothing open to fix it	Main red: a fix row out	jbus's pass files main's fix row	Pass	s31>s16	548	1358
 Main's run going: nothing open to fix it	Main red: a fix row out	jbus's pass: a red check leans on the revert already open	Pass	s31>s16	64	0
-Main's run going: nothing open to fix it	Main red: a revert open	jbus's pass reverts the one clear culprit	Pass	s31>s17	196	357
+Main's run going: nothing open to fix it	Main red: a revert open	jbus's pass reverts the one clear culprit	Pass	s31>s17	196	363
 Main's run going: nothing open to fix it	Main red: nothing open to fix it	jbus's pass reads main red	Pass	s31>s19	336	1104
 Main's run going: nothing open to fix it	Main red: nothing open to fix it	jbus's pass reruns main's failed run once	Pass	s31>s19	184	408
 Main's run going: nothing open to fix it	Main's run going, the Mac red: nothing open to fix it	the Mac fails	MacEnds	s31>s25	544	0

@@ -55,8 +55,8 @@
   },
   "also": {
     "cfg": "MainRed.cfg",
-    "modelStates": 140012,
-    "modelTransitions": 370209,
+    "modelStates": 147834,
+    "modelTransitions": 386787,
     "states": 0,
     "arrows": 8
   },
@@ -70,8 +70,8 @@
     },
     "chart": "c9979929a1af2be866cc315ae4a9bb7040e2e60a667892a59108250bb29c85fb",
     "tables": {
-      "states.tsv": "4d7450f5597533b6ac7aba664f0fda456cb4336e85f7f8b83b564bbfda8c0945",
-      "arrows.tsv": "1c5faf95e2c73ee7f15055f8db4854f9c5430cd94a1bd8a8c2b07e35fff82fc9"
+      "states.tsv": "0942352550caf7cda4110a0332e457196ce726a08a061393f439c3cf4aa48248",
+      "arrows.tsv": "a339e24271ca2d68bd8b1884de321be306277c319b57f79b98cc15b7966140d4"
     }
   }
 }
