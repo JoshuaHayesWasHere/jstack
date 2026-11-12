@@ -505,6 +505,36 @@ def test_transitions_carry_whether_the_move_table_holds_the_move(machine):
     assert rows == [("one", "pr", "merged", 1), ("two", "merged", "gate", 0)]
 
 
+def test_transitions_carry_whether_the_move_hands_a_scouts_row_over(machine):
+    """A line `jbus.queue._hand_over` marked `"handed": true` reads 1 and any other 0, and a store
+    built before `jbus.telemetry.migrations.v023_transitions_handed` gains the column on its next
+    build, with each line it already holds read as 0, as a rebuild reads an unmarked line."""
+    log = "transitions.jsonl"
+    machine.append("alpha", log, {"slug": "one", "from": "done", "to": "queued", "at": iso(NOW)})
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        views = [
+            name for (name,) in store.execute("SELECT name FROM sqlite_master WHERE type = 'view'")
+        ]
+        store.executescript(
+            "".join(f"DROP VIEW {name};" for name in views)
+            + "ALTER TABLE transitions DROP COLUMN handed;"
+            + "DELETE FROM migrations WHERE name = 'v023_transitions_handed';"
+        )
+    handed = {"slug": "two", "from": "done", "to": "queued", "at": iso(NOW), "handed": True}
+    machine.append("alpha", log, handed)
+    machine.append("alpha", log, {"slug": "three", "from": "done", "to": "removed", "at": iso(NOW)})
+    machine.build()
+    query = "SELECT slug, from_status, to_status, handed FROM transitions ORDER BY at, slug"
+    with contextlib.closing(machine.store()) as store:
+        rows = store.execute(query).fetchall()
+    assert sorted(rows) == [
+        ("one", "done", "queued", 0),
+        ("three", "done", "removed", 0),
+        ("two", "done", "queued", 1),
+    ]
+
+
 def test_a_line_that_moves_a_rows_go_is_no_change_of_its_status(machine):
     """`jbus.queue._go` writes a row's go to `transitions.jsonl`, and the table keeps only the
     changes of status (`jbus.telemetry.records.transitions`): a go line between two of them would
