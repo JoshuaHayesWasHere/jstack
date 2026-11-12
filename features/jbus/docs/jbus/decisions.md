@@ -45,3 +45,24 @@ It prints one line for each blocker of the home it runs for (`--scope <scope>` f
 | `wait <key>: ...` | A fix of the key is queued and not over. |
 | `decision <key>: ... had <n> fixes ...` | The key had its cap, and is raised. |
 | `nothing blocks this home` | Nothing to do. |
+
+A key is `question <n>`, `check:<slug>` (its check failed), `row:<slug>` (refused or stuck), `left:<slug>` (its Result left work), or `wait:<slug>`.
+
+### An aged wait
+
+`wait:<slug>` is a backstop, a guard by design, for a wait no step of jbus has a remedy for, such as a run GitHub keeps queued with no job.
+Each remedy stays the act of its own step (a rerun of a cancelled check, the fix message of a red check, a nudge to a crew), and the backstop only escalates what none of them moved.
+Each code of `jmerge`'s reasons has one row of `jbus.aged.BOUNDS`: who clears it and how long a row may wait on it.
+
+| Owner | Bound | Codes |
+|---|---|---|
+| a jbus act (jbus, `jmerge` or GitHub at work) | 60 minutes | a run in CI, a run with none started (`no-run`), a base merge GitHub was asked for, jmerge's batch and merged-tree guards |
+| the crew or reviewer | 120 minutes | a review, findings, a `Proved:` or `Checked:` line, a red check, a conflict |
+| the crew of the row ahead | 240 minutes | a row stacked on, carried by or merging after an open row |
+| the home | 30 minutes | a queued run jmerge gave up on, a check cancelled twice, a queue jmerge cannot read, a reason no rule names |
+| you | none | a code on the `hold` step: it is on what waits on you from its first pass |
+
+A row whose `why` is a `wait` of `jmerge`'s, unchanged past its code's bound since the time `waits.jsonl` keeps for it, prints as `fix wait:<slug>` with the reason and the minutes, also while its crew is busy on other work.
+The home's fixes of it count against `retry_cap` like any other key, and once they reach it the key is raised to you as a decision.
+The view lists the same row as an `aged` wrong, for its home, and the catch-up takes it as a row that does not move.
+`clock.held` reads the same owner: a thread at work keeps a hold from waking its home only where a crew can clear the hold's code.

@@ -515,6 +515,14 @@ Two measures read a home's context over the last 72 h, the window its baseline w
 | `home-context` | the mean context a home's own call sent, in thousands of tokens | 182, the audit of 2026-11-09 | 218.4, with 20 calls |
 | `home-context-peak` | the most context one home call sent, in thousands of tokens, which a mean does not show | 630, the week's largest call, read on 2026-11-10 | 200, with 1 call |
 
+Two measures read main's push checks over the same last 72 h, so a worse merge rate and one long spell read apart.
+A red main holds no merge, so the merges that land while it is red each push one more red: one spell of five red pushes is five reds and one spell.
+
+| Measure | What it reads | Its note | Baseline | Line |
+|---|---|---|---|---|
+| `main-pushes-red` | the share of main's push checks that ended red, a push each (`main_checks`, by `completed`) | `7 red pushes in 3 spells` | the same query over the week of 2026-11-01 | 20% over it, with 20 pushes |
+| `red-spells-per-merge` | the red spells opened (`main_spells`, by `first_fail_at`), per merge (`merged`, by `merged_at`) | `3 spells over 11 merges; 7 red pushes` | the same query over the week of 2026-11-01 | 20% over it, with 20 merges |
+
 ## How it stays current
 
 Each pass runs a build after its launches and before any project's second half.

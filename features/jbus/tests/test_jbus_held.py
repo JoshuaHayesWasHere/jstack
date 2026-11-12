@@ -176,14 +176,16 @@ def test_a_wait_on_the_merge_runner_wakes_nobody(kitchen):
 
 def test_the_hold_leaves_what_waits_on_the_user_once_it_clears_or_a_thread_takes_it_up(kitchen):
     """The hold that starts again at minute 33 is due at 64, and a crew of one of its rows is at
-    work from then on: a running crew keeps it from waking anyone."""
-    held = Held(kitchen)
+    work from then on: a conflict is a crew's to clear (`jbus.aged.BOUNDS`), so a running crew keeps
+    it from waking anyone. A busy crew does not keep a run GitHub keeps queued from waking its
+    home (`test_jbus_held_aged`)."""
+    held = Held(kitchen, ready.CONFLICTS)
     held.at(0, 31)
     assert len(held.needs()) == 1
     held.say("")
     held.at(32)
     assert held.needs() == []
-    held.say(REASON)
+    held.say(ready.CONFLICTS)
     held.at(33)
     crew = held.crews["two"]
     crew["status"] = "running"
