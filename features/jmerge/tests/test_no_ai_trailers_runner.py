@@ -18,7 +18,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from jbus import stall
+from jbus import redhead
 
 REPO = Path(__file__).resolve().parents[3]
 SCRIPT = REPO / "scripts" / "no_ai_trailers.py"
@@ -115,11 +115,11 @@ def test_a_git_that_cannot_read_the_commits_is_named_a_runner_fault_jbus_counts_
 ):
     """An `origin` that serves nothing leaves the range unread: the step still fails, as an
     unread range is not a clean one, and says it in the words jbus reads as a fetch failure of
-    the runner's (`jbus.stall.FETCH`), not as the pull request's own red."""
+    the runner's (`jbus.redhead.FETCH`), not as the pull request's own red."""
     work, base, head = runner_checkout(tmp_path, ["feat: one"])
     git(work, "remote", "set-url", "origin", f"file://{tmp_path}/gone")
     code, printed = step(work, base, head)
     assert code == 2
     assert printed[0].startswith("::error::no-ai-trailers: the commits could not be read")
     assert "a runner fault, not this pull request's" in printed[0]
-    assert stall.FETCH.search(printed[0])
+    assert redhead.FETCH.search(printed[0])

@@ -53,7 +53,9 @@ neither red nor green: no code was judged, so it changes neither `broken` nor `g
 `watch` files no main-red row for it. It is a decision about the account, which no fix to the
 code makes. `account` raises it once for the project, as a gate (`questions.park`), however many
 runs start no job, and closes it (`questions.clear`) when a tip whose check ran passes.
-`account.json` in the project's state keeps the question's number while it is raised.
+`account.json` in the project's state keeps the tip the question names before the question is
+parked, and the question's number while it is raised, so a pass that dies between the two parks the
+same question again and never a second one (`account`).
 """
 
 from __future__ import annotations
@@ -63,6 +65,7 @@ import re
 from collections.abc import Collection, Sequence
 from datetime import timedelta
 from enum import StrEnum
+from pathlib import Path
 
 from jbus import Refused, questions, read_json, reverts, verbs, watch, write_json
 from jbus.ci.ledger import read as ledger
@@ -444,20 +447,35 @@ def landed(run: Pass, last: str, main: str) -> list[str]:
 def account(run: Pass, unrun: str, passed: str) -> None:
     """Raise one decision about the account for `unrun`, the newest tip whose check started no
     job, unless one is raised already. Close it when `passed`, a tip whose check ran, passed. A
-    tip that passed after `unrun` gives `unrun` empty."""
+    tip that passed after `unrun` gives `unrun` empty.
+
+    `account.json` names the tip (`sha`) before the question is parked, and its number after. A
+    pass that finds a tip and no number parks the question for that tip again, which
+    `questions.ask` takes as the question it has, so a pass that died between the two parks no
+    second question for a tip that moved since."""
     path = run.state / ACCOUNT_FILE
-    raised = read_json(path, {}).get("question")
+    kept = read_json(path, {})
+    raised, tried = kept.get("question"), str(kept.get("sha") or "")
     try:
+        if tried and not raised:
+            raised = _park(run, path, tried)
         if passed and raised:
             questions.clear(run, raised, f"a run on main whose jobs ran passed at {passed[:12]}")
             path.unlink(missing_ok=True)
             raised = None
         if unrun and not raised:
-            lines = DECISION.format(sha=unrun[:12], slug=ACCOUNT)
-            one, _ = questions.park(run, ACCOUNT, lines)
-            write_json(path, {"question": one.number})
+            write_json(path, {"sha": unrun})
+            _park(run, path, unrun)
     except Refused as refused:
         run.condition(ACCOUNT, f"the decision about CI that starts no job was not kept: {refused}")
+
+
+def _park(run: Pass, path: Path, sha: str) -> int:
+    """Park the decision about the account for the tip `sha`, keep its number in `path`, and
+    return it."""
+    one, _ = questions.park(run, ACCOUNT, DECISION.format(sha=sha[:12], slug=ACCOUNT))
+    write_json(path, {"question": one.number})
+    return one.number
 
 
 def tell(run: Pass) -> None:

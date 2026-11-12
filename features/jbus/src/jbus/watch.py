@@ -571,7 +571,7 @@ def checks(pull: dict[str, Any]) -> str:
 
 
 def ran(run: Pass, world: World, repo: str, number: str) -> dict:
-    """Return what `never_started`, `rebase.ran_and_failed` and `jbus.stall.infra` read of a job:
+    """Return what `never_started`, `rebase.ran_and_failed` and `jbus.redhead.infra` read of a job:
     `steps`, which is `[]` where the job ran no step, `run_attempt`, and `failed_step`, the name of
     its first step that failed (`collect.failed_step`), or nothing. A completed job's steps and
     attempt never change (a rerun is a new job id), so `ran` keeps them by repo and job id in the
