@@ -12,6 +12,7 @@ Source: pstack, `pstack/skills/maintain-verification-skill/SKILL.md`
 
 A feature map rots the moment the app changes.
 This skill is the upkeep loop for a verify skill that `/create-verification-skill` wrote, or any project skill in `.claude/skills/verify-*/` with a `features/` map.
+A skill with no `features/` folder may keep its map as `map.md`, a list of links to each feature's own file, wherever that file lives: verify-jstack links each feature's `features/<name>/verify.md`.
 A repo that keeps its own skills in its features, as jstack does, names such a skill in `skills.json`, under `projectSkills`: its `path` is the skill's folder, which every worktree has.
 The unit of rigor is the feature, not every sentence: every feature file is read from source, and every feature is driven live.
 
@@ -27,7 +28,7 @@ In each block below, set `app=` to the `<app>` typed, or leave it empty, and `sc
 ## 1. Send the scouts
 
 Run this:
-It finds the verify skill on the default branch, a tracked `.claude/skills/verify-<app>/` or a `verify-<app>` item of `skills.json`'s `projectSkills`, reads the names of its feature files and nothing in them, and writes one scout request for each, `$H/scouts/maintain-<app>-<commit>-<feature>.md`, where `<commit>` is the default branch's commit the audit reads:
+It finds the verify skill on the default branch, a tracked `.claude/skills/verify-<app>/` or a `verify-<app>` item of `skills.json`'s `projectSkills`, reads the names of its feature files and nothing in them (the files of `features/`, or else the files `map.md` links outside the skill's folder, each named for its folder when it is a `verify.md`), and writes one scout request for each, `$H/scouts/maintain-<app>-<commit>-<feature>.md`, where `<commit>` is the default branch's commit the audit reads:
 
 ```sh
 R=$(basename "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")
@@ -49,24 +50,33 @@ else
     app=${found%% *}
     dir=${found#* }
     run="maintain-$app-$(git rev-parse --short=7 "$base")"
-    features=$(git ls-tree --name-only "$base" "$dir/features/" | sed -n 's|.*/\([^/]*\)\.md$|\1|p' | command grep -vx README || true)
+    map="$dir/features/README.md"
+    files=$(git ls-tree --name-only "$base" "$dir/features/" | command grep '\.md$' | command grep -v '/README\.md$' || true)
+    if [ -z "$files" ]; then
+        map="$dir/map.md"
+        files=$(git show "$base:$map" 2> /dev/null | command grep -o '\]([^)]*\.md)' | command grep -v '://' | sed 's|^](||; s|)$||' |
+            awk -v d="$dir" '{ n = split(d "/" $0, p, "/"); k = 0; for (i = 1; i <= n; i++) if (p[i] == "..") k--; else if (p[i] != "." && p[i] != "") s[++k] = p[i]; out = s[1]; for (i = 2; i <= k; i++) out = out "/" s[i]; print out }' |
+            while read -r file; do case $file in "$dir"/*) ;; *) git cat-file -e "$base:$file" 2> /dev/null && echo "$file" ;; esac; done)
+    fi
+    features=$(printf '%s\n' "$files" | sed '/^$/d' | awk '{ n = split($0, p, "/"); name = p[n]; sub(/\.md$/, "", name); if (name == "verify") name = p[n - 1]; print name, $0 }' | sort -u -k 1,1)
     if [ -z "$features" ]; then
-        echo "no feature map: $dir/features/ on $base has no feature file: where $dir/SKILL.md keeps its map elsewhere, this audit cannot read it, so stop; otherwise brief a crewmate to seed it, as section 3 of /create-verification-skill says"
+        echo "no feature map: $dir/features/ on $base has no feature file, and $dir/map.md links none: where $dir/SKILL.md keeps its map elsewhere, this audit cannot read it, so stop; otherwise brief a crewmate to seed it, as section 3 of /create-verification-skill says"
     else
         mkdir -p "$H/scouts"
         echo "$dir" > "$H/scouts/$run.dir"
-        for feature in $features; do
+        echo "$map" > "$H/scouts/$run.map"
+        printf '%s\n' "$features" | while read -r feature file; do
             S="$run-$feature"
             if [ -f "$H/scouts/$S.md" ]; then
                 echo "kept: scouts/$S.md"
                 continue
             fi
             {
-                echo "# $S: how the feature $feature works from source, where \`$dir/features/$feature.md\` drifts from it, and one recipe to drive it live"
+                echo "# $S: how the feature $feature works from source, where \`$file\` drifts from it, and one recipe to drive it live"
                 echo "Request: \"/maintain-verification-skill: keep \`$dir\` and its feature map honest\" (the user, typed in the home, $(date +%Y-%m-%d))"
                 echo "Why: agents drive the app by \`$dir\`, and its feature files drift as the code under them changes; a scout per feature reads the source first, so the live pass after it checks each drift against a cited line"
                 echo "Questions:"
-                echo "- How does the feature in \`$dir/features/$feature.md\` work, from source: its user-facing entry points, each with its \`path:line\`?"
+                echo "- How does the feature in \`$file\` work, from source: its user-facing entry points, each with its \`path:line\`?"
                 echo "- Which statements of that file does the code no longer bear out, each with the statement and the \`path:line\` that contradicts it, or none?"
                 echo "- Which user-facing surface of this feature changed since the file last changed (\`git log\` on the paths it names) and is missing from the file, each with a concrete source path, or none?"
                 echo "- One live-verification recipe: the commands, in the harness that \`$dir/SKILL.md\` names, that drive every sub-feature from as few app states as practical, and the end state that proves each."
@@ -78,7 +88,7 @@ else
             } > "$H/scouts/$S.md"
             echo "wrote: scouts/$S.md"
         done
-        echo "run: $run, $(($(printf '%s\n' $features | wc -l))) feature files, launch them ten at a time"
+        echo "run: $run, $(($(printf '%s\n' "$features" | wc -l))) feature files, launch them ten at a time"
     fi
 fi
 ```
@@ -100,6 +110,7 @@ T=$(realpath ~/.claude/skills/maintain-verification-skill/../../templates 2> /de
 scope=''
 run='<run>'
 dir=$(cat "$H/scouts/$run.dir" 2> /dev/null)
+map=$(cat "$H/scouts/$run.map" 2> /dev/null || echo "$dir/features/README.md")
 B="$H/tasks/$run.md"
 if [ -z "$dir" ]; then
     echo "no run: scouts/$run.dir is not there: run the first block"
@@ -123,7 +134,7 @@ else
         echo "Task: \"/maintain-verification-skill: keep \`$dir\` and its feature map honest\" (the user, typed in the home, $(date +%Y-%m-%d))"
         echo "Why: a feature file that drifts from the code sends every agent that drives the app by it down a wrong path, and the scouts' reports name where each drifted, so one live pass can fix the map and prove it"
         echo "Done when:"
-        echo "- \`$dir/features/README.md\` lists each feature file once, and every file it lists is there"
+        echo "- \`$map\` lists each feature file once, and every file it lists is there"
         echo "- every feature file has its scout's report or, for a gap, a source reading of your own, and every drift a report names is checked against the line it cites"
         echo "- every feature is driven live at least once in one pass that follows the Launch section of \`$dir/SKILL.md\`: Doctor before the first drive, after every failed drive and on each fresh session, the evidence still at its named place after every cleanup, and nothing a drive started left running at the end"
         echo "- a feature that cannot be reached is \`verified-unreachable\` with the prerequisite it lacks and the route tried, and a prerequisite the map omits is drift"
@@ -131,15 +142,15 @@ else
         echo "- the Result says the outcome, \`clean\`, \`changed\` or \`blocked\`, with every feature and how it was covered: \`clean\` and \`blocked\` open no pull request, \`changed\` opens one"
         echo "Proves it: the live pass, with each feature's evidence listed after the final cleanup, and the existing CI check on the pull request, green, when there is one"
         echo "Size: M"
-        echo "Where: \`$dir/\`"
-        echo "Do not touch: product code, and anything outside \`$dir/\`"
+        echo "Where: \`$dir/\`, and the feature files \`$map\` lists"
+        echo "Do not touch: product code, and anything outside \`$dir/\` but the feature files"
         echo "Decisions: none"
         echo "Skills: blast-radius, prove-it-works"
         echo "Pull request: open one when done"
         echo "Review: review"
         echo "Playbook: authoring-a-skill"
         if [ -n "$scope" ]; then echo "Home: $scope"; fi
-        echo "Read: \`$dir/SKILL.md\` and \`$dir/features/\`${read}"
+        echo "Read: \`$dir/SKILL.md\` and \`$map\`${read}"
         echo "Rests on: the scouts' reports above${gaps:+; no report for:$gaps, which you read from source yourself}"
         echo "Ruled out: a subagent per feature (not durable), driving the app from the home or a scout"
     } > "$B"
