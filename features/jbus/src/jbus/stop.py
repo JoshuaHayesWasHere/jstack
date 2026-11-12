@@ -185,7 +185,7 @@ NO_SCOPE = "the {scope} home is not running, its home-id holds no thread"
 NO_T3 = "jbus is not signed in to T3 Code"
 NO_ANSWER = "T3 Code gave no answer"
 HELD = "the outbox holds it, its thread capped or at work, and outbox.jsonl names the rule"
-SHOWN = ("scope", "row", "on", "outside", "what", "at", "sent_at", "waits")
+SHOWN = ("scope", "kind", "row", "entry", "on", "outside", "what", "at", "sent_at", "waits")
 """The columns of an open stop that the digest shows."""
 
 
