@@ -80,7 +80,7 @@ Beside it, `uv run python -m jbus.telemetry.firstload` counts the start of each 
 
 It counts jstack's own text that a role holds before its first act:
 
-- the files the role's start reads, the table `ROLES` in `features/jbus/src/jbus/telemetry/firstload.py`: the skill its slash command expands and the files that skill reads at every start. `home` is a scoped home's start, and `root` is the root home's, which also reads `features/home/skills/root/SKILL.md`;
+- the files the role's start reads, the table `ROLES` in `features/jbus/src/jbus/telemetry/firstload.py`: the skill its slash command expands and the files that skill reads at every start, where `home` is a scoped home's start and `root` the root home's, which also reads `features/home/skills/root/SKILL.md`;
 - the largest print of `jbus playbook <role> --name <name>` the role can get, with the install's paths in place of the checkout's, so a count is the same on every machine;
 - the skill listing a session is given: `- name: description` for each skill and principle of `skills.json` a model may load by itself and each of the repo's own skills, less those whose front matter lists `paths:`.
 
