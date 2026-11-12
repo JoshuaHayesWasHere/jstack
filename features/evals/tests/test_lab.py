@@ -11,10 +11,12 @@ import random
 import sqlite3
 import subprocess
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import pytest
 
 from jbus import telemetry
+from jgauge import holders
 from testing.paths import REPO
 
 READ_SET = (
@@ -465,6 +467,25 @@ def test_the_replay_json_holds_no_disk_use_the_machine_reports(machine, tmp_path
         assert "used (" in (out / "replay.txt").read_text()
         said.append((out / "replay.json").read_text())
     assert said[0] == said[1]
+
+
+def test_the_replay_tells_no_thread_of_a_run_another_test_left_in_the_runs_lock_dir(
+    machine, tmp_path
+):
+    """A test beside the lab can leave the run of a thread `mcp:t1` ended in the run's lock dir,
+    owed a wake. The replay's jbus pass reads the slots of the lab's own root, so it tries to tell
+    no thread of it, and its JSON is the same with that holder there."""
+    locks = Path(os.environ["JGAUGE_LOCKS_DIR"])
+    left = holders.hold(locks, "t1", "short", os.getpid(), ["pytest"], datetime.now())
+    try:
+        holders.end(locks, left.id, 0, datetime.now())
+        out = tmp_path / "out"
+        ran = lab(machine, "--out", out, "--stages", "replay")
+        assert ran.returncode == 0, ran.stdout + ran.stderr
+        said = (out / "replay.json").read_text() + (out / "replay.txt").read_text()
+        assert "mcp:t1" not in said
+    finally:
+        holders.forget(locks, {left.id})
 
 
 def test_an_out_directory_that_holds_files_is_refused_before_the_store_is_read(machine, tmp_path):
