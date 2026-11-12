@@ -182,12 +182,12 @@ Init ==
 \* The status region: one fact changes, and the pass derives.
 
 \* A launch record names a thread for the row: jbus launches only an approved row, and a held
-\* row has no `approved`. The thread is a new one, which T3 Code does not list yet. A row behind one it depends on launches only stacked on that row's open
+\* row has no `approved`. A row behind one it depends on launches only stacked on that row's open
 \* pull request.
 Launch ==
   /\ ~launched /\ status = "queued"
   /\ go \in {"approved", "behind"}  \* dispatch.py `if not row.get("approved"):`, dispatch.py `if unmerged and on is None:`
-  /\ Derive("none", written, pull, question, TRUE)
+  /\ Derive(thread, written, pull, question, TRUE)
   /\ UNCHANGED go
 
 \* T3 Code says something new of the row's thread.
@@ -203,19 +203,17 @@ Write ==
   /\ UNCHANGED go
 
 \* GitHub lists the row's pull request: it opens, merges (also between two passes), or closes,
-\* and a closed one opens again. A pull request in neither of GitHub's lists is closed only while the
-\* Result's `Branch:` line names its address, and none otherwise (watch.py
+\* and a closed one opens again. A pull request in neither of GitHub's lists is closed only while
+\* the Result's `Branch:` line names its address, and none otherwise (watch.py
 \* `return work.Pull.CLOSED if found and found.url else work.Pull.NONE`): one that closes may read
-\* as none at once, and a closed one as none once the Result is written again without it.
-\* Before it opens, the crew may be on its way to it after its
-\* review, and may open nothing.
+\* as none at once, and a closed one as none once the Result is written again without it. Before
+\* it opens, the crew may be on its way to it after its review, and may open nothing.
 Pull ==
   /\ launched
   /\ \E p \in Pulls :
        /\ <<pull, p>> \in {<<"none", "open">>, <<"none", "merged">>, <<"open", "merged">>,
                             <<"open", "closed">>, <<"open", "none">>, <<"closed", "open">>,
-                            <<"closed", "none">>,
-                            <<"none", "opening">>,
+                            <<"closed", "none">>, <<"none", "opening">>,
                             <<"opening", "none">>, <<"opening", "open">>,
                             <<"opening", "merged">>}
        /\ Derive(thread, written, p, question, launched)
@@ -269,8 +267,9 @@ Ahead ==
 \* `jbus queue hold` takes the go back, and with `keep` keeps the go it took. A held row may be
 \* held again, and keeps no go then.
 Hold ==
+  \* queue.py `took if verb.keep and took.get("approved") else None`
   /\ \/ go' = "held"
-     \/ go \in {"approved", "behind"} /\ go' = "kept"  \* queue.py `if verb.keep and took.get("approved"):`
+     \/ go \in {"approved", "behind"} /\ go' = "kept"
   /\ Restated(go')
   /\ UNCHANGED <<status, facts>>
 

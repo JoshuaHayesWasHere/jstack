@@ -7,7 +7,7 @@ One row of jbus's queue, from `jbus queue add` to its end, in two regions at the
   Each step changes one fact, and the pass derives from them the line's value in `work.json` (`value`, the first of `work.PATTERNS` they match) and the status that value gives, as `work.status` reads it.
   The eight steps of an open pull request are one value, `check`, and `quiet` is `working`; `test_rowlife_spec.py` fails when `work.VALUES` gains a value the spec neither has nor names as joined.
   `queue.MOVES` is each change of status one step of TLC's graph of the spec makes, and `features/jbus/tests/test_rowlife_spec.py` fails when the two differ.
-  A thread T3 Code settles makes the row `queued` again and clears its launch (`Settle`), so a later launch starts a new thread.
+  A thread T3 Code settles with nothing written makes a launched row `stale`, as one that completed or was archived does (`work._THREAD`), so a launched row never goes back to `queued`.
   A pull request in neither of GitHub's lists reads as closed only while the Result's `Branch:` line names its address, and as none otherwise (`watch.pull`), so a row whose pull request closed may be `done`.
   `removed` is the line the `remove` verb writes, from any status but `merged` and `done`, which `remove` refuses (`Remove`).
 - The go, which verbs and rules of `queue.py` move: an approve or a rule's go (`_grant`), a hold that may keep the go it took (`_hold`), a lift that puts a kept go back (`_lift`), and a go taken back from an unlaunched row (`_void`).
@@ -37,7 +37,7 @@ The rule is `FinalStays`: a row that is over stays over, so the queue, `watch.fi
 A `done` row may only become `merged` or be removed for good, a `merged` one stays so, and a removed one stays removed.
 The facts can still leave a final row: a pull request opens after a `done`, or a question opens on a `merged` row.
 The rule holds because `queue.derive` keeps the status (`work.kept`), and so checks the code's derive and not only the table.
-`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where the rule holds over STATES distinct states, on a canary that takes `work.kept` out (`Fault = "no-latch"`), where it breaks, and on one that gives a settled thread's row `queued` again (`Fault = "settled-queued"`), whose graph has status edges `queue.MOVES` lacks.
+`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where the rule holds over 3090 distinct states, on a canary that takes `work.kept` out (`Fault = "no-latch"`), where it breaks, and on one that gives a settled thread's row `queued` again (`Fault = "settled-queued"`), whose graph has status edges `queue.MOVES` lacks.
 Its TLC runs skip where no Java runs TLC.
 By hand, in a copy of this folder:
 
@@ -58,7 +58,7 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --e
 It writes `RowLife-statechart/`: `chart.mmd`, `stories.md` and `summary.json`, labelled by `RowLife.map.py`.
 No chart's PNG or Excalidraw scenes, nor the charts page, is committed: `make charts`, at the repo's root, draws them from each committed `chart.mmd` into a folder git ignores, and prints the page's path.
 Each status on the chart says what in `work.py` sets it, and each step that moves the status is labelled by its row of `queue.MOVES`.
-The regions draw ARROWS: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
+The regions draw 90 of their 119 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
 Its `tlc/` folder holds TLC's output, which is not committed.
 
 ## What the model leaves out
