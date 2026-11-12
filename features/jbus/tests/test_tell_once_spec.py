@@ -31,7 +31,7 @@ QUOTE = re.compile(r"([\w./-]+\.(?:py|md))\s*`([^`]+)`")
 jbus/clock.py `wait |= {"acted": True, "passes": 0}`, so a line that only moves needs no edit."""
 
 ACTS = set(
-    "clock held blocking items word owed expedite cancelled closed account revert twice"
+    "clock held heldlift blocking items word owed expedite cancelled closed account revert twice"
     " reload".split()
 )
 TODAY: set[tuple[str, str]] = set()

@@ -1,7 +1,7 @@
 """Check PrVerdict.tla's rule with TLC: today's code holds MergesOrWaitsOnYou, and each canary,
 today's code with one hold taken out (its `Drop`), breaks it. Run it from the repo root:
 
-    python3 features/jmerge/spec/pr_canaries.py
+    uv run python features/jmerge/spec/pr_canaries.py
 
 It prints one line for each run and ends 0 when every run says what it should. TLC comes from the
 statechart skill's pinned tla2tools.jar, downloaded to the cache on the first run, and Java from
@@ -25,11 +25,12 @@ tools = importlib.import_module("statechart.tools")
 MODULE = "PrVerdict"
 RULE = "MergesOrWaitsOnYou"
 
-# Each hold the rule rests on, as the `Drop` that takes it out. The first five keep a merge to
+# Each hold the rule rests on, as the `Drop` that takes it out. The first six keep a merge to
 # your word: without one, a pull request merges past a hold of yours (the rule's safety half, its
 # `MergesOnlyOnYourWord`). The last five move an open pull request on: without one, it waits for
 # ever on nothing your word can lift (the rule's `~>`).
 CANARIES = {
+    "over": "its queue row is over (rows.short: ROW_OVER)",
     "go": "its queue row's go (rows.short: ROW_HELD, NO_GO)",
     "touches": "a protected path (needs_the_user: TOUCHES)",
     "declines": "a drop or decline the review did not uphold (drops, declines)",
@@ -38,7 +39,7 @@ CANARIES = {
     "release": "the line's holder that waits on its crew or user gives up the line (Repo.waits)",
     "rejudge": "a check that failed is judged again as if it passed (Repo.judge, red_only)",
     "again": "GitHub merges a moved main into a pull request whose check failed (Repo.again)",
-    "batch-failed": "a member of a failed batch of one goes alone at its head (Batching.takes)",
+    "batch-failed": "a member of a failed batch goes alone at its head (Batching.takes)",
     "twice": "a row whose check failed at its limit of heads is held for you (jbus.stall.twice)",
 }
 

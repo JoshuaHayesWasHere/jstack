@@ -53,8 +53,8 @@
     "command": "statechart from-spec MainFix.tla --config MainFix.chart.cfg --title 'Main went red: what has jbus filed when a pass dies?'",
     "inputs": {
       "MainFix.chart.cfg": "e66af407597e529064e137a9d3e1d0bddf4be5145bb84ed6cedcb3fd1f4f7f56",
-      "MainFix.map.py": "371f57b39d0109fe43245af8b1f632d98dc44156dbc63c9f49607bdf48b9bfa2",
-      "MainFix.tla": "7ca5758039c781906485ad801d9884274fb72f1c82c50428b88fadcf8ea9deaa"
+      "MainFix.map.py": "92f24e35ac034ef9417e32b305edc249cf1ec6334a661ee6fe51c9facfc18b5c",
+      "MainFix.tla": "3dd7f5dc0b31ce6b0e5da8ee5b73e073268937e8194ead78e633126d4aea42e6"
     },
     "chart": "b7af77bf8084d32d211b77a59bd142d48b31e5771b874920b3e9dd8f7021db87"
   }

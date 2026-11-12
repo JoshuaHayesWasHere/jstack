@@ -25,7 +25,7 @@ The rules, each with its harm:
 ## The record
 
 Model: `features/jbus/spec/GreenMove.tla`
-Sync: `228c1436cc6fe94de479d333c7aab7b007460462`
+Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
 Covers:
 - `features/jbus/src/jbus/green.py`: `move`, `_resume`, `_advance`, `_settle`, `_back`, `_point`, `_reinstall`, `_grow`, `_live`, `reload`, `owner`, `in_flight`, `imports`, `FILE`, `MOVE`, `OWED`
 - `features/jinstall/src/jinstall/green.py`: `relink`, `live`
@@ -66,6 +66,11 @@ When every step is backed, it is a bug: tell it as the move's writes, where the 
 - A new owed step or a new write to `green.json`: give it a step with its quote, in the code's order, and a canary that drops it.
 - Show a changed rule failing on a scratch break first (drop the write it rests on in your own worktree, uncommitted, see the trace, `git restore` the file).
 
-## Drift at the sync commit
+## The last upkeep
 
-None found.
+`/maintain-formal-verification-skill` ran at `228c1436c` (st-model-upkeep-run): the covered code is unchanged from it to the row's first base, and `uv run pytest features/jbus/tests/test_green_move_spec.py -q` printed `7 passed`, every rule holding and each canary breaking its rules.
+In sync; nothing changed.
+
+The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: no covered file changed, so the sync commit moved there.
+
+st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: no covered file changed, so the sync commit moved there.

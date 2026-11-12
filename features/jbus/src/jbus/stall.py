@@ -101,7 +101,7 @@ from jbus.passes import Changed, Depends, Pass
 from jbus.record import PASSES as PASS_LOG
 from jbus.t3 import Client
 from jbus.wake import notify
-from jbus.watch import FAILS, TOLD, TWICE, World, at_work, task_brief
+from jbus.watch import FAILS, JUDGING, TOLD, TWICE, World, at_work, task_brief
 from jmerge import judgement, ready
 from jmerge.lines import READY
 from jsettings import store
@@ -497,6 +497,7 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         moved, last = list(one.get("moved") or ()), dict(one.get("last") or {})
         kept[slug] = {**one, "heads": heads, "red": on_red, "shared": flakes, "infra": infras}
         kept[slug]["moved"] = moved
+        kept[slug].pop(JUDGING, None)
         if one.get(PAGING) and not one.get("held_at"):
             _page(run, slug, row, pull, kept[slug])
             continue
@@ -519,6 +520,8 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         check = main_check(run, main) if main else ""
         if main is None or check == "pending":
             run.say(f"wait {slug}: not yet known which main {head[:12]} was checked on, or if red")
+            if len(heads) == 1:
+                kept[slug][JUDGING] = head
             continue
         failed = redhead.failures(run, found)
         kept[slug]["last"] = {"head": head, "failed": sorted(failed)}

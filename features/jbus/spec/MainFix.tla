@@ -14,9 +14,11 @@
 \*              gh pr view, the compare tested asks), so a pass may file a row for a red
 \*              whose culprit the next pass reverts;
 \*   "hand":    a hand turns main or its Mac green, by a rerun or a merge jmerge did not make;
-\*   "late":    a nightly's red run ends more than NIGHTLY_WINDOW (3 days) before a pass reads it.
-\* Each step of a pass needs the open pull requests and merges of the pass's world, so a pass whose
-\* world GitHub does not give runs none of them, and writes nothing here.
+\*   "late":    a nightly's red run ends more than NIGHTLY_WINDOW (3 days) before a pass reads it;
+\*   "blind":   a pass has no world (no T3 Code token, T3 Code or GitHub silent, or the API
+\*              budget under its floor), so it runs neither reverts.known, watch.watch nor
+\*              reverts.macos, which need one, and culprits.judge alone, which needs none
+\*              (jbus/poll.py `if not all(has[need] for need in step.needs):`).
 \* Fault = "none" is the code. Each other Fault is a canary, the code with one of its fixes taken
 \* back, which breaks the rule that fix keeps:
 \*   "keep-first":  the revert's record is written before its line (RevertSaid);
@@ -36,9 +38,11 @@ Seen == {"unseen", "blank", "row", "passed"}
 Tips == 1..MaxTip
 \* Two runs of the nightly with a branch, one that passes and one after it, and one of each other.
 Runs(n) == 1..(IF n = "macos" THEN 2 ELSE 1)
+\* Any nightly's red may be its shot tests alone, which file the day's shots row: jbus/watch.py
+\* `drawn, rest = drawn_apart(jobs, said)` runs on every nightly's run.
 Kinds(n) == CASE n = "browser" -> {"red", "shots", "pr"}
-              [] n = "macos" -> {"red", "passed", "pr"}
-              [] n = "scheduled" -> {"red", "pr"}
+              [] n = "macos" -> {"red", "shots", "passed", "pr"}
+              [] n = "scheduled" -> {"red", "shots", "pr"}
 \* The steps of a pass: reverts.known, each nightly, the Mac, main.
 KnownP == 1
 NightPs == 2..(1 + Len(Nightlies))
@@ -93,13 +97,14 @@ VARIABLES
   phase,    \* the step of the pass: 0 between passes, then KnownP, NightPs, MacP and MainP
   at,       \* where in that step the pass is
   k,        \* the nightly run the pass reads
-  whole,    \* the last pass ran to its end
-  before    \* a ghost: GitHub had the revert open when the pass started
+  whole,    \* the last pass ran every step to its end
+  before,   \* a ghost: GitHub had the revert open when the pass started
+  sight     \* the pass has a world, and runs the steps that need one
 vars == <<revertBrief, fix, macFix, browserSeen, macosSeen, scheduledSeen, rows, pull, opening,
-          record, said, tip, red, clear, episode, runs, late, phase, at, k, whole, before>>
+          record, said, tip, red, clear, episode, runs, late, phase, at, k, whole, before, sight>>
 filed == <<revertBrief, fix, macFix, browserSeen, macosSeen, scheduledSeen, rows, pull, opening,
            record, said>>
-world == <<tip, red, clear, episode, runs, late, before>>
+world == <<tip, red, clear, episode, runs, late, before, sight>>
 
 Fix(c) == IF c = "main" THEN fix ELSE macFix
 SeenOf(n) == CASE n = "browser" -> browserSeen [] n = "macos" -> macosSeen [] n = "scheduled" -> scheduledSeen
@@ -118,7 +123,7 @@ TypeOK ==
   /\ phase \in 0..Last
   /\ at \in {"judge", "revert", "intent", "found", "opened", "briefed", "half", "kept", "file",
              "filed", "copy", "queued"}
-  /\ k \in 1..3 /\ whole \in BOOLEAN /\ before \in BOOLEAN
+  /\ k \in 1..3 /\ whole \in BOOLEAN /\ before \in BOOLEAN /\ sight \in BOOLEAN
 
 Init ==
   /\ revertBrief = FALSE /\ opening = FALSE /\ record = FALSE /\ said = FALSE
@@ -128,7 +133,7 @@ Init ==
   /\ rows = [r \in Rows |-> "none"] /\ pull = "none"
   /\ tip = 1 /\ red = [c \in Checks |-> 0] /\ clear = FALSE /\ episode = "before"
   /\ runs = [n \in Range(Nightlies) |-> [r \in Runs(n) |-> "none"]] /\ late = {}
-  /\ phase = 0 /\ at = "judge" /\ k = 1 /\ whole = TRUE /\ before = FALSE
+  /\ phase = 0 /\ at = "judge" /\ k = 1 /\ whole = TRUE /\ before = FALSE /\ sight = TRUE
 
 SetFix(c, v) ==
   /\ fix' = IF c = "main" THEN [fix EXCEPT ![red[c]] = v] ELSE fix
@@ -145,8 +150,15 @@ Reverting == <<revertBrief, pull, opening, record, said>>
 \* The pass goes on to its next step, or ends.
 Onward ==
   /\ phase' = IF phase = Last THEN 0 ELSE phase + 1
-  /\ whole' = (phase = Last)
+  /\ whole' = (phase = Last /\ sight)
   /\ at' = "judge" /\ k' = 1
+
+\* The pass goes on to the next run of its nightly, or past its last run to its next step: a
+\* pass that died between the last run and the next step would have written nothing more.
+NextRun ==
+  IF k = Len(runs[Night(phase)])
+    THEN Onward
+    ELSE at' = "judge" /\ k' = k + 1 /\ UNCHANGED <<phase, whole>>
 
 \* ---- The world, between two passes ----------------------------------------------------------
 
@@ -156,7 +168,7 @@ GoesRed ==
   /\ phase = 0 /\ episode = "before" /\ tip < MaxTip
   /\ tip' = tip + 1 /\ episode' = "red" /\ clear' \in BOOLEAN
   /\ \E s \in SUBSET Checks \ {{}} : red' = [c \in Checks |-> IF c \in s THEN tip + 1 ELSE 0]
-  /\ UNCHANGED <<runs, late, phase, at, k, whole, before>> /\ UNCHANGED filed
+  /\ UNCHANGED <<runs, late, phase, at, k, whole, before, sight>> /\ UNCHANGED filed
 
 \* A merge lands on a red main, and each red check is red at it or green. jmerge merges nothing
 \* while main is red but jbus's answer: the revert reverts.json keeps, or a fix row's pull
@@ -170,14 +182,14 @@ Merge ==
   /\ tip' = tip + 1
   /\ red' \in {r \in [Checks -> 0..MaxTip] : \A c \in Checks :
                  r[c] \in IF red[c] = 0 THEN {0} ELSE {0, tip + 1}}
-  /\ UNCHANGED <<clear, episode, runs, late, phase, at, k, whole, before>>
+  /\ UNCHANGED <<clear, episode, runs, late, phase, at, k, whole, before, sight>>
   /\ UNCHANGED <<revertBrief, fix, macFix, rows, opening, record, said>> /\ UNCHANGED Seens
 
 \* A hand runs a red check again and it passes at the same commit.
 HandGreen ==
   /\ phase = 0 /\ "hand" \in World
   /\ \E c \in Checks : red[c] # 0 /\ red' = [red EXCEPT ![c] = 0]
-  /\ UNCHANGED <<tip, clear, episode, runs, late, phase, at, k, whole, before>> /\ UNCHANGED filed
+  /\ UNCHANGED <<tip, clear, episode, runs, late, phase, at, k, whole, before, sight>> /\ UNCHANGED filed
 
 \* A nightly runs: its next run ends, red, green or for a pull request.
 NightlyRuns ==
@@ -185,7 +197,7 @@ NightlyRuns ==
   /\ \E n \in Range(Nightlies) : \E r \in Runs(n) :
        /\ runs[n][r] = "none" /\ IF r = 1 THEN TRUE ELSE runs[n][r - 1] # "none"
        /\ \E kind \in Kinds(n) : runs' = [runs EXCEPT ![n][r] = kind]
-  /\ UNCHANGED <<tip, red, clear, episode, late, phase, at, k, whole, before>> /\ UNCHANGED filed
+  /\ UNCHANGED <<tip, red, clear, episode, late, phase, at, k, whole, before, sight>> /\ UNCHANGED filed
 
 \* A red run ages past NIGHTLY_WINDOW before a pass reads it.
 Ages ==
@@ -193,12 +205,15 @@ Ages ==
   /\ \E n \in Range(Nightlies) : \E r \in Runs(n) :
        /\ runs[n][r] \in {"red", "shots"} /\ <<n, r>> \notin late
        /\ late' = late \cup {<<n, r>>}
-  /\ UNCHANGED <<tip, red, clear, episode, runs, phase, at, k, whole, before>> /\ UNCHANGED filed
+  /\ UNCHANGED <<tip, red, clear, episode, runs, phase, at, k, whole, before, sight>> /\ UNCHANGED filed
 
 \* ---- A pass ---------------------------------------------------------------------------------
 
+\* A blind pass goes straight to main's judge.
 Start ==
-  /\ phase = 0 /\ phase' = KnownP /\ at' = "judge" /\ k' = 1 /\ whole' = FALSE
+  /\ phase = 0 /\ at' = "judge" /\ k' = 1 /\ whole' = FALSE
+  /\ sight' \in IF "blind" \in World THEN BOOLEAN ELSE {TRUE}
+  /\ phase' = IF sight' THEN KnownP ELSE MainP
   /\ before' = (pull = "open")
   /\ UNCHANGED <<tip, red, clear, episode, runs, late>> /\ UNCHANGED filed
 
@@ -360,10 +375,9 @@ NightlyRead ==
          \* jbus/watch.py `green = GREEN in seen.values()`
          green == "passed" \in Range(macosSeen)
          \* jbus/watch.py `n for n in (name, redrawn) if n not in run.removed and queue.fresh(run.state, n) is None`
-         taken == rows[n] = "row" /\ (n # "browser" \/ rows["shots"] = "row")
+         taken == rows[n] = "row" /\ rows["shots"] = "row"
      IN
-     \/ /\ k > Len(runs[n]) /\ Onward /\ UNCHANGED Seens /\ UNCHANGED rows
-     \/ /\ k <= Len(runs[n]) /\ at' = "judge" /\ k' = k + 1 /\ UNCHANGED <<phase, whole>>
+     \/ /\ NextRun
         /\ \/ /\ kind = "none" /\ UNCHANGED Seens /\ UNCHANGED rows
            \* jbus/watch.py `if event == "pull_request" or not theirs or (off and event not in NIGHTLY_RELEASE):`
            \* and `seen.setdefault(number, "")`
@@ -376,7 +390,8 @@ NightlyRead ==
               /\ UNCHANGED Seens /\ UNCHANGED rows
            \* jbus/watch.py `if nightly.branch and not green:`, and its
            \* `run.find(nightly.file.removesuffix(".yml"), "retro", line, key=number, past=True) seen[number] = ""`
-           \/ /\ kind = "red" /\ seen = "unseen" /\ <<n, k>> \notin late /\ n = "macos" /\ ~green
+           \/ /\ kind \in {"red", "shots"} /\ seen = "unseen" /\ <<n, k>> \notin late /\ n = "macos"
+              /\ ~green
               /\ SetSeen(n, "blank") /\ UNCHANGED rows
            \* No row of the day is free: the run is kept as the day's row, `seen[number] = fixed`
            \/ /\ kind \in {"red", "shots"} /\ seen = "unseen" /\ <<n, k>> \notin late
@@ -389,12 +404,12 @@ NightlyRead ==
               /\ SetSeen(n, "row") /\ UNCHANGED rows
            \* Only shots failed and the shots row is there: no fix, so fixed is blank.
            \/ /\ kind = "shots" /\ seen = "unseen" /\ <<n, k>> \notin late /\ ~taken
-              /\ rows["shots"] = "row"
+              /\ (n # "macos" \/ green) /\ rows["shots"] = "row"
               /\ SetSeen(n, "blank") /\ UNCHANGED rows
      \* Its row is free: _filed queues its row, then writes its brief. jbus/watch.py
      \* `if fixed and name in free:`, and for the shots `if drawn and redrawn in free:`. The canary
      \* "brief-first" writes the brief first.
-     \/ /\ k <= Len(runs[n]) /\ kind \in {"red", "shots"} /\ seen = "unseen" /\ <<n, k>> \notin late
+     \/ /\ kind \in {"red", "shots"} /\ seen = "unseen" /\ <<n, k>> \notin late
         /\ (n # "macos" \/ green)
         /\ LET row == IF kind = "shots" THEN "shots" ELSE n IN
            /\ rows[row] # "row"
@@ -417,7 +432,7 @@ QueueNightly ==
 SeeNightly ==
   /\ phase \in NightPs /\ at = "queued"
   /\ SetSeen(Night(phase), IF runs[Night(phase)][k] = "shots" THEN "blank" ELSE "row")
-  /\ at' = "judge" /\ k' = k + 1 /\ UNCHANGED <<phase, whole>>
+  /\ NextRun
   /\ UNCHANGED world /\ UNCHANGED Reverting /\ UNCHANGED <<fix, macFix, rows>>
 
 Pass == Start \/ Die \/ Known \/ Judge \/ Open \/ GhRevert \/ BriefRevert \/ SayOrKeep
@@ -425,6 +440,28 @@ Pass == Start \/ Die \/ Known \/ Judge \/ Open \/ GhRevert \/ BriefRevert \/ Say
         \/ QueueNightly \/ SeeNightly
 Next == GoesRed \/ Merge \/ HandGreen \/ NightlyRuns \/ Ages \/ Pass
 Spec == Init /\ [][Next]_vars
+
+\* What TLC tells states apart by (MainFix.cfg's VIEW): each variable by what a later step or a
+\* rule can still read of it, so TLC checks the same rules over fewer states.
+\* - A nightly run a pass has kept in its seen file is never read again but for "passed", which
+\*   NightlyRead's green reads: no step reads its kind or whether it aged, and no rule its blank
+\*   or its row. A red run that aged unseen is never read again either, and a pull request's run
+\*   is as good as seen: reading it writes only a blank.
+\* - Once main and its Mac are green after the red, neither goes red again (Merge keeps a green
+\*   green, and GoesRed needs the time before the red), so no step reads the tip or clear.
+\* - Between passes, sight is read by none (Start sets it), and before only by RevertKnown, after
+\*   a pass that ran to its end (Start sets it too).
+RunView(n, r) ==
+  CASE SeenOf(n)[r] = "passed" -> "passed"
+    [] SeenOf(n)[r] # "unseen" -> "seen"
+    [] <<n, r>> \in late -> "late"
+    [] runs[n][r] = "pr" -> "seen"
+    [] OTHER -> runs[n][r]
+Over == episode = "red" /\ red = [c \in Checks |-> 0]
+View == <<revertBrief, fix, macFix, rows, pull, opening, record, said,
+          IF Over THEN 0 ELSE tip, red, IF Over THEN FALSE ELSE clear, episode, phase, at, k, whole,
+          IF phase = 0 /\ ~whole THEN FALSE ELSE before, IF phase = 0 THEN TRUE ELSE sight,
+          [n \in Range(Nightlies) |-> [r \in Runs(n) |-> RunView(n, r)]]>>
 
 \* ---- The rules ------------------------------------------------------------------------------
 

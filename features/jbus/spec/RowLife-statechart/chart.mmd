@@ -31,6 +31,7 @@ stateDiagram-v2
       state "No go" as r0s4
       r0s0 --> r0s4 : its go no longer holds, and it<br/>waits for yours [when gate (a<br/>question is open) or queued<br/>(no thread yet)]
       %% when r1s2, r1s7
+      r0s0 --> r0s1 : you give the approved row<br/>other depends, and its line<br/>waits for a pass
       r0s0 --> r0s2 : you hold the approved row
       r0s0 --> r0s3 : you hold the row, keeping its<br/>go
       r0s1 --> r0s0 : the rows it depends on are<br/>over
@@ -57,9 +58,11 @@ stateDiagram-v2
       state "stale (the turn hung, or<br/>the thread ended, was<br/>settled or left T3 Code's<br/>list with nothing written)" as r1s10
       state "waiting (the thread asks<br/>you)" as r1s11
       r1s0 --> r1s5 : the pull request of a done row<br/>merges on your accept
+      r1s0 --> r1s8 : you remove the row from done
       r1s1 --> r1s0 : a Result says done after the<br/>thread failed
       r1s1 --> r1s4 : the failed thread leaves its<br/>work to its home
       r1s1 --> r1s9 : the failed thread works again
+      r1s1 --> r1s8 : you remove the row from failed
       r1s2 --> r1s10 : the question closes
       r1s2 --> r1s11 : the question closes
       r1s2 --> r1s1 : the question closes
@@ -70,6 +73,7 @@ stateDiagram-v2
       r1s2 --> r1s6 : the question closes, and the<br/>row's pull request is open
       r1s2 --> r1s5 : the question closes, and the<br/>row's pull request merged
       r1s2 --> r1s0 : the question closes, and the<br/>row's Result says done
+      r1s2 --> r1s8 : you remove the row from gate
       r1s3 --> r1s2 : jbus opens a question
       r1s3 --> r1s10 : T3 Code lists no thread
       r1s3 --> r1s9 : T3 Code lists the thread at<br/>work
@@ -91,7 +95,6 @@ stateDiagram-v2
       r1s4 --> r1s8 : you remove the row from left
       r1s6 --> r1s2 : jbus opens a question on the<br/>row with its pull request open
       r1s6 --> r1s4 : the pull request closes<br/>unmerged
-      r1s6 --> r1s8 : you remove the row from pr
       r1s7 --> r1s3 : a launch record names a thread<br/>for the row [when Approved or<br/>Approved, behind a row it<br/>depends on]
       %% when r0s0, r0s1
       r1s7 --> r1s2 : jbus opens a question on the<br/>row
@@ -103,11 +106,13 @@ stateDiagram-v2
       r1s9 --> r1s11 : the thread asks for an answer<br/>to its request
       r1s9 --> r1s0 : the thread ends with a clean<br/>Result and no pull request
       r1s9 --> r1s10 : the turn hangs, or the thread<br/>ends or is settled with<br/>nothing written
+      r1s9 --> r1s8 : you remove the row from<br/>running
       r1s10 --> r1s0 : the crew writes a clean Result
       r1s10 --> r1s1 : the thread fails
       r1s10 --> r1s3 : the thread starts
       r1s10 --> r1s4 : the thread stays quiet with<br/>nothing written, or writes a<br/>leftover
       r1s10 --> r1s9 : the thread works again
+      r1s10 --> r1s8 : you remove the row from stale
       r1s11 --> r1s9 : the request is answered and<br/>the thread works again
       r1s11 --> r1s4 : the thread ends after its<br/>request with work left
       r1s11 --> r1s1 : the thread fails while it<br/>waits

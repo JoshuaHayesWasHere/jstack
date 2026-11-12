@@ -8,8 +8,10 @@ One row of jbus's queue, from `jbus queue add` to its end, in two regions at the
   The eight steps of an open pull request are one value, `check`, and `quiet` is `working`; `test_rowlife_spec.py` fails when `work.VALUES` gains a value the spec neither has nor names as joined.
   `Moves` in `RowLife.tla` is `queue.MOVES`, move for move, and `features/jbus/tests/test_rowlife_spec.py` fails when the two differ.
   `removed` is the line the `remove` verb writes, and no pass judges it.
+  `remove` refuses only a thread at work and an open or merged pull request (`out` in `asks._asks`), so a `done` row may be removed; `Moves` names the removals seen and guards none.
 - The go, which verbs and rules of `queue.py` move: an approve or a rule's go (`_grant`), a hold that may keep the go it took (`_hold`), a lift that puts a kept go back (`_lift`), and a go taken back from an unlaunched row (`_void`).
   An approved row whose `depends` are not all over is `behind` until they are (`Ahead`), and jbus launches it stacked all the same.
+  An `add` that changes an approved row's depends moves it between free and behind (`Depends`), and its line keeps its value until the next pass (`Pass`), since `restated.restate` keeps an approved facet beside another.
   jbus launches only an approved row, so `queued` to `launched` waits for the go.
 
 `docs/jbus/row-moves.md` says what each move means and which faults the table leaves out.
@@ -17,11 +19,11 @@ One row of jbus's queue, from `jbus queue add` to its end, in two regions at the
 ## Check the rule
 
 The rule is `FinalStays`: a row that is over stays over, so the queue, `watch.final` and jmerge, which all read `work.over`, never see a row over and then not.
-A `done` row may only become `merged`, and a `merged` one stays so.
+A `done` row may only become `merged` or be removed for good, a `merged` one stays so, and a removed one stays removed.
 The facts can still leave a final row: a pull request opens after a `done`, or a question opens on a `merged` row.
 The rule holds because `queue.derive` keeps the status (`work.kept`), and so checks the code's derive and not only the table.
-The second rule is `MovesKnown`: each move of the status is in `Moves`, so the table is the one `work.status` makes, and a pass marks `"legal": false` only on a fault the model leaves out (a pull request read in neither of GitHub's lists, a row with no launch record, a `Branch:` line that loses the address of a closed pull request), each of which `test_jbus_queue_moves.py` names.
-`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where both rules hold over 2445 distinct states, on a canary that takes `work.kept` out (`Fault = "no-latch"`), where `FinalStays` breaks, and on one that gives a settled thread's row `queued` again (`Fault = "settled-queued"`), where `MovesKnown` breaks.
+The second rule is `MovesKnown`: each move of the status but a removal, the `remove` verb's, which `derive` never judges, is in `Moves`, so the table is the one `work.status` makes, and a pass marks `"legal": false` only on a fault the model leaves out (a pull request read in neither of GitHub's lists, a row with no launch record, a `Branch:` line that loses the address of a closed pull request), each of which `test_jbus_queue_moves.py` names.
+`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where both rules hold over 2502 distinct states, on a canary that takes `work.kept` out (`Fault = "no-latch"`), where `FinalStays` breaks, and on one that gives a settled thread's row `queued` again (`Fault = "settled-queued"`), where `MovesKnown` breaks.
 Its TLC runs skip where no Java runs TLC.
 By hand, in a copy of this folder:
 
@@ -42,21 +44,22 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --e
 It writes `RowLife-statechart/`: `chart.mmd`, `stories.md` and `summary.json`, labelled by `RowLife.map.py`.
 No chart's PNG or Excalidraw scenes, nor the charts page, is committed: `make charts`, at the repo's root, draws them from each committed `chart.mmd` into a folder git ignores, and prints the page's path.
 Each status on the chart says what in `work.py` sets it, and each step that moves the status is labelled by its row of `queue.MOVES`.
-The regions draw 64 of their 111 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
+The regions draw 69 of their 117 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
 Its `tlc/` folder holds TLC's output, which is not committed.
 
 ## What the model leaves out
 
 - The facts behind a status, past the folds above (a Result that owes its pull request, each step of an open pull request): `test_jbus_queue_moves.py` walks every combination.
-- A restate between passes (`restated.restate`) that the next pass corrects, the `work-drift` event: here a fact's change and the pass that sees it are one step.
+- A restate between passes (`restated.restate`) that the next pass corrects, the `work-drift` event: here a fact's change and the pass that sees it are one step, but for the depends an `add` changes (`Depends`).
   So is a pass that heard from GitHub or T3 Code alone, which keeps the last value unconfirmed.
 - The faults the table leaves out, which a pass marks `"legal": false` in `transitions.jsonl` and writes all the same: a pull request that leaves GitHub's open list unmerged and unclosed, a thread, Result or pull request of a row with no launch record, and a `Branch:` line that loses the address of a closed pull request.
   So the model never makes `pr` to `done` either, a move of the table.
 - The scout's row, which `work.scouting` reads, and a row's `merge_after`.
+- A launch under way with no answer yet, which `remove` also refuses (`launched` in `asks._asks`): the launch is one step.
 
 ## A crew thread, as a TLA+ spec
 
-`ThreadLife.tla` follows one crew thread of one row through jbus's code at main 21112eba8 (2026-11-10).
+`ThreadLife.tla` follows one crew thread of one row through jbus's code, last read against it at 228c1436c (2026-11-11).
 It starts at the launch record a pass writes (`jbus/dispatch.py`), and goes through the words `jbus/live.py` gives the thread's turn and the carry-ons `jbus/threads.py` `resume` sends.
 It ends with the thread put away and its scratch cleared (`jbus/threads.py` `settle`), or with the row its home's: jbus told the home.
 Each condition of a step names the file that checks it and quotes the code there, with no line number.
@@ -119,7 +122,7 @@ No state breaks a rule, so it draws no `bug-N` chart.
 
 ## Main's red, as a TLA+ spec
 
-`MainRed.tla` models what jbus does when main goes red, as the code of main 21112eba8 does it.
+`MainRed.tla` models what jbus does when main goes red, as the code does it, last read against it at 228c1436c (2026-11-11).
 Main's push run fails and jbus reruns it once (`watch._check`).
 If the rerun fails too, `mainmoved.tell` writes the red tip to `main.json`, and `watch.retro` hands main's tip to `culprits.judge`.
 `judge` reverts the tip's one clear culprit (`jbus.reverts`) or files main's fix row (`watch._file`).
@@ -153,7 +156,7 @@ It also checks that the spec states each property `features/jbus/tests/main_red_
   - `KnownRedReadAsRed` (S1)
   - `NoStuckRed` (S2)
   - `RedTipsOwnTests` (S3)
-  - `EachRedJudgedOnce` (S4)
+  - `EachRedJudgedOnce` (S4): `main-reds.jsonl`'s verdict lines name no tip twice and name the red tip, and its closing lines (`mainmoved.close`) close no spell twice.
 
 ### Check the rules of main's red
 
@@ -164,9 +167,9 @@ Run it from this folder, with the pinned jar copied in:
 cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar . && java -cp tla2tools.jar tlc2.TLC -config MainRed.cfg MainRed.tla; rm -rf tla2tools.jar states
 ```
 
-It exits 0: every rule holds over 140,012 distinct states (MaxTips 4), in a few seconds.
+It exits 0: every rule holds over 147,834 distinct states (MaxTips 4), in a few seconds.
 `MainRed.cfg` leaves the Mac out (`Mac = FALSE`): with it, four commits take TLC far too long.
-`MainRed.chart.cfg` has the Mac on up to three commits, where every rule holds over 112,491 distinct states.
+`MainRed.chart.cfg` has the Mac on up to three commits, where every rule holds over 116,957 distinct states.
 The test runs TLC on both configs, and on each rule of `BREAKS` alone, which is empty while the code breaks no rule, and the canary on `MainRed.chart.cfg`.
 
 ### Draw the chart of main's red
@@ -182,7 +185,7 @@ W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainRed.* "$W"
 
 Run it from the repo root.
 Then copy the files of `$W/out` into `MainRed-statechart/`, all except `tlc/`.
-`MainRed.chart.cfg` has the same rules on up to three commits, with the Mac (112,491 states), and it draws 42 chart states and 265 steps.
+`MainRed.chart.cfg` has the same rules on up to three commits, with the Mac (116,957 states), and it draws 42 chart states and 265 steps.
 TLC runs once for each rule, so drawing it takes about two minutes.
 The four commits of `MainRed.cfg` draw too many states and steps for Mermaid to render as a PNG.
 No state breaks a rule, so it draws no `bug-N` chart.
@@ -194,8 +197,9 @@ No state breaks a rule, so it draws no `bug-N` chart.
   TLC's `skew` files the row at once.
 - Whether a culprit's slug is over (`over`) before `close` drops its revert's record: the model drops it once every check passed above its red.
 - `main-reds.jsonl` keeps only the red tip of each pass, where `tell` writes a line for each failed commit it walks.
+  A pass is one step, so its closing line and `main.json` are written together: `close`'s guard against a second closing line, for a pass that dies between the two, is never needed here.
 - The browser run, and the fix row's crew ending with no pull request.
-- Of the Mac (`reverts.macos`): its rerun, folded into its run; a Mac red at a revert, a fix or an outside push, which only files its row; the `macos-red-` rows; and a Mac culprit that `tested`, `covered` or `flaky` keeps from a revert.
+- Of the Mac (`reverts.macos`): its rerun, folded into its run; a commit of its range still pending, which is `UNREAD` and later `OVERLAP`, both quiet here since no Mac row is kept; a Mac red at a revert, a fix or an outside push, which only files its row; the `macos-red-` rows; and a Mac culprit that `tested`, `covered` or `flaky` keeps from a revert.
   The Mac's one clear culprit is always reverted.
 - Time: TLC chooses on each pass whether the red tip is older than `READ_WAIT` (`late`).
 
@@ -283,16 +287,17 @@ The rules:
 - `NoTellTwice`: the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.
 - `NoTellLost`: between passes, an act still owed whose mark is written was taken, and the stall the clock's `home` says went is in the log.
 
-TLC breaks neither on any act, over 1489 distinct states at depth 24, as `TellOnce.cfg`'s comment says.
+TLC breaks neither on any act, over 1496 distinct states at depth 24, as `TellOnce.cfg`'s comment says.
 Before st-fix-tell-once it broke them on seven, over 1676 distinct states: stall.twice's page and the clock's stall were lost, and failover's ask, the second target's body, a word, the account question and a skill's notice could go twice.
+st-model-upkeep-run found an eighth, the finding of a hold only the user lifts (`heldlift`, `clock.held`'s lift branch), lost the same way as the clock's stall, and the same fix of `Box.send` closes it.
 `TellOnce.cfg`'s comment names what closed each, and `features/jbus/tests/test_tell_once_crash.py` kills a pass at each of the seven in the code and shows the next pass tells once.
 The canary `Fault = "mark-first"` writes the marks before the act and breaks `NoTellLost` on every act; `Fault = "no-mark"` reads no mark and breaks `NoTellTwice` on every act.
 In the code the half of `NoTellTwice` that says no act runs after its mark was read holds by the guard's shape; the receiver's count is the half that checks the code.
 
 ### Draw the act-once charts
 
-The thirteen acts are three charts, so each chart's overview fits in ten boxes with at most 15 states to a group.
-`TellOnce.chart.cfg` draws the six acts that tell a thread through `t3_thread_send`, `TellOnceOther.chart.cfg` the six that do not, and `TellOnceOwed.chart.cfg` the ask owed after a limit, which alone has as many states as the twelve; `TellOnce.cfg` still checks all thirteen.
+The fourteen acts are three charts, so each chart's overview fits in ten boxes with at most 15 states to a group.
+`TellOnce.chart.cfg` draws the six acts that tell a thread through `t3_thread_send`, `TellOnceOther.chart.cfg` the seven that do not, and `TellOnceOwed.chart.cfg` the ask owed after a limit, which alone has as many states as the others; `TellOnce.cfg` still checks all fourteen.
 Since one behavior follows one act, the three charts together draw every path.
 
 ```sh
@@ -316,7 +321,7 @@ A state's color says where its tell stands: orange not told, green told once, re
 
 - Time and liveness: the rules are safety rules, so an act a guard keeps from running forever passes them (such as expedite's second tell once its key is marked and expedite.json is not).
 - A clock wait whose kind goes back to one it had: its old key is still in sent.json, and the model starts every new wait under a new key.
-- `Box.send` keeps a finding's line with its key in `unlogged.json`, one write, for every keyed finding (an ask resent, failover's, expedite's, stall.twice's page): the model has it for the clock's stall, and the page as its act.
+- `Box.send` keeps a finding's line with its key in `unlogged.json`, one write, for every keyed finding (an ask resent, failover's, expedite's, stall.twice's page): the model has it for the clock's stall, the page as its act, and `clock.held`'s lift.
 - The event `item.write` records after its line, and cancelled.py's false "not run again" after a rerun whose finding was lost: each is a fault of its own, not a tell twice or lost.
 - The second target's timeout after the target took the body is a pass that dies after the act.
 - A word whose thread tried cannot be read (`Client.holds` answers neither) waits for a later pass: a safety rule passes a wait.
@@ -324,7 +329,7 @@ A state's color says where its tell stands: orange not told, green told once, re
 
 ## Main's fix and revert, filed step by step, as a TLA+ spec
 
-`MainFix.tla` takes the steps MainRed.tla folds into one, `reverts` and `fixes`, and gives each write its own step, as the code of st-main-fix-crash-gaps (2026-11-11) makes them.
+`MainFix.tla` takes the steps MainRed.tla folds into one, `reverts` and `fixes`, and gives each write its own step, as the code makes them, last read against it at 43b12ce51 (2026-11-12), with st-main-fix-crash-gaps (#1728) in it.
 A pass can die between any two writes, and the disk and GitHub keep what was written.
 Each fix below makes the last write of a step its commit point: every write before it can be done again by the next pass, and a write-ahead name marks the one call to GitHub that cannot.
 It has one variable for each carrier of the st-state-ledger's MainFix rows, and each variable's comment quotes the code that writes it:
@@ -334,10 +339,11 @@ It has one variable for each carrier of the st-state-ledger's MainFix rows, and 
 - B-029, the Mac's fix row `macos-red-<sha>` (`macFix`): the same (`jbus/reverts.py` `_mac_file`).
 - B-030, B-031 and B-032, the runs each nightly has seen, `browser-runs.json`, `macos-nightly-runs.json` and `scheduled-<stem>-runs.json` (`browserSeen`, `macosSeen`, `scheduledSeen`): the day's row, then its brief's copy, then the run kept as seen (`jbus/watch.py` `_nightly_red`).
 
-A pass runs `reverts.known` (tellers 36), then reads each nightly (tellers 40), then judges the Mac (after-expedite 9), then main (12).
+A pass runs `reverts.known` (tellers 36), then reads each nightly (tellers 40), then judges the Mac (after-expedite 9), then main (12), as `poll.first_half` runs its slots.
 `reverts.known` asks GitHub for the branch `reverts-opening.json` names, among the pass's open pull requests or by `gh pr list`, and keeps a revert it finds open, whether main is red or green and whether compare answers.
 It drops a name GitHub has no revert for once `READ_WAIT` has passed, and one whose revert is on record.
-`World` names the faults of the world the model lets in past a pass that dies: GitHub refuses or does not answer (`"refuses"`), a hand turns a red green (`"hand"`), or a nightly's red run is more than three days old when a pass first reads it (`"late"`).
+The shot tests of any nightly's red file the day's shots row (`drawn_apart`), the Mac's after a run that passed.
+`World` names the faults of the world the model lets in past a pass that dies: GitHub refuses or does not answer (`"refuses"`), a hand turns a red green (`"hand"`), a nightly's red run is more than three days old when a pass first reads it (`"late"`), or a pass has no world (`"blind"`: no T3 Code token, T3 Code or GitHub silent, or the API budget under its floor), so it skips `reverts.known`, the nightlies and the Mac, which need one, and judges main alone.
 `Watched` names the nightlies the model runs.
 Each condition the code checks quotes it.
 `features/jbus/tests/test_main_fix_spec.py` finds each backticked quote of the spec once, in the file named last before it, and checks that each carrier has its variable.
@@ -351,14 +357,19 @@ java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -config MainFix.
 ```
 
 Run it in a copy of this folder, since TLC writes `states/` where it runs.
-`MainFix.cfg` is the code with a pass that dies and no other fault, watching all three nightlies, and every rule holds over 546480 distinct states:
+`MainFix.cfg` is the code with a pass that dies and no other fault, watching all three nightlies, and every rule holds over 329948 distinct states:
 
-- `FiledWhole`: no brief ever stands with no row: main's fix and its Mac's, at every tip, and each nightly's rows.
+- `FiledWhole`: no brief ever stands with no row, between passes after one that ran every step: main's fix and its Mac's, at every tip, and each nightly's rows.
+  A blind pass is not such a pass: it launches nothing, and the next pass with a world queues the row.
 - `RevertKnown`: an open revert on GitHub has its `reverts.json` record by the next pass, since jmerge merges and `reverts.close` closes only a revert on record.
 - `RevertSaid`: each revert on record has its line in `events.jsonl`.
 - `RefinesMainRed`: each step is MainRed's `reverts` or `fixes` step, or leaves both as they are, where MainRed's `reverts` is the record and its `fixes` are the red tips whose main fix row the queue holds.
 
-They hold too in each world TLC broke them in on the code of aa5469d97: `World = {"hand"}` (1217900 distinct states), `{"refuses"}` (2326618) and `{"late"}` (3080220).
+They hold too in each world TLC broke them in on the code of aa5469d97: `World = {"hand"}` (669004 distinct states), `{"refuses"}` (1339244) and `{"late"}` (1006483).
+They hold with `World = {"blind"}` too, over 586960 distinct states.
+Those counts are of `MainFix.cfg`'s `VIEW View`, which tells each variable apart only by what a later step or a rule can still read of it: a nightly run kept in its seen file is "passed" or seen, a pull request's run is as good as seen, a red run that aged unseen is late whatever its kind, the tip and `clear` stop counting once main and its Mac are green again, and so do `sight` between passes and `before` after a pass that died.
+A pass also goes past a nightly's last run straight to its next step, since dying between the two writes nothing.
+So the rules are checked as before, over a quarter to a tenth as many states, and each TLC test ends in well under a minute.
 `test_main_fix_spec.py` runs each of those rules alone in its world, and each canary below.
 Each canary is the code with one fix taken back, and TLC breaks the rule it keeps; the comment in `MainFix.cfg` keeps each trace:
 

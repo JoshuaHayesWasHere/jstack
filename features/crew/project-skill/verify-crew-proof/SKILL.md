@@ -22,7 +22,7 @@ The rules, each with its harm:
 ## The record
 
 Model: `features/crew/spec/CrewProof.tla`
-Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
+Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
 Covers:
 - `features/crew/do-the-task.md`: `crew-check-steps`, `crew-failed-files`, `Checked:`
 - `features/crew/the-checks.md`: `crew-failed-files`

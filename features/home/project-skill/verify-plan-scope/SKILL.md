@@ -19,17 +19,20 @@ The rules, each with its harm:
   Broken, the retry cap counts a fix twice or never.
 - **`FixCountedWhereRead`:** each counted fix is in the ledger of the home admit reads.
   Broken, a fix moved part way is counted where nothing reads it.
+- **`FixCountedWhereReadOrMoveAgain`:** each counted fix is in the ledger admit reads, or is the one a move cut short left behind, which the move run again carries.
+  Broken, a fix is stranded where no step ever carries it, as the plan's archive did before `jbus retire`.
 
-Today's code breaks `FixCountedWhereRead` (a move cut before `blockers.rehome`), and `PlanScope.cfg` keeps its trace.
+Today's code breaks only `FixCountedWhereRead` (a move cut before `blockers.rehome`), and `PlanScope.cfg` keeps its trace; `FixCountedWhereReadOrMoveAgain` holds, so a move run again is the only way out of it.
+`jbus retire` (`blockers.retire`, #1793) carries the scope's tries to the catch-all's ledger under both locks before the plan is archived.
 A close cut short and run again appends no second copy, since `plan.close` skips the append when plan-done.md already ends with the entry's section, so `EntryOnce` holds; the `close-twice` canary puts the second append back and breaks it.
 
 ## The record
 
 Model: `features/home/spec/PlanScope.tla`
-Sync: `6b542bfe10eb0f8288d96b81401349595ad3210e`
+Sync: `5262b615eb33fbb34378feceace804d7a4421cda`
 Covers:
 - `features/jbus/src/jbus/plan.py`: `close`, `entries`, `Stage`, `Entry`
-- `features/jbus/src/jbus/blockers.py`: `admit`, `rehome`, `tries`, `ledger`, `head`, `LEDGER`, `LOCK`
+- `features/jbus/src/jbus/blockers.py`: `admit`, `rehome`, `tries`, `ledger`, `head`, `retire`, `LEDGER`, `LOCK`
 - `features/jbus/src/jbus/queue.py`: `move`
 - `features/jbus/src/jbus/asks.py`: `_move`
 - `features/jbriefs/src/jbriefs/home.py`: `home_of`, `scopes`, `WAS`
@@ -51,7 +54,7 @@ Rerun it when the diff changes a carrier's writer or reader above, a step or rul
 uv run pytest features/home/tests/test_plan_scope_spec.py -q
 ```
 
-It finds each quote of the spec once in its file, runs TLC on `PlanScope.cfg` and on each canary (`Fault = "close-twice"`, `Fault = "move-one-lock"`), and skips the TLC runs where no Java runs TLC.
+It finds each quote of the spec once in its file, runs TLC on `PlanScope.cfg` and on each canary (`Fault = "close-twice"` breaks `EntryOnce`, `Fault = "move-one-lock"` breaks `FixCountedOnce`, and `Fault = "retire-no-carry"` and `Fault = "carry-then-unlock"` break `FixCountedWhereReadOrMoveAgain`), and skips the TLC runs where no Java runs TLC.
 
 ## A real bug or a modeling error
 
@@ -61,3 +64,4 @@ A canary that does not break its rule tests nothing: fix the rule or the canary,
 ## Drift at the sync commit
 
 None: the one rule today's code breaks is expected in the cfg, not drift.
+st-model-upkeep-run merged main at `5262b615e`, where st-retire-carries-fixes (#1793) added `jbus retire` and brought the model with it: the retire's carry, its rule and its two canaries; the skill moved there.

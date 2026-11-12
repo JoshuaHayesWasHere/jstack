@@ -210,12 +210,15 @@ def _log(config: jbus.Config, owner: str, kind: str, line: str) -> None:
 def open_items(config: jbus.Config, now: datetime) -> list[Streak]:
     """Every alert that is open now, the items of the one list. An alert about a closed project
     is not one: no pass of it runs to end the alert, so no home could clear it. Its streak stays
-    in `streaks.json`, and `jbus project open` lists it again while its cause holds."""
+    in `streaks.json`, and `jbus project open` lists it again while its cause holds. Nor is an
+    alert with no line: `raise_` has written one since #731, so only a record kept before it has
+    none, and a home told an item that says nothing could not act on it."""
     found = [Streak(**one) for one in streaks(config.state_dir).values()]
     return [
         one
         for one in found
         if one.alerted
+        and one.line
         and (not one.ends or datetime.fromisoformat(one.ends) > now)
         and not any(_about(one, project.name) for project in config.closed)
     ]

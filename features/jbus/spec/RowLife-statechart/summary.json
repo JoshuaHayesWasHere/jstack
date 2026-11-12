@@ -1,10 +1,10 @@
 {
   "view": "customer",
-  "modelStates": 2445,
-  "modelTransitions": 32101,
+  "modelStates": 2502,
+  "modelTransitions": 33587,
   "chartStates": 17,
-  "chartTransitions": 64,
-  "allTransitions": 111,
+  "chartTransitions": 69,
+  "allTransitions": 117,
   "final": [
     "merged (its pull request merged)",
     "removed (queue.py `remove`, no pass sets it)"
@@ -43,11 +43,11 @@
       5,
       12
     ],
-    "transitions": 64,
-    "all": 111,
+    "transitions": 69,
+    "all": 117,
     "flat": {
       "states": 60,
-      "transitions": 644
+      "transitions": 688
     }
   },
   "classes": [],
@@ -56,9 +56,9 @@
     "command": "statechart from-spec RowLife.tla --title 'A row'\"'\"'s life' --png",
     "inputs": {
       "RowLife.cfg": "743c72ead2628ff6ad3cf55a93b94864864c2004656a9ca5dd7a7d8c1f080c49",
-      "RowLife.map.py": "11b198fb398071c9d664cc658ad615dd257e76ec1534fef4960b9e6e86b62b16",
-      "RowLife.tla": "97ff617dfe746b5b132e8ce74950aa26493b60c518b6c2f1f1598f3efedce948"
+      "RowLife.map.py": "f9485226b522cf5b4f05573ab9f9d5a90ecb25b1ad69e9cb49a73dfc12560192",
+      "RowLife.tla": "f7874650c66025131041816054125189c63dc94f377c0ea828c0fdb47d948ca6"
     },
-    "chart": "372f657f34ca867038f6b4505b61953bc71c0d6a7c7bf98afea5c8786002e57d"
+    "chart": "c6d9c50054df92d1c992ae2298e008c944d471960c27f7f566f85b6f822c8abf"
   }
 }
