@@ -146,7 +146,10 @@ def test_each_waiting_verdict_shows_the_step_that_ends_its_wait_on_the_chart():
     """A verdict jmerge says waits on someone: its check, its reviewer, its crew, GitHub, the one
     ahead, main's fix or you, and a row jbus held at two failed heads, which waits on you. The
     chart draws that one's step out of it, back to jmerge's next judgment or to merged, so no
-    verdict reads as a stall."""
+    verdict reads as a stall. The batch's check passing is a step of jmerge's run out of any
+    other verdict, and the owner's step out of "in jmerge's batch": a run may take a lone member
+    alone while its batch is pending (`Alone`), so the chart's nearest "the batch's check fails"
+    can leave from another verdict."""
     words = importlib.import_module("statechart.mapping").load_mapping(SPEC / "PrVerdict.map.py")
     run = {words.STEPS[a] for a in words.RUN} | {words.STEPS["BatchProves"]}
     owners = {*words.STEPS.values(), "its check passes", "its check fails"} - run

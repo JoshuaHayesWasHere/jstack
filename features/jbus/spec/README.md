@@ -43,7 +43,7 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --p
 
 It writes `RowLife-statechart/`: `chart.mmd` and `chart.png`, `stories.md` and `summary.json`, labelled by `RowLife.map.py`.
 Each status on the chart says what in `work.py` sets it, and each step that moves the status is labelled by its row of `queue.MOVES`.
-The regions draw 64 of their 111 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
+The regions draw 69 of their 117 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
 Its `tlc/` folder holds TLC's output, which is not committed.
 
 ## What the model leaves out

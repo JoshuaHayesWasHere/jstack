@@ -43,12 +43,12 @@ Rerun it when the diff touches a file of the record, adds or reorders a hold or 
 uv run pytest features/jmerge/tests/test_pr_verdict_spec.py -q
 ```
 
-It runs TLC on today's code and the ten canaries, in a few minutes, and skips where no Java runs TLC.
+It runs TLC on today's code and the eleven canaries, in a few minutes, and skips where no Java runs TLC.
 A run that ends in seconds took TLC's verdict from the statechart tools' cache (`tools.kept`), keyed by the spec, cfg and jar, and the runner script does the same: the verdict is the one TLC gives, and no change to the code alone can turn it, which is why the record above, and not a pass, says whether the model still describes the code.
 `pr_canaries.py` prints one line a run; its command is in `features/jmerge/spec/README.md`, "Why a pull request is not merging".
 
-- **Bounds:** `Moves = 2` (other work moves main at most twice), `Drop = "none"`, 1,143,161 distinct states; the chart's cfg moves main once (504,404 states).
-- **The canaries:** `over`, `go`, `touches`, `declines`, `mergeoff` and `head` break the first half (a merge past a hold of yours); `release`, `rejudge`, `again` and `batch-failed` break the second (it waits for ever).
+- **Bounds:** `Moves = 1` (other work moves main at most once), `Drop = "none"`, 1,280,274 distinct states, as many as the chart's cfg, which also moves main once.
+- **The canaries:** `over`, `go`, `touches`, `declines`, `mergeoff` and `head` break the first half (a merge past a hold of yours); `release`, `rejudge`, `again`, `batch-failed` and `twice` break the second (it waits for ever).
 - **Assumptions:** one pull request into main, no stack, no browser run, no migrations, no `merge_after`; `CONFLICTS` stands for both kinds of conflict; each step is atomic; one fix makes the change good, and one review round holds; your word has no fairness, nor has a run that judges no other batch member (`Alone`).
   The rest is in the README's "What PrVerdict leaves out".
 
@@ -84,3 +84,6 @@ Main's #1702 test that each waiting verdict draws its owner's step now takes the
 The sync commit moved there.
 
 st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: no covered file changed, so the sync commit moved there.
+
+st-model-sync then merged into main as #1734, and the row's own commits moved onto main at `cf26d3e5f`, where #1697 had widened the rule to every open pull request and added jbus's hold of a row whose check failed at two heads (`Twice`, `Lift`, the canary `twice`).
+That hold stands beside this row's `over` hold and `Alone`, which merges with every hold left outstanding as `Merge` does (`unheld' = Asks`), and every run says what it should.

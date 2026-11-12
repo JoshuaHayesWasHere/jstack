@@ -156,6 +156,7 @@ Verdict ==
     \* Its queue row: over (rows.py `return ready.ROW_OVER.format(status=row["status"])`), then its
     \* go (cli.py `rows.short(self.queue, brief.stem, brief=self.stored(brief.stem))`,
     \* rows.py `if row.get("held"):`, rows.py `if row and not judgement.has_go(row, brief):`).
+    ELSE IF "over" \in asks /\ Kept("over") THEN "row-over"
     ELSE IF "nogo" \in Asks /\ Kept("go") THEN "row-held"
     \* A drop or a decline the review did not uphold (cli.py
     \* `kind, why = ready.drops(lost, text, one.head, user=self.user, command=command)`, cli.py
@@ -244,10 +245,10 @@ Alone ==
             /\ said' = IF overlap THEN InTurn("base-moved-asked") ELSE "merged-tree-fails"
             /\ fresh' = TRUE
             /\ UNCHANGED <<st, unheld>>
-       ELSE /\ st' = "merged" /\ unheld' = asks /\ said' = "merged"
+       ELSE /\ st' = "merged" /\ unheld' = Asks /\ said' = "merged"
             /\ UNCHANGED <<guardsSaid, fresh>>
     /\ UNCHANGED <<good, ci, reviewed, asks, moved, overlap, clash, tipFails, decided, mainRed,
-        movesLeft, ahead, batch, Setup>>
+        movesLeft, ahead, batch, Setup, fails, held>>
 
 \* Judged with other members, it joins their batch (cli.py
 \* `elif on is not None and found.judged.batch:`): a guards batch of two to four, proven in the
@@ -432,7 +433,7 @@ AcceptOther ==
 \* What happens by itself: jmerge's run, the crew and its reviewer, GitHub, jbus's hold of a row
 \* whose check failed twice, and jbus's fix of main.
 System ==
-    \/ Judge \/ Merge \/ GuardsFail \/ JoinBatch \/ BatchProves \/ BatchFails \/ Release
+    \/ Judge \/ Merge \/ GuardsFail \/ Alone \/ JoinBatch \/ BatchProves \/ BatchFails \/ Release
     \/ Review \/ CheckEnds \/ Twice \/ Lift \/ CrewFix \/ GitHubMergesBase \/ GitHubDecides
     \/ MainFixed \/ OtherMerges
 YourWord == Approve \/ MergeOn \/ Accept \/ AcceptOther
