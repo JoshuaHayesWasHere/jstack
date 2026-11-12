@@ -58,7 +58,7 @@ Its `tlc/` folder holds TLC's output, which is not committed.
 
 ## A crew thread, as a TLA+ spec
 
-`ThreadLife.tla` follows one crew thread of one row through jbus's code at main 21112eba8 (2026-11-10).
+`ThreadLife.tla` follows one crew thread of one row through jbus's code, last read against it at 228c1436c (2026-11-11).
 It starts at the launch record a pass writes (`jbus/dispatch.py`), and goes through the words `jbus/live.py` gives the thread's turn and the carry-ons `jbus/threads.py` `resume` sends.
 It ends with the thread put away and its scratch cleared (`jbus/threads.py` `settle`), or with the row its home's: jbus told the home.
 Each condition of a step names the file that checks it and quotes the code there, with no line number.
