@@ -512,8 +512,8 @@ def test_a_change_runs_the_lint_each_touched_test_and_each_test_that_reads_it_in
     assert not set(reads) & {mine, *guards}
     assert said[0] == (
         f"touched: 1 test files, then {len(guards)} cross-cutting guard tests, "
-        "then 0 test files CI failed on, each alone in the short lane after the lint, "
-        f"then {len(reads)} test files that read the change in {len(steps)} steps; "
+        f"then 0 test files CI failed on, then {len(reads)} test files that read the change, "
+        f"in {1 + len(guards) + len(steps)} steps of the short lane after the lint; "
         "CI's check runs the rest of the selection"
     ), said
     assert re.fullmatch(r"lint: exit 0 in \d+ s, short lane", said[1]), said
@@ -545,7 +545,7 @@ def test_a_step_of_the_tests_that_read_the_change_runs_its_files_at_once_after_t
     said, code, ran, base = selected(tmp_path, repo, exits={"*test_o.py*": 1})
     head = git(repo, "rev-parse", "HEAD")
     assert said[0].endswith(
-        "then 3 test files that read the change in 2 steps; "
+        "then 3 test files that read the change, in 4 steps of the short lane after the lint; "
         "CI's check runs the rest of the selection"
     ), said
     assert ran == [
