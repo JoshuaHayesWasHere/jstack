@@ -54,13 +54,33 @@
     }
   ],
   "codeLike": [],
+  "map": {
+    "runs": [
+      "TestSlot.chart.cfg",
+      "TestSlot.cfg"
+    ],
+    "states": 274,
+    "arrows": 1216
+  },
+  "also": {
+    "cfg": "TestSlot.cfg",
+    "modelStates": 927474,
+    "modelTransitions": 4812286,
+    "states": 116,
+    "arrows": 786
+  },
   "drawnFrom": {
-    "command": "statechart from-spec TestSlot.tla --config TestSlot.chart.cfg --title 'Who holds a test slot, who waits on one, and what the ledger keeps?' --expect-broken WokenGetsSlot",
+    "command": "statechart from-spec TestSlot.tla --config TestSlot.chart.cfg --also-config TestSlot.cfg --title 'Who holds a test slot, who waits on one, and what the ledger keeps?' --expect-broken WokenGetsSlot",
     "inputs": {
+      "TestSlot.cfg": "4709798983c2798b5696697cf6df805d32dbbc5262173629f06eb1b60e0011f0",
       "TestSlot.chart.cfg": "eb416ae8adc8dad951dde3f3b1e82c87aaa56c07d2c1da0c296eaf5c3ffdbc1d",
       "TestSlot.map.py": "ec66d90505b6117e6d3844379edadb3a46aa56013ae698c1aac440b3befa66f7",
       "TestSlot.tla": "72147aa6024bd7862ac3fa526bf3ae4e910e5964b2f6ab181cb6ac63ae32f531"
     },
-    "chart": "13e813262d418dd7ca9677c8522355a8eb66598708fdfe307740bf05aca51f03"
+    "chart": "13e813262d418dd7ca9677c8522355a8eb66598708fdfe307740bf05aca51f03",
+    "tables": {
+      "states.tsv": "23968a4c7f3efd3adc9b33881a1006e3b26988adb70c9dd76987ae53035a3235",
+      "arrows.tsv": "e2ba24128d059506a8877588c581bb7032a90f6135302d074a52279ccd695af3"
+    }
   }
 }
