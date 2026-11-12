@@ -183,11 +183,12 @@ Init ==
 
 \* A launch record names a thread for the row: jbus launches only an approved row, and a held
 \* row has no `approved`. A row behind one it depends on launches only stacked on that row's open
-\* pull request.
+\* pull request. Its thread is starting until T3 Code lists it: a pass reads which launched
+\* threads are gone before it launches (`watch.gone`), so a thread it just launched is not.
 Launch ==
   /\ ~launched /\ status = "queued"
   /\ go \in {"approved", "behind"}  \* dispatch.py `if not row.get("approved"):`, dispatch.py `if unmerged and on is None:`
-  /\ Derive(thread, written, pull, question, TRUE)
+  /\ Derive("starting", written, pull, question, TRUE)  \* watch.py `elif slug not in seen.gone:`
   /\ UNCHANGED go
 
 \* T3 Code says something new of the row's thread.
@@ -268,7 +269,7 @@ Ahead ==
 \* `jbus queue hold` takes the go back, and with `keep` keeps the go it took. A held row may be
 \* held again, and keeps no go then.
 Hold ==
-  \* queue.py `took if verb.keep and took.get("approved") else None`
+  \* queue.py `kept = verb.keep and took.get("approved")`
   /\ \/ go' = "held"
      \/ go \in {"approved", "behind"} /\ go' = "kept"
   /\ Restated(go')
@@ -296,9 +297,7 @@ Next == Launch \/ Thread \/ Write \/ Pull \/ Ask \/ Remove \/ Pass \/ Grant \/ D
 Spec == Init /\ [][Next]_vars
 
 \* A row that is over stays over: once `merged` or `done`, every reader of `work.over` (the queue,
-\* `watch.final`, jmerge) reads it over for good, and a `done` row may only become `merged`, or
-\* leave the queue for good by `remove` (queue.py `rows.remove(row)`), after which no pass reads
-\* it. A merged row is never removed.
+\* `watch.final`, jmerge) reads it over for good, and a `done` row may only become `merged`.
 FinalStays ==
   [][ /\ (status \in Final => status' \in Final)
       /\ (status = "merged" => status' = "merged") ]_vars
