@@ -55,7 +55,6 @@ already told something waits for the next pass."""
 from __future__ import annotations
 
 import json
-import re
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime
@@ -79,8 +78,6 @@ _LAST = (
     "JOIN calls c USING (provider, session) WHERE s.thread = ? "
     "AND c.agent IS NULL ORDER BY c.at DESC LIMIT 1"
 )
-
-_AT = re.compile(r'"at": "([^"]+)"')
 
 
 @dataclass(frozen=True)
