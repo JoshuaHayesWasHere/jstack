@@ -222,9 +222,9 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
            fi
        fi
        if ! { [ ! -f "$M/handoff.md" ] || mv "$M/handoff.md" "${kept%.md}-before.md"; } ||
-           ! { [ -z "$scope" ] || [ ! -f "$M/plan.md" ] || mv "$M/plan.md" "$M/plan-archived.md"; } ||
+           ! { [ -z "$scope" ] || uv run --project "$T/../source" jbus retire "$M" > /dev/null; } ||
            ! uv run --project "$T/../source" jbus forget "$M/home-id" > /dev/null; then
-           echo "not archived: $M/handoff.md or $M/plan.md could not be moved, or $M/home-id not removed. Run this again once that is put right."
+           echo "not archived: $M/handoff.md could not be moved, jbus retire did not archive $M/plan.md, or $M/home-id was not removed. Run this again once that is put right."
            exit 1
        fi
    fi
@@ -253,7 +253,8 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
        echo "not read: put the whole reply of list_scheduled_tasks in place of the placeholder"
    ```
 
-   It does it all, in this order: it reads the note, asks jbus what this home has out, hands each open gate of a scoped home's `gates.md` to jbus as a question of the `uncategorized` home's, but a gate the home asked itself, under this home's own slug, the key it was asked under, so jbus asks a gate it holds nothing again (`features/jbus/spec/OneList.tla`, `AnsweredLeaves`), keeps one jbus refuses whole in the note, and renames the file `gates-moved.md`, keeps the note in `$M/log/` under a dated name with an `Archived:` line, the list of what was out and a `Was home:` line with this thread's id, moves an older `handoff.md` beside it, moves a scoped home's `plan.md` to `plan-archived.md`, and removes `home-id`.
+   It does it all, in this order: it reads the note, asks jbus what this home has out, hands each open gate of a scoped home's `gates.md` to jbus as a question of the `uncategorized` home's, but a gate the home asked itself, under this home's own slug, the key it was asked under, so jbus asks a gate it holds nothing again (`features/jbus/spec/OneList.tla`, `AnsweredLeaves`), keeps one jbus refuses whole in the note, and renames the file `gates-moved.md`, keeps the note in `$M/log/` under a dated name with an `Archived:` line, the list of what was out and a `Was home:` line with this thread's id, moves an older `handoff.md` beside it, has `jbus retire` carry the fixes a scoped home's `blockers.json` counts to the catch-all's ledger and move its `plan.md` to `plan-archived.md`, under both homes' locks, and removes `home-id`.
+   Once `plan.md` is gone, each brief that named the scope is the catch-all's, and admit counts its fixes there, so a fix tried in the scope stays counted against its cap.
    A second run changes nothing and prints `archived before`, with the same lines under it.
    Its first line is what the steps below go by, and the lines under it are what step 4 tells the user and step 5 renames by: keep all of them.
 
