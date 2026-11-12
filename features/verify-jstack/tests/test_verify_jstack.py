@@ -458,7 +458,9 @@ def test_a_drive_recipe_runs_in_a_new_sandbox_as_typed(at, outcome, sandbox):
 
 
 MAP = REPO / "features" / "verify-jstack" / "project-skill" / "map.md"
-FEATURE_SECTIONS = r"^(?:## (?:Sub-features|How to get to it|Driving it|Gotchas)|Needs:|Paths:|Tests:)"
+FEATURE_SECTIONS = (
+    r"^(?:## (?:Sub-features|How to get to it|Driving it|Gotchas)|Needs:|Paths:|Tests:)"
+)
 
 
 def test_the_map_links_each_feature_file_once_and_holds_no_copy_of_one():
