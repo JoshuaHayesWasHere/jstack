@@ -671,6 +671,36 @@ def test_a_pull_request_selects_the_test_that_reads_the_whole_tree_its_change_br
     assert broken in tests
 
 
+LIMITS = "testing/tests/test_test_limits.py"
+
+LONG_ONE = [
+    "features/jbus/tests/test_jbus_slot_wake.py",
+    "features/jgauge/tests/test_slot.py",
+    "features/jgauge/tests/test_test_slot_spec.py",
+]
+
+
+def test_a_change_to_a_test_selects_the_list_of_long_tests_at_the_desk_and_in_ci():
+    """#1794 gave a test of `test_test_slot_spec.py` 600 s, beside edits to other tests, and
+    left it off `test_test_limits.py`'s list of long tests. Its desk ran no part that held that
+    test, and CI's check went red on it, as #1798's and #1799's did. A test file is what that
+    test reads, so a change to one selects it, in the desk's names part as in CI's selection."""
+    text = {path: (REPO / path).read_text() for path in LONG_ONE}
+    edited = {path: [({1}, one), ({1}, one)] for path, one in text.items()}
+    tests, _ = select.selection(LONG_ONE)
+
+    assert LIMITS in tests
+    assert LIMITS in {one for step in select.names_part(LONG_ONE, edited) for one in step}
+
+
+def test_a_change_to_no_test_leaves_the_list_of_long_tests_out():
+    """The test collects the whole suite, about 16 s, so a change that edits no test does not
+    run it."""
+    tests, _ = select.selection(["features/jbus/docs/jbus/the-units.md"])
+
+    assert LIMITS not in tests
+
+
 MAC_LIST = "testing/macos-quick.txt"
 CLI = "features/jmerge/src/jmerge/cli.py"
 
