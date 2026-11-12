@@ -592,3 +592,22 @@ def test_a_fork_file_of_a_head_with_no_merge_base_is_code(tmp_path):
         [*git, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "head"], check=True
     )
     assert not forktests.in_repo(str(tmp_path), "no-such-base", "HEAD")(DIR + "PKGBUILD")
+
+
+def test_a_line_that_names_only_tests_a_moved_pull_request_no_longer_changes_counts_as_none():
+    """firstload-makefile-roles proved its stacked link's test at one head, then moved onto main
+    where it changes only the `Makefile`. A pull request that changes no test needs no line, so the
+    line of the earlier head holds it to nothing: the proof block has no line it could write
+    there, `none, <kind>` has no kind for a `Makefile`, and a Result is append-only."""
+    earlier = "e" * 40
+    text = result(proved(head=earlier))
+    assert ready.short_on_proved(text, one("Makefile")) == ""
+    assert not ready.proves(text, one("Makefile"))
+    assert ready.proves(text, one("Makefile", TEST), lambda at: at == earlier)
+    assert ready.short_on_proved(text, one("Makefile", TEST)) == ready.PROVED_STALE.format(
+        at=earlier[:12], head=HEAD[:12]
+    )
+    other = "features/y/tests/test_y.py"
+    assert ready.short_on_proved(text, one("Makefile", other)) == ready.PROVED_UNNAMED.format(
+        tests=other
+    )
