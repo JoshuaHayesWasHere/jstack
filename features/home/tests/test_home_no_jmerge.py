@@ -242,7 +242,8 @@ def test_a_home_is_told_its_own_lines_and_no_other_homes(repo):
     scoped = repo.merge(me="mcp:scoped")
     assert scoped == [MERGED, theirs, WAIT]
     assert repo.merge() == [mine, HOLD]
-    assert (scope / "merge-seen").read_text() == (repo.state / "merge-seen").read_text() == "5\n"
+    for me in ("mcp:scoped", ME):
+        assert [line for line in repo.merge(me=me) if line.startswith("merged ")] == []
 
 
 def test_an_open_pull_request_is_the_home_of_the_brief_whose_branch_line_ends_on_it(repo):

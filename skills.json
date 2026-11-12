@@ -1053,6 +1053,10 @@
       "path": "features/skill-library/project-skill/verify-output-folder"
     },
     {
+      "name": "verify-plan-scope",
+      "path": "features/home/project-skill/verify-plan-scope"
+    },
+    {
       "name": "verify-pr-verdict",
       "path": "features/jmerge/project-skill/verify-pr-verdict"
     },

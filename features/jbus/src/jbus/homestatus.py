@@ -248,13 +248,25 @@ def _merged(lines: list[str]) -> list[tuple[str, str]]:
     return found
 
 
+def _read_to(lines: list[str], seen: str | None) -> int:
+    """How many of merge.log's `lines` the home has read, by its `merge-seen` mark, as the home
+    skill's merge step reads it: the last line it read, so the lines after it where a cut kept it,
+    and none where the cut took it, since each line a cut keeps is newer. An empty mark is none
+    read, and no mark the log's end. A number is a count the step wrote before it marked by a
+    line."""
+    if seen is None:
+        return len(lines)
+    if seen.isdigit():
+        return int(seen)
+    found = [n for n, line in enumerate(lines, 1) if line == seen]
+    return found[-1] if found else 0
+
+
 def _merges(here: Home) -> list[str]:
     log = here.state / "merge.log"
     lines = _lines(log)
-    seen = _text(here.mine / "merge-seen").rstrip("\n")
-    mark = int(seen) if seen.isdigit() else len(lines)
-    if mark > len(lines):
-        mark = 0
+    seen = here.mine / "merge-seen"
+    mark = _read_to(lines, _text(seen).rstrip("\n") if seen.is_file() else None)
     new = (clip(line) for slug, line in _merged(lines[mark:]) if here.keeps("tasks", slug))
     return atmost(new, 5, str(log))
 

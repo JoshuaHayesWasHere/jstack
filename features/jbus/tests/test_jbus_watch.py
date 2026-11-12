@@ -397,7 +397,10 @@ def test_the_brief_for_a_red_main_names_the_push_runs_jobs_and_not_a_dispatched_
     assert FULL_JOB in text and browser not in text
 
 
-def test_a_pass_that_stopped_before_the_row_was_added_files_it_on_the_next(kitchen):
+def test_a_pass_that_stopped_before_the_brief_s_copy_leaves_its_row_for_the_next(kitchen):
+    """The row is queued before its brief's copy is written to tasks/ (`copy_brief`), so a pass
+    that stops between the two leaves the row and its brief in the queue, which `brief_of` reads
+    and the launch copies, and never a copy with no row; the next pass files no second row."""
     main_after_alpha(kitchen, "failure")
     tasks = kitchen.home / "tasks"
     tasks.chmod(0o500)
@@ -408,10 +411,13 @@ def test_a_pass_that_stopped_before_the_row_was_added_files_it_on_the_next(kitch
     finally:
         tasks.chmod(0o700)
     assert "pass failed demo: PermissionError" in said[0]
-    assert main_red(kitchen) == []
-    kitchen.poll(NOW + timedelta(minutes=3))
-    assert (tasks / "main-red-dddddddddddd.md").exists()
+    assert not (tasks / "main-red-dddddddddddd.md").exists()
     assert [row["slug"] for row in main_red(kitchen)] == ["main-red-dddddddddddd"]
+    assert jbus.queue.brief(kitchen.state, "main-red-dddddddddddd")
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert [row["slug"] for row in main_red(kitchen)] == ["main-red-dddddddddddd"]
+    line = "retro alpha: main check failed at dddddddddddd, 1 merges since the last green"
+    assert kitchen.lines("retro") == [line]
     line = "retro alpha: main check failed at dddddddddddd, 1 merges since the last green"
     assert kitchen.lines("retro") == [line]
 
