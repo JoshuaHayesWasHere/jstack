@@ -604,3 +604,28 @@ def test_twice_holds_a_row_whose_merges_bring_in_a_branch_that_is_not_on_main(la
     assert (set(kept["heads"]), kept.get("moved", [])) == ({FIRST_1720, SECOND_1720}, [])
     assert rows(launched)["alpha"]["held"] is True
     assert len(pages(launched)) == 1
+
+
+def test_a_counted_head_green_on_a_rerun_leaves_the_count_as_1708_s_183801_did(launched):
+    """#1708 (2026-11-11): 183801fb1e1d failed `borders` in run 43133375334 and passed it on rerun
+    43134853007 at the same head, yet stayed counted, so 8288b1b565ca's failure, a test #1702 added
+    to main, made two and held the row. A head green at every required check leaves the count."""
+    first, second = ("183801fb1e1d" + "0" * 28, "8288b1b565ca" + "0" * 28)
+    (launched.home / "required-checks").write_text("check\nborders\n")
+    checked(launched, **{GREEN: "green"})
+    passed = {**failed("31"), "conclusion": "SUCCESS"}
+    launched.set("logs.json", {"32": merged(first, GREEN), "33": merged(second, GREEN)})
+    launched.set("open.json", [pull(launched, [passed, failed("32", "borders")], head=first)])
+    passes(launched, 0)
+    assert list(fails(launched)["heads"]) == [first]
+
+    rerun = {**failed("34", "borders"), "conclusion": "SUCCESS"}
+    launched.set("open.json", [pull(launched, [passed, rerun], head=first)])
+    passes(launched, 3)
+    assert fails(launched)["heads"] == {}
+
+    launched.set("open.json", [pull(launched, [failed("33"), rerun], head=second)])
+    passes(launched, 6)
+    assert list(fails(launched)["heads"]) == [second]
+    assert not rows(launched)["alpha"].get("held")
+    assert not pages(launched)
