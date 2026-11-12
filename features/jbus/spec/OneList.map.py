@@ -137,19 +137,34 @@ def state(v, facts):
 
 
 def group(v, facts):
+    # A gate's phase: its Status line, and where it is, gates.md or gates-moved.md, with an open
+    # gate the handoff asked again under the catch-all's key apart, and apart again where its
+    # first question still stands. Whether it is on your list is in each state's words.
     if v["scene"] == "marks":
         return "What a home has read"
     if v["scene"] == "alerts":
         return "Alerts and holds"
     if v["entry"] == "none":
         return "No gate yet"
-    return "On your list" if "gate" in v["listed"] else "Off your list"
+    if not v["moved"]:
+        return f"{v['status'].capitalize()} in gates.md"
+    if v["status"] == "open" and v["question"]["catchall"] != "none":
+        if v["question"]["asker"] == "none":
+            return "Open, asked again by the catch-all"
+        return "Open, asked twice"
+    return f"{v['status'].capitalize()}, moved aside"
 
 
 group_colors = {
     "No gate yet": "#ffffff",
-    "On your list": "#fdebd0",
-    "Off your list": "#d1f2eb",
+    "Open in gates.md": "#fdebd0",
+    "Open, moved aside": "#fad7a0",
+    "Open, asked again by the catch-all": "#f5b7b1",
+    "Open, asked twice": "#fdedec",
+    "Answered in gates.md": "#d1f2eb",
+    "Answered, moved aside": "#a3e4d7",
+    "Done in gates.md": "#d6eaf8",
+    "Done, moved aside": "#aed6f1",
     "What a home has read": "#eaf2f8",
     "Alerts and holds": "#e8daef",
 }

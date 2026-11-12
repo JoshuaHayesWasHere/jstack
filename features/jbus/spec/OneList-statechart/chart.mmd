@@ -1,5 +1,4 @@
 ---
-title: "Does a gate reach my list, and leave it once I answer?"
 config:
   markdownAutoWrap: false
   state:
@@ -9,15 +8,33 @@ stateDiagram-v2
   classDef plain fill:#f4f6f7,stroke:#566573,color:#1b2631
   classDef group0 fill:#ffffff,stroke:#808080,color:#1b2631
   classDef group1 fill:#fdebd0,stroke:#7f7668,color:#1b2631
-  classDef group2 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group2 fill:#fad7a0,stroke:#7d6c50,color:#1b2631
+  classDef group3 fill:#f5b7b1,stroke:#7b5c59,color:#1b2631
+  classDef group4 fill:#fdedec,stroke:#7f7776,color:#1b2631
+  classDef group5 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group6 fill:#a3e4d7,stroke:#52726c,color:#1b2631
+  classDef group7 fill:#d6eaf8,stroke:#6b757c,color:#1b2631
+  classDef group8 fill:#aed6f1,stroke:#576b79,color:#1b2631
   state "Legend" as legend {
     state "No gate yet" as legendGroup0
-    state "On your list" as legendGroup1
-    state "Off your list" as legendGroup2
+    state "Open in gates.md" as legendGroup1
+    state "Open, moved aside" as legendGroup2
+    state "Open, asked again by the catch-all" as legendGroup3
+    state "Open, asked twice" as legendGroup4
+    state "Answered in gates.md" as legendGroup5
+    state "Answered, moved aside" as legendGroup6
+    state "Done in gates.md" as legendGroup7
+    state "Done, moved aside" as legendGroup8
   }
   class legendGroup0 group0
   class legendGroup1 group1
   class legendGroup2 group2
+  class legendGroup3 group3
+  class legendGroup4 group4
+  class legendGroup5 group5
+  class legendGroup6 group6
+  class legendGroup7 group7
+  class legendGroup8 group8
   state "At the same time" as regions {
     [*] --> r0s0
     [*] --> r0s3
@@ -188,68 +205,68 @@ stateDiagram-v2
   class r0s2 plain
   class r0s3 plain
   class r1s0 group0
-  class r1s1 group2
-  class r1s2 group1
-  class r1s3 group2
-  class r1s4 group2
-  class r1s5 group1
-  class r1s6 group1
-  class r1s7 group2
-  class r1s8 group2
-  class r1s9 group1
-  class r1s10 group2
-  class r1s11 group1
-  class r1s12 group2
-  class r1s13 group2
-  class r1s14 group1
-  class r1s15 group1
-  class r1s16 group2
-  class r1s17 group2
-  class r1s18 group1
-  class r1s19 group2
-  class r1s20 group1
-  class r1s21 group2
-  class r1s22 group2
-  class r1s23 group1
-  class r1s24 group1
-  class r1s25 group2
-  class r1s26 group2
-  class r1s27 group1
-  class r1s28 group2
-  class r1s29 group1
-  class r1s30 group2
-  class r1s31 group2
-  class r1s32 group1
-  class r1s33 group1
-  class r1s34 group2
-  class r1s35 group2
-  class r1s36 group1
-  class r1s37 group2
-  class r1s38 group1
-  class r1s39 group2
-  class r1s40 group1
-  class r1s41 group2
-  class r1s42 group2
-  class r1s43 group1
-  class r1s44 group2
-  class r1s45 group1
-  class r1s46 group2
+  class r1s1 group6
+  class r1s2 group6
+  class r1s3 group6
+  class r1s4 group6
+  class r1s5 group6
+  class r1s6 group6
+  class r1s7 group6
+  class r1s8 group6
+  class r1s9 group6
+  class r1s10 group5
+  class r1s11 group5
+  class r1s12 group5
+  class r1s13 group5
+  class r1s14 group5
+  class r1s15 group5
+  class r1s16 group5
+  class r1s17 group5
+  class r1s18 group5
+  class r1s19 group8
+  class r1s20 group8
+  class r1s21 group8
+  class r1s22 group8
+  class r1s23 group8
+  class r1s24 group8
+  class r1s25 group8
+  class r1s26 group8
+  class r1s27 group8
+  class r1s28 group7
+  class r1s29 group7
+  class r1s30 group7
+  class r1s31 group7
+  class r1s32 group7
+  class r1s33 group7
+  class r1s34 group7
+  class r1s35 group7
+  class r1s36 group7
+  class r1s37 group3
+  class r1s38 group3
+  class r1s39 group3
+  class r1s40 group3
+  class r1s41 group3
+  class r1s42 group4
+  class r1s43 group4
+  class r1s44 group4
+  class r1s45 group4
+  class r1s46 group4
   class r1s47 group2
-  class r1s48 group1
-  class r1s49 group2
-  class r1s50 group1
-  class r1s51 group2
-  class r1s52 group1
+  class r1s48 group2
+  class r1s49 group4
+  class r1s50 group4
+  class r1s51 group4
+  class r1s52 group4
   class r1s53 group2
-  class r1s54 group1
-  class r1s55 group2
-  class r1s56 group2
-  class r1s57 group2
+  class r1s54 group2
+  class r1s55 group4
+  class r1s56 group4
+  class r1s57 group4
   class r1s58 group2
-  class r1s59 group2
+  class r1s59 group1
   class r1s60 group1
-  class r1s61 group2
+  class r1s61 group1
   class r1s62 group1
-  class r1s63 group2
-  class r1s64 group2
+  class r1s63 group1
+  class r1s64 group1
   class r1s65 group1

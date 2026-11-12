@@ -16,14 +16,44 @@
       "states": 1
     },
     {
-      "name": "On your list",
+      "name": "Open in gates.md",
       "color": "#fdebd0",
-      "states": 27
+      "states": 7
     },
     {
-      "name": "Off your list",
+      "name": "Open, moved aside",
+      "color": "#fad7a0",
+      "states": 5
+    },
+    {
+      "name": "Open, asked again by the catch-all",
+      "color": "#f5b7b1",
+      "states": 5
+    },
+    {
+      "name": "Open, asked twice",
+      "color": "#fdedec",
+      "states": 12
+    },
+    {
+      "name": "Answered in gates.md",
       "color": "#d1f2eb",
-      "states": 38
+      "states": 9
+    },
+    {
+      "name": "Answered, moved aside",
+      "color": "#a3e4d7",
+      "states": 9
+    },
+    {
+      "name": "Done in gates.md",
+      "color": "#d6eaf8",
+      "states": 9
+    },
+    {
+      "name": "Done, moved aside",
+      "color": "#aed6f1",
+      "states": 9
     }
   ],
   "mixedGroups": [],
@@ -45,12 +75,12 @@
     "a pass that cannot ask GitHub"
   ],
   "drawnFrom": {
-    "command": "statechart from-spec OneList.tla --config OneList.chart.cfg --title 'Does a gate reach my list, and leave it once I answer?' --expect-broken AnsweredLeaves,ListIsTrue --png",
+    "command": "statechart from-spec OneList.tla --config OneList.chart.cfg --expect-broken AnsweredLeaves,ListIsTrue --png",
     "inputs": {
       "OneList.chart.cfg": "6298662483d005cc078ade9d2c441114b07b0808368ccb1b290802611455e8cb",
-      "OneList.map.py": "3e2d56d7cacff4bdd29ec52a0fbf39eadd2d119bd7a54ef67440eefa9f54e1d2",
+      "OneList.map.py": "dd8a4233af90a287899d3968869ce8b02089fc610f4db3fce2a03e202a8c2c79",
       "OneList.tla": "7e52bffa1443ab9c5dbbb2b26a85ecc6ec3bb4b6f328457bcaee1c248f796138"
     },
-    "chart": "b526f684613c63627d65a83eede8db83337f432f1cc51e7c9331ca9291362bce"
+    "chart": "ac7d962b780b69645074af46e88140100c4d6337e0733b1db883019a7237e3fb"
   }
 }
