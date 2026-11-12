@@ -13,7 +13,7 @@ A pass launches a row only when all of these hold:
 
 Rows launch in this order (`queue.order`):
 
-1. The lowest priority first, counting the priority a row inherits: a row named by the `Waits on:` line of a paused row's last Result, or by the `depends` of a row already launched, takes the lowest priority of the rows waiting on it, down any chain of such waits.
+1. The lowest priority first, counting the priority a row inherits: a row named by the `Waits on:` line of a row's last Result, or by the `depends` of a row already launched, takes the lowest priority of the rows waiting on it, down any chain of such waits.
    A row that is over, or whose thread is archived, lifts nothing.
 2. Among rows of one priority, the one that has waited longest: the oldest `since`, the time its present `why` first held.
    A row with no `why` yet comes last.

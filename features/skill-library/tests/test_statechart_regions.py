@@ -78,6 +78,135 @@ def test_a_count_is_only_on_what_a_log_records(tmp_path):
     }
 
 
+def _log(path, lines):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(map(json.dumps, lines)) + "\nnot json\n")
+
+
+def _moves(slug, at, *steps, by=None):
+    """One line of transitions.jsonl per (from, to), an hour apart from `at`, `by` on the last."""
+    out = [
+        {"slug": slug, "from": f, "to": t, "at": f"2026-11-0{at}T{i:02d}:00:00+00:00"}
+        for i, (f, t) in enumerate(steps)
+    ]
+    if by:
+        out[-1]["by"] = by
+    return out
+
+
+def _revert(line):
+    return {"at": "2026-11-02T20:12:03+00:00", "event": "revert", "line": line, "slug": "x"}
+
+
+@pytest.fixture
+def logs(tmp_path):
+    """A state folder with two projects, as jbus writes it: each project's events.jsonl and
+    transitions.jsonl, and jstack's main-reds.jsonl, each with a line that does not parse."""
+    url = "https://github.com/o/r/pull/9"
+    _log(
+        tmp_path / "jstack" / "main-reds.jsonl",
+        [
+            {"at": "2026-11-01T00:00:00+00:00", "sha": "a", "after": "g0", "verdict": "x"},
+            {"at": "2026-11-01T01:00:00+00:00", "sha": "a", "green": "g1", "prs": [], "cause": ""},
+            {"at": "2026-11-03T00:00:00+00:00", "sha": "b", "green": "g2", "prs": [], "cause": ""},
+        ],
+    )
+    _log(
+        tmp_path / "jstack" / "events.jsonl",
+        [
+            _revert(f"revert a: main red at 52b82e7170f8, jbus opened {url} to revert it"),
+            _revert(f"revert b: main's macOS red at fb38874a515a, jbus opened {url} to revert it"),
+            _revert(f"revert a: every check holding it passed, jbus closed {url}"),
+            {"event": "item.proposed", "line": f"x: main red at 1, jbus opened {url}"},
+        ],
+    )
+    _log(
+        tmp_path / "other" / "events.jsonl",
+        [_revert(f"revert c: main red at 0123456789ab, jbus opened {url} to revert it")],
+    )
+    _log(
+        tmp_path / "jstack" / "transitions.jsonl",
+        _moves(
+            "main-red-abc1234",
+            1,
+            ("queued", "launched"),
+            ("launched", "running"),
+            ("running", "pr"),
+            ("pr", "merged"),
+        )
+        + _moves("main-red-def5678", 2, ("queued", "removed"), by="jbus")
+        + _moves("main-red-0123456", 2, ("queued", "removed"), by="JoshuaHayesWasHere")
+        + [{"slug": "bad", "from": "nowhere", "to": "queued", "at": "2026-11-01T00:00:00Z"}],
+    )
+    _log(
+        tmp_path / "other" / "transitions.jsonl",
+        _moves("main-red-abc1234", 3, ("queued", "launched"))
+        + _moves(
+            "feature-x",
+            4,
+            ("queued", "gate"),
+            ("gate", "queued"),
+            ("queued", "launched"),
+            ("launched", "running"),
+            ("running", "stale"),
+            ("stale", "queued"),
+            ("queued", "launched"),
+            ("launched", "running"),
+            ("running", "pr"),
+            ("pr", "done"),
+        ),
+    )
+    return tmp_path
+
+
+def test_mainred_counts_each_revert_fix_row_and_green_line_on_its_arrow(logs):
+    """A revert event counts on its opener's arrow, a fix row (main-red-<commit>, one per
+    project) on each arrow it took, a removal only when jbus made it, and a green line of
+    main-reds.jsonl on the way out of a red."""
+    m = load_mapping(SPEC / "MainRed.map.py")
+    seen = m.seen(logs)
+    assert {k: n for k, (n, _) in seen.items()} == {
+        ("main", "red_newer", "green", "pass"): 2,
+        ("rev", "none", "open", "opens_main"): 2,
+        ("rev", "none", "open", "opens_mac"): 1,
+        ("rev", "open", "closed", "pass_closes"): 1,
+        ("fix", "none", "queued", "pass"): 4,
+        ("fix", "queued", "launched", "launches"): 2,
+        ("fix", "launched", "pr", "opens"): 1,
+        ("fix", "pr", "merged", "merges"): 1,
+        ("fix", "queued", "withdrawn", "pass"): 1,
+    }
+    assert set(seen) <= set(m.arrows), "a count on a key with no arrow shows on no page"
+
+
+def test_rowlife_counts_each_move_on_its_arc_or_cell_and_a_queued_after_a_launch_as_requeued(
+    logs,
+):
+    """A row that went back to queued from a question has not launched, so it is still Not
+    launched; one that went back from stale is queued again, inside At work."""
+    m = load_mapping(SPEC / "RowLife.map.py")
+    seen = m.seen(logs)
+    assert {k: n for k, (n, _) in seen.items()} == {
+        ("status", "notlaunched", "question"): 1,
+        ("status", "question", "notlaunched"): 1,
+        ("status", "notlaunched", "atwork"): 3,
+        ("status", "notlaunched", "removed"): 2,
+        ("status", "atwork", "review"): 2,
+        ("status", "review", "final"): 2,
+        ("status", "atwork", "atwork", "launched>running"): 3,
+        ("status", "atwork", "atwork", "running>stale"): 1,
+        ("status", "atwork", "atwork", "stale>requeued"): 1,
+        ("status", "atwork", "atwork", "requeued>launched"): 1,
+    }
+    arcs = {key[:3] for key in m.arrows}
+    for key in seen:
+        if len(key) == 3:
+            assert key in arcs, f"{key} has no arc to carry its count"
+        else:
+            lane, box, _, cell = key
+            assert set(cell.split(">")) <= set(m.lanes[lane]["chips"][box]), key
+
+
 LAMP = SimpleNamespace(
     lanes={
         "lamp": {

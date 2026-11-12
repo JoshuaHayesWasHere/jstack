@@ -36,7 +36,7 @@ def paused(tmp_path, monkeypatch):
 
 
 def carry_ons(kitchen):
-    return [given for given in asks(kitchen) if given["clientRequestId"].startswith("paused-on|")]
+    return [given for given in asks(kitchen) if given["clientRequestId"].startswith("waits|")]
 
 
 def crew_of(kitchen, slug):
@@ -96,9 +96,9 @@ def test_a_carry_on_t3_code_refused_goes_on_a_later_pass(paused):
 
     paused.t3.refuse_send = False
     said = paused.poll(NOW + timedelta(minutes=3))
-    assert "told three: one, two landed, the rows it waits on" in said
-    keys = {given["clientRequestId"] for given in carry_ons(paused)}
-    assert keys == {"paused-on|three|one|two"}
+    assert "told three: one, two landed, what it waits on" in said
+    keys = {given["clientRequestId"].rpartition("|")[0] for given in carry_ons(paused)}
+    assert keys == {"waits|three|one,two"}
 
 
 def test_a_waits_on_line_with_a_word_that_is_no_queued_row_sends_no_carry_on(paused):

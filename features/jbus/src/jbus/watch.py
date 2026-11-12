@@ -67,7 +67,7 @@ from jbus import (
 )
 from jbus.judged import Said, parse
 from jbus.launches import records
-from jbus.mirror import last_result, paused_on, sections
+from jbus.mirror import PULL, last_result, sections, waits_on
 from jbus.passes import Changed, Depends, Pass, Red, Rerun, Slot, side_by_side
 from jbus.pulls import OPEN
 from jbus.pulls import read as read_open
@@ -347,16 +347,18 @@ class Missed:
     (the open list) and the last hundred merged, so a slug seen open is asked again once it is
     gone from both. A slug's answer is kept for `UNMERGED_FOR`, and only for what was asked: its
     branch, or the address its brief names (`by`), so a brief that names a new address is asked
-    again at once.
+    again at once. A pull request a `Waits on:` line names by number is kept as `#<n>`, and is
+    asked again the same way once it was seen open.
     """
 
     def __init__(self, run: Pass, world: World) -> None:
         self.path, self.now = run.state / UNMERGED, run.now
         self.was: dict[str, dict[str, str]] = read_json(self.path, {})
+        opened = set(world.open) | {f"#{pull.get('number')}" for pull in world.open.values()}
         self.known = {
             slug: one
             for slug, one in self.was.items()
-            if slug not in world.open and self.now - when(one["at"]) < UNMERGED_FOR
+            if slug not in opened and self.now - when(one["at"]) < UNMERGED_FOR
         }
 
     def knows(self, slug: str, by: str) -> bool:
@@ -407,7 +409,9 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     `merged.json` of the project's state, a record of the merges written on each one. When the
     queue names a slug that is in neither, `look` asks GitHub for it by name, and keeps the merge
     it finds that way too, so the slug stays merged. It keeps a slug it found no merge for too
-    (`Missed`), and does not ask for it again on each pass.
+    (`Missed`), and does not ask for it again on each pass. A pull request that a Result's
+    `Waits on:` line names by its number, `#<n>`, is asked for the same way, once a pass at most
+    (`_numbered`).
 
     A merge moves its base branch, so `look` asks for the merged list only when a base branch
     moved since it last did (`base_tips`, kept in `BASES`), or git gave no tips. Otherwise the
@@ -470,7 +474,9 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
     kept: dict[str, dict[str, Any]] = read_json(run.state / "merged.json", {})
     queued = {row["slug"] for row in rows}
     named = {slug for row in rows for slug in (row["slug"], *row.get("depends", []))}
-    named |= {one for result in world.results.values() for one in paused_on(result, queued)}
+    named |= {one for result in world.results.values() for one in waits_on(result, queued)}
+    numbers = {one for one in named if PULL.fullmatch(one)}
+    named -= numbers
     tips = base_tips(run)
     unmoved = tips is not None and read_json(run.state / BASES, None) == tips
     try:
@@ -507,12 +513,50 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
                 kept[slug] = found[0]
                 write_json(run.state / "merged.json", kept)
             world.merged[slug] = kept[slug]
+        _numbered(run, world, kept, numbers, missed, slug_of)
         missed.keep()
     except Silent as silent:
         run.say(f"wait {run.project.name}: could not ask GitHub{silent}")
         said = str(silent).removeprefix(": ")
         return Look(out=out, spent=said if allowance.is_named(said) else spent, left=left)
     return Look(world, out, spent=spent, left=left)
+
+
+def _numbered(
+    run: Pass,
+    world: World,
+    kept: dict[str, dict[str, Any]],
+    numbers: set[str],
+    missed: Missed,
+    slug_of: dict[str, str],
+) -> None:
+    """Find the merge of each pull request a `Waits on:` line names by number, `#<n>`, that is
+    not open: in `merged.json` by its number, or else by asking GitHub for it once, as `look`
+    asks after a named slug, under the slug its brief ties it to or its branch's name. A number
+    GitHub found no merge for is `Missed` under `#<n>`, so it is not asked again on each pass. A
+    found merge goes into `world.merged` on every pass, so `final` names it however many merges
+    came after it, and it never takes the place of a merge `merged.json` keeps under that name."""
+    if not numbers:
+        return
+    opened = {f"#{pull.get('number')}" for pull in world.open.values()}
+    by_number = {f"#{pull.get('number')}": (slug, pull) for slug, pull in kept.items()}
+    for number in sorted(numbers - opened):
+        if number in by_number:
+            slug, pull = by_number[number]
+            world.merged.setdefault(slug, pull)
+            continue
+        if missed.knows(number, ""):
+            continue
+        found = _named(run, number[1:])
+        if not found:
+            missed.add(number, "")
+            continue
+        pull = found[0]
+        slug = slug_of.get(pull.get("url", "").rstrip("/"), pull.get("headRefName") or number)
+        slug = number if slug in kept else slug
+        kept[slug] = pull
+        write_json(run.state / "merged.json", kept)
+        world.merged.setdefault(slug, pull)
 
 
 def checks(pull: dict[str, Any]) -> str:
@@ -868,7 +912,18 @@ def final(run: Pass, world: World | None, rows: list[dict[str, Any]]) -> frozens
     if world is None:
         return over
     merged = set(world.merged) - set(world.open)
-    return frozenset(over | merged | reported(run, rows))
+    return frozenset(over | merged | landed_pulls(world) | reported(run, rows))
+
+
+def landed_pulls(world: World) -> set[str]:
+    """The pull requests GitHub says merged, each by its number, `#<n>`, as a `Waits on:` line
+    names one (`mirror.waits_on`), less any number open now."""
+    opened = {pull.get("number") for pull in world.open.values()}
+    return {
+        f"#{pull['number']}"
+        for pull in world.merged.values()
+        if pull.get("number") and pull["number"] not in opened
+    }
 
 
 def reported(run: Pass, rows: list[dict[str, Any]]) -> frozenset[str]:
