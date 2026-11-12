@@ -1,9 +1,10 @@
 """A crew's proof, review round and rebase as a TLA+ spec, `features/crew/spec/CrewProof.tla`:
 each quote of the code it models stands once in its file, each carrier of the ledger is a
 variable, and TLC gives the verdicts `CrewProof.cfg` keeps in its comments: today's code holds
-ProofAtHead and breaks RebaseRecorded with the trace the cfg names, each rule alone breaks or holds as the cfg says, and
-the canary `Fault = "line-before-run"` breaks ProofAtHead where today's code, with no call moved
-to the background, holds it. The TLC runs skip where no Java runs TLC."""
+ProofAtHead and breaks RebaseRecorded with the trace the cfg names, each rule alone breaks or
+holds as the cfg says, and the canary `Fault = "line-before-run"` breaks ProofAtHead where
+today's code, with no call moved to the background, holds it. The TLC runs skip where no Java
+runs TLC."""
 
 import importlib
 import re
