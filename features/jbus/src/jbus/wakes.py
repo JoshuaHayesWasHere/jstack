@@ -424,11 +424,8 @@ def owed_items(run: Pass, rows: list[queue.Row]) -> list[Item]:
             flag = f" --scope {made.scope}" if made.scope else ""
             text = OWED.format(entry=made.entry, plan=where, user=run.user.user, scope=flag)
         else:
-            given = plan.said_when(run.user, made)
-            ago = (
-                f"{max(0, int((run.now - given).total_seconds() // 60))} min ago, " if given else ""
-            )
-            line = f"{key}: go {made.said_at}, {ago}no row yet"
+            ago = max(0, int((run.now - plan.said_when(run.user, made)).total_seconds() // 60))
+            line = f"{key}: go {made.said_at}, {ago} min ago, no row yet"
             text = UNROWED.format(
                 entry=made.entry, plan=where, user=run.user.user, said_at=made.said_at
             )

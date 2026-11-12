@@ -662,13 +662,10 @@ def owed(state: Path, home: Path, rows: list[queue.Row]) -> list[Go]:
     return found
 
 
-def said_when(user: jsettings.Settings, made: Go) -> datetime | None:
-    """The moment the user gave the go, read back from its `said_at`, as `stamp` wrote it in the
-    user's zone, or None for a go whose time does not read."""
-    try:
-        return user.local(datetime.strptime(made.said_at[:16], "%Y-%m-%d %H:%M"))
-    except ValueError:
-        return None
+def said_when(user: jsettings.Settings, made: Go) -> datetime:
+    """The moment the user gave the go, read back from its `said_at`, which `go` wrote with
+    `user.stamp`, to the minute."""
+    return user.local(datetime.strptime(made.said_at[:16], "%Y-%m-%d %H:%M"))
 
 
 def owed_key(made: Go) -> str:
