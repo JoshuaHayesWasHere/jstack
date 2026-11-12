@@ -61,6 +61,12 @@ stateDiagram-v2
     %% when not r1s1, r1s9, r1s12, r1s35, r1s36, r1s37
     r0s4 --> r0s6 : the row is left, and its home<br/>has no thread: it is yours<br/>[when a Result paused on other<br/>rows or a Result that leaves<br/>something or its turn<br/>completed, no Result or its<br/>turn completed, no Result, 1<br/>of 2 carry-ons sent or its<br/>turn completed, no Result, 2<br/>of 2 carry-ons sent or its<br/>turn is hung, no Result or its<br/>turn is hung, no Result, 1 of<br/>2 carry-ons sent or its turn<br/>is hung, no Result, 2 of 2<br/>carry-ons sent or its turn was<br/>rolled back, no Result or its<br/>turn was rolled back, no<br/>Result, 1 of 2 carry-ons sent<br/>or its turn was rolled back,<br/>no Result, 2 of 2 carry-ons<br/>sent]
     %% when r1s0, r1s2, r1s14, r1s15, r1s16, r1s20, r1s21, r1s22, r1s32, r1s33, r1s34
+    r0s6 --> r0s5 : jbus archives the thread [when<br/>a Result that ends it or its<br/>pull request merged or closed]
+    %% when r1s1, r1s12
+    r0s6 --> r0s5 : jbus settles the thread, its<br/>work held [when a Result that<br/>ends it or its pull request<br/>merged or closed]
+    %% when r1s1, r1s12
+    r0s6 --> r0s1 : jbus tells the home the crew<br/>stopped after two carry-ons<br/>[when its turn failed, no<br/>Result, 2 of 2 carry-ons sent]
+    %% when r1s19
     --
     [*] --> r1s38
     state "a Result paused on other<br/>rows" as r1s0
@@ -114,10 +120,14 @@ stateDiagram-v2
     state "the reply is lost, T3 Code<br/>made the thread" as r1s48
     state "the reply is lost, the<br/>connection dropped, T3<br/>Code made no thread" as r1s49
     state "the reply is lost, the<br/>connection dropped, T3<br/>Code made the thread" as r1s50
+    r1s0 --> r1s2 : the turn ends
     r1s1 --> r1s11 : jbus archives the thread
     r1s1 --> r1s42 : jbus settles the thread, its<br/>work held
     r1s3 --> r1s9 : jbus tells the crew once to<br/>open its pull request
+    r1s5 --> r1s9 : the turn writes again
     r1s6 --> r1s5 : 20 min with nothing written
+    r1s7 --> r1s9 : you answer its request
+    r1s8 --> r1s9 : jbus wakes it: a test slot is<br/>free
     r1s9 --> r1s6 : 10 min with nothing written
     r1s9 --> r1s7 : the crew asks you something
     r1s9 --> r1s4 : the turn ends
@@ -128,12 +138,19 @@ stateDiagram-v2
     r1s13 --> r1s12 : the pull request merges or<br/>closes
     r1s17 --> r1s36 : jbus tells the crew to carry<br/>on
     r1s18 --> r1s37 : jbus tells the crew to carry<br/>on
+    r1s20 --> r1s35 : the turn writes again
+    r1s21 --> r1s36 : the turn writes again
+    r1s22 --> r1s37 : the turn writes again
     r1s23 --> r1s20 : 20 min with nothing written
     r1s23 --> r1s35 : the turn writes again
     r1s24 --> r1s21 : 20 min with nothing written
     r1s25 --> r1s22 : 20 min with nothing written
     r1s26 --> r1s35 : you answer its request
+    r1s27 --> r1s36 : you answer its request
+    r1s28 --> r1s37 : you answer its request
     r1s29 --> r1s35 : jbus wakes it: a test slot is<br/>free
+    r1s30 --> r1s36 : jbus wakes it: a test slot is<br/>free
+    r1s31 --> r1s37 : jbus wakes it: a test slot is<br/>free
     r1s35 --> r1s23 : 10 min with nothing written
     r1s35 --> r1s26 : the crew asks you something
     r1s35 --> r1s14 : the turn ends
@@ -158,7 +175,9 @@ stateDiagram-v2
     r1s37 --> r1s34 : the turn ends
     r1s37 --> r1s31 : the turn ends waiting on a<br/>test slot
     r1s38 --> r1s44 : jbus writes the launch record
+    r1s39 --> r1s10 : jbus archives the thread
     r1s40 --> r1s39 : jbus clears its scratch
+    r1s41 --> r1s39 : the work held closes
     r1s42 --> r1s41 : jbus clears its scratch
     r1s42 --> r1s40 : the work held closes
     r1s44 --> r1s47 : no reply, or one that names no<br/>thread
