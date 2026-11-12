@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from jbus.health import PREFIX
-from test_verify_jstack import SCRIPTS, inside, launch, says
+from test_verify_jstack import BUILT, SCRIPTS, inside, launch, says
 
 GATE = """## Gate <n>: tea or coffee?
 Status: open
@@ -50,7 +50,13 @@ def sandbox(tmp_path_factory):
 @pytest.fixture
 def demo(sandbox):
     """The sandbox with the demo project's jbus state and home state emptied, and one pass run, so
-    each test starts on a project jbus has seen once and has posted nothing for. That pass pages
+    each test starts on a project jbus has seen once and has posted nothing for (`fresh`)."""
+    fresh(sandbox)
+    return sandbox
+
+
+def fresh(sandbox):
+    """Empty the demo project's jbus state and home state, and run one pass. That pass pages
     each reading of the host past its limit, a full disk say: the page is the host's and not the
     project's, so the test starts once it is out, with no five-minute gap after it to wait on."""
     root = sandbox.parent
@@ -66,7 +72,18 @@ def demo(sandbox):
         threads.write_text(json.dumps([one | {"settled": True} for one in kept]))
     assert run(sandbox, "jbus poll").returncode == 0
     assert posted(sandbox) == []
-    return sandbox
+
+
+def writers(root):
+    """The processes a pass in the sandbox `root` started and left running, each writing into
+    its state folder: the scorecard's build and jmerge's run (`jbus.telemetry.start`,
+    `jbus.merge.start`), both named on their command line by a path in that folder."""
+    ps = subprocess.run(["ps", "-A", "-ww", "-o", "pid=,stat=,command="], capture_output=True)
+    rows = (line.split(None, 2) for line in ps.stdout.decode().splitlines())
+    inside = f"{root / 'state'}/"
+    return [
+        int(pid) for pid, stat, command in rows if not stat.startswith("Z") and inside in command
+    ]
 
 
 def run(sandbox, command, stdin=None):
@@ -424,3 +441,19 @@ def test_a_fix_whose_own_check_failed_is_not_at_work_and_the_next_try_then_the_c
         "Reply: reply in your own words to take check:rho on yourself or say what to do instead"
         in line
     )
+
+
+def test_the_state_is_emptied_only_once_no_pass_writes_into_it(demo):
+    """A pass leaves the scorecard's build and jmerge's run going after it ends, and either one
+    that writes after the state folder is emptied makes it again: the next `fresh` then failed to
+    make it, with FileExistsError. A `jmerge` that takes two seconds holds each pass's run in that
+    window, and `fresh` waits it out and hands over a sandbox no pass writes into."""
+    jmerge = demo.parent / "stub" / "jmerge"
+    jmerge.write_text(f'#!/bin/sh\nsleep 2\nexec "{BUILT / "jmerge"}" "$@"\n')
+    jmerge.chmod(0o755)
+    try:
+        assert run(demo, "jbus poll").returncode == 0
+        fresh(demo)
+        assert writers(demo.parent) == []
+    finally:
+        jmerge.unlink()
