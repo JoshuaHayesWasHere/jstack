@@ -74,7 +74,16 @@ class Red:
     main nor launches stacked on an open row (`dispatch.Turns._ready`)."""
 
 
-Reason = Changed | Depends | Slot | Rerun | Red
+@dataclass(frozen=True)
+class Hot:
+    """A `Hot` is a row that waits on `slug`, a row out, since both name `file`, a hot file
+    (`jbus.hotfiles`)."""
+
+    file: str
+    slug: str
+
+
+Reason = Changed | Depends | Slot | Rerun | Red | Hot
 
 
 @dataclass
@@ -107,7 +116,8 @@ class Pass:
 
     `answers` is what GitHub answered `watch._api` this pass, by its path, and `tip` is main's tip
     as `git ls-remote` gave it, so a pass asks each once. Both hold only until the pass runs a
-    command that may change something (`reads`): then the next asker asks again.
+    command that may change something (`reads`): then the next asker asks again. `hot` is the
+    project's hot files, once a launch has asked for them (`jbus.hotfiles.hot`), or None before.
     """
 
     config: Config
@@ -126,6 +136,7 @@ class Pass:
     briefs: dict[Path, tuple[tuple[int, int], str]] = field(default_factory=dict)
     answers: dict[str, Any] = field(default_factory=dict)
     main: str | None = None
+    hot: frozenset[str] | None = None
 
     def __post_init__(self) -> None:
         self.state = self.config.state(self.project)

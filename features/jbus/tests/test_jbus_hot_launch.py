@@ -10,7 +10,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import queue, rebase, wake
+from jbus import rebase, wake
 from repo_template import IDENTITY
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import add, brief, rows
@@ -106,6 +106,14 @@ def launched(kitchen):
     return [title.removeprefix("crew: ") for title in crews]
 
 
+def crew(kitchen, slug, status):
+    """Set the status of the thread jbus launched for `slug`'s crew."""
+    (thread,) = (one for one in kitchen.t3.threads if one["title"] == f"crew: {slug}")
+    thread["status"] = status
+    if status != "running":
+        kitchen.t3.at_work.discard(thread["threadId"])
+
+
 def test_two_rows_naming_one_hot_file_launch_one_at_a_time(kitchen):
     conflicts(kitchen, HOT, 3)
     queue_two(kitchen)
@@ -121,11 +129,11 @@ def test_the_held_row_waits_while_the_first_runs_and_while_its_pull_request_is_o
     conflicts(kitchen, HOT, 3)
     queue_two(kitchen)
     kitchen.poll()
-    kitchen.t3.thread("alpha", "running")
+    crew(kitchen, "alpha", "running")
     kitchen.poll(NOW + timedelta(minutes=3))
     assert launched(kitchen) == ["alpha"] and rows(kitchen)["beta"]["why"] == WAITS
 
-    kitchen.t3.thread("alpha", "completed")
+    crew(kitchen, "alpha", "completed")
     kitchen.set("open.json", [kitchen.opened("alpha", 7)])
     kitchen.poll(NOW + timedelta(minutes=6))
     assert launched(kitchen) == ["alpha"] and rows(kitchen)["beta"]["why"] == WAITS
@@ -142,7 +150,9 @@ def test_the_held_row_launches_on_the_pass_after_the_first_is_removed(kitchen):
     kitchen.poll()
     assert launched(kitchen) == ["alpha"]
 
-    assert remove(kitchen, "alpha")[0] == 0
+    crew(kitchen, "alpha", "interrupted")
+    code, said = remove(kitchen, "alpha")
+    assert code == 0, said
     kitchen.poll(NOW + timedelta(minutes=3))
 
     assert launched(kitchen) == ["alpha", "beta"]
