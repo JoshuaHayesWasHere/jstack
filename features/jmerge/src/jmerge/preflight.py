@@ -143,13 +143,14 @@ class Preflight:
         on = record.get("on")
         if not isinstance(on, dict):
             on = record["on"] = {}
-        def owed(row: ready.PullRequest) -> bool:
+
+        def current(row: ready.PullRequest) -> bool:
             seen = on.get(str(row.number))
             return isinstance(seen, dict) and seen.get("head") == row.head
 
-        for other in sorted(rows, key=lambda row: (owed(row), row.number)):
+        for other in sorted(rows, key=lambda row: (current(row), row.number)):
             seen = on.get(str(other.number)) or {}
-            if owed(other) and seen.get("said") not in AGAIN:
+            if current(other) and seen.get("said") not in AGAIN:
                 continue
             if not self.room():
                 break
