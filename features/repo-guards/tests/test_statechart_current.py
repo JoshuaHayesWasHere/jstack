@@ -9,17 +9,22 @@ one of them changed or is gone, or when `chart.mmd` is not the one the command d
 
 It compares hashes and never runs TLC: FlowToday alone takes about 7M states and 14 GB to draw,
 which no check can afford.
+
+What `make charts` draws from those charts, the charts page and each chart's PNG and Excalidraw
+scene, stays out of git: every chart change rewrites them, git cannot merge them, and two pull
+requests that each drew a chart would conflict over them though their charts do not overlap.
 """
 
 import hashlib
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
 
 from testing.paths import REPO
 
-READ_SET = ("features/*/spec/",)
+READ_SET = ("features/*/spec/", "features/home/docs/charts/", ".gitignore")
 CHARTS = sorted(REPO.glob("features/*/spec/*-statechart"))
 
 
@@ -48,4 +53,25 @@ def test_each_chart_was_drawn_from_its_spec_as_it_is_now(chart):
     assert not changed, (
         f"{folder} was drawn from files that have changed since: {'; '.join(changed)}."
         f" Draw it again: in {folder.parent}, run {drawn['command']}{recipe}."
+    )
+
+
+def test_no_drawing_of_a_chart_is_committed():
+    tracked = subprocess.run(
+        ["git", "ls-files", "--", "*.png", "*.excalidraw", "features/home/docs/charts/"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout.split()
+    drawn = [
+        path
+        for path in tracked
+        if path.endswith(".excalidraw")
+        or path.startswith("features/home/docs/charts/")
+        or Path(path).parent.name.endswith("-statechart")
+    ]
+    assert not drawn, (
+        f"{', '.join(drawn)}: `make charts` draws these on demand, and git keeps only chart.mmd"
+        " and summary.json. Remove them with git rm --cached."
     )
