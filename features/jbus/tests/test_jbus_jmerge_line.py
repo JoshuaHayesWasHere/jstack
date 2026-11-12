@@ -54,7 +54,8 @@ def at_once(monkeypatch):
 
     def start(run):
         monkeypatch.setattr(merge.proc, "run", lambda *command, **how: run.run(*command))
-        merge.keep(merge.runs(run), run.project.checkout)
+        stamp = (merge.runs(run) / merge.STARTED).read_text().strip()
+        merge.keep(merge.runs(run), run.project.checkout, stamp=stamp)
         return ""
 
     monkeypatch.setattr(merge, "start", start)

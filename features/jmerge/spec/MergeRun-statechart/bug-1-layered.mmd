@@ -13,19 +13,19 @@ stateDiagram-v2
   classDef group1Path fill:#a3e4d7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
   classDef group2 fill:#eaf2f8,stroke:#75797c,color:#1b2631
   classDef group2Path fill:#eaf2f8,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group5 fill:#fadbd8,stroke:#7d6e6c,color:#1b2631
-  classDef group5Wrong fill:#fadbd8,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group3 fill:#fadbd8,stroke:#7d6e6c,color:#1b2631
+  classDef group3Wrong fill:#fadbd8,stroke:#c0392b,stroke-width:4px,color:#7b241c
   state "Legend" as legend {
     state "Lines heard, no run out" as legendGroup0
     state "Lines heard, a run is out" as legendGroup1
     state "Lines on their way" as legendGroup2
-    state "Lines lost" as legendGroup5
+    state "Lines lost" as legendGroup3
     state "Breaks a rule" as legendWrong
   }
   class legendGroup0 group0
   class legendGroup1 group1
   class legendGroup2 group2
-  class legendGroup5 group5
+  class legendGroup3 group3
   class legendWrong plainWrong
   state "A pass holds a record it<br/>has not sent: a run is<br/>out, a start stamp under a<br/>minute old; its lines not<br/>yet sent" as g0 {
     state "run 1 kept; stamp by run<br/>1; going.lock run 1;<br/>unread []; read.json run<br/>1; judged [0]; told [];<br/>pass judging; run lock<br/>free; P open, no restart<br/>record, handed open; batch<br/>none, read none out, CI<br/>none, rerun none, again<br/>False, most 12 (START),<br/>suspects False, kind<br/>alone, branch none, draft<br/>False, main moved False,<br/>merged 0; W open, spell<br/>False, logged 0" as s0
@@ -47,7 +47,7 @@ stateDiagram-v2
   }
   state "Between passes: no run<br/>out; no record yet" as g5 {
     state "run 1 none; no stamp;<br/>going.lock free; unread<br/>[]; no read.json; judged<br/>[0]; told []; pass idle;<br/>run lock free; P open, no<br/>restart record, handed<br/>open; batch none, read<br/>none out, CI none, rerun<br/>none, again False, most 12<br/>(START), suspects False,<br/>kind alone, branch none,<br/>draft False, main moved<br/>False, merged 0; W open,<br/>spell False, logged 0" as s8
-    state "run 1 none; no stamp;<br/>going.lock free; unread<br/>[]; no read.json; judged<br/>[0]; told []; pass<br/>stamping; run lock free; P<br/>open, no restart record,<br/>handed open; batch none,<br/>read none out, CI none,<br/>rerun none, again False,<br/>most 12 (START), suspects<br/>False, kind alone, branch<br/>none, draft False, main<br/>moved False, merged 0; W<br/>open, spell False, logged<br/>0" as s9
+    state "run 1 none; no stamp;<br/>going.lock run 3; unread<br/>[]; no read.json; judged<br/>[0]; told []; pass<br/>stamping; run lock free; P<br/>open, no restart record,<br/>handed open; batch none,<br/>read none out, CI none,<br/>rerun none, again False,<br/>most 12 (START), suspects<br/>False, kind alone, branch<br/>none, draft False, main<br/>moved False, merged 0; W<br/>open, spell False, logged<br/>0" as s9
   }
   [*] --> s8
   s8 --> s9 : 1. a pass looks at the runs<br/>folder [PassStarts]
@@ -61,7 +61,7 @@ stateDiagram-v2
   s0 --> s2 : 9. the pass dies [PassDies]
   class s0 group2Path
   class s1 group2Path
-  class s2 group5Wrong
+  class s2 group3Wrong
   class s3 group1Path
   class s4 group1Path
   class s5 group1Path
