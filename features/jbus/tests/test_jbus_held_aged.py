@@ -10,7 +10,7 @@ The block reached the user only through a catch-up, hours later.
 The tests replay that row through the real pass against the kitchen's fakes, at the times of the
 day: the hold stays while the crew is busy, since no crew clears a run GitHub keeps queued;
 `jbus clear` prints `fix wait:st-mainred-fast` once the wait is past its code's bound
-(`clock.BOUNDS`), at 21:20Z; and, once the home's fixes reach `retry_cap`, a decision for the
+(`aged.BOUNDS`), at 21:20Z; and, once the home's fixes reach `retry_cap`, a decision for the
 user. The view lists it as an `aged` wrong."""
 
 import json
@@ -19,7 +19,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 import jbus
-from jbus import clock, passes, verbs, wakes
+from jbus import aged, clock, passes, verbs, wakes
 from jbus.view import state
 from jmerge import ready
 from test_jbus_blocker_retries import fix, paged, seen
@@ -95,7 +95,7 @@ def test_held_2026_11_11_hold_of_1695_stays_while_its_crew_is_busy_on_other_work
 
 
 def test_blockers_jbus_clear_prints_fix_wait_st_mainred_fast_at_21_20(kitchen):
-    """`no-run` is a jbus act's, bounded at `clock.BOUNDS`' minutes: unchanged since 20:20:28Z,
+    """`no-run` is a jbus act's, bounded at `aged.BOUNDS`' minutes: unchanged since 20:20:28Z,
     it is no blocker at 21:19Z and the home's `fix` at 21:20Z, also with the crew busy."""
     day = Day(kitchen)
     day.busy()
@@ -141,8 +141,8 @@ def test_wrongs_list_an_aged_wait_for_its_home(kitchen):
 
 @pytest.mark.parametrize("code", sorted(ready.codes()))
 def test_blockers_each_reason_code_has_a_bound_and_an_owner(code):
-    """A code `jmerge` gains with no row of `clock.BOUNDS` fails here, so no wait is left with
+    """A code `jmerge` gains with no row of `aged.BOUNDS` fails here, so no wait is left with
     nobody to age it."""
-    bound = clock.BOUNDS[code]
-    assert bound.owner in clock.OWNERS
-    assert (bound.minutes is None) == (bound.owner == clock.USER)
+    bound = aged.BOUNDS[code]
+    assert bound.owner in aged.OWNERS
+    assert (bound.minutes is None) == (bound.owner == aged.USER)

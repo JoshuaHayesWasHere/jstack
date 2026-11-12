@@ -52,7 +52,7 @@ A key is `question <n>`, `check:<slug>` (its check failed), `row:<slug>` (refuse
 
 `wait:<slug>` is a backstop, a guard by design, for a wait no step of jbus has a remedy for, such as a run GitHub keeps queued with no job.
 Each remedy stays the act of its own step (a rerun of a cancelled check, the fix message of a red check, a nudge to a crew), and the backstop only escalates what none of them moved.
-Each code of `jmerge`'s reasons has one row of `clock.BOUNDS`: who clears it and how long a row may wait on it.
+Each code of `jmerge`'s reasons has one row of `jbus.aged.BOUNDS`: who clears it and how long a row may wait on it.
 
 | Owner | Bound | Codes |
 |---|---|---|

@@ -3,7 +3,7 @@
 A blocker is one thing that holds a home's work up, named by a key: an open question (`question
 <n>`), a pull request whose check failed (`check:<slug>`), a row that was refused or is stuck
 (`row:<slug>`), a row whose Result left something (`left:<slug>`), and a row whose wait has not
-changed past its code's bound (`wait:<slug>`, `clock.aged`), whoever owns the code: the backstop
+changed past its code's bound (`wait:<slug>`, `jbus.aged`), whoever owns the code: the backstop
 for a wait no step has a remedy for, as a run GitHub keeps queued. A check that was only
 cancelled, which jbus runs again and has not yet told the home of (`cancelled.owns`), is no blocker.
 `jbus clear` is what a home runs each time it wakes. It reads only what jbus keeps
@@ -87,9 +87,9 @@ from jbus import (
     Config,
     Project,
     Refused,
+    aged,
     alert,
     cancelled,
-    clock,
     dispatch,
     locked,
     party,
@@ -120,7 +120,7 @@ OWN_WORDS = "reply in your own words to {what} or say what to do instead"
 DEFAULT_WIDTH = 60
 """How much of a gate's default the hint shows, cut short at a word."""
 FIXED = {"check": "its check failed", "row": "it was refused or is stuck", "left": "it left work"}
-"""What each kind of blocker says it is. A `wait` says its wait (`clock.Aged.said`)."""
+"""What each kind of blocker says it is. A `wait` says its wait (`aged.Aged.said`)."""
 STUCK = ("gate", "failed", "stale")
 _STAMP = re.compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}")
 
@@ -562,7 +562,7 @@ def _rows(run: Pass, home: Directory) -> list[str]:
     work, or raise it once it had its cap of fixes."""
     rows = queue.load(run.state)
     texts = {row["slug"]: queue.brief(run.state, row["slug"]) or "" for row in rows}
-    old = clock.aged(rows, waits(run.state), run.now)
+    old = aged.aged(rows, waits(run.state), run.now)
     mine = [
         row
         for row in rows
