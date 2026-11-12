@@ -11,7 +11,15 @@ A pass launches a row only when all of these hold:
 - fewer than `max_per_home` crewmates are out for the row's home, 6 unless the config sets it;
 - `jgauge room` prints `go`.
 
-Rows launch lowest `priority` first.
+Rows launch in this order (`queue.order`):
+
+1. The lowest priority first, counting the priority a row inherits: a row named by the `Waits on:` line of a paused row's last Result, or by the `depends` of a row already launched, takes the lowest priority of the rows waiting on it, down any chain of such waits.
+   A row that is over, or whose thread is archived, lifts nothing.
+2. Among rows of one priority, the one that has waited longest: the oldest `since`, the time its present `why` first held.
+   A row with no `why` yet comes last.
+3. Then by slug.
+
+So a row that a paused crew waits on launches ahead of the rows that crew would launch ahead of, and a newer row never passes an older one of the same priority.
 A launch sends the brief in the message, as a home's launch does, and writes `tasks/<slug>.md` when it is not there.
 jbus then writes `Thread: <id>` in the head of that file, the one line it writes in a brief after the launch, but for a stacked link's line below.
 
