@@ -155,6 +155,11 @@ The section "Protected paths" describes one more hold.
 - A brief that says `Review: none` is held with `its brief says Review: none, so it needs the user's word`, which `--accept` lifts.
   It has no review, so `--accept` asks it for no proven safety fact and no range-diff from a reviewed head: your word stands in for both.
   Every other rule still holds: green checks, a protected path's door, and `merge-off`.
+- A brief with a `judged: <why>` clause, on its `Proves it:` line or a `Done when` line, that names the user (`the user`, `the operator`, `the owner`, or your name) is held with `the user judges it: waits for the user's word`, once every other rule passes: only you can say it holds, so your review happens at the merge.
+  Your own message lifts it, `jmerge --accept <number> --as user --message <thread id>/<message id>`; a home's accept on typed words is refused.
+  So does a `Waived: <the clause's words>, <thread>/<message>` line, by the whole clause or a start of its words, whose word jbus checks as it checks a waiver of a `Done when` line; a `Waived:` line for the `Done when` line the clause is on lifts it too.
+  A `judged:` clause that names a reviewer or a measure holds nothing.
+  #1828 merged on its checks and review alone on 2026-11-12, though its brief said the user reviews the diff.
 - A brief that says `Review: cleanup` is the day's warnings row, which only jbus files (`jbus.daywarnings`), and it gets one review, of its own diff.
   Only an `error` of that review waits, for an answer by id and a `Fixed:` line pushed after it, and every other finding is dropped.
   `jmerge` asks for no scoped review, no ruling on a decline, and no range-diff review after a rebase.
