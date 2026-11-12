@@ -27,7 +27,9 @@ run has ended, `wake_ended` sends the thread one message in mode queue that name
 its exit code, keyed by the thread and the run's start, so one run wakes once. It sends none to a
 thread whose turn that started the run was still going when the run ended, which got the end
 itself (`_got_end`), and none yet to a thread at work. A run that ended with no wake owed, or
-whose holder died with no end recorded, leaves the file.
+whose command and `jgauge test-slot` are both gone with no end recorded, leaves the file. A run
+whose command is gone while its `jgauge test-slot` lives stays: that process has yet to record
+the end (`holders.running`).
 
 `test-slot-waiters.json` belongs to the machine, not to a project. A pass of any project wakes any
 waiter, and once one pass records a wake in the file, the other passes read that record there. A
@@ -235,7 +237,8 @@ def tell(run: Pass, client: Client, one: Waiter) -> None:
 
 def wake_ended(run: Pass, client: Client) -> None:
     """Wake each thread whose own run under a slot has ended, once, and drop the runs that are
-    over: woken, owed no wake, or held by a holder that died with no end recorded."""
+    over: woken, owed no wake, or with no end recorded and neither its command nor its `jgauge
+    test-slot` there to record one."""
     locks = slot.locks_dir()
     if not holders.FILE.there(locks):
         return

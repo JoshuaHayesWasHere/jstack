@@ -28,7 +28,9 @@ def machine(tmp_path, monkeypatch):
     monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     home = tmp_path / "home"
-    return SimpleNamespace(home=home, locks=home / ".local" / "state" / "locks")
+    locks = home / ".local" / "state" / "locks"
+    monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(locks))
+    return SimpleNamespace(home=home, locks=locks)
 
 
 def hold_full(machine):
@@ -237,8 +239,7 @@ def test_the_waiters_are_printed(machine):
     assert ran.stdout == f"{THREAD} short since 2026-10-12T15:00:00Z: uv run pytest 'a b'\n"
 
 
-def test_free_counts_the_slots_no_one_holds_and_creates_no_lock_file(machine, monkeypatch):
-    monkeypatch.setenv("JGAUGE_LOCKS_DIR", str(machine.locks))
+def test_free_counts_the_slots_no_one_holds_and_creates_no_lock_file(machine):
     assert slot.free(slot.short()) == slot.short().slots
     assert not machine.locks.exists() or not list(machine.locks.glob("test-slot-short.*"))
     held = hold_short(machine)

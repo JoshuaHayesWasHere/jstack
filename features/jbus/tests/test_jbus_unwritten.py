@@ -213,7 +213,10 @@ def test_a_run_that_ended_and_whose_wake_did_not_go_still_spares_its_thread(kitc
 def test_a_holder_whose_pid_died_is_ignored_and_the_row_is_left(kitchen):
     thread = lost(kitchen, quiet=40)
     locks = slot.locks_dir()
-    holders.hold(locks, thread["threadId"], "full", gone_pid(), ["make", "check"], NOW - 45 * MIN)
+    command = ["make", "check"]
+    holders.hold(
+        locks, thread["threadId"], "full", gone_pid(), command, NOW - 45 * MIN, keeper=gone_pid()
+    )
     at = home(kitchen)["threadId"]
     kitchen.poll(NOW)
     assert column(kitchen)[0] == "left" and len(told(kitchen, at)) == 1

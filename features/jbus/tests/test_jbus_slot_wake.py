@@ -5,6 +5,7 @@ files in a directory of the kitchen's own."""
 
 import fcntl
 import os
+import subprocess
 from datetime import timedelta
 from pathlib import Path
 
@@ -327,6 +328,24 @@ def test_a_run_still_held_wakes_nobody(kitchen):
     holders.hold(slot.locks_dir(), thread["threadId"], "full", os.getpid(), command, NOW)
     kitchen.poll()
     assert sends(kitchen) == [] and len(holders.read(slot.locks_dir())) == 1
+
+
+def test_a_run_whose_command_is_gone_and_whose_test_slot_lives_is_kept_until_its_end(kitchen):
+    """ts-forget-unended, found by TLC on TestSlot.tla: the command ends, and before its `jgauge
+    test-slot`, this process here, writes the end, jbus forgets the run. The end is then written
+    to no entry, and the thread that ended its turn on its run holding a slot is never told."""
+    thread = kitchen.t3.thread("holder", "completed", idle=timedelta(minutes=10))
+    gone = subprocess.Popen(["true"])
+    gone.wait()
+    locks = slot.locks_dir()
+    run = holders.hold(locks, thread["threadId"], "full", gone.pid, ["make", "check"], NOW)
+    kitchen.poll()
+    assert sends(kitchen) == [] and [one.id for one in holders.read(locks)] == [run.id]
+    holders.end(locks, run.id, 1, NOW + MIN)
+    kitchen.poll(NOW + 2 * MIN)
+    (given,) = sends(kitchen)
+    assert given["clientRequestId"] == f"slot-end|{thread['threadId']}|{run.since}"
+    assert "`make check`" in given["message"] and "exit code 1" in given["message"]
 
 
 def test_an_ended_run_whose_wake_was_lost_is_sent_again_with_the_same_key(kitchen):
