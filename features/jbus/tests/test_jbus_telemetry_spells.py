@@ -320,6 +320,8 @@ def test_a_later_red_tip_that_fails_another_test_is_judged_on_its_own(machine, m
     [
         ("row-13", "features/n/src/n.py", "no fix", "flake"),
         ("row-13", "features/m/tests/test_two.py", "no fix", "flake"),
+        ("row-13", "features/m/docs/m.md", "no fix", "flake"),
+        ("row-13", "features/m/README.md", "no fix", "flake"),
         ("row-13", "features/m/tests/test_m.py", "fix: #13", "change"),
         ("row-13", "features/m/scripts/fake-gh", "fix: #13", "change"),
         (f"{mainjson.FIX}{TESTED[:12]}", "features/n/src/n.py", "fix: #13", "change"),
@@ -332,9 +334,9 @@ def test_main_going_green_closes_the_spell_and_the_store_reads_its_cause(
     """Only the end of a spell tells a break from a flake: a load flake and a break look the same
     in one run. A spell that went green with no fix and no revert merged was a flake, as jstack's
     spells 44 and 45 were, though their first tip read `change`, and so was one ended by a merge
-    of another feature, or of another test file of the failed test's feature. An ordinary row that
-    changed the file of a test the spell failed fixed it, as #1591 ended jstack's spell 41, and so
-    did one that changed its feature's own code, as #1628's `fake-gh` ended spell 43."""
+    of another feature, or of another test file or a doc of the failed test's feature. An ordinary
+    row that changed the file of a test the spell failed fixed it, as #1591 ended jstack's spell
+    41, and so did one that changed its feature's own code, as #1628's `fake-gh` ended spell 43."""
     state = machine.state("alpha")
     red_spell(
         machine,

@@ -107,6 +107,9 @@ REVERT = "revert-"
 NO_FIX = "no fix"
 """The cause of a spell that went green with no fix row, no revert and no change to a file a test
 it failed runs (`runs`) merged in it: a flake."""
+PROSE = (".md", ".txt", ".rst")
+"""The files a test reads as prose, if at all, which no fix of a red runs: with any file under a
+`docs/` directory, a merge that changes only these fixes no failed test (`runs`)."""
 PULL = re.compile(r"\(#(\d+)\)$")
 """A squash merge's subject ends in its pull request's number."""
 UNCOLLECTED = re.compile(r"\bERROR collecting \S|\b\d+ errors? during collection\b")
@@ -329,16 +332,19 @@ def changed(run: Pass, tip: str) -> set[str]:
 def runs(test: str, path: str) -> bool:
     """Return whether a change to the file `path` can change how the failed test `test` runs: it
     is the test's own file, or a file of the test's feature, the directory that holds its `tests`
-    directory, that is no other test file (`test_*`). So #1628's `fake-gh`, the script
-    `features/verify-jstack/tests` drive, fixed jstack's spell 43, while #1649's new test file in
-    `features/repo-guards/tests` did not end spell 45, a flake of another test there."""
+    directory, that is no other test file (`test_*`) and no doc (`PROSE`). So #1628's `fake-gh`,
+    the script `features/verify-jstack/tests` drive, fixed jstack's spell 43, while #1649's new
+    test file in `features/repo-guards/tests` did not end spell 45, a flake of another test
+    there."""
     own = test.split("::")[0]
     if path == own:
         return True
     parts = own.split("/")
     root = "/".join(parts[: parts.index("tests")]) if "tests" in parts[:-1] else ""
     inside = not root or path.startswith(f"{root}/")
-    return inside and not path.rsplit("/", 1)[-1].startswith("test_")
+    name = path.rsplit("/", 1)[-1]
+    prose = path.endswith(PROSE) or "docs/" in f"/{path}"
+    return inside and not name.startswith("test_") and not prose
 
 
 def closing_line(run: Pass, first: str, green: str, failed: Collection[str] = ()) -> dict:

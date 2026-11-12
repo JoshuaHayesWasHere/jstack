@@ -106,7 +106,7 @@ Its reader is the store's `main_spells.cause`, for a spell that has not ended ye
 
 The cause is written once for each spell, when main goes green: one line at the spell's first red tip, with the `green` tip that ended it, the pull requests merged in between and `cause`.
 `cause` is `fix: #<n>` where one of them fixed the red, the last such, and `no fix` where none did, as when a rerun passed on the red tip itself.
-A pull request fixed the red where it is a fix row (`main-red-*`), a revert (`revert-*`), or any other pull request that changed a file a test the spell failed at any of its red tips runs (`mainmoved.runs`): the test's own file, or a file of its feature, the directory that holds its `tests` directory, that is no other `test_*` file.
+A pull request fixed the red where it is a fix row (`main-red-*`), a revert (`revert-*`), or any other pull request that changed a file a test the spell failed at any of its red tips runs (`mainmoved.runs`): the test's own file, or a file of its feature, the directory that holds its `tests` directory, that is no other `test_*` file and no doc (`.md`, `.txt`, `.rst`, or under a `docs/` directory).
 So #1591, a crew row, changed `test_jbus_telemetry_spells.py` and ended spell 41, and #1628 changed `features/verify-jstack/project-skill/scripts/fake-gh`, which the failed `features/verify-jstack/tests` drive, and ended spell 43.
 Spell 45 went green on #1649, which added another test file to `features/repo-guards/tests` beside the one that failed: no fix.
 The pass asks GitHub for the files of each merge in the spell that is neither a fix row nor a revert, one call a merge (`repos/{owner}/{repo}/commits/<sha>`), once for the spell, as it writes the line.
