@@ -323,7 +323,7 @@ def lanes(stub, locks, log, exits=None, takes=None, junit=None):
     wait for a short slot it was given, in `waits` beside the clock. It records a run with the
     `JUNIT=<file>` it was given left out, and with `junit`, a `(seconds, failing)` pair, writes
     pytest's report there first: each file of `TESTS` one test of its seconds, 1 by default,
-    failed where `failing` names it."""
+    failed where `failing` names it, and the session's seconds where a third item gives them."""
     ends = "".join(
         f"{pattern.replace(' ', chr(92) + ' ')}) exit {code} ;; "
         for pattern, code in (exits or {}).items()
@@ -363,7 +363,7 @@ def lanes(stub, locks, log, exits=None, takes=None, junit=None):
 
 REPORT = """import json, sys
 
-seconds, failing = json.load(open(sys.argv[1]))
+seconds, failing, *wall = json.load(open(sys.argv[1]))
 words = dict(one.split("=", 1) for one in sys.argv[2:] if "=" in one)
 cases = []
 for one in words.get("TESTS", "").split():
@@ -373,7 +373,8 @@ for one in words.get("TESTS", "").split():
     cases.append(f'<testcase classname="{dotted}" name="test_it" time="{time}">{bad}</testcase>')
 with open(words["JUNIT"], "w") as report:
     suite = "".join(cases)
-    report.write(f'<testsuites><testsuite name="pytest">{suite}</testsuite></testsuites>')
+    timed = f' time="{wall[0]}"' if wall else ""
+    report.write(f'<testsuites><testsuite name="pytest"{timed}>{suite}</testsuite></testsuites>')
 """
 
 

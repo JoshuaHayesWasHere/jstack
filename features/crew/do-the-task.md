@@ -4,10 +4,10 @@
   In a repo whose pull request check selects its tests, jstack's `scripts/select_tests.py`, the touched tests are the test files the branch adds or edits since it left its base (`select_tests.py --part touched`), the guard tests are the cross-cutting tests the selection names, wherever their files live (`select_tests.py --part cross`), that are not touched already, and the tests that read the change are the ones the pull request's check selects because they name or read a file the branch edits, a skill that includes it or a read set that matches it, and that neither of the others holds (`select_tests.py --part names`, a few files a line, as many as fit 60 s of test time).
   The block asks `origin/main`'s `scripts/select_tests.py` for the three lists, a copy of it run over the branch's own tree, so a branch stacked on a base that left main before a part existed still gets them, and is not held for want of a `Checked:` line.
   Where `origin/main` has no such file the block says so and asks the branch's own.
-  The check is `make check-fast BASE=<base> PART=touched`, run in steps, each its own call of `jgauge test-slot --short`: the lint first, then the touched test files, then the guard test files, then the test files CI failed on (below), then the files of the names part, each kind in steps of as many files as fit 60 s of measured test time, the most the names part puts on a line.
+  The check is `make check-fast BASE=<base> PART=touched`, run in steps, each its own call of `jgauge test-slot --short`: the lint first, then the touched test files, then the guard test files, then the test files CI failed on (below), then the files of the names part, each kind in steps of as many files as fit 60 s of measured time, half the short lane's limit.
   So a test that reads an edited skill file, as test_status_line_readers.py reads features/crew/no-pr-end.md, fails at the desk and not first on the pull request, as it failed twice on #1691.
   Over main's last 20 merges the names part added a median of 98 test files to the desk's 48 (6 to 256), in 20 steps (1 to 59), so a check takes several calls of the block more often than before.
-  A file's measured time is its seconds in the pytest report (`JUNIT=`) of the last step that ran it, kept in the repo's `crew-check-times`, in the git dir every worktree shares (`git rev-parse --git-common-dir`), beside each worktree's `crew-check-steps`, so one crew's check measures the files for the next.
+  A file's measured time is its share of the pytest session's seconds in the report (`JUNIT=`) of the last step that ran it in the short lane, by its tests' seconds, so it counts the lane's workers and the session's start, kept in the repo's `crew-check-times`, in the git dir every worktree shares (`git rev-parse --git-common-dir`), beside each worktree's `crew-check-steps`, so one crew's check measures the files for the next.
   A file no step has measured runs alone, and a line of the names part with such a file runs as the selector gave it, as each did when every file was its own take: on 2026-11-12 that cost 272 slot takes a merged pull request.
   A step of several files the short lane stops at its time limit (exit 124) reached no verdict: the block forgets their times (`<file> -`) and runs each again alone in the short lane.
   A step of one file it stops runs again alone in a full test slot, which has no time limit, so every step reaches a verdict however loaded the machine is.
@@ -139,14 +139,15 @@
               bad=
               if [ "$step" != lint ] && [ "$said" != 124 ] && [ "$said" != 76 ]; then
                   bad=$(python3 -c 'import os, sys, xml.etree.ElementTree as tree
-  report, step, times = sys.argv[1:]
+  report, step, times, lane = sys.argv[1:]
   try:
-      cases = list(tree.parse(report).getroot().iter("testcase"))
+      root = tree.parse(report).getroot()
   except (OSError, tree.ParseError):
       sys.exit()
+  suite = root if root.tag == "testsuite" else root.find("testsuite")
   dotted = {one.removesuffix(".py").replace("/", "."): one for one in step.split(",")}
   took, failed = {}, set()
-  for case in cases:
+  for case in root.iter("testcase"):
       names = (case.get("classname") or "", case.get("name") or "")
       hits = [key for key in dotted for name in names if name == key or name.startswith(key + ".")]
       if hits:
@@ -154,9 +155,12 @@
           took[one] = took.get(one, 0) + float(case.get("time") or 0)
           if case.find("failure") is not None or case.find("error") is not None:
               failed.add(one)
-  with open(times, "a") as kept:
-      kept.write("".join(f"{one} {took[one]:.1f}\n" for one in sorted(took)))
-  if os.path.getsize(times) > 1 << 20:
+  summed = sum(took.values())
+  wall = float(suite.get("time") or 0) if suite is not None else 0
+  if lane == "short" and took:
+      with open(times, "a") as kept:
+          kept.write("".join(f"{one} {(wall * spent / summed if wall and summed else spent):.1f}\n" for one, spent in sorted(took.items())))
+  if os.path.exists(times) and os.path.getsize(times) > 1 << 20:
       last = {}
       for line in open(times):
           if len(line.split()) == 2:
@@ -164,7 +168,7 @@
       with open(f"{times}.{os.getpid()}", "w") as new:
           new.write("".join(f"{one} {spent}\n" for one, spent in last.items()))
       os.replace(f"{times}.{os.getpid()}", times)
-  print("\n".join(sorted(failed)))' "$junit" "$step" "$times")
+  print("\n".join(sorted(failed)))' "$junit" "$step" "$times" "$lane")
               fi
               case $said in
               0)

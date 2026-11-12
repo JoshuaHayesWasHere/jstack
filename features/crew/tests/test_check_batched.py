@@ -110,6 +110,24 @@ def test_a_file_of_no_measured_time_runs_alone_and_its_run_measures_it(tmp_path)
     assert code == 0, said
 
 
+def test_a_file_is_measured_by_its_share_of_the_sessions_seconds(tmp_path):
+    """The short lane runs a session on several workers, so three files of 60 s of tests each
+    ended in a 45 s session: each is measured at 15 s, its share by its tests' seconds, and the
+    next head runs the three in one step, where by their tests' seconds they would take three."""
+    repo = stubbed(tmp_path, touching(*TOUCHED[:3]))
+    measured(repo, 5, *TOUCHED[:3])
+    a_brief(tmp_path)
+    junit = (dict.fromkeys(TOUCHED[:3], 60), [], 45)
+    said, code, ran, base = selected(tmp_path, repo, junit=junit)
+    assert len(ran) == 2 and code == 0, said
+    times = (repo / ".git" / "crew-check-times").read_text().splitlines()
+    assert times[-3:] == [f"{one} 15.0" for one in TOUCHED[:3]]
+    (repo / "page.md").write_text("A new head.\n")
+    git(repo, "commit", "-qam", "a new head")
+    said, code, ran, base = selected(tmp_path, repo, junit=junit)
+    assert ran == [lint(base), alone(" ".join(TOUCHED[:3]), base)], said
+
+
 def test_a_failing_step_names_each_failing_file_and_keeps_it_until_it_passes(tmp_path):
     """A step of four files fails on one: the block names that file from pytest's report, keeps
     it in `crew-failed-files` as CI's failed files are kept, keeps no file of the step as passed,
