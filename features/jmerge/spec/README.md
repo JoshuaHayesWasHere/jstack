@@ -3,7 +3,7 @@
 Two rows, a main that can go red from a merge or from outside, and a machine that a crew can leave full.
 The home wrote it on 2026-10-23 to test the premise behind "nothing moves", and it came in with rejudge-red-prs.
 
-- `FlowToday.tla` models the code as of main 21112eba8, and each of its conditions names the file that checks it and quotes the code, with no line number, so a rebase that moves the lines leaves no cite to renumber.
+- `FlowToday.tla` models the code, last read against it at 228c1436c (st-model-upkeep-run), and each of its conditions names the file that checks it and quotes the code, with no line number, so a rebase that moves the lines leaves no cite to renumber.
   `statechart.lib.located` finds the one place a quote stands.
   It is the flow-statechart scout's `FlowNow.tla` of main 6485914, kept with the scout's report and not in the repo, with #416, #426 and #427 since and cut down to what the four rules read.
   Since #583 and #584 it has main's fix: the `main-red-` row, or a pull request that carries the fix, and the row's crew may end with no pull request, its fix in an open one.
@@ -24,7 +24,8 @@ The home wrote it on 2026-10-23 to test the premise behind "nothing moves", and 
   The round is no variable, since no rule reads it: a history bit for it took the model of fl-no-draft from 7.9M to 12.9M states, and a step of its own to 21.0M.
   Since st-flow it has jmerge's batch, its line and its run off jbus's pass.
   A ready pull request main moved past is a member of jmerge's batch (#1564), which CI checks on one draft pull request: a pass merges every member, a failed batch of two makes both suspects and the next batch the first half of them, and a failed batch of one sends its member alone, at that head, to the merged-tree guards or the line.
-  While a batch is out on a green main, a pull request that would merge alone waits for it (`batch-first`), and any merge into main makes it stale, so the next run builds it again.
+  Since #1642 and #1668 CI's batch holds five at least, and two to four members judged in one run take one guards run on their tree in that run: the model's two pull requests stand for many, its batch of two for CI's batch of five or more and its half of one for a half, and its batch steps take a guards batch of two too, with other work between its build and its verdict that the code's one run does not have.
+  While a batch is out on a green main, a pull request that would merge alone waits for it (`batch-first`), and any merge into main makes it stale, so the next run builds it again; since #1670 a run that builds it again merges the ones held for it first.
   A pull request that goes alone and whose guards fail, or a red one main moved past (#1012), has GitHub merge main into its branch only in its turn in main's line (#1009): the holder gives the line up once it waits on anything but jmerge, GitHub and its check (`cli.IN_LINE`).
   jbus's pass starts jmerge's run and returns (#1616), so what jmerge said of a failed check, a browser run or a review round reaches the crew a pass late: the model's `Hear` step.
   The batch's rerun of a failed check, its timeout and the most it takes (#1613) are left out: with two pull requests and no flake in a member's check, none of them changes what merges.
@@ -151,6 +152,9 @@ The design starts with both pull requests open, so a story, when the chart has o
 - A hand merge that moves main's tip, and a revert's turn in main's line (#1044): its merge is one step.
 - The batch's rerun of a failed check, its timeout, the most it takes (#1613), a member that conflicts with one before it, a batch that cannot be made, and a proven batch whose merge stops at a member that no longer stands: the model builds it again.
 - An accepted pull request whose guards failed over a moved main, which goes through the line, and an accept that takes the line: the model's accept merges at once.
+- Whether a pull request's files overlap main's change: the model's guards failure always takes the line (`InLine`), where one with no overlap waits on its crew instead (`MERGED_TREE_FAILS`, `Repo.judged`'s `self.guards.kept`), as a `CrewFix` would.
+- `Repo.again`'s `repeats`, no rejudge once two runs failed the same test, which saves only a CI round.
+- A row that is over with its pull request open, which jmerge holds (`ROW_OVER`, #1657): the model's rows end only by merging.
 - A pull request that conflicts with main's tip and waits for its rebase, a stacked base's own line, and the line's restarts of a queued run.
 - jmerge's run lock and the merge tick: the model's jmerge is one run at a time, and only what its run said waits for a pass to read it.
 

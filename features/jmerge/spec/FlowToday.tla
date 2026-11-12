@@ -1,6 +1,6 @@
 ---- MODULE FlowToday ----
 \* What jstack does today with two pull requests, a main that can go red, and a machine that can fill.
-\* Code as of main 21112eba8 (2026-11-10). It began as the flow-statechart scout's FlowNow.tla of main
+\* Code last read against it at 228c1436c (2026-11-11). It began as the flow-statechart scout's FlowNow.tla of main
 \* 6485914, cut down to the variables FlowDesign.tla's four rules read, and README.md keeps what each
 \* pull request since added to it: main's fix row and its revert, a row's go and your word, the
 \* stack, the review round before the pull request, and a green pull request main moved past.
@@ -51,9 +51,9 @@ PRs == {"a", "b"}
 \*   and judges the red tip), "revert" (jbus's revert of the one clear culprit is open), "row"
 \*   (main's fix row is filed), or "none". MainRed.tla has each of these as the code does.
 \* batch: the members of jmerge's batch out (batch.json's `batch`), checked by CI on one draft pull
-\*   request. suspects: the members of a failed batch of two, of which the next batch is the first
-\*   half (`suspects`). alone: each pull request a failed batch of one sent down the single path at
-\*   its head (`failed`).
+\*   request; two stand for CI's five or more (BuildBatch). suspects: the members of a failed batch,
+\*   of which the next batch is the first half (`suspects`). alone: each pull request a failed batch
+\*   sent down the single path at its head (`failed`).
 \* line: the pull request that holds main's line (base-merges.json's `line`): only it is given
 \*   GitHub's merge of main into its branch, and each other that needs one waits in line behind it.
 \* heard: jbus's pass has read every line the last run of jmerge printed about a failed check, a
@@ -208,8 +208,11 @@ Member(p) ==
 
 \* What p merges on alone, the batch aside: while a batch is out on a green main, a pull request that
 \* would merge alone waits for it, since its merge would move the tip the batch's check ran over.
+\* Where the run builds that batch again, as one of its members is no longer one at its head, each
+\* pull request held for it merges alone first, in the same run (#1670).
 Alone(p) ==
-    /\ mainRed \/ batch = {}                \* features/jmerge/src/jmerge/cli.py `elif on is not None and on.first and not repo.is_revert(one):`
+    /\ \/ mainRed \/ batch = {}             \* features/jmerge/src/jmerge/cli.py `elif on is not None and on.first and not repo.is_revert(one):`
+       \/ \E m \in batch : ~Member(m)       \* features/jmerge/src/jmerge/cli.py `said = [self.merge(one, slug, note, found) for one, slug, note, found in on.held]`
     /\ ~Member(p)                           \* features/jmerge/src/jmerge/cli.py `elif on is not None and found.judged.batch:`
 
 \* A merge of pull request p into main, alone, on its check, by jmerge on its own or on your word.
@@ -305,10 +308,14 @@ GiveUpLine ==
 \* would merge alone waits for it too (Alone). The most a batch takes (#1613) is 12 or more, and
 \* the model has two. CI's batch holds five at least (features/jmerge/src/jmerge/batch.py `LEAST = 5`):
 \* a failed batch narrows in halves only while a half holds five, and a smaller half sends each
-\* suspect alone when the next batch is chosen, not when the proven half merges. The model's batch
-\* of two stands for one of five or more, and its one suspect left, which BatchPasses sends alone,
-\* for a half under five. Two to four members judged in a run take one guards run on their tree and
-\* merge in that run, with no batch out, as the single path does; the model does not split them out.
+\* suspect alone when the next batch is chosen, not when the proven half merges. So the model's two
+\* pull requests stand for many: its batch of two for CI's batch of five or more, its half of one
+\* for a half of five or more, and its one suspect left, which BatchPasses sends alone, for a half
+\* under five. With two pull requests in fact, no CI batch forms: two members judged in one run take
+\* one guards run on their tree and merge in that run, or go the single path at their heads there
+\* (features/jmerge/src/jmerge/batch.py `return GUARDS if size >= GUARDS_LEAST else ""`), and one
+\* member alone goes the single path; the model's batch steps take the guards batch too, with steps
+\* of other work between its build and its verdict that the code's one run does not have.
 Narrow(s) == IF s = PRs THEN {"a"} ELSE s
 
 BuildBatch ==
@@ -418,7 +425,8 @@ HomeEdits(p) ==
     /\ p = "b"
     /\ editsLeft > 0
     /\ link = "depends"
-    \* A merged row's go is read by nothing, and its brief is not edited.
+    \* A merged row's brief is not edited, and jmerge reads a row that is over before its go
+    \* (ROW_OVER, #1657); this model's rows end only by merging.
     /\ st[p] # "merged"                     \* features/jmerge/src/jmerge/rows.py `if row and bus.over(row):`
     /\ editsLeft' = editsLeft - 1
     /\ link' = "none"
@@ -594,7 +602,8 @@ Approve(p) ==
 
 \* You hold a row that is not merged (`jbus queue hold`), which takes its go back.
 HoldRow(p) ==
-    \* A merged row's hold holds nothing.
+    \* A merged row's hold holds nothing: jmerge reads a row that is over before its go (ROW_OVER,
+    \* #1657), and this model's rows end only by merging.
     /\ st[p] # "merged"                     \* features/jmerge/src/jmerge/rows.py `if row and bus.over(row):`
     /\ go[p]                                \* features/jbus/src/jbus/queue.py `took = {column: row[column] for column in GO_COLUMNS if row.get(column)} _hold(row, by)`, features/jbus/src/jbus/queue.py `row.update(approved="", brief_sha="", held=True)`
     /\ go' = [go EXCEPT ![p] = FALSE]
