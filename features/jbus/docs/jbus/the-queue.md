@@ -242,6 +242,7 @@ jbus lifts the hold itself in the pass that sees every required check passed at 
 It does so only where the row's brief is still the one that go was for, by its sha, and the hold is still its own: a row held again since, by anyone, or whose brief changed since, stays held.
 Such a row is lifted as any hold is, with `jbus queue approve`.
 Either way, the count then starts again from none.
+A head green on a rerun leaves the count: once every required check passes at a counted head, such as after its failed job is rerun at that same head, jbus drops it from the count, held row or not, so the row's next failed head counts as its first (#1708, 2026-11-11).
 The heads are kept in `fails.json` in the project's state, the counted ones apart from those of a red main, a shared flake, an infra step and a move of main, with the last head jbus saw settle and what failed there.
 
 An approval is for the brief as jbus stores it at that moment, and the row keeps that brief's sha256 as `brief_sha`.
