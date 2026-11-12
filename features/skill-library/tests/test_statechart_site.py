@@ -179,7 +179,7 @@ def test_the_overview_lists_the_models_with_no_chart_and_the_state_no_model_has(
     listed = re.findall(r"<li><code>[\w/]+/(\w+)\.tla</code>: \S", uncharted)
     assert sorted(listed) == sorted(models - charted), uncharted
     unmodeled = html.unescape(re.search(r'<ul class="unmodeled">(.*?)</ul>', flow, re.S)[1])
-    for what in ("MCP session", "test slot", "plan entry"):
+    for what in ("MCP session", "plan entry"):
         assert what in unmodeled, unmodeled
 
 

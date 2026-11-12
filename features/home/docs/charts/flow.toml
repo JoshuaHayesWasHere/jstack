@@ -132,11 +132,6 @@ code = "jsettings/t3.py `Session`"
 why = "its bearer token, which runs out, and a call refused, dropped or timed out. ThreadLife takes a launch reply as lost or not, and no model follows the session or its token."
 
 [[unmodeled]]
-state = "The test slot claim"
-code = "jgauge/waiters.py `woken`"
-why = "a thread waiting for a full test slot, the wake jbus sends it, and the claim it holds for ten minutes. ThreadLife sees such a turn as one at work, or quiet."
-
-[[unmodeled]]
 state = "A plan entry's stage"
 code = "jbus/plan.py `staged`"
 why = "proposed, planned, parked or scouting, before the entry has a row. RowLife starts at jbus queue add, so an entry with no brief yet is in no model."
