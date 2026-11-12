@@ -15,9 +15,16 @@ import pytest
 
 from jinstall.__main__ import install as run_install
 from jinstall.machine import Machine
-from test_install import REPO, Ran, User, checkout_under, line_for, worktree
+from test_install import REPO, Ran, User, checkout_under, worktree
 
 ROOTS = (".claude/skills", ".cursor/skills")
+
+
+def line_for(said, link):
+    """The lines that name `link` itself, not a skill whose name only starts with its name."""
+    return [line for line in said if link in line.split()]
+
+
 DECLARED = {
     "verify-jstack": "features/verify-jstack/project-skill",
     "verify-flow-design": "features/jmerge/project-skill/verify-flow-design",
@@ -96,7 +103,10 @@ def test_a_skill_that_is_no_longer_declared_is_unlinked_by_the_next_run(user):
         [f"ok hard {link} -> unlinked"] for link in gone
     ]
     assert links(checkout) == {
-        f"{root}/verify-jstack": str(checkout / DECLARED["verify-jstack"]) for root in ROOTS
+        f"{root}/{name}": str(checkout / path)
+        for root in ROOTS
+        for name, path in DECLARED.items()
+        if name != "verify-main-red"
     }
 
 

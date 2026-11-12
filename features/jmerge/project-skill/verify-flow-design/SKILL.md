@@ -1,6 +1,7 @@
 ---
 name: verify-flow-design
 description: Check FlowDesign.tla and its canaries, the merge flow's design; use when changing the guard a rule rests on: test selection, rejudge, or the stray sweep.
+paths: "features/jmerge/spec/FlowDesign.tla, scripts/select_tests.py, features/jmerge/src/jmerge/cli.py, features/jmerge/src/jmerge/ready.py, features/jmerge/src/jmerge/rejudge.py, features/jbus/src/jbus/strays.py, features/jbus/src/jbus/dispatch.py"
 ---
 
 # verify-flow-design

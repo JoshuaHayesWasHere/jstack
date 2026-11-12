@@ -1,6 +1,7 @@
 ---
 name: verify-thread-life
 description: Check ThreadLife.tla, a crew thread from launch to archive; use when changing the launch, crewthread, threads.resume or settle, live, leftover or the stall ladder.
+paths: "features/jbus/spec/ThreadLife.tla, features/jbus/src/jbus/dispatch.py, features/jbus/src/jbus/crewthread.py, features/jbus/src/jbus/threads.py, features/jbus/src/jbus/live.py, features/jbus/src/jbus/watch.py, features/jbus/src/jbus/leftover.py, features/jbus/src/jbus/children.py"
 ---
 
 # verify-thread-life

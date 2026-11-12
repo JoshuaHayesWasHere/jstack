@@ -1,6 +1,7 @@
 ---
 name: verify-green-move
 description: Check GreenMove.tla, jbus moving its green copy; use when changing jbus/green.py or jinstall's relink.
+paths: "features/jbus/spec/GreenMove.tla, features/jbus/src/jbus/green.py, features/jinstall/src/jinstall/green.py, features/jmerge/src/jmerge/mainjson.py"
 ---
 
 # verify-green-move

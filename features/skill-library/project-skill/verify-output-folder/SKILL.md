@@ -1,6 +1,7 @@
 ---
 name: verify-output-folder
 description: Check OutputFolder.tla, the statechart command's output folder; use when changing how from-spec publishes, swaps, refuses or stops.
+paths: "features/skill-library/skills/statechart/scripts/model/OutputFolder.tla, features/skill-library/skills/statechart/scripts/statechart/cli.py"
 ---
 
 # verify-output-folder

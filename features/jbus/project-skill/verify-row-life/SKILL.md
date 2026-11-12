@@ -1,6 +1,7 @@
 ---
 name: verify-row-life
 description: Check RowLife.tla, a queue row's status and go; use when changing work.status, queue.MOVES, queue.derive or the go verbs.
+paths: "features/jbus/spec/RowLife.tla, features/jbus/src/jbus/work.py, features/jbus/src/jbus/queue.py, features/jbus/src/jbus/restated.py, features/jbus/src/jbus/dispatch.py"
 ---
 
 # verify-row-life

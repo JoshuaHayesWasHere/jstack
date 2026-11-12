@@ -1,6 +1,7 @@
 ---
 name: verify-home-tree-today
 description: Check HomeTreeToday.tla, today's code for the root and child homes; use when changing jbus/children.py, wakes, the merge run or lock, or the handoff block.
+paths: "features/home/spec/HomeTreeToday.tla, features/jbus/src/jbus/children.py, features/jbus/src/jbus/wakes.py, features/jbus/src/jbus/merge.py, features/jmerge/src/jmerge/cli.py, features/jmerge/src/jmerge/lock.py, features/jbriefs/src/jbriefs/home.py, features/home/skills/handoff/SKILL.md"
 ---
 
 # verify-home-tree-today

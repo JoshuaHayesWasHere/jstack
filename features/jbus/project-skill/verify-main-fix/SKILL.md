@@ -1,6 +1,7 @@
 ---
 name: verify-main-fix
 description: Check MainFix.tla, main's revert and fix rows filed write by write; use when changing reverts.revert, watch._file or _nightly_red, or the pass order.
+paths: "features/jbus/spec/MainFix.tla, features/jbus/src/jbus/reverts.py, features/jbus/src/jbus/culprits.py, features/jbus/src/jbus/watch.py, features/jbus/src/jbus/poll.py"
 ---
 
 # verify-main-fix

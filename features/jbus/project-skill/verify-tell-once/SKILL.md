@@ -1,6 +1,7 @@
 ---
 name: verify-tell-once
 description: Check TellOnce.tla, jbus's act-once marks when a pass dies; use when changing how a pass sends, posts or acts once and marks it.
+paths: "features/jbus/spec/TellOnce.tla, features/jbus/src/jbus/wake.py, features/jbus/src/jbus/clock.py, features/jbus/src/jbus/stall.py, features/jbus/src/jbus/outbox.py, features/jbus/src/jbus/item.py, features/jbus/src/jbus/word.py, features/jbus/src/jbus/owed.py, features/jbus/src/jbus/failover.py, features/jbus/src/jbus/expedite.py, features/jbus/src/jbus/cancelled.py, features/jbus/src/jbus/project.py, features/jbus/src/jbus/mainmoved.py, features/jbus/src/jbus/questions.py, features/jbus/src/jbus/culprits.py, features/jbus/src/jbus/rebase.py, features/jbus/src/jbus/reload.py, features/jbus/src/jbus/queue.py"
 ---
 
 # verify-tell-once

@@ -5,13 +5,16 @@ A model check keeps passing while the code it describes changes under it, and th
 a proof. So each model has a project skill, named in its feature's `feature.json` under
 `projectSkills`, whose record names the model (`Model:`), the commit it was last confirmed
 against (`Sync:`, a full sha), and each file it covers with the names in it the model's steps
-stand for (`Covers:`). An agent changing a covered file finds its model there, and
+stand for (`Covers:`). Its frontmatter's `paths:` lists the model and each covered file, so
+Claude Code shows the skill once a thread reads one of them, and the skill costs no thread that
+reads none of them a line of its start. An agent changing a covered file finds its model there, and
 `/maintain-formal-verification-skill` diffs the covered files from the sync commit.
 
 The test fails when a `.tla` file outside a `canary/` folder has no skill naming it, when a
 skill's record names no covered file or no sync commit, and when a covered file or a name in it
-is gone: a rename leaves the record pointing at code that no longer exists, and the agent who
-renamed it moves the record with it. The fixture cases show each of those caught.
+is gone, or `paths:` leaves one out: a rename leaves the record pointing at code that no longer
+exists, and the agent who renamed it moves the record with it. The fixture cases show each of
+those caught.
 """
 
 import ast
@@ -34,6 +37,7 @@ SYNC = re.compile(r"^Sync: `([0-9a-f]{40})`$", re.M)
 COVERS = re.compile(r"^Covers:\n\n?((?:- .+\n)+)", re.M)
 COVERED = re.compile(r"^- `([^`]+)`(?:: (.+))?$")
 NAME = re.compile(r"`([^`]+)`")
+PATHS = re.compile(r'^paths: "([^"]*)"$', re.M)
 
 
 def models(root: Path) -> list[str]:
@@ -116,6 +120,13 @@ def problems(root: Path) -> list[str]:
         if not SYNC.search(text):
             said.append(f"{where}: no `Sync:` line with the full sha its model was confirmed at")
         files = covered(text)
+        listed = PATHS.search(text)
+        shown = {one.strip() for one in listed.group(1).split(",")} if listed else set()
+        said.extend(
+            f"{where}: its `paths:` does not list {path}, so reading it does not show the skill"
+            for path in [*mine, *(path for path, _ in files)]
+            if path not in shown
+        )
         if not files:
             said.append(f"{where}: no `Covers:` list of the files its model describes")
         for path, names in files:
@@ -143,6 +154,7 @@ def test_each_model_has_a_verify_skill_whose_record_holds():
 SKILL = """---
 name: verify-demo
 description: Check Demo.tla.
+paths: "features/demo/spec/Demo.tla, features/demo/src/demo/core.py"
 ---
 
 # verify-demo
@@ -229,6 +241,14 @@ def test_a_covered_name_that_is_gone_is_caught_though_a_comment_keeps_it(tmp_pat
     assert problems(tmp_path) == [
         "features/demo/project-skill/verify-demo: covers `Box.move` in"
         " features/demo/src/demo/core.py, which no longer has it"
+    ]
+
+
+def test_a_covered_file_paths_leaves_out_is_caught(tmp_path):
+    demo(tmp_path, SKILL.replace(", features/demo/src/demo/core.py", ""))
+    assert problems(tmp_path) == [
+        "features/demo/project-skill/verify-demo: its `paths:` does not list"
+        " features/demo/src/demo/core.py, so reading it does not show the skill"
     ]
 
 

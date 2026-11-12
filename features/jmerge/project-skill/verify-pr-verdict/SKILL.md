@@ -1,6 +1,7 @@
 ---
 name: verify-pr-verdict
 description: Check PrVerdict.tla, one pull request through jmerge's verdict; use when changing Repo.judged, a hold or wait, or what --accept lifts.
+paths: "features/jmerge/spec/PrVerdict.tla, features/jmerge/src/jmerge/cli.py, features/jmerge/src/jmerge/ready.py, features/jmerge/src/jmerge/rows.py, features/jmerge/src/jmerge/batch.py, features/jmerge/src/jmerge/treeguards.py, features/jbus/src/jbus/rebase.py"
 ---
 
 # verify-pr-verdict

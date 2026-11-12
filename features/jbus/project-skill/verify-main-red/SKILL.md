@@ -1,6 +1,7 @@
 ---
 name: verify-main-red
 description: Check main's red: the walk of main.json's contract and MainRed.tla; use when changing mainmoved, mainjson, jbus.reverts, culprits, watch's red steps or Repo.again.
+paths: "features/jbus/spec/MainRed.tla, features/jbus/src/jbus/mainmoved.py, features/jmerge/src/jmerge/mainjson.py, features/jbus/src/jbus/watch.py, features/jbus/src/jbus/culprits.py, features/jbus/src/jbus/reverts.py, features/jmerge/src/jmerge/reverts.py, features/jmerge/src/jmerge/cli.py, features/jbus/src/jbus/poll.py"
 ---
 
 # verify-main-red

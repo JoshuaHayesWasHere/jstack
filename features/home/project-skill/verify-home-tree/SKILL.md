@@ -1,6 +1,7 @@
 ---
 name: verify-home-tree
 description: Check HomeTree.tla, the home tree's rules; use when changing a rule or the code it rests on.
+paths: "features/home/spec/HomeTree.tla, features/home/skills/handoff/SKILL.md, features/jbus/src/jbus/children.py, features/jbus/src/jbus/wakes.py, features/jbus/src/jbus/merge.py, features/jmerge/src/jmerge/cli.py, features/jmerge/src/jmerge/lock.py, features/jbriefs/src/jbriefs/home.py"
 ---
 
 # verify-home-tree

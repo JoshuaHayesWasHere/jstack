@@ -1,6 +1,7 @@
 ---
 name: verify-flow-today
 description: Check FlowToday.tla, today's merge flow; use when changing how jmerge judges, batches, lines up or merges, or jbus's room, sweep or fix row.
+paths: "features/jmerge/spec/FlowToday.tla, features/jmerge/src/jmerge/cli.py, features/jmerge/src/jmerge/batch.py, features/jmerge/src/jmerge/ready.py, features/jmerge/src/jmerge/rows.py, features/jmerge/src/jmerge/judgement.py, features/jmerge/src/jmerge/rejudge.py, features/jbus/src/jbus/dispatch.py, features/jbus/src/jbus/watch.py, features/jbus/src/jbus/culprits.py, features/jbus/src/jbus/reverts.py, features/jbus/src/jbus/strays.py, features/jbus/src/jbus/merge.py, scripts/select_tests.py"
 ---
 
 # verify-flow-today
