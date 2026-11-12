@@ -5,3 +5,6 @@ __pycache__/
 .ruff_cache/
 /.claude/skills/
 /.cursor/skills/
+
+# Built by `statechart site --out features/home/docs/charts/index.html`; every chart change rewrites it.
+/features/home/docs/charts/index.html
