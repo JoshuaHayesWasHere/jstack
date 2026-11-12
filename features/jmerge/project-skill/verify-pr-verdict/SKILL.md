@@ -18,7 +18,7 @@ Each condition quotes its code with no line number.
 ## The record
 
 Model: `features/jmerge/spec/PrVerdict.tla`
-Sync: `631810e72260b58b69859e1eb0ce964b832d8722`
+Sync: `c1ec2615c986b1bfe12f07cffc656002c77934af`
 Covers:
 - `features/jmerge/src/jmerge/cli.py`: `Repo.judged`, `Repo.judge`, `Repo.again`, `Repo.in_turn`, `Repo.over_main`, `Repo.merge_holding`, `Repo.merge_members`, `Repo.lifted`, `Repo.lift`, `Repo.queue_of`, `Repo.accept`, `Repo.waits`, `_merging`
 - `features/jmerge/src/jmerge/ready.py`: `red_only`, `short_on_github`, `still_to_pass`, `ROW_HELD`, `NO_GO`, `ROW_OVER`, `TOUCHES`
@@ -47,7 +47,7 @@ It runs TLC on today's code and the eleven canaries, in a few minutes, and skips
 A run that ends in seconds took TLC's verdict from the statechart tools' cache (`tools.kept`), keyed by the spec, cfg and jar, and the runner script does the same: the verdict is the one TLC gives, and no change to the code alone can turn it, which is why the record above, and not a pass, says whether the model still describes the code.
 `pr_canaries.py` prints one line a run; its command is in `features/jmerge/spec/README.md`, "Why a pull request is not merging".
 
-- **Bounds:** `Moves = 1` (other work moves main at most once), `Drop = "none"`, 1,280,794 distinct states, as many as the chart's cfg, which also moves main once.
+- **Bounds:** `Moves = 1` (other work moves main at most once), `Drop = "none"`, 1,518,172 distinct states, as many as the chart's cfg, which also moves main once.
 - **The canaries:** `over`, `go`, `touches`, `declines`, `mergeoff` and `head` break the first half (a merge past a hold of yours); `release`, `rejudge`, `again`, `batch-failed` and `twice` break the second (it waits for ever).
 - **Assumptions:** one pull request into main, no stack, no browser run, no migrations, no `merge_after`; `CONFLICTS` stands for both kinds of conflict; each step is atomic; one fix makes the change good, and one review round holds; your word has no fairness, nor has a run that judges no other batch member (`Alone`).
   The rest is in the README's "What PrVerdict leaves out".
@@ -92,4 +92,8 @@ The row then merged main at `631810e72`, and the upkeep diffed the covered code 
 #1796 fixed the `ROW_OVER` accept: `Repo.judged` lifts `ROW_OVER` at the accepted head and reads the row as an open pull request's (`Repo.queue_of`), so `over` joined `Accepted` and `VerdictAccepted` checks it among the holds your accept lifts.
 #1768 added the rule preflight after `Repo.over_main` and the guards (`RULE_UNRUN`, `RULE_BREAKS`), which waits on other open pull requests and their crews; the model has one pull request, and the README's "What PrVerdict leaves out" names it.
 #1788's `stuck_runs` restarts a queued run, which the model already leaves out.
+Every run says what it should.
+
+The row then merged main at `c1ec2615c`, and the upkeep diffed the covered code from `631810e72`.
+#1703 moved jbus's hold to the third failed head, or the second where its logs name no failed test, and brought the model with it (`Limit == 3`, `CheckEnds` steps from one to two or to the limit); in covered code it changed only which message `rebase.github` sends at a second named head, and `rebase.tell` is as it was.
 Every run says what it should, so the sync commit moved there.

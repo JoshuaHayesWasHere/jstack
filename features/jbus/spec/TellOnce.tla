@@ -213,7 +213,7 @@ Init ==
 \* it: a hold nobody works on (jbus/clock.py `hold = {"since": run.now.isoformat(), "woke": False} | was.get(key, {}) | group`),
 \* a body for the second target (post), an ask that stopped on a limit (jbus/owed.py `asks.append(ask)`),
 \* a short pull request counted (jbus/expedite.py `entry = {**seen, "passes": seen["passes"] + 1} if same else {"passes": 1}`),
-\* a second red head counted (jbus/stall.py `heads[head] = {"at": run.now.isoformat(), **_failure(found, names)}`),
+\* a second red head counted (jbus/stall.py `heads[head] = {"at": run.now.isoformat(), **_failure(found, names, tests)}`),
 \* a merge that changed a skill, kept under the lock by the tick (jbus/reload.py `kept = owed(run, said) if kept != read_json(run.state / FILE, []):`),
 \* and a wait the clock starts to count (jbus/clock.py `wait: dict[str, Any] = seen if same else {"passes": 0, "acted": False, "home": False}`).
 Due ==

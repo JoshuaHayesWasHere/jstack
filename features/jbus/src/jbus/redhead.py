@@ -1,7 +1,8 @@
 """Why a failed head's red is not the row's own: the main its check ran on (`tested`), a flake
 shared with two other branches (`shared`), a step that failed to fetch what the check needs
 (`infra`, `FETCH`, `failed_step`), and a merge of main into the head before it (`merge_of_main`)
-that failed something new (`failures`). `stall.twice` reads these before it counts a head."""
+that failed something new (`failures`). `stall.twice` reads these before it counts a head, and
+keeps the failed tests a counted head's logs name (`named`)."""
 
 from __future__ import annotations
 
@@ -114,6 +115,16 @@ def failures(run: Pass, red: rebase.Red) -> set[str]:
         found.update(failed_in(log).tests)
         found.update(f"{rule} {path}" for rule, path in LINT.findall(log))
     return found or {f"check {name}" for name in red.names}
+
+
+def named(run: Pass, red: rebase.Red) -> list[str]:
+    """Return the failed tests that the failed jobs' logs name (`failed_in`), or nothing where no
+    log GitHub gave names one."""
+    tests: dict[str, None] = {}
+    for repo, job in red.jobs:
+        log = job_log(run, repo, job)
+        tests.update(dict.fromkeys(failed_in(log).tests if log is not None else ()))
+    return list(tests)
 
 
 def merge_of_main(run: Pass, head: str, before: str, main: str) -> bool:

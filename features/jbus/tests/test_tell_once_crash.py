@@ -58,11 +58,12 @@ def taken(kitchen, prefix):
 
 
 def test_twice_pages_the_chef_once_when_the_pass_dies_after_it_held_the_row(launched, monkeypatch):
-    """TLC's first trace (NoTellLost): `queue.hold` holds the row at its second red head, the pass
-    dies before `run.gate`, and the next pass skips the held row, so the page never goes."""
-    red_at(launched, A, "11")
+    """TLC's first trace (NoTellLost): `queue.hold` holds the row at its second red head that names
+    no test, the pass dies before `run.gate`, and the next pass skips the held row, so the page
+    never goes."""
+    red_at(launched, A, "11", named=False)
     run_at(launched, 0)
-    red_at(launched, B, "12")
+    red_at(launched, B, "12", named=False)
     dies_after(monkeypatch, queue, "hold", lambda _, state, slug, **how: slug == "alpha")
     with pytest.raises(Died):
         run_at(launched, 3)
@@ -77,9 +78,9 @@ def test_twice_pages_the_chef_once_the_row_can_be_held_when_its_hold_was_refused
 ):
     """The page's key is kept before the hold, so a hold refused leaves the page owed, not lost: no
     page while the row cannot be held, and one page once a later pass holds it."""
-    red_at(launched, A, "11")
+    red_at(launched, A, "11", named=False)
     run_at(launched, 0)
-    red_at(launched, B, "12")
+    red_at(launched, B, "12", named=False)
     real = stall.queue.hold
 
     def busy(*args, **kwargs):

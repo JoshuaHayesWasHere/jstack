@@ -93,7 +93,7 @@
     "command": "statechart from-spec TellOnce.tla --config TellOnceOwed.chart.cfg --title 'Does jbus send an ask owed after a limit twice when a pass dies?'",
     "inputs": {
       "TellOnce.map.py": "fb48339c3dfc74e1770616f75ce726b0d0a566ba3aecaeeffc746c2fc49384d1",
-      "TellOnce.tla": "be048a810c13816b2cec1d2e15b35e13ac2c3574254e6dc851a6e9ca818284f6",
+      "TellOnce.tla": "fa8bccf828c18eb906cc356ad8ac7f2eaae256e8d4863ed3c9be069b6a74b791",
       "TellOnceOwed.chart.cfg": "f90d908902c0e13ecd034b9a87ac9e0a4108280738c432560368c77d8b14a5fb"
     },
     "chart": "c9fa30f460f976749cbaf385a306c8d2fc5f8df2df4882033385ef76b07e309f"

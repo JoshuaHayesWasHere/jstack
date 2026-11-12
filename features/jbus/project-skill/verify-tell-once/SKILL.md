@@ -24,7 +24,7 @@ st-fix-tell-once (#1725) closed the eight it broke: `stall.twice`'s page, the cl
 ## The record
 
 Model: `features/jbus/spec/TellOnce.tla`
-Sync: `631810e72260b58b69859e1eb0ce964b832d8722`
+Sync: `c1ec2615c986b1bfe12f07cffc656002c77934af`
 Covers:
 - `features/jbus/src/jbus/wake.py`: `Box.send`, `Box.mark`, `Box.flush_blocking`, `_post_blocking`
 - `features/jbus/src/jbus/clock.py`: `tick`, `_send`, `_act`, `_home`, `held`, `HELD_FILE`
@@ -97,6 +97,8 @@ st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased on
 st-model-sync then merged main to `631810e72`, which carried st-fix-tell-once (#1725): it rewrote the model with the code, and `heldlift` holds as forecast, so `TODAY` is empty.
 The upkeep diffed the covered code from `2fb4e2587` to it.
 Every change but #1725's and #1788's leaves the acts' write orders as modeled: #1752's `rebase.retell` tells again through `rebase.once` under a key of the main tip, like `revert`, and #1777's `waits` carry-on is marked in `sent.json` once T3 Code took it, like `owed`.
+
+The row then merged main at `c1ec2615c`, and the upkeep diffed the covered code from `631810e72`: #1703 changed `stall.twice`, which keeps the pin, hold, page and `held_at` in the model's order and holds at the third failed head, or the second whose logs name no test; at a second head whose logs name failed tests it writes `told` in `fails.json` and acts nothing itself, and `rebase.github` tells the crew under its own box key, as the model's `revert` does.
 
 ## Drift at the sync commit
 

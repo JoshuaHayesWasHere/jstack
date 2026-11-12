@@ -66,7 +66,10 @@ for each thing on GitHub that needs the crew to act. There are two such things.
 The first is a check that ran and failed at a head, under `failed|<slug>|<head 12>`, with the
 failure told beside it: GitHub's merge of main onto a head told of the same failure is not told
 again, a crew push or another failure is (`told_before`). A rerun red again is told once more, under
-`refailed|<slug>|<head 12>`. A check that ran no step is not told: no push repairs it.
+`refailed|<slug>|<head 12>`. A check that ran no step is not told: no push repairs it. At a row's
+second counted failed head whose logs name failed tests (`watch.named_last`, kept by
+`jbus.stall.twice`), the message is `LAST`: it names those tests and both heads, and says a third
+failed head holds the row and pages the user.
 When the crew already got the rebase message for a head, `github` sends no message for the head's
 failed check, since a rebase is the fix that the failed check needs.
 
@@ -118,6 +121,7 @@ from jbus.watch import (
     checks,
     failed_in,
     job_log,
+    named_last,
     ran,
     task_brief,
 )
@@ -175,6 +179,14 @@ FAILED = (
     "jbus: {reason} on your pull request #{number} at {short}. In your own worktree, run the "
     'block of "The checks" and do what it prints. ' + END_TURN
 )
+LAST = (
+    "jbus: {reason} on your pull request #{number} at {short}, its second head to fail on a "
+    "change of its own, after {first}. Its jobs' logs name these failed tests: {tests}. Mend them "
+    "before you push again: a third failed head holds the row and pages the user. In your own "
+    'worktree, run the block of "The checks" and do what it prints. ' + END_TURN
+)
+"""The failed check's message at a row's second counted failed head whose logs name failed tests
+(`watch.named_last`), naming those tests and both heads."""
 CONFLICTED = (
     "jbus: your pull request #{number} is in conflict with its base at {short}. In your own "
     'worktree, run the first block of "A conflict" as it is, and do what it prints: it does '
@@ -347,8 +359,10 @@ def github(run: Pass, client: Client, world: World) -> None:
         brief = task_brief(run, slug)
         rebased = mark("rebase", slug, head) in sent
         red = Red() if rebased else ran_and_failed(run, world, pull)
-        again = _asked("refailed", FAILED, head) if red.attempt > 1 else None
-        ask = again or _asked("failed", FAILED, head)
+        last = named_last(run, slug, head)
+        message = FAILED if last is None else _last(*last)
+        again = _asked("refailed", message, head) if red.attempt > 1 else None
+        ask = again or _asked("failed", message, head)
         if red.reason and mark(ask.kind, slug, head) not in sent:
             told = mark("failure", slug, head, failure(run, red))
             merged = "" if again else told_before(run, head, told, sent)
@@ -391,6 +405,17 @@ def retell(
         return
     again = replace(ask, did=f"told the crew again, main at {tip[:12]}", event=True)
     post(run, client, world, number, ready.CONFLICTS, again, window=tip[:12])
+
+
+def _last(heads: list[str], tests: list[str]) -> str:
+    """Word `LAST` for the row's counted heads and the failed tests its second one's logs name,
+    leaving the fields `post` fills."""
+
+    def quoted(text: str) -> str:
+        return text.replace("{", "{{").replace("}", "}}")
+
+    named = ", ".join(f"`{quoted(test)}`" for test in tests)
+    return LAST.replace("{first}", heads[0][:12]).replace("{tests}", named)
 
 
 def worktree(client: Client, thread: str) -> str | None:

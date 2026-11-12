@@ -346,7 +346,7 @@ def test_a_red_head_s_check_wait_takes_the_row_from_jmerge_s_wait(red):
 
 
 def test_a_row_held_by_check_failed_twice_is_not_restarted(red):
-    red_at(red, B, "12")
+    red_at(red, B, "12", named=False)
     run_at(red, 1)
     assert rows(red)["alpha"]["held"] is True
     for minute in range(2, 40, 4):

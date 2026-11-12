@@ -176,9 +176,10 @@ The design also has both pull requests open from the start, so it has no launch 
 
 `PrVerdict.tla` follows one pull request into main through jmerge's verdict, in the order `Repo.judged` (`features/jmerge/src/jmerge/cli.py`) checks it: its review, GitHub's waits, its row (over, held, or without its go), a drop or decline, a protected path, a failed check judged again over today's main (`Repo.judge`, `Repo.again`), GitHub's undecided, `Repo.over_main` with the batch and the guards, and merge-off.
 Then the run acts on the verdict: it merges, the guards fail on its tree over main's tip, or, where the batch takes it, it goes the single path when the run judged no other member and joins a batch with the others when it did, and a pull request whose turn GitHub's merge of main waits on stands in its base's line (`IN_LINE`) behind the one ahead.
-A crew's fix may fail its check again, and jbus counts each head at which the check failed on a change of its own: at the second it holds the row and pages you (`jbus.stall.twice`, `check failed twice`), and the outbox tells a held row's crew nothing until your approve, or a check that passes at a head, lifts the hold.
+A crew's fix may fail its check again, and jbus counts each head at which the check failed on a change of its own: at the third it holds the row and pages you (`jbus.stall.twice`, `check failed twice`), and the outbox tells a held row's crew nothing until your approve, or a check that passes at a head, lifts the hold.
+At the second it holds the row too where the failed jobs' logs name no failed test; where they name some, the crew is told of them and fixes once more, so the model's count jumps from one to the limit, or steps to two, as the second head's logs name no test or some (st-stall-acts).
 Each condition quotes its code with no line number, and `features/jmerge/tests/test_pr_verdict_spec.py` finds each quote once in its file.
-It models the verdict as of main 21112eba8 and jbus's hold as of main 8644c5324, and came in with st-pr, the pull request chart of the scout st-map; st-verdict-live widened its rule to every open pull request.
+It models the verdict as of main 21112eba8 and jbus's hold as of main 8644c5324 and st-stall-acts, and came in with st-pr, the pull request chart of the scout st-map; st-verdict-live widened its rule to every open pull request.
 
 The rule, `MergesOrWaitsOnYou`: "every open pull request merges or waits on the user's word".
 It has two halves: a merge leaves no hold of yours outstanding but those your accept lifted at its head (`MergesOnlyOnYourWord`), and every open pull request, from its first state, goes on to merge or to wait on your word, so no path waits for ever on its crew, its reviewer, GitHub, a check or jmerge.
@@ -197,18 +198,18 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --e
 At st-model-upkeep-run's head it prints, with each run's time left out:
 
 ```text
-ok    today: MergesOrWaitsOnYou holds (1280794 distinct states found)
-ok    canary over: MergesOrWaitsOnYou breaks (115925 distinct states found)
-ok    canary go: MergesOrWaitsOnYou breaks (117476 distinct states found)
-ok    canary touches: MergesOrWaitsOnYou breaks (115919 distinct states found)
-ok    canary declines: MergesOrWaitsOnYou breaks (115947 distinct states found)
-ok    canary mergeoff: MergesOrWaitsOnYou breaks (115957 distinct states found)
-ok    canary head: MergesOrWaitsOnYou breaks (1166082 distinct states found)
-ok    canary release: MergesOrWaitsOnYou breaks (1280782 distinct states found)
-ok    canary rejudge: MergesOrWaitsOnYou breaks (1369410 distinct states found)
-ok    canary again: MergesOrWaitsOnYou breaks (1275690 distinct states found)
-ok    canary batch-failed: MergesOrWaitsOnYou breaks (1280194 distinct states found)
-ok    canary twice: MergesOrWaitsOnYou breaks (1328546 distinct states found)
+ok    today: MergesOrWaitsOnYou holds (1518172 distinct states found)
+ok    canary over: MergesOrWaitsOnYou breaks (115953 distinct states found)
+ok    canary go: MergesOrWaitsOnYou breaks (117384 distinct states found)
+ok    canary touches: MergesOrWaitsOnYou breaks (115887 distinct states found)
+ok    canary declines: MergesOrWaitsOnYou breaks (115949 distinct states found)
+ok    canary mergeoff: MergesOrWaitsOnYou breaks (115951 distinct states found)
+ok    canary head: MergesOrWaitsOnYou breaks (1255043 distinct states found)
+ok    canary release: MergesOrWaitsOnYou breaks (1501914 distinct states found)
+ok    canary rejudge: MergesOrWaitsOnYou breaks (1474055 distinct states found)
+ok    canary again: MergesOrWaitsOnYou breaks (1492365 distinct states found)
+ok    canary batch-failed: MergesOrWaitsOnYou breaks (1422595 distinct states found)
+ok    canary twice: MergesOrWaitsOnYou breaks (1469094 distinct states found)
 every run says what it should
 ```
 
@@ -220,7 +221,7 @@ The first run found a story the code does not have: a check that failed over a r
 jbus tells the crew of a conflict from GitHub's `CONFLICTING` whatever jmerge says (`features/jbus/src/jbus/rebase.py`), so the model's crew rebases on a conflict it is told of alone, and the rule holds.
 
 The first run of the widened rule found a pull request that merged past jbus's hold: the crew's fix went out before the hold, a third head passed and joined the batch, and the hold landed while the batch's check ran.
-The code has no such order: a pass runs its tellers, `stall.twice` among them, before the steps after expedite, where `rebase.github` tells the crew of the failed check, so the row is held in the pass that counts its second failed head before its crew hears of it, and the model's crew gets no fix while a count at the limit waits for its hold.
+The code has no such order: a pass runs its tellers, `stall.twice` among them, before the steps after expedite, where `rebase.github` tells the crew of the failed check, so the row is held in the pass that counts its last failed head before its crew hears of it, and the model's crew gets no fix while a count at the limit waits for its hold.
 jbus's hold is the one wait on you that jmerge words as its crew's: with the check failed, jmerge says `check has failed`, as GitHub's waits come before the row's go, while the outbox holds the crew's fix until your approve or a head whose check passes.
 The row says `check failed twice` and jbus pages you once; the chart draws the state in "Waits on your word" as `held: its check failed twice`, whatever jmerge last said, with your approve as its way out.
 
@@ -239,8 +240,8 @@ W=$(mktemp -d) && cp features/jmerge/spec/PrVerdict.* "$W"
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `PrVerdict-statechart/`.
-`PrVerdict.chart.cfg` moves main once (1,280,794 model states), and `PrVerdict.map.py` labels each state by main and what jmerge last said, and a row jbus held for its failed checks as held.
-The chart has 21 states and draws 56 of its 174 steps, at least one way out of each state but merged, and no state breaks the rule.
+`PrVerdict.chart.cfg` moves main once (1,518,172 model states), and `PrVerdict.map.py` labels each state by main and what jmerge last said, and a row jbus held for its failed checks as held.
+The chart has 21 states and draws 56 of its 175 steps, at least one way out of each state but merged, and no state breaks the rule.
 Then draw its Excalidraw file and the charts page again, from the repo root:
 
 ```sh
