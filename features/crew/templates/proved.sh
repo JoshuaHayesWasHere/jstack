@@ -6,21 +6,23 @@
 # lane's limit cut runs again alone in a full slot. A side that exited 0 is kept in the worktree's
 # `crew-proof-sides`, and a run at the same head and base runs only the side still owed. A test is
 # a `test_*.py` or `*_test.py`, run on pytest, which leaves out the tests marked `browser`, as
-# `make check` and CI do, or a `*.test.*` or `*.spec.*` of JavaScript or TypeScript, run from the
-# directory of the nearest package.json above it on that package's own Vitest, or for a `*.spec.*`
-# on Playwright, from the directory of the nearest `playwright.config.*` at or above that package.
+# `make check` and CI do, or a `*.test.*` or `*.spec.*` of JavaScript or TypeScript, run on the
+# Vitest of the nearest package.json above it, from the directory of the nearest `vitest.config.*`
+# between it and that package, the package's own the last, or for a `*.spec.*` on Playwright, from
+# the directory of the nearest `playwright.config.*` above it.
 # features/crew/do-the-task.md says what it proves and how.
 # A crew runs it by its path, `bash "$T/proved.sh" <brief> <thread id>`, from its worktree: the
 # command it sends then holds no `rm`, which Claude Code stops to ask about, even in full access.
 
 # One side's run of each runner's tests, in the slot: `bash proved.sh --sides`, with the copies,
-# the sides and the tests of each runner in PROOF_* variables. It prints `<side> exit <n>: <what
+# the sides and the tests of each runner in PROOF_* variables, the Node ones as lines of
+# `<directory it runs from>\t<its package>\t<its files from that directory>`. It prints `<side> exit <n>: <what
 # each runner said>`, the worst exit of its runners. Vitest and Playwright end 1 on a failed test
 # and on a run that never reached one alike (no file found, a web server that would not start),
 # and a base exit 1 is what proves the change: each one's JSON report says whether a test failed or
 # a test file did not load, and a run that ends 1 with neither is written 2.
 prove_sides() {
-    local side at more workers code worst said ran runner groups n pkg files name out bin dir report failed
+    local side at more workers code worst said ran runner groups n run pkg files name out bin dir report failed
     for side in $PROOF_SIDES; do
         if [ "$side" = head ]; then at=$PROOF_HEAD more=; else at=$PROOF_BASE more=--continue-on-collection-errors; fi
         cd "$at" || exit
@@ -36,11 +38,11 @@ prove_sides() {
         for runner in vitest playwright; do
             if [ "$runner" = vitest ]; then groups=$PROOF_VITEST; else groups=$PROOF_PLAYWRIGHT; fi
             n=0
-            while IFS=$'\t' read -r -u 3 pkg files; do
-                [ -n "$pkg" ] || continue
+            while IFS=$'\t' read -r -u 3 run pkg files; do
+                [ -n "$run" ] || continue
                 n=$((n + 1))
                 name=$runner
-                [ "$pkg" = . ] || name="$runner $pkg"
+                [ "$run" = . ] || name="$runner $run"
                 out=$PROOF_BASE/.proof-$side-$runner-$n
                 : > "$out.json"
                 if [ ! -f "$at/$pkg/package.json" ]; then
@@ -51,7 +53,7 @@ prove_sides() {
                 else
                     # The package's own runner, or the one a workspace's install put further up.
                     bin=./node_modules/.bin/$runner
-                    dir=$pkg
+                    dir=$run
                     while :; do
                         if [ -x "$at/$dir/node_modules/.bin/$runner" ]; then
                             bin=$at/$dir/node_modules/.bin/$runner
@@ -61,14 +63,14 @@ prove_sides() {
                         dir=$(dirname "$dir")
                     done
                     if [ "$runner" = vitest ]; then
-                        (cd "$at/$pkg" && CI=1 "$bin" run --reporter=default --reporter=json --outputFile.json="$out.json" $files) > "$out" 2>&1 < /dev/null
+                        (cd "$at/$run" && CI=1 "$bin" run --reporter=default --reporter=json --outputFile.json="$out.json" $files) > "$out" 2>&1 < /dev/null
                         code=$?
                         report=$(jq -r --arg name "$name" '(.testResults | map(select(.status == "failed"))) as $f
                             | ($f | map(select((.assertionResults // []) | length == 0)) | length) as $unloaded
                             | [($f | length), "\($name): \(.numPassedTests) passed, \(.numFailedTests) failed"
                                 + (if $unloaded > 0 then ", \($unloaded) files did not load" else "" end)] | @tsv' "$out.json" 2> /dev/null)
                     else
-                        (cd "$at/$pkg" && CI=1 PLAYWRIGHT_JSON_OUTPUT_NAME=$out.json "$bin" test --reporter=list,json $files) > "$out" 2>&1 < /dev/null
+                        (cd "$at/$run" && CI=1 PLAYWRIGHT_JSON_OUTPUT_NAME=$out.json "$bin" test --reporter=list,json $files) > "$out" 2>&1 < /dev/null
                         code=$?
                         report=$(jq -r --arg name "$name" '(.errors | map(select(.location != null)) | length) as $unloaded
                             | ([.errors[] | select(.location == null) | .message | split("\n")[0]] | first // "") as $error
@@ -160,7 +162,7 @@ package_of() {
     while [ "$dir" != . ] && ! git cat-file -e "$head:$dir/package.json" 2> /dev/null; do dir=$(dirname "$dir"); done
     echo "$dir"
 }
-# Lines of `<package>\t<file>`, sorted, as one line a package, `<package>\t<its files from it>`.
+# Lines of `<directory>\t<file>`, sorted, as one line a directory, `<directory>\t<its files from it>`.
 by_package() {
     local pkg file at= files=
     while IFS=$'\t' read -r pkg file; do
@@ -302,21 +304,25 @@ elif [ -z "$tests" ]; then
     fi
 else
     pytests=$(printf '%s\n' "$tests" | command grep -E "$py_test" | paste -sd ' ' -)
-    # Each Node test runs from its package's directory, on that package's own install and config,
-    # and a `*.spec.*` runs on Playwright where its package, or a directory above it, has a
-    # `playwright.config.*`: then from the directory of that config, as Playwright's `testDir` is.
+    # Each Node test runs on its package's own install, from the directory of the nearest config of
+    # its runner above it, so that config's `include` or `testDir` reaches it: a `vitest.config.*`
+    # between it and its package, or the package's directory where none is, and a `*.spec.*` on
+    # Playwright where a directory above it has a `playwright.config.*`.
+    config_in() {
+        local path=$2
+        [ "$path" != . ] || path=
+        git ls-tree --name-only "$head:$path" 2> /dev/null | command grep -qE "^$1\.config\.[cm]?[jt]s$"
+    }
     vitests=
     specs=
     while read -r file; do
         [ -n "$file" ] || continue
         pkg=$(package_of "$file")
-        runner=vitests
+        runner=
+        dir=$(dirname "$file")
         if [[ $file =~ \.spec\.[^/]*$ ]]; then
-            dir=$pkg
             while :; do
-                if [ "$dir" = . ]; then path=; else path=$dir; fi
-                if git ls-tree --name-only "$head:$path" | command grep -qE '^playwright\.config\.[cm]?[jt]s$'; then
-                    pkg=$dir
+                if config_in playwright "$dir"; then
                     runner=specs
                     break
                 fi
@@ -324,16 +330,29 @@ else
                 dir=$(dirname "$dir")
             done
         fi
-        if [ "$pkg" = . ]; then rel=$file; else rel=${file#"$pkg"/}; fi
+        if [ -z "$runner" ]; then
+            runner=vitests
+            dir=$(dirname "$file")
+            while [ "$dir" != "$pkg" ] && [ "$dir" != . ] && ! config_in vitest "$dir"; do dir=$(dirname "$dir"); done
+        fi
+        if [ "$dir" = . ]; then rel=$file; else rel=${file#"$dir"/}; fi
         if [ "$runner" = specs ]; then
-            specs="$specs$pkg"$'\t'"$rel"$'\n'
+            specs="$specs$dir"$'\t'"$rel"$'\n'
         else
-            vitests="$vitests$pkg"$'\t'"$rel"$'\n'
+            vitests="$vitests$dir"$'\t'"$rel"$'\n'
         fi
     done <<< "$(printf '%s\n' "$tests" | command grep -E "$js_test")"
-    vitests=$(printf '%s' "$vitests" | sort | by_package)
-    specs=$(printf '%s' "$specs" | sort | by_package)
-    packages=$(printf '%s\n%s\n' "$vitests" "$specs" | while IFS=$'\t' read -r pkg _; do
+    # Each directory's group with the package it runs on: `<directory>\t<package>\t<files>`.
+    with_package() {
+        local run files
+        while IFS=$'\t' read -r run files; do
+            [ -n "$run" ] || continue
+            printf '%s\t%s\t%s\n' "$run" "$(package_of "$run/-")" "$files"
+        done
+    }
+    vitests=$(printf '%s' "$vitests" | sort | by_package | with_package)
+    specs=$(printf '%s' "$specs" | sort | by_package | with_package)
+    packages=$(printf '%s\n%s\n' "$vitests" "$specs" | while IFS=$'\t' read -r _ pkg _; do
         [ -z "$pkg" ] || echo "$pkg"
     done | sort -u | paste -sd ' ' -)
     if ! tree=$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX"); then
