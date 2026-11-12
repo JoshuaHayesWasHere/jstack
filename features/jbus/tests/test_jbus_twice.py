@@ -105,6 +105,27 @@ def test_a_second_head_red_on_named_tests_tells_the_crew_the_names_and_a_third_h
     assert not rows(launched)["alpha"].get("held")
 
 
+def test_a_second_head_whose_log_comes_a_pass_late_still_tells_the_crew_its_tests(launched):
+    """The review of st-stall-acts (F1, 2026-11-11): a second failed head whose job's log GitHub
+    gives only a pass later was told the plain failed message first, under its key, so the message
+    naming the tests and warning of a third head never went. The crew now hears nothing of that
+    head until `jbus.stall.twice` has judged it, and then one message, naming both."""
+    red_at(launched, A, "11")
+    passes(launched, 0)
+    red_at(launched, B, "12", main=None)
+    passes(launched, 3)
+    assert told(launched) == ["failed|alpha|aaaaaaaaaaaa"]
+
+    red_at(launched, B, "12")
+    passes(launched, 6, 9)
+    assert told(launched) == ["failed|alpha|aaaaaaaaaaaa", "failed|alpha|bbbbbbbbbbbb"]
+    second = sends(launched)[1]["message"]
+    for named in (TEST, "aaaaaaaaaaaa", "bbbbbbbbbbbb", "a third"):
+        assert named in second, second
+    assert not rows(launched)["alpha"].get("held")
+    assert not pages(launched)
+
+
 def test_a_second_head_whose_logs_name_no_test_holds_the_row_and_pages_the_chef(launched):
     """A second failed head whose failed jobs' logs name no failed test gives the crew nothing to
     mend by name: it is held and paged at once, as before #1691."""
