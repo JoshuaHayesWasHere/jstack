@@ -14,7 +14,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 import jbus
-from jbus import questions, queue, stop, stopverbs
+from jbus import questions, queue, stop, stoptexts, stopverbs
 from test_jbus_capped_sends import cap
 from test_jbus_kitchen import NOW, Kitchen, sends
 from test_jbus_word import thread
@@ -528,7 +528,7 @@ def test_a_passed_decision_closes_the_stop_and_parks_a_gate_that_holds_for_the_u
     assert [one.closed for one in stop.load(kitchen.state).stops] == ["passed"]
     assert gate.slug == f"home-{SCOPE}"
     assert gate.question.startswith("the train is red on a root fix (decision on fl-mine")
-    assert gate.holds == stop.PASSED
+    assert gate.holds == stoptexts.PASSED
     assert "the root recommends: the smaller one" in gate.default
     told = texts(kitchen)[1]
     assert f"passed the flow home's decision on fl-mine to the user, as question {gate.number}" in (
@@ -540,7 +540,7 @@ def test_a_passed_decision_closes_the_stop_and_parks_a_gate_that_holds_for_the_u
     code, out = kitchen.main("needs")
     assert code == 0, out
     assert f"question {gate.number}: the train is red on a root fix" in out
-    assert f"it holds ({stop.PASSED}) for your answer" in out
+    assert f"it holds ({stoptexts.PASSED}) for your answer" in out
     assert passes(kitchen)[1] == "refused: the flow home has no open decision or go on fl-mine\n"
 
 
@@ -549,7 +549,7 @@ def test_a_passed_go_on_an_entry_parks_its_gate_on_the_scopes_own_slug(planned):
     code, said = passes(planned, subject=ENTRY)
     assert code == 0, said
     (gate,) = held(planned)
-    assert (gate.slug, gate.holds) == (f"home-{SCOPE}", stop.PASSED)
+    assert (gate.slug, gate.holds) == (f"home-{SCOPE}", stoptexts.PASSED)
     assert "nothing is done on it until you answer" in gate.default
     planned.poll()
     code, out = planned.main("needs", "--home", str(planned.home / SCOPE))
