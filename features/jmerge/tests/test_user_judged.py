@@ -13,6 +13,7 @@ The tests run the command against a real origin and a fake `gh`, with the kitche
 `test_jmerge_accept_act`, whose fake T3 Code gives jbus the user's own message.
 """
 
+import jsettings
 import test_jmerge_accept_act as accept_act
 from jmerge import ready
 from test_jmerge_fresh import LINES
@@ -83,3 +84,21 @@ def test_a_judged_clause_on_a_measure_holds_nothing(kitchen):
     opened(kitchen, "judged: the share of rows held drops to at most 1 in the first week")
     (said,) = kitchen.run()
     assert said.startswith("merged 6 "), said
+
+
+def test_the_users_configured_name_in_a_judged_clause_holds_it(kitchen):
+    opened(kitchen, f"judged: {jsettings.DEFAULTS.user} reads the skill as the root's goal")
+    (said,) = kitchen.run()
+    assert said.startswith("hold 6 ") and ready.USER_JUDGED in said, said
+
+
+def test_a_judged_clause_quoted_in_a_done_when_line_or_in_backticks_holds_nothing():
+    """A brief about this rule quotes the clause, as user-judged-holds-merge's first Done when
+    line did: a mention is no proof the user judges. The same clause, unquoted on the Proves it
+    line, holds."""
+    done = "Done when:\n- a test reads `judged: ... the user reviews the diff` and holds it\n"
+    quoted = "Proves it: `make check` passes, as `judged: the user reviews the diff` reads\n"
+    brief = f"# alpha: a task\nTask: do it\n{done}{quoted}Review: review\n"
+    assert ready.short_on_judged(brief) == ""
+    said = brief.replace(quoted, "Proves it: `make check` passes; judged: the user reviews it\n")
+    assert ready.short_on_judged(said) == ready.USER_JUDGED

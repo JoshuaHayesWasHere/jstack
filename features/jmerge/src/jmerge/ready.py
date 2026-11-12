@@ -1037,6 +1037,7 @@ def short_of(
 
 
 _JUDGED = re.compile(r"\bjudged:\s*(?P<why>[^;]+)", re.I)
+_QUOTED = re.compile(r"`[^`]*`")
 _THE_USER = re.compile(r"\bthe user\b|\buser's\b|\bthe (?:operator|owner)\b", re.I)
 
 
@@ -1045,17 +1046,22 @@ def _plain(text: str) -> str:
 
 
 def user_judged(text: str, user: str = "") -> tuple[str, ...]:
-    """Each `judged: <why>` clause of the brief's `Proves it:` line and `Done when` lines that
-    names the user (`the user`, `the operator`, `the owner`, or `user`, the name jstack's config
-    gives), as plain words: only the user can say it holds, so the pull request waits for their
-    word at the merge (`short_on_judged`). A clause runs to the next `;`. One that names a
-    reviewer or a measure is no one's word but its own, and is not here."""
-    head = head_lines(text)
-    proves = [line.removeprefix("Proves it:") for line in head if line.startswith("Proves it:")]
+    """Each `judged: <why>` clause of the brief's `Proves it:` line that names the user (`the
+    user`, `the operator`, `the owner`, or `user`, the name jstack's config gives), as plain words:
+    only the user can say it holds, so the pull request waits for their word at the merge
+    (`short_on_judged`). A clause runs to the next `;`. A clause quoted in backticks is a mention,
+    not a proof, and one that names a reviewer or a measure is no one's word but its own: neither
+    is here. A `Done when` line is not read, since a brief about this rule quotes the clause in
+    one, as user-judged-holds-merge's first line did."""
+    proves = [
+        _QUOTED.sub("", line.removeprefix("Proves it:"))
+        for line in head_lines(text)
+        if line.startswith("Proves it:")
+    ]
     named = re.compile(rf"{_THE_USER.pattern}|\b{re.escape(user)}\b", re.I) if user else _THE_USER
     return tuple(
         _plain(clause["why"])
-        for line in (*proves, *meets.done_when(head))
+        for line in proves
         for clause in _JUDGED.finditer(line)
         if named.search(clause["why"])
     )
@@ -1065,8 +1071,7 @@ def judged_waivers(text: str, user: str = "") -> tuple[meets.Waiver, ...]:
     """The brief's `Waived: <words>, <thread>/<message>` lines that name a clause of
     `user_judged` by its words, whole or by a start of whole words, each as a `meets.Waiver` whose
     word jbus checks as it checks a waiver of a `Done when` line: the user's own, naming the slug,
-    saying it waives and quoting the words. A `Done when` line that holds the clause is waived by
-    the `meets.waivers` line that names it."""
+    saying it waives and quoting the words."""
     clauses = user_judged(text, user)
     found = []
     for line in text.splitlines():
@@ -1081,20 +1086,15 @@ def judged_waivers(text: str, user: str = "") -> tuple[meets.Waiver, ...]:
 
 def short_on_judged(text: str, heard: Collection[meets.Waiver] = (), user: str = "") -> str:
     """`USER_JUDGED` where a clause of `user_judged` stands, or nothing: each is lifted by a
-    `Waived:` line in `heard`, whose word jbus checked, that names it (`judged_waivers`) or the
-    `Done when` line it is on. The user's own message lifts the hold too, through
+    `Waived:` line in `heard`, whose word jbus checked, that names it (`judged_waivers`). The
+    user's own message lifts the hold too, through
     `jmerge --accept --message`, and a home's typed accept does not (`cli.Repo.accept`).
     rh-root-split-skill's brief said the user reviews the diff, and #1828 merged on its checks
     and review alone, 2026-11-12."""
     waived = {one.named for one in heard if one.number == 0}
-    lines = meets.done_when(head_lines(text))
-    on = {_plain(lines[one.number - 1]) for one in heard if 0 < one.number <= len(lines)}
     for clause in user_judged(text, user):
-        if any(clause.startswith(said) for said in waived):
-            continue
-        if any(clause in line for line in on):
-            continue
-        return USER_JUDGED
+        if not any(clause.startswith(said) for said in waived):
+            return USER_JUDGED
     return ""
 
 
