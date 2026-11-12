@@ -177,7 +177,7 @@ StatusOf(v, t, w, p, q, l) ==
   ELSE IF v = "asking" THEN "gate"                    \* work.py `if value == "asking":`
   ELSE IF v = "opening" THEN "running"                \* work.py `if value == "opening":`
   ELSE IF v \in {"leftover", "closed"} THEN "left"    \* work.py `if value in ("leftover", "closed"):`
-  ELSE IF ~l /\ t \in {"none", "settled", "missing"} THEN "queued" \* work.py `if facts.launch == Launch.NONE and facts.thread in NO_THREAD:`
+  ELSE IF ~l /\ t \in {"none", "settled", "missing"} THEN "queued" \* work.py `if unlaunched and facts.thread in (Thread.NONE, Thread.SETTLED, Thread.MISSING):`
   ELSE ThreadStatus(t)
 
 \* The status derive writes over `was` (work.py `def kept(was: str, now: str) -> str:`).
