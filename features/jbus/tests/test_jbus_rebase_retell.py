@@ -100,3 +100,39 @@ def test_a_crew_at_work_is_not_told_again_until_its_turn_ends(crew):
         thread["status"] = "completed"
     passes(crew, 6)
     assert keys(crew) == [f"{SPENT}|{TIP[:12]}"]
+
+
+def test_a_crew_told_of_a_conflict_before_its_review_is_still_told_to_rebase_at_a_new_head(
+    tmp_path, monkeypatch
+):
+    """A conflict told before the review, and told again at a new tip, is no rebase: the stale
+    main at the crew's next head still gets its one rebase message, not `stale again after its
+    one rebase` (the review of d5d0070c2, F1)."""
+    kitchen = Kitchen(tmp_path, monkeypatch)
+    add(kitchen, "alpha")
+    kitchen.poll(NOW - timedelta(minutes=30))
+    kitchen.t3.threads[0]["status"] = "completed"
+    tip(kitchen, TIP)
+    conflicting = {**kitchen.opened("alpha", 7), "headRefOid": "c" * 40, "mergeable": "CONFLICTING"}
+    kitchen.set("open.json", [conflicting])
+    kitchen.set("jmerge.txt", "")
+    passes(kitchen, 0)
+    kitchen.t3.threads[0]["status"] = "completed"
+    tip(kitchen, NEXT)
+    passes(kitchen, 3)
+    kitchen.t3.threads[0]["status"] = "completed"
+    kitchen.set("open.json", [{**kitchen.opened("alpha", 7), "headRefOid": "d" * 40}])
+    changed = (
+        "main changed src/jbus/cli.py after its check started at 07:00 ET; it needs a fresh check"
+    )
+    kitchen.set("jmerge.txt", f"wait 7 https://example.test/pull/7: {changed}\n")
+    passes(kitchen, 6)
+    sent = [
+        given["clientRequestId"] for tool, given in kitchen.t3.calls if tool == "t3_thread_send"
+    ]
+    assert sent[-3:] == [
+        f"conflict|alpha|{'c' * 12}",
+        f"conflict|alpha|{'c' * 12}|{NEXT[:12]}",
+        f"rebase|alpha|{'d' * 12}",
+    ]
+    kitchen.close()
