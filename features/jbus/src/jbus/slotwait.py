@@ -22,6 +22,11 @@ Code resumes that thread, so each pass of `jbus poll` resumes it, in `wake`:
   message. A message that T3 Code did not take gives its claim back (`waiters.unwake`), so the
   next pass counts the wait again and sends the same message. So jbus wakes each wait once, and
   sends again a message that got no answer.
+- A pass can die between the record and the send. So each pass sends again, under its key, every
+  recorded wake whose claim still holds (`waiters.holding`) and whose thread has not taken the
+  slot, and a woken crew that ended its turn on "jbus will wake this thread" is told. Such a
+  send that does not go keeps its claim, since an earlier pass may have sent it, and the pass
+  after sends it again. Each wake says its line once.
 
 A thread can also end its turn while its own run holds a slot. `jgauge test-slot --thread`
 records the run in `test-slot-holders.json` (`jgauge.holders`), and its end and exit code once the
@@ -144,7 +149,16 @@ def wake(run: Pass, client: Client) -> None:
         lanes[one.lane, one.slots].append(one)
     for (kind, slots), queue in sorted(lanes.items()):
         lane = slot.lane_of(kind, slots)
-        for one in waiters.wake(locks, _oldest(lane, {one.id for one in queue}, run.now), run.now):
+        ids = {one.id for one in queue}
+        woke = waiters.wake(locks, _oldest(lane, ids, run.now), run.now)
+        owed = [
+            one
+            for one in waiters.read(locks)
+            if one.id in ids and one not in woke and waiters.holding(one, run.now)
+        ]
+        for one in owed:
+            tell(run, client, one, again=True)
+        for one in woke:
             tell(run, client, one)
 
 
@@ -219,7 +233,11 @@ def waited(one: Waiter | Wait, now: datetime) -> int:
     return max(0, int((now - since).total_seconds() // 60))
 
 
-def tell(run: Pass, client: Client, one: Waiter) -> None:
+def tell(run: Pass, client: Client, one: Waiter, again: bool = False) -> None:
+    """Send the waiter its wake, under the wait's key. A wake sent `again`, which an earlier pass
+    recorded, keeps its claim when its send does not go, since that pass may have sent it: the
+    next pass sends it again, until the claim ends. A wake recorded in this pass that did not go
+    gives its claim back."""
     command = shlex.join(one.command)
     message = MESSAGE.format(lane=one.lane, command=command)
     try:
@@ -244,14 +262,15 @@ def tell(run: Pass, client: Client, one: Waiter) -> None:
         run.say(f"wait {one.thread}: it could not be told a slot is free ({error})")
         went = False
     if not went:
-        waiters.unwake(slot.locks_dir(), one)
+        if not again:
+            waiters.unwake(slot.locks_dir(), one)
         return
     line = (
         f"slot-wake: woke {one.thread}, a {one.lane} slot is free for `{command}`,"
         f" after {waited(one, run.now)} min"
     )
-    run.find("", "slot-wake", line, key=one.id)
-    run.say(line)
+    if run.find("", "slot-wake", line, key=one.id):
+        run.say(line)
 
 
 def wake_ended(run: Pass, client: Client) -> None:

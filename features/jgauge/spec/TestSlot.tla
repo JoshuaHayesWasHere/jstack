@@ -24,16 +24,19 @@
 \*
 \* Fault = "today" is the code as it is, and it closes every fault the model has:
 \* slotwait.wake counts `spare` and records the wake under one hold of the waiters lock, before
-\* its send, and a send that did not go gives the claim back; a holder with no end is forgotten
-\* only once its `jgauge test-slot` is gone too; a command ends with the `jgauge test-slot` that
-\* holds its slot; a pid another process took reads as gone; and the ledger's writers read, merge
-\* and replace it under one lock. Fault = "none", the mode that passes, is the same code.
-\* The canaries "spare-outside-lock", "forget-unended", "orphan-command", "pid-alone" and
-\* "no-ledger-lock" each put back one fault the code has closed: a wake counted outside the
-\* waiters lock and recorded after its send, a holder with no end forgotten while its
-\* `jgauge test-slot` lives to write the end, a command that lives on after its
-\* `jgauge test-slot` died, a holder judged running by its pid alone, with no check that the pid
-\* is still its command's, and a ledger writer that reads and replaces the file with no lock.
+\* its send, and a send that did not go gives the claim back; each pass sends again a wake an
+\* earlier pass recorded whose claim holds, so a pass that died between the record and the send
+\* leaves no crew untold; a holder with no end is forgotten only once its `jgauge test-slot` is
+\* gone too; a command ends with the `jgauge test-slot` that holds its slot; a pid another
+\* process took reads as gone; and the ledger's writers read, merge and replace it under one
+\* lock. Fault = "none", the mode that passes, is the same code.
+\* The canaries "spare-outside-lock", "no-resend", "forget-unended", "orphan-command",
+\* "pid-alone" and "no-ledger-lock" each put back one fault the code has closed: a wake counted
+\* outside the waiters lock and recorded after its send, a pass that sends only the wakes it
+\* recorded itself, a holder with no end forgotten while its `jgauge test-slot` lives to write
+\* the end, a command that lives on after its `jgauge test-slot` died, a holder judged running
+\* by its pid alone, with no check that the pid is still its command's, and a ledger writer that
+\* reads and replaces the file with no lock.
 \* PidReuse lets another process take the pid of a holder's dead command. Mortal is the set of
 \* the processes that can be killed: TestSlot.cfg has every one, "bus" for jbus's slot pass,
 \* "writers" for the ledger's writers and "pool" for the pool's crew and jbus; the chart's
@@ -78,8 +81,8 @@ VARIABLES
   waiters,
   \* D-055 Waiter.woken: "none", or the wake's age: "holds" up to HOLDS, "past" after it, and
   \* "lapsed" after FORGOTTEN. jgauge/waiters.py `one = replace(one, woken=stamp(now))`, in
-  \* the change jbus makes: jbus/slotwait.py `for one in waiters.wake(locks, _oldest(lane, {one.id
-  \* for one in queue}, run.now), run.now):`. A send that did not go takes it back:
+  \* the change jbus makes: jbus/slotwait.py `woke = waiters.wake(locks, _oldest(lane, ids,
+  \* run.now), run.now)`. A send that did not go takes it back:
   \* jgauge/waiters.py `replace(one, woken="") if one.id == wait.id and one.woken == wait.woken`
   woken,
   \* D-056 test-slot-waiters.lock: who holds it, or "free". jsettings/store.py
@@ -174,7 +177,8 @@ FullPcs == {"off", "lock", "count", "register", "registering", "drop", "dropping
             "spawn", "hold", "holding", "wait", "end", "ending", "logrelease", "close"}
 ShortPcs == {"enter", "first", "poll"}
 BusPcs == {"idle", "read", "forget", "forgetting", "spare", "sparing", "tell", "wake",
-           "waking", "unwake", "unwaking", "hread", "judge", "hforget", "hforgetting"}
+           "waking", "unwake", "unwaking", "owed", "retell", "hread", "judge", "hforget",
+           "hforgetting"}
 
 TypeOK ==
   /\ room \in {"full", "short", "ledger", "pool"}
@@ -560,7 +564,9 @@ SpareHeld ==
   /\ LET spare == Cardinality(FreeFull) - Claims("bus")
          wake == spare > 0 /\ "crew" \in waiters /\ woken = "none" IN
        /\ woken' = IF wake THEN "holds" ELSE woken
-       /\ bus' = IF wake THEN "tell" ELSE AfterWake
+       /\ bus' = CASE wake -> "tell"
+                   [] Has("no-resend") -> AfterWake
+                   [] OTHER -> "owed"
        /\ wsnap' = IF wake THEN [wsnap EXCEPT !.id = waitId] ELSE wsnap
   /\ waitersLock' = "free"
   /\ UNCHANGED <<BusFrame, waiters, holdersLock, waitId, hsnap>>
@@ -593,6 +599,30 @@ Unwake ==
   /\ woken' = IF "crew" \in waiters /\ waitId = wsnap.id THEN "none" ELSE woken
   /\ waitersLock' = "free" /\ bus' = AfterWake
   /\ UNCHANGED <<BusFrame, waiters, holdersLock, waitId, wsnap, hsnap>>
+
+\* jbus/slotwait.py `for one in waiters.read(locks)` again, under the lock and let go at once: a
+\* wake that an earlier pass recorded, whose claim still holds and whose crew has not taken the
+\* slot, is owed its send, jbus/slotwait.py `if one.id in ids and one not in woke and
+\* waiters.holding(one, run.now)`. The canary "no-resend", the code before the fix, sent only
+\* the wakes its own pass recorded.
+Owed ==
+  /\ InSlots
+  /\ bus = "owed" /\ waitersLock = "free"
+  /\ IF "crew" \in waiters /\ woken = "holds"
+       THEN bus' = "retell" /\ wsnap' = [wsnap EXCEPT !.id = waitId]
+       ELSE bus' = AfterWake /\ UNCHANGED wsnap
+  /\ UNCHANGED <<BusFrame, waiters, woken, waitersLock, holdersLock, waitId, hsnap>>
+
+\* jbus/slotwait.py `tell(run, client, one, again=True)`, under the same key: T3 Code takes the
+\* message, or does not. One that did not go keeps its claim, jbus/slotwait.py `if not again:`,
+\* since an earlier pass may have sent it, and the next pass sends it again.
+Retell ==
+  /\ InSlots
+  /\ bus = "retell" /\ bus' = AfterWake
+  /\ LET mine == "crew" \in waiters /\ waitId = wsnap.id IN
+       \/ heard' = IF mine THEN [told |-> TRUE, tried |-> TRUE] ELSE heard
+       \/ heard' = IF mine THEN [heard EXCEPT !.tried = TRUE] ELSE heard
+  /\ UNCHANGED <<BusBase, waiters, woken, waitersLock, holdersLock, waitId, wsnap, hsnap>>
 
 WakeLock ==
   /\ InSlots
@@ -667,7 +697,7 @@ FullRoom ==
   \/ \E p \in FullProcs : Run(p) \/ ClaimLock(p) \/ ClaimCount(p)
   \/ RegisterLock \/ Register \/ DropLock \/ Drop \/ Tick
   \/ Bus \/ WakeRead \/ ForgetLock \/ Forget \/ Spare \/ SpareLock \/ SpareHeld \/ Tell
-  \/ WakeLock \/ Wake \/ UnwakeLock \/ Unwake
+  \/ WakeLock \/ Wake \/ UnwakeLock \/ Unwake \/ Owed \/ Retell
 
 ShortRoom ==
   \/ \E p \in ShortProcs : Run(p)
