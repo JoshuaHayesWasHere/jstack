@@ -133,9 +133,7 @@ def test_tlc_breaks_proof_at_head_on_todays_code_with_the_trace_the_cfg_keeps():
 
 
 @JAVA
-@pytest.mark.parametrize(
-    "rule", ["CheckedAtHead", "ProvedAtHead", "RecordGoes", "OneScopedReviewer"]
-)
+@pytest.mark.parametrize("rule", ["CheckedAtHead", "RecordGoes", "OneScopedReviewer"])
 def test_each_rule_the_code_breaks_breaks_with_the_trace_the_cfg_keeps(rule):
     ran = tlc(alone([rule]))
     assert f"Invariant {rule} is violated" in ran.stdout, ran.stdout[-4000:]
@@ -153,6 +151,17 @@ def test_the_review_and_the_rebase_record_hold_over_every_state():
     assert ran.returncode == 0, ran.stdout[-4000:]
     assert "No error has been found" in ran.stdout
     assert f"{states(ran.stdout)} distinct states" == kept("holds ReviewHeld RecordKept:")
+
+
+@JAVA
+def test_a_proof_call_in_the_background_writes_a_proved_line_only_of_the_heads_files():
+    """proved.sh runs the head's side in a checkout of the head, and writes no line where HEAD
+    moved or the worktree is dirty at its end: an edit, a commit or a dropped edit while its
+    call sits in the background leaves no `Proved:` line of files that are not the head's."""
+    ran = tlc(alone(["ProvedAtHead"]))
+    assert ran.returncode == 0, ran.stdout[-4000:]
+    assert "No error has been found" in ran.stdout
+    assert f"{states(ran.stdout)} distinct states" == kept("holds ProvedAtHead:")
 
 
 @JAVA
