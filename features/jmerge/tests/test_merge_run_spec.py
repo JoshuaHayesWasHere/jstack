@@ -1,7 +1,9 @@
 """The merge run's TLA+ spec, `features/jmerge/spec/MergeRun.tla`: each quote of the code it
 models stands once in its file, each carrier of the ledger has its variable, and TLC gives each
-rule the verdict its config keeps: today's code breaks RunHeard with `os.replace` before
-`_judged`, and the run that judges first holds it. The TLC runs skip where no Java runs TLC."""
+rule the verdict its config keeps: today's code, which sends a record's lines before it
+replaces the record and counts the run once for its `at`, holds RunHeard and StreakOnce, the
+replace first breaks RunHeard, and the lines first with no key break StreakOnce. The TLC runs
+skip where no Java runs TLC."""
 
 import importlib
 import re
@@ -130,15 +132,16 @@ def test_tlc_gives_each_config_the_verdict_its_comment_keeps(cfg):
 
 
 RULES = [
-    ("MergeRun.cfg", {}, "RunHeard", False),
+    ("MergeRun.cfg", {}, "RunHeard", True),
     ("MergeRun.cfg", {}, "StreakOnce", True),
     ("MergeRun.cfg", {}, "NoFalseNoRecord", True),
     ("MergeRun.cfg", {}, "DeathTold", True),
     ("MergeRun.cfg", {"Fault": '"unlink-first"'}, "NoFalseNoRecord", False),
     ("MergeRun.cfg", {"Fault": '"unlink-first"'}, "DeathTold", False),
     ("MergeRun.cfg", {}, "OneRunAtATime", True),
-    ("MergeRun.cfg", {"Fault": '"judge-first"'}, "RunHeard", True),
-    ("MergeRun.cfg", {"Fault": '"judge-first"'}, "StreakOnce", False),
+    ("MergeRun.cfg", {"Fault": '"replace-first"'}, "RunHeard", False),
+    ("MergeRun.cfg", {"Fault": '"unkeyed"'}, "RunHeard", True),
+    ("MergeRun.cfg", {"Fault": '"unkeyed"'}, "StreakOnce", False),
     ("MergeRun.cfg", {"Fault": '"no-run-lock"'}, "OneRunAtATime", False),
     ("MergeRun.restart.cfg", {}, "RestartReopens", False),
     ("MergeRun.restart.cfg", {"ReplyLost": "FALSE"}, "RestartReopens", False),
@@ -154,7 +157,7 @@ RULES = [
     ("MergeRun.batch.cfg", {}, "BatchMergedOnce", True),
 ]
 """Each rule alone, on its config, over today's code or one change to it: whether it holds.
-`Fault = "replace-first"` is today's code; a canary is a row that must break, and one that
+`Fault = "judge-first"` is today's code; a canary is a row that must break, and one that
 holds instead fails here."""
 
 
