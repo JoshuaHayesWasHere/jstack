@@ -20,6 +20,7 @@ reader_actions = []
 ACT = {
     "clock": "The wait clock",
     "held": "A hold nobody works on",
+    "heldlift": "A hold only your accept lifts",
     "blocking": "The second target's body",
     "items": "A work item proposed",
     "word": "The user's word",
@@ -49,6 +50,7 @@ def record(v):
         return f"the clock is {due}" if v["clockKind"] != "none" else "no wait yet"
     return {
         "held": {"none": "", "waiting": "held.json waits", "woke": "held.json says its home woke"},
+        "heldlift": {"none": "", "waiting": "held.json waits", "woke": "held.json says you were told"},
         "blocking": {
             "none": "",
             "queued": "the body waits in the outbox",
@@ -95,6 +97,7 @@ def record(v):
 
 FILE = {
     "held": "heldJson",
+    "heldlift": "heldJson",
     "blocking": "blocking",
     "items": "itemsNext",
     "word": "wordSends",

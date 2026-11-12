@@ -284,7 +284,7 @@ The rules:
 - `NoTellTwice`: the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.
 - `NoTellLost`: between passes, an act still owed whose mark is written was taken, and the stall the clock's `home` says went is in the log.
 
-Today's code breaks them on seven acts, over 1676 distinct states, and `TellOnce.cfg`'s comment keeps each trace: stall.twice's page and the clock's stall are lost, and failover's ask, the second target's body, a word, the account question and a skill's notice can go twice.
+Today's code breaks them on eight acts, over 1694 distinct states, and `TellOnce.cfg`'s comment keeps each trace: stall.twice's page, the clock's stall and the finding of a hold only the user lifts (`heldlift`, `clock.held`'s lift branch) are lost, and failover's ask, the second target's body, a word, the account question and a skill's notice can go twice.
 The other six (held, items, expedite, cancelled, closed, revert) hold both.
 Without `-continue` TLC stops at the first, stall.twice's, at depth 5.
 The canary `Fault = "mark-first"` writes the marks before the act and breaks `NoTellLost` on every act; `Fault = "no-mark"` reads no mark and breaks `NoTellTwice` on every act.
@@ -305,7 +305,7 @@ It writes `TellOnce-statechart/`, labelled by `TellOnce.map.py`, with one `bug-N
 
 - Time and liveness: the rules are safety rules, so an act a guard keeps from running forever passes them (such as expedite's second tell once its key is marked and expedite.json is not).
 - A clock wait whose kind goes back to one it had: its old key is still in sent.json, and the model starts every new wait under a new key.
-- `Box.send` writes a finding's key before its line, which loses the line when a pass dies between them: the model has it for the clock's stall and stall.twice's page, and the other keyed findings (an ask resent, failover's, expedite's) share it.
+- `Box.send` writes a finding's key before its line, which loses the line when a pass dies between them: the model has it for the clock's stall, stall.twice's page and `clock.held`'s lift, and the other keyed findings (an ask resent, failover's, expedite's) share it.
 - The event `item.write` records after its line, cancelled.py's false "not run again" after a rerun whose finding was lost, and the account question the second park leaves open: each is a fault of its own, not a tell twice or lost.
 - The second target's timeout after the target took the body is a pass that dies after the act.
 

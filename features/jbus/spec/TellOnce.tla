@@ -20,8 +20,8 @@
 EXTENDS Naturals, Sequences
 CONSTANTS Carriers, Fault, Passes
 
-Acts == {"clock", "held", "blocking", "items", "word", "owed", "expedite", "cancelled", "closed",
-         "account", "revert", "twice", "reload"}
+Acts == {"clock", "held", "heldlift", "blocking", "items", "word", "owed", "expedite", "cancelled",
+         "closed", "account", "revert", "twice", "reload"}
 Kinds == {"review", "scoped", "result", "check"}
 \* The acts that go through jbus/outbox.py `client.call("t3_thread_send", asked)`, so the outbox
 \* logs them and can hold them.
@@ -84,6 +84,9 @@ Cap(n, top) == IF n > top THEN top ELSE n
 Code(c) ==
   CASE c = "clock" -> <<"act", "log", "box", "record">>     \* _send, run.box.mark(key), then write_json at the end of tick
     [] c = "held" -> <<"act", "log", "box", "record">>      \* _send, then held.json at the end of held
+    \* a hold only the user's accept lifts: run.find's key and its event, then held.json, and no
+    \* send to T3 Code (jbus/clock.py `if hold["lift"]: hold["woke"] = True`)
+    [] c = "heldlift" -> <<"key", "act", "record">>
     [] c = "blocking" -> <<"act", "record">>                \* _post_blocking, then outbox.json without the body
     [] c = "items" -> <<"act", "record">>                   \* the line, then items-next.json
     [] c = "word" -> <<"act", "log", "record">>             \* post, then _change: no key in sent.json
@@ -105,6 +108,7 @@ Steps(c) ==
 Guard(c) ==
   CASE c = "clock" -> {"box"}               \* jbus/clock.py `if key in run.box.sent(): return "sent"`
     [] c = "held" -> {"box", "record"}      \* jbus/clock.py `if hold["woke"]: continue`
+    [] c = "heldlift" -> {"box", "record"}  \* the woke above, and jbus/wake.py `if key in sent.lookup: return False`
     [] c = "blocking" -> {"record"}         \* jbus/wake.py `waiting = read_json(outbox, [])`
     [] c = "items" -> {"receiver"}          \* jbus/item.py `raise Refused(f"refused: {name} is proposed already")`
     [] c = "word" -> {"record"}             \* jbus/word.py `if one.sent_at: continue`
@@ -133,7 +137,7 @@ KeyMoves == {"account", "word", "reload"}
 \* The carrier's own file says the act is done: the pass that reads it does not start.
 Done(c) ==
   CASE c = "clock" -> clockRung.acted
-    [] c = "held" -> heldJson = "woke"
+    [] c \in {"held", "heldlift"} -> heldJson = "woke"
     [] c = "blocking" -> blocking = "gone"
     [] c = "items" -> itemsNext
     [] c = "word" -> wordSends = "sent"
@@ -203,7 +207,7 @@ Due ==
   /\ ~due /\ pc = 0 /\ (on = "reload" => reloadLock = "free")
   /\ owed' = TRUE /\ due' = TRUE
   /\ clockKind' \in IF on = "clock" THEN Kinds ELSE {clockKind}
-  /\ heldJson' = IF on = "held" THEN "waiting" ELSE heldJson
+  /\ heldJson' = IF on \in {"held", "heldlift"} THEN "waiting" ELSE heldJson
   /\ blocking' = IF on = "blocking" THEN "queued" ELSE blocking
   /\ owedJson' = IF on = "owed" THEN "kept" ELSE owedJson
   /\ askState' = IF on = "owed" THEN "owed" ELSE askState
@@ -257,7 +261,7 @@ Log ==
 Record ==
   /\ clockRung' = IF on = "clock" THEN [acted |-> TRUE, home |-> FALSE] ELSE clockRung
   /\ clockPasses' = IF on = "clock" THEN 0 ELSE clockPasses
-  /\ heldJson' = IF on = "held" THEN "woke" ELSE heldJson
+  /\ heldJson' = IF on \in {"held", "heldlift"} THEN "woke" ELSE heldJson
   /\ blocking' = IF on = "blocking" THEN "gone" ELSE blocking
   /\ itemsNext' = (itemsNext \/ on = "items")
   /\ wordSends' = IF on = "word" THEN "sent" ELSE wordSends
