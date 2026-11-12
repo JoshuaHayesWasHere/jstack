@@ -87,9 +87,7 @@ def checkouts(tmp_path):
 
 @needs_tlc
 @pytest.mark.timeout(600)
-def test_a_removed_second_checkout_leaves_the_first_checkouts_redraw_working(
-    checkouts, tmp_path
-):
+def test_a_removed_second_checkout_leaves_the_first_checkouts_redraw_working(checkouts, tmp_path):
     """the skill's command, run in A after B synced into the venv and was removed, draws the
     chart"""
     scripts, venv, env = checkouts
@@ -104,9 +102,7 @@ def test_a_removed_second_checkout_leaves_the_first_checkouts_redraw_working(
 
 @needs_tlc
 @pytest.mark.timeout(600)
-def test_a_redraw_whose_jgauge_cannot_import_prints_the_re_sync_that_mends_it(
-    checkouts, tmp_path
-):
+def test_a_redraw_whose_jgauge_cannot_import_prints_the_re_sync_that_mends_it(checkouts, tmp_path):
     """a redraw that syncs the venv inexactly, as the command did before --exact, meets the
     venv's stale `jgauge` shim, exits non-zero and prints the one re-sync command, and that
     command makes the next redraw draw"""

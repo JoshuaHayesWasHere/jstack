@@ -35,7 +35,7 @@ java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -config RowLife.
 ```sh
 S=features/skill-library/skills/statechart/scripts
 cd features/jbus/spec
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "../../../$S" \
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
     statechart from-spec RowLife.tla --title "A row's life" --png
 ```
 
@@ -96,7 +96,7 @@ The ladder also carries a crew that jbus told once to open the pull request its 
 ```sh
 S=../../skill-library/skills/statechart/scripts
 cd features/jbus/spec
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec ThreadLife.tla --title "What does jbus do with a thread, launch to archive?" --png
 ```
 
@@ -174,7 +174,7 @@ The test runs TLC on both configs, and on each rule of `BREAKS` alone, which is 
 S=$PWD/features/skill-library/skills/statechart/scripts
 D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainRed.* "$W"
-(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec MainRed.tla --config MainRed.chart.cfg \
     --title "Main went red: what fixes it?" --out out --png)
 ```
@@ -277,7 +277,7 @@ In today's code the half of `NoTellTwice` that says no act runs after its mark w
 ```sh
 S=features/skill-library/skills/statechart/scripts
 cd features/jbus/spec
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "../../../$S" \
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
     statechart from-spec TellOnce.tla --title "Does jbus tell anyone twice, or drop a tell, when a pass dies?" --png
 ```
 
@@ -338,7 +338,7 @@ The comment in `MainFix.cfg` keeps the breaks TLC finds past that config, each w
 S=$PWD/features/skill-library/skills/statechart/scripts
 D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainFix.* "$W"
-(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec MainFix.tla --config MainFix.chart.cfg --expect-broken FiledWhole,RevertKnown,RevertSaid \
     --title "Main went red: what has jbus filed when a pass dies?" --out out --png)
 ```
@@ -393,7 +393,7 @@ The canary `Fault = "stale-streak"`, a pass that leaves the stall alert from bef
 ```sh
 S=features/skill-library/skills/statechart/scripts
 cd features/jbus/spec
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "../../../$S" \
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
     statechart from-spec OneList.tla --config OneList.chart.cfg --expect-broken AnsweredLeaves,ListIsTrue \
     --title "Does a gate reach my list, and leave it once I answer?" --png
 ```
