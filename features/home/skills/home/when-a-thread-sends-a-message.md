@@ -30,7 +30,7 @@ A row whose branch has commits of its own gets `jbus: <slug> ended with somethin
 jbus launches it again on its own slug, branch and worktree, with a `Resume:` line naming the cause, once for each cause that clears: what its last Result's `Waits on:` line names has landed, a review with findings was written after its last Result, or its brief has a new go.
 Where it waits on one of those, leave it.
 Where it waits on merges its Result does not name, append `## Result, follow-up (<date>, <the reason>)` with `Status: paused`, `Waits on: <each row's slug, or #<n> for a pull request with no row>`, `Branch: <slug>   Pull request: none` and `Left: <what is left>`; where its `Where:` or `Done when:` is too narrow, widen them in `$H/tasks/<slug>.md` and queue it again with `jbus queue add`: its new go launches it.
-To steer a crew still out to wait on a merge, at any status, write the line into its last Result with `jbus brief set --result "$H/tasks/<slug>.md" 'Waits on:' <the slug or #<n>>`, never as a `Steers:` line's prose: the brief lint refuses that, and jbus cannot wake the crew on it.
+To steer a crew still out to wait on a merge, at any status, write the line into its last Result with `jbus brief set --result "$H/tasks/<slug>.md" 'Waits on:' '<the slug or #<n>>'` (quoted, since a shell reads a bare `#<n>` as a comment), never as a `Steers:` line's prose: the brief lint refuses that, and jbus cannot wake the crew on it.
 Where nothing more is wanted, close it with the four lines above, `dropped, <why>` or `nothing to change, <why>`.
 
 Nothing is sent when a pull request opens, when a review is written or when its findings are handled.
