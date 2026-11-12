@@ -105,12 +105,12 @@ A wake recorded before its send claims the slot for `HOLDS` even when the send f
 ```sh
 S=$PWD/features/skill-library/skills/statechart/scripts
 W=$(mktemp -d) && cp features/jgauge/spec/TestSlot.tla features/jgauge/spec/TestSlot.chart.cfg features/jgauge/spec/TestSlot.map.py "$W"
-(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec TestSlot.tla --config TestSlot.chart.cfg \
     --expect-broken LedgerNoLostUpdate --expect-broken WokenGetsSlot \
     --expect-broken EndNotLost \
     --title "Who holds a test slot, who waits on one, and what the ledger keeps?" \
-    --out TestSlot-statechart --png)
+    --out TestSlot-statechart)
 ```
 
 Run it from the repo root.

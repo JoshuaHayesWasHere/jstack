@@ -118,7 +118,7 @@ New prose is one sentence per line, and an old line the pull request did not tou
 
 ### A stop
 
-A reviewer that Start's step 1 let begin and that stops all the same, on step 2 of Start or on step 1 of "A scoped pass", writes a `## Review` that says so, whatever that step says of "no section".
+A reviewer that Start's step 1 let begin and that stops all the same, on step 2 of Start or on step 1 of "A scoped pass", writes a `## Review` that says so.
 Its launch put a reviewer line under the Result, so jbus and the crew read the brief as reviewing (`jbriefs line reviewing`) until a section with a `Head:` line follows it, and the crew rebases nothing while it reads so: a stop with no section holds the pull request until somebody notices.
 Run this with the block at the top, with the head the review was to be of, the `stop` line the step printed and the `By:` line Start printed in place of the words in angle brackets.
 The head is, on step 2 of Start, the commit its `stop` line names, and on step 1 of "A scoped pass", the end of the message's new range.

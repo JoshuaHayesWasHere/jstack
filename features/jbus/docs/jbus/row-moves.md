@@ -119,7 +119,7 @@ It launches once a cause the row waited on clears, each read from the state (`jb
 
 | Cause | Read from | Once-key |
 |---|---|---|
-| the rows it waits on landed | the last Result's `Status: paused` and `Waits on:` rows, all merged or done (`watch.final`) | `paused-on\|<slug>\|<rows>\|<the Result's digest>` |
+| what it waits on landed | each name on the last Result's `Waits on:` line, at any status: a row merged or done, or a pull request `#<n>` GitHub says merged (`watch.final`) | `waits\|<slug>\|<names>\|<which Result>` |
 | its review was written | a `## Review` with `Verdict: findings` below its last `## Result`, at a head | `review\|<slug>\|<head 12>` |
 | its brief was approved again | the row's `brief_sha` is not the `go` its newest crew launch record was made under; a record with no `go`, from before, is none | `brief\|<slug>\|<brief_sha 12>` |
 

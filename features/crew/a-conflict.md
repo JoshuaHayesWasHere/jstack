@@ -154,7 +154,60 @@ fi
 
 On `Kept: every line, in <files>`, go on. On `could not look`, nothing is proved: find out why git gave no file (a base that is not fetched, a record that names a commit that is gone), and do not push until the block prints one of the other two. On `Dropped: <k> of main's lines in <file>, <j> of its own in <file>`, the rebase took a line out that neither side meant to. Put the lines back, commit, and run the block again. Where a line is gone on purpose (the task replaces it, or the default branch's change makes it wrong), add one line to the Result for each such file, `Dropped on rebase: <file>, <k> of main's, <j> of its own, at <head12>: <why>`, with the two counts the block printed for that file, `0` for one it did not print, and the first 12 characters of the head you push: the scoped review rules on it. `jmerge` reads the line for the head the pull request is at and no other, so a commit after it (a fix, another rebase) asks for the line again at the new head, and jbus says so in a message here that begins `jbus: the rebase dropped`. A drop with no such line keeps the pull request waiting, one the review upholds merges, and only one it does not uphold goes to the user. Then run the block again, and go on only when every `Dropped` it still prints has its line in the Result. The head before the rebase is `refs/jstack/pre-rebase/<slug>/<its first 12 characters>`, and `git diff <that ref> HEAD -- <file>` shows what the resolution did.
 
-Then run the check command, and push with this. It is the only way a rebased head is pushed, never a bare `git push --force` and never `--force-with-lease` with no commit named. The lease names the head the pull request had at GitHub before the rebase started, read from the record, so a fetch since then cannot widen it:
+Then check the rebased head with the guard tests and the lint, and push it: the check block of "Do the task" is no condition of this push.
+CI runs the whole check at the pushed head, as it does for any push, and a failure there comes as `jbus: <check> failed on your pull request`, which "The checks" handles.
+#1729 merged main five times and pushed none of them: each run of the whole block took 30 minutes, main moved meanwhile, and the pull request was in conflict again by its end.
+A conflict repaired in a push that CI then checks costs one CI run; one repaired after the whole block at the desk costs the block, and a busy main outruns it.
+In a repo whose check selects its tests (`scripts/select_tests.py`), run this in this worktree with the block at the top and this thread's id and the brief's slug in place of the words in angle brackets.
+It runs `make check-fast BASE=<the fork> PART=guards`, the lint and the guard tests, in a full test slot, and writes its `Checked:` line:
+
+```sh
+B="$H/tasks/<slug>.md"
+G=$(git rev-parse --git-dir)
+head=$(git rev-parse HEAD)
+if [ -d "$G/rebase-merge" ] || [ -d "$G/rebase-apply" ]; then
+    echo "the rebase is not finished: resolve, git rebase --continue, then run this again"
+elif [ -n "$(git status --porcelain)" ]; then
+    echo "no check: commit the resolution first"
+elif [ ! -f scripts/select_tests.py ]; then
+    echo "no light check: this repo's check selects no tests, so run the check block of \"Do the task\""
+else
+    on=$(uv run --project "$T/../source" jbriefs line base "$B" 2> /dev/null)
+    [ "$on" != none ] || on=
+    on=origin/${on:-main}
+    git rev-parse -q --verify "$on^{commit}" > /dev/null || on=origin/main
+    if ! base=$(git merge-base "$on" HEAD); then
+        echo "no check: the branch shares no commit with $on"
+    else
+        uv run --project "$T/../source" jgauge test-slot --thread '<thread id>' -- make check-fast BASE="$base" PART=guards
+        ran=$?
+        if [ "$ran" = 76 ]; then
+            echo "waiting: every full test slot is taken"
+        elif [ -n "$(git status --porcelain)" ] || [ "$(git rev-parse HEAD)" != "$head" ]; then
+            echo "no line: the worktree moved off $head while the check ran: run this again"
+        else
+            printf 'Checked: make check-fast BASE=%s PART=guards exit %s at %s\n' "$base" "$ran" "$head" >> "$B"
+            if [ "$ran" = 0 ]; then
+                echo "checked: the guards and the lint passed at $head"
+            else
+                echo "failed: the guards and the lint exited $ran at $head"
+            fi
+        fi
+    fi
+fi
+```
+
+Give the call a time limit of 10 minutes (`timeout: 600000` in Claude Code), and never send it to the background.
+On `checked`, push with the block below.
+On `waiting`, end the turn as "test slots" says for a full slot, and on jbus's message run this block again.
+On `failed`, the rebase or the change broke a guard or the lint: fix it and commit, run the check block of "Do the task" at the new head, since a commit of your own is more than the base, and then push with the block below.
+On `no light check`, run the check block of "Do the task", and push once it passes.
+jleak's `pre-push` hook takes the `PART=guards` line for this head and no other: the head's one change over the head of the brief's last line of the whole check must be the base it now sits on, the same commits of its own over a later fork, whether a rebase or a merge of the base made it (`jleak.crewpush.only_the_base`).
+A head with a commit more, a fix pushed with the rebase included, is refused with `crew-push: refused: its last Checked: line, the guards and the lint at <head12>, binds only a merge of <base> over <head12> ...`, and wants the check block of "Do the task".
+
+Push with this.
+It is the only way a rebased head is pushed, never a bare `git push --force` and never `--force-with-lease` with no commit named.
+The lease names the head the pull request had at GitHub before the rebase started, read from the record, so a fetch since then cannot widen it:
 
 ```sh
 G=$(git rev-parse --git-dir)
@@ -175,7 +228,7 @@ On `pushed`, the record is removed. On `the push was refused` or `no push`, noth
 
 A rebase adds no line to the Result and changes none.
 A `Fixed:` line that names a commit keeps naming the commit it named before the rebase: that commit, or with no such line the head the last review saw, is the one the review covers, and `jmerge` compares the head it finds with it.
-A commit made before the push, for the check command or for a line put back, is read with the rebase.
+A commit made before the push, for a failed guard or for a line put back, is read with the rebase.
 
 The review stands after a rebase: `jmerge` works out the `git range-diff` between the commit the review covers and the rebased head, and where that is clean it carries the review over.
 Where the rebase changed the content, the review is kept all the same, since the pull request's checks verify a rebase: no review is started and nothing is asked of this thread.

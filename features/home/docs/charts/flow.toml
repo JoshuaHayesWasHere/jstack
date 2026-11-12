@@ -5,9 +5,9 @@
 # features/*/spec/ folder with no chart is an [[uncharted]], by its path under features/, with
 # why, and `statechart site` stops on a model that is neither. [[unmodeled]] is state of the
 # code that no model has.
-# This file is written by hand; index.html is built, not committed, and reads this file as the
-# flow.toml beside it:
-#   statechart site --out features/home/docs/charts/index.html
+# This file is written by hand and committed. `make charts` draws index.html, and a PNG and
+# Excalidraw scenes of each chart, beside it, none of them committed, and the page reads this file
+# as the flow.toml beside it.
 
 [[chart]]
 name = "RowLife"
@@ -21,6 +21,10 @@ thing = "A crew's thread"
 [[chart]]
 name = "PrVerdict"
 thing = "A pull request at jmerge"
+
+[[chart]]
+name = "MergeRun"
+thing = "A run of jmerge a pass starts"
 
 [[chart]]
 name = "FlowToday"
@@ -50,8 +54,24 @@ name = "CrewProof"
 thing = "A crew's proof on its brief"
 
 [[chart]]
+name = "TestSlot"
+thing = "A test slot and its waiters"
+
+[[chart]]
 name = "GreenMove"
 thing = "The green copy of jstack"
+
+[[chart]]
+name = "Setup"
+thing = "What install.sh makes"
+
+[[chart]]
+name = "GhBudget"
+thing = "GitHub's API budget"
+
+[[chart]]
+name = "OneList"
+thing = "A gate on your list"
 
 [[handoff]]
 from = "HomeTreeToday: No pull request yet"
@@ -118,6 +138,41 @@ from = "PrVerdict: Merged"
 to = "GreenMove: Settled"
 says = "The merge goes green on main, and a pass moves the green copy to it."
 
+[[handoff]]
+from = "PrVerdict: Waits on jmerge, GitHub or a check"
+to = "MergeRun: Lines heard, a run is out"
+says = "jbus's pass starts a run of jmerge in the background, and the run judges the pull request."
+
+[[handoff]]
+from = "MergeRun: Lines heard, a run is out"
+to = "PrVerdict: Merged"
+says = "The run merges the pull request, and the next pass sends you the lines it wrote."
+
+[[handoff]]
+from = "CrewProof: At work"
+to = "TestSlot: Full lane"
+says = "The crew runs its tests in a test slot, and waits for jbus's wake where none is free."
+
+[[handoff]]
+from = "CrewProof: In review"
+to = "TestSlot: Review pool"
+says = "Where the review pool is capped, the crew waits, and jbus wakes it once the pool frees."
+
+[[handoff]]
+from = "Setup: Leaves something behind"
+to = "GreenMove: Settled"
+says = "install.sh makes the green copy and puts its units to work, and jbus's passes move it from there. Today such an install leaves its state folders out of the record uninstall reads."
+
+[[handoff]]
+from = "GhBudget: A pass held"
+to = "RowLife: Not launched"
+says = "With GitHub's budget at its floor, the pass asks GitHub nothing more: it launches no row, and each approved row says why."
+
+[[handoff]]
+from = "HomeTreeToday: No pull request yet"
+to = "OneList: Open in gates.md"
+says = "A home acts on its default at a gate and writes it in its gates.md, and the gate reaches your list."
+
 [[uncharted]]
 model = "home/spec/HomeTree.tla"
 why = "the variables, start and rules that HomeTreeToday extends with the code's steps; HomeTreeToday's chart draws them."
@@ -130,11 +185,6 @@ why = "the design FlowToday is checked against; FlowToday's chart draws it, wher
 state = "The MCP session with T3 Code"
 code = "jsettings/t3.py `Session`"
 why = "its bearer token, which runs out, and a call refused, dropped or timed out. ThreadLife takes a launch reply as lost or not, and no model follows the session or its token."
-
-[[unmodeled]]
-state = "The test slot claim"
-code = "jgauge/waiters.py `woken`"
-why = "a thread waiting for a full test slot, the wake jbus sends it, and the claim it holds for ten minutes. ThreadLife sees such a turn as one at work, or quiet."
 
 [[unmodeled]]
 state = "A plan entry's stage"

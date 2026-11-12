@@ -170,3 +170,223 @@ def cause(v, facts, invariant):
 
 
 legend = {"works": "Works today", "wrong": "Wrong today", "fixed": "Fixed by the design"}
+
+
+# The reference lanes `statechart site --lanes` draws: the status, its 12 values nested in six
+# superstates, and the go, each a row of boxes. A row that launched and reads `queued` again, its
+# thread settled, missing or gone, is at work, not waiting for a launch: it is the chip "queued
+# again" inside "At work". The moves between the statuses of one superstate are a table.
+SUPERSTATE = {
+    "queued": "notlaunched",
+    "gate": "question",
+    "launched": "atwork",
+    "running": "atwork",
+    "waiting": "atwork",
+    "stale": "atwork",
+    "failed": "atwork",
+    "left": "atwork",
+    "pr": "review",
+    "done": "final",
+    "merged": "final",
+    "removed": "removed",
+}
+
+lanes = {
+    "status": {
+        "name": "Status",
+        "about": "6 superstates of the 12 statuses",
+        "start": "notlaunched",
+        "boxes": {
+            "notlaunched": "Not launched",
+            "question": "Question",
+            "atwork": "At work",
+            "review": "In review",
+            "final": "Final",
+            "removed": "Removed",
+        },
+        "chips": {
+            "notlaunched": {"queued": "queued"},
+            "question": {"gate": "gate"},
+            "atwork": {
+                "launched": "launched",
+                "running": "running",
+                "waiting": "waiting",
+                "stale": "stale",
+                "failed": "failed",
+                "left": "left",
+                "requeued": "queued again",
+            },
+            "review": {"pr": "pr"},
+            "final": {"done": "done", "merged": "merged"},
+            "removed": {"removed": "removed"},
+        },
+    },
+    "go": {
+        "name": "The go",
+        "about": "approval, its own lane",
+        "start": "waiting",
+        "boxes": {
+            "waiting": "No go yet",
+            "approved": "Approved",
+            "behind": "Approved, behind a row",
+            "held": "Held",
+            "kept": "Held, go kept",
+        },
+    },
+}
+
+who = {
+    "merge": "a merge, or GitHub",
+    "crew": "a crew or its thread",
+    "jbus": "jbus's pass",
+    "you": "you, or a home",
+}
+
+
+def chip(v):
+    """The status as the lanes draw it: `queued` after a launch is `requeued`."""
+    return "requeued" if v["status"] == "queued" and v["launched"] else v["status"]
+
+
+def superstate(v):
+    return "atwork" if chip(v) == "requeued" else SUPERSTATE[v["status"]]
+
+
+def lane_moves(before, after, action):
+    """The boxes one step moves, as (lane, from, to, effect), and, for a step that moves none,
+    the key of the `still` row that says what it does. A move between two statuses of one
+    superstate stays in its box, with the effect `from>to`."""
+    if chip(before) != chip(after):
+        was, now = superstate(before), superstate(after)
+        effect = action if was != now else f"{chip(before)}>{chip(after)}"
+        return [("status", was, now, effect)], None
+    if before["go"] != after["go"]:
+        return [("go", before["go"], after["go"], action)], None
+    return [], f"status:{action}"
+
+
+# Each arrow: who moves it, what happens, and the guard it needs, if any.
+arrows = {
+    ("status", "notlaunched", "atwork", "Launch"): ("jbus", "jbus launches it", "go approved"),
+    ("status", "notlaunched", "question", "Ask"): ("jbus", "jbus opens a question", None),
+    ("status", "notlaunched", "removed", "Remove"): ("you", "you remove it", None),
+    ("status", "question", "notlaunched", "Ask"): (
+        "you",
+        "the question closes, no launch yet",
+        None,
+    ),
+    ("status", "question", "atwork", "Ask"): ("you", "the question closes; a thread is out", None),
+    ("status", "question", "review", "Pull"): ("merge", "its pull request opens", None),
+    ("status", "question", "final", "Pull"): ("merge", "its pull request merges", None),
+    ("status", "question", "final", "Thread"): (
+        "crew",
+        "the thread ends after a clean Result",
+        None,
+    ),
+    ("status", "question", "final", "Write"): ("crew", "the crew writes a clean Result", None),
+    ("status", "atwork", "question", "Ask"): ("jbus", "jbus opens a question", None),
+    ("status", "atwork", "review", "Pull"): ("merge", "its pull request opens", None),
+    ("status", "atwork", "final", "Pull"): ("merge", "its pull request merges", None),
+    ("status", "atwork", "final", "Thread"): ("crew", "the thread ends after a clean Result", None),
+    ("status", "atwork", "final", "Write"): ("crew", "the crew writes a clean Result", None),
+    ("status", "atwork", "removed", "Remove"): ("you", "you remove it", "left, or queued again"),
+    ("status", "review", "atwork", "Pull"): ("merge", "the pull request closes unmerged", None),
+    ("status", "review", "question", "Pull"): ("merge", "it closes while a question is open", None),
+    ("status", "review", "final", "Pull"): ("merge", "the pull request merges", None),
+    ("status", "review", "removed", "Remove"): ("you", "you remove it", None),
+    ("go", "waiting", "approved", "Grant"): ("you", "you approve, or a rule gives its go", None),
+    ("go", "waiting", "behind", "Grant"): (
+        "you",
+        "you approve; a row it depends on is not over",
+        None,
+    ),
+    ("go", "waiting", "held", "Hold"): ("you", "you hold it", None),
+    ("go", "approved", "held", "Hold"): ("you", "you hold it", None),
+    ("go", "approved", "kept", "Hold"): ("you", "you hold it, keeping its go", None),
+    ("go", "approved", "waiting", "Void"): (
+        "jbus",
+        "its go no longer holds",
+        "status queued or gate",
+    ),
+    ("go", "behind", "approved", "Ahead"): ("jbus", "the rows it depends on are over", None),
+    ("go", "behind", "held", "Hold"): ("you", "you hold it", None),
+    ("go", "behind", "kept", "Hold"): ("you", "you hold it, keeping its go", None),
+    ("go", "behind", "waiting", "Void"): (
+        "jbus",
+        "its go no longer holds",
+        "status queued or gate",
+    ),
+    ("go", "held", "approved", "Grant"): ("you", "you approve it; the hold ends", None),
+    ("go", "held", "behind", "Grant"): ("you", "you approve it, behind a row; the hold ends", None),
+    ("go", "kept", "approved", "Grant"): ("you", "you approve it", None),
+    ("go", "kept", "approved", "Lift"): ("you", "you lift the hold", None),
+    ("go", "kept", "behind", "Grant"): ("you", "you approve it, behind a row", None),
+    ("go", "kept", "behind", "Lift"): ("you", "you lift the hold, behind a row", None),
+}
+
+# Each kind of step that moves no box: who takes it, its lane, and what it does.
+still = {
+    "status:Thread": (
+        "crew",
+        "status",
+        "T3 Code says something new of the thread, and the status the facts give stays",
+    ),
+    "status:Write": ("crew", "status", "the crew writes a Result, and the status stays"),
+    "status:Pull": ("merge", "status", "GitHub lists the pull request anew, and the status stays"),
+    "status:Ask": (
+        "jbus",
+        "status",
+        "a question opens or closes and the status stays: the row is over, or the facts win",
+    ),
+}
+
+
+def seen(state=None):
+    """{arrow or (lane, from, to): (count, where the count comes from)} for each move
+    transitions.jsonl records. It records statuses, not what moved them, so a count between two
+    superstates is on their arc, and one inside a superstate on its cell. A `queued` after the row
+    left `queued` or `gate` once is `requeued`. A file that is not there, or a line that does not
+    parse, counts as nothing. The logs are jbus's state folder, ~/.local/state/jbus unless `state`
+    names another."""
+    import collections
+    import json
+    from pathlib import Path
+
+    state = Path(state) if state else Path.home() / ".local" / "state" / "jbus"
+
+    rows = collections.defaultdict(list)
+    for log in sorted(state.glob("*/transitions.jsonl")):
+        try:
+            lines = log.read_text(encoding="utf-8").splitlines()
+        except OSError:
+            continue
+        for line in lines:
+            try:
+                t = json.loads(line)
+            except ValueError:
+                continue
+            if (
+                isinstance(t, dict)
+                and isinstance(t.get("slug"), str)
+                and t.get("from") in SUPERSTATE
+                and t.get("to") in SUPERSTATE
+            ):
+                rows[(log.parent.name, t["slug"])].append(t)
+    moves, stamps = collections.Counter(), []
+    for ts in rows.values():
+        launched = False
+        for t in sorted(ts, key=lambda t: str(t.get("at", ""))):
+            stamps.append(str(t.get("at", "")))
+            a = "requeued" if t["from"] == "queued" and launched else t["from"]
+            launched = launched or t["to"] not in ("queued", "gate", "removed")
+            b = "requeued" if t["to"] == "queued" and launched else t["to"]
+            x = "atwork" if a == "requeued" else SUPERSTATE[a]
+            y = "atwork" if b == "requeued" else SUPERSTATE[b]
+            if x != y:
+                moves[("status", x, y)] += 1
+            elif a != b:
+                moves[("status", x, x, f"{a}>{b}")] += 1
+    stamps = sorted(s for s in stamps if s)
+    span = f"{stamps[0][:10]} to {stamps[-1][:10]}" if stamps else "no dates"
+    source = f"jbus/*/transitions.jsonl, {len(rows):,} rows, {span}"
+    return {key: (n, source) for key, n in moves.items()}

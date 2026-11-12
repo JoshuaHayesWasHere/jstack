@@ -47,12 +47,13 @@ The test runs TLC on the cfg, on each rule alone, on `CheckedAtHead` in the back
 S=$PWD/features/skill-library/skills/statechart/scripts
 D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(mktemp -d "${TMPDIR:-/tmp}/crewproof.XXXXXX") && cp features/crew/spec/CrewProof.* "$W"
-(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec CrewProof.tla --config CrewProof.chart.cfg --expect-broken RebaseRecorded \
-    --title "Does the proof on the brief match the head, and does a rebase leave its record?" --out out --png)
+    --title "Does the proof on the brief match the head, and does a rebase leave its record?" --out out)
 ```
 
 Run it from the repo root, then copy the files of `$W/out` into `CrewProof-statechart/`, all except `tlc/`.
+Its PNG, its Excalidraw scenes and the charts page are not committed: `make charts`, at the repo's root, draws them from the committed `chart.mmd` into a folder git ignores, and prints the page's path.
 `CrewProof.chart.cfg` is the cfg's slice for one picture: a jstack repo whose branch changes code, with no call moved to the background, on two heads (155,185 states).
 It draws in a few minutes, labelled by `CrewProof.map.py`, whose comment names each value it joins.
 The broken `RebaseRecorded` is drawn as its numbered path.

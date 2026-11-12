@@ -38,7 +38,7 @@ The home wrote it on 2026-10-23 to test the premise behind "nothing moves", and 
 
 ```sh
 S=features/skill-library/skills/statechart/scripts
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     python features/jmerge/spec/flow_canaries.py
 ```
 
@@ -110,12 +110,13 @@ A full machine stops no judgement of main's red, so both hold `MergeRedsMainOnly
 S=$PWD/features/skill-library/skills/statechart/scripts
 D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(TMPDIR=$D mktemp -d) && cp features/jmerge/spec/FlowToday.* features/jmerge/spec/FlowDesign.* "$W"
-(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec FlowToday.tla --config FlowToday.chart.cfg --against FlowDesign.tla --label "the design" \
-    --title "Does work keep flowing?" --out out --png)
+    --title "Does work keep flowing?" --out out)
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `FlowToday-statechart/`.
+No chart's PNG or Excalidraw scenes, nor the charts page, is committed: `make charts`, at the repo's root, draws them from each committed `chart.mmd` into a folder git ignores, and prints the page's path.
 `FlowToday.chart.cfg` checks the four rules on the model cut by `ChartCut`: no change breaks a browser test of its own, and no brief is edited.
 The chart command holds TLC's whole state graph in memory: the whole model, 2.6M states before fl-rules-1103, took more than 27 GB before earlyoom stopped it.
 The cut, 1.19M states at #946, 1.04M since fl-no-draft and 0.97M since st-flow, needed more than 14 GB at fl-spec-readme-docs's head, and earlyoom stopped it once, so run it with that much memory free.
@@ -189,7 +190,7 @@ Your word has no fairness, and other work moves main at most `Moves` times, once
 
 ```sh
 S=features/skill-library/skills/statechart/scripts
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     python features/jmerge/spec/pr_canaries.py
 ```
 
@@ -232,9 +233,9 @@ A rule that each hold you are asked about has a word that moves it breaks in fou
 ```sh
 S=$PWD/features/skill-library/skills/statechart/scripts
 W=$(mktemp -d) && cp features/jmerge/spec/PrVerdict.* "$W"
-(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec PrVerdict.tla --config PrVerdict.chart.cfg \
-    --title "Why isn't my pull request merging?" --out out --png)
+    --title "Why isn't my pull request merging?" --out out)
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `PrVerdict-statechart/`.
@@ -307,9 +308,9 @@ Each config's comment keeps TLC's verdict and the trace it prints.
 ```sh
 S=$PWD/features/skill-library/skills/statechart/scripts
 W=$(mktemp -d) && cp features/jmerge/spec/MergeRun.* "$W"
-(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec MergeRun.tla --config MergeRun.chart.cfg \
-    --title "jbus's pass starts a run of jmerge: does what it said reach you?" --out out --png)
+    --title "jbus's pass starts a run of jmerge: does what it said reach you?" --out out)
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `MergeRun-statechart/`.

@@ -49,7 +49,7 @@
     "command": "statechart from-spec MainRed.tla --config MainRed.chart.cfg --title 'Main went red: what fixes it?' --png",
     "inputs": {
       "MainRed.chart.cfg": "a94d54c1243c2f25ab3ce8b76c26819837e318519de4b2940f1cedd2efc0b412",
-      "MainRed.map.py": "44a88fae2ae68fe53fd24b9c1b24b3623ef8332349eb8f9be89a315c2fc77cac",
+      "MainRed.map.py": "1693e02e7a080fe753c9750a38b900797d6321931bfcd0fdbaf8c8987342452a",
       "MainRed.tla": "d5359949c8082b3931f448a5dc99413b943dfeecc17b977f1cd4bcd782e9d2c6"
     },
     "chart": "c9979929a1af2be866cc315ae4a9bb7040e2e60a667892a59108250bb29c85fb"
