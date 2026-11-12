@@ -724,6 +724,14 @@ def page(charts, out_dir):
             if len(named) > 1
             else ""
         )
+        every = chart.summary.get("allTransitions")
+        drawn = chart.summary.get("chartTransitions", steps)
+        sizes = (
+            f"{count} states, {drawn} of {every} steps drawn: the way into each state and a way"
+            " out of each."
+            if every and drawn < every
+            else f"{count} states, {steps} steps."
+        )
         model = chart.summary.get("modelStates")
         model_note = f" TLC walked {model} model states to draw it." if model else ""
         panels.append(
@@ -731,7 +739,7 @@ def page(charts, out_dir):
             f'{"" if k == 0 else " hidden"}><header class="chart-head">'
             f'<p class="feature">{esc(chart.feature)} &middot; {esc(chart.name)}</p>'
             f"<h2>{esc(chart.question)}</h2>"
-            f'<p class="sub">{count} states, {steps} steps.{at_once}{model_note}'
+            f'<p class="sub">{sizes}{at_once}{model_note}'
             f' Spec: <a href="{esc(spec)}">README</a> &middot;'
             f' <a href="{esc(png)}">chart.png</a></p>'
             f'<ul class="legend">{legend}</ul></header>'

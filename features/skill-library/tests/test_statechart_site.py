@@ -4,6 +4,7 @@ its states is on it, it fetches nothing when viewed, and it shows each chart's s
 import contextlib
 import fcntl
 import html
+import importlib
 import json
 import os
 import re
@@ -16,8 +17,10 @@ from pathlib import Path
 
 import pytest
 
-from statechart_support import node, read, write
+from statechart_support import lib, node, read, write
 from testing.paths import REPO
+
+chart_site = importlib.import_module("statechart.site")
 
 READ_SET = ("features/*/spec/*-statechart/", "features/*/src/")
 
@@ -89,6 +92,71 @@ def test_each_charts_groups_hold_few_enough_states_to_find_one_and_none_is_mixed
     ]
     assert not big, f"{chart.parent.name} has groups over {GROUP_MOST} states: {', '.join(big)}"
     assert summary["mixedGroups"] == [], f"{chart.parent.name} has mixed states"
+
+
+def ways_out(chart):
+    """Each region of the chart as it is drawn: each state's caption, the composites around it
+    named first, and the labels of the arrows drawn out of it. An arrow from a composite's border
+    leaves from every state inside it."""
+    _, tree, _, _ = chart_site.read_tree(read(chart))
+    composites = chart_site.composites_by_id(tree)
+
+    def inside(node, around):
+        for part in node["parts"]:
+            for child in part["children"]:
+                if child.get("leaf"):
+                    yield child["id"], lib.unwrap(": ".join([*around, child["caption"]]))
+                else:
+                    yield from inside(child, [*around, child["caption"]])
+
+    for _, part in chart_site.regions_of(tree):
+        named = dict(inside({"parts": [part]}, []))
+        out = {state_id: [] for state_id in named}
+        steps = []
+
+        def walk(p, steps=steps):
+            steps.extend(p["steps"])
+            for child in p["children"]:
+                for sub in child.get("parts", []):
+                    walk(sub)
+
+        walk(part)
+        for s in steps:
+            if s["from"] == "[*]":
+                continue
+            sources = (
+                [i for i, _ in inside(composites[s["from"]], [])]
+                if s["from"] in composites
+                else [s["from"]]
+            )
+            for source in sources:
+                out[source].append(lib.unwrap(s["label"]))
+        yield {named[i]: labels for i, labels in out.items()}
+
+
+@pytest.mark.parametrize("chart", CHARTS, ids=lambda chart: chart.parent.name)
+def test_each_state_but_a_final_one_shows_an_arrow_out_that_says_who_takes_it(chart):
+    """A state drawn with no arrow out reads as a stall. Each state the model can leave shows one
+    way out, labelled, and only a state with no way out in the model, which summary.json names
+    final, ends a path."""
+    summary = json.loads(read(chart.parent / "summary.json"))
+    final = set(summary.get("final", ()))
+    for region in ways_out(chart):
+        dead = sorted(s for s, labels in region.items() if not labels and s not in final)
+        assert not dead, f"{chart.parent.name} draws no way out of: {'; '.join(dead)}"
+        bare = sorted(s for s, labels in region.items() if any(not label for label in labels))
+        assert not bare, f"{chart.parent.name} has an arrow with no label out of: {bare}"
+
+
+def test_the_page_says_how_many_steps_a_chart_draws_of_how_many_it_could(tmp_path):
+    folder = lamp(tmp_path / "a", "")
+    write(folder / "summary.json", json.dumps({"chartTransitions": 2, "allTransitions": 5}))
+    assert site(tmp_path / "a", tmp_path / "a.html").returncode == 0
+    said = "2 states, 2 of 5 steps drawn: the way into each state and a way out of each."
+    assert said in read(tmp_path / "a.html")
+    lamp(tmp_path / "b", "")
+    assert site(tmp_path / "b", tmp_path / "b.html").returncode == 0
+    assert "2 states, 2 steps." in read(tmp_path / "b.html")
 
 
 def test_the_page_fetches_nothing_when_it_is_viewed(tmp_path):

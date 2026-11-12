@@ -167,9 +167,9 @@ Reading a chart
   the contexts on one side, the progress on the other, both at the same time. It does so only when
   that has fewer states, and when the regions combine back into exactly every state and step of
   TLC's graph. Otherwise it puts the states of one context in a box named context, and prints why.
-  Regions draw only the arrows of the shortest way to each state, of each bug path, and of the
-  nearest step with each label. The script checks that these arrows make no step that TLC's graph
-  does not have.
+  Regions draw only the arrows of the shortest way to each state, of each bug path, of the
+  nearest step with each label, and one way out of each state that has one, so only a final state
+  ends a path. The script checks that these arrows make no step that TLC's graph does not have.
   An arrow from a box's border leaves from every state in the box.
   In regions, a step leaves every region that has it. "[when A]" or "[unless A]" says which states
   of the other region the step needs. A loop says the region may also stay.

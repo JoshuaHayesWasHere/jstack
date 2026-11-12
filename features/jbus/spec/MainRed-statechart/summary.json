@@ -4,6 +4,8 @@
   "modelTransitions": 396698,
   "chartStates": 42,
   "chartTransitions": 265,
+  "allTransitions": 265,
+  "final": [],
   "chartStatus": {
     "works": 42,
     "wrong": 0,
