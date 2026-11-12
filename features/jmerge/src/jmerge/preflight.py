@@ -187,22 +187,24 @@ class Preflight:
         tree = merged.stdout.split()[:1]
         if merged.returncode == 1 and tree:
             return Ran(CONFLICT)
-        if merged.returncode or not tree:
-            return Ran(UNBUILT)
         message = f"jmerge: #{one.number} merged with #{other.number} for its rules"
-        made = _git(
-            self.main,
-            *treeguards.IDENTITY,
-            "commit-tree",
-            tree[0],
-            "-p",
-            one.head,
-            "-p",
-            other.head,
-            "-m",
-            message,
+        made = (
+            None
+            if merged.returncode or not tree
+            else _git(
+                self.main,
+                *treeguards.IDENTITY,
+                "commit-tree",
+                tree[0],
+                "-p",
+                one.head,
+                "-p",
+                other.head,
+                "-m",
+                message,
+            )
         )
-        if made.returncode:
+        if made is None or made.returncode:
             return Ran(UNBUILT)
         ran = self.run(made.stdout.strip(), rules)
         if ran is None or ran.said != FAILS:
@@ -220,18 +222,15 @@ class Preflight:
         return not _git(self.main, "cat-file", "-e", f"{commit}:{path}").returncode
 
     def run(self, commit: str, rules: tuple[str, ...]) -> Ran | None:
-        """Run the rules `commit` has in the worktree at `TREE`, or None where no full test slot
-        came free in `treeguards.SLOT_SECONDS`."""
-        present = [rule for rule in rules if self.has(commit, rule)]
-        if not present:
-            return Ran(PASSES)
+        """Run the rules on `commit` in the worktree at `TREE`, or None where no full test slot
+        came free in `treeguards.SLOT_SECONDS`. Each rule is one `commit` has."""
         self.clear()
         added = _git(self.main, "worktree", "add", "--detach", "-q", str(self.tree), commit)
         if added.returncode:
             return Ran(UNBUILT)
         try:
             ran = treeguards.run_guards(
-                self.command, self.tree, {"RULES": " ".join(present)}, LIMIT_SECONDS
+                self.command, self.tree, {"RULES": " ".join(rules)}, LIMIT_SECONDS
             )
         finally:
             self.clear()
@@ -248,6 +247,5 @@ class Preflight:
 
     def clear(self) -> None:
         _git(self.main, "worktree", "remove", "--force", str(self.tree))
-        if self.tree.exists():
-            shutil.rmtree(self.tree, ignore_errors=True)
+        shutil.rmtree(self.tree, ignore_errors=True)
         _git(self.main, "worktree", "prune")
