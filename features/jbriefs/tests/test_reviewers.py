@@ -24,10 +24,10 @@ Status: done
 """
 
 
-def written(tmp_path, text, *args):
+def written(tmp_path, text, by="", scope=""):
     brief = tmp_path / "alpha.md"
     brief.write_text(text)
-    code = cli.main(["not-run", str(brief), "--head", HEAD, "--why", "it stopped", *args])
+    code = cli.main(["not-run", str(brief), HEAD, "it stopped", by, scope])
     return code, brief.read_text()
 
 
@@ -41,7 +41,7 @@ def test_a_scoped_reviewer_that_stops_closes_its_seat(tmp_path, capsys):
     text = REVIEWED + f"Scoped reviewer: mcp:scoped, of {HEAD}\n"
     assert reviewers.running(text)
     scope = f"Scope: range-diff {'1' * 40}..{'a' * 40} {'2' * 40}..{HEAD}"
-    code, after = written(tmp_path, text, "--by", BY, "--scope", scope)
+    code, after = written(tmp_path, text, BY, scope)
     assert code == 0
     assert after.endswith(
         f"\n\n## Review\n{BY}\nVerdict: not run\n{scope}\nWhy: it stopped\n"
@@ -55,7 +55,7 @@ def test_a_scoped_reviewer_that_stops_closes_its_seat(tmp_path, capsys):
 def test_a_first_reviewer_that_stops_closes_its_seat(tmp_path, capsys):
     text = "# alpha: the task\n\n## Result\nStatus: done\nReviewer: mcp:first #1"
     assert reviewers.running(text)
-    code, after = written(tmp_path, text, "--by", BY)
+    code, after = written(tmp_path, text, BY)
     assert code == 0 and not reviewers.running(after)
     assert "\nReviewer: mcp:first #1\n\n## Review\n" in after
     assert reviewing(capsys, tmp_path / "alpha.md") == "no"
@@ -63,15 +63,15 @@ def test_a_first_reviewer_that_stops_closes_its_seat(tmp_path, capsys):
 
 def test_the_same_stop_at_the_same_head_writes_one_section(tmp_path, capsys):
     text = REVIEWED + f"Scoped reviewer: mcp:scoped, of {HEAD}\n"
-    _, once = written(tmp_path, text, "--by", BY, "--scope", "Scope: range-diff a b")
+    _, once = written(tmp_path, text, BY, "Scope: range-diff a b")
     capsys.readouterr()
-    code, twice = written(tmp_path, once, "--by", BY, "--scope", "Scope: range-diff a b")
+    code, twice = written(tmp_path, once, BY, "Scope: range-diff a b")
     assert code == 0 and twice == once
     assert capsys.readouterr().out.startswith("no section: the brief already ends")
 
 
 def test_a_brief_that_is_not_there_gets_no_section(tmp_path, capsys):
     gone = tmp_path / "gone.md"
-    assert cli.main(["not-run", str(gone), "--head", HEAD, "--why", "x"]) == 1
+    assert cli.main(["not-run", str(gone), HEAD, "x", "", ""]) == 1
     assert capsys.readouterr().out.startswith("no section: there is no brief at")
     assert not gone.exists()
