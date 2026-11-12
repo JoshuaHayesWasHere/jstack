@@ -23,6 +23,10 @@ name = "PrVerdict"
 thing = "A pull request at jmerge"
 
 [[chart]]
+name = "MergeRun"
+thing = "A run of jmerge a pass starts"
+
+[[chart]]
 name = "FlowToday"
 thing = "A pair of rows on their way to main"
 
@@ -50,8 +54,24 @@ name = "CrewProof"
 thing = "A crew's proof on its brief"
 
 [[chart]]
+name = "TestSlot"
+thing = "A test slot and its waiters"
+
+[[chart]]
 name = "GreenMove"
 thing = "The green copy of jstack"
+
+[[chart]]
+name = "Setup"
+thing = "What install.sh makes"
+
+[[chart]]
+name = "GhBudget"
+thing = "GitHub's API budget"
+
+[[chart]]
+name = "OneList"
+thing = "A gate on your list"
 
 [[handoff]]
 from = "HomeTreeToday: No pull request yet"
@@ -117,6 +137,41 @@ says = "With its proof on the brief and nothing owed, the pull request waits on 
 from = "PrVerdict: Merged"
 to = "GreenMove: Settled"
 says = "The merge goes green on main, and a pass moves the green copy to it."
+
+[[handoff]]
+from = "PrVerdict: Waits on jmerge, GitHub or a check"
+to = "MergeRun: Lines heard, a run is out"
+says = "jbus's pass starts a run of jmerge in the background, and the run judges the pull request."
+
+[[handoff]]
+from = "MergeRun: Lines heard, a run is out"
+to = "PrVerdict: Merged"
+says = "The run merges the pull request, and the next pass sends you the lines it wrote."
+
+[[handoff]]
+from = "CrewProof: At work"
+to = "TestSlot: Full lane"
+says = "The crew runs its tests in a test slot, and waits for jbus's wake where none is free."
+
+[[handoff]]
+from = "CrewProof: In review"
+to = "TestSlot: Review pool"
+says = "Where the review pool is capped, the crew waits, and jbus wakes it once the pool frees."
+
+[[handoff]]
+from = "Setup: Leaves something behind"
+to = "GreenMove: Settled"
+says = "install.sh makes the green copy and puts its units to work, and jbus's passes move it from there. Today such an install leaves its state folders out of the record uninstall reads."
+
+[[handoff]]
+from = "GhBudget: A pass held"
+to = "RowLife: Not launched"
+says = "With GitHub's budget at its floor, the pass asks GitHub nothing more: it launches no row, and each approved row says why."
+
+[[handoff]]
+from = "HomeTreeToday: No pull request yet"
+to = "OneList: Open in gates.md"
+says = "A home acts on its default at a gate and writes it in its gates.md, and the gate reaches your list."
 
 [[uncharted]]
 model = "home/spec/HomeTree.tla"
