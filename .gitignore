@@ -6,5 +6,8 @@ __pycache__/
 /.claude/skills/
 /.cursor/skills/
 
+# TLC's output from a model run, in a spec's folder or a chart's; the specs' READMEs say it is not committed.
+/features/*/spec/**/tlc/
+
 # Built by `statechart site --out features/home/docs/charts/index.html`; every chart change rewrites it.
 /features/home/docs/charts/index.html
