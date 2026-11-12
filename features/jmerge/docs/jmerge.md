@@ -276,7 +276,7 @@ The section "Protected paths" describes one more hold.
   A pull request that fails starts holding it again until it is named, as does a new one that opens and fails.
   A failure holds nothing where the other pull request fails the tests it has at its own head too (that red is its own, and its check shows its crew), nor does a tree that conflicts, cannot be built or runs past 60 s: that crew rebases once the rule lands, and the guards on the merged tree stand behind it.
   A pull request stacked on it, or one it carries, runs nothing: its own check runs the rule.
-  `rule-trees.json` keeps each result until either head moves, and a result at another pull request's older head counts until its new head is run, so a crew's push holds no rule.
+  `rule-trees.json` keeps each result until either head moves, but a run stopped at its limit or one whose tree or slot would not start runs again on the next run with time left, and a result at another pull request's older head counts until its new head is run, so a crew's push holds no rule.
   The runs of one `jmerge` run spend at most 90 s, apart from the guards' time, each inside a full test slot; while a pull request has not been run once, the rule waits with `its tests <tests> have run on <k> of the <n> open pull requests merged with it: the next run goes on` (`rule-unrun`), which ends by itself.
   `--check` runs the preflight too, in a worktree of its own, so its `wait` line names the pull requests a rule breaks.
 - **The repo's merge is on.**

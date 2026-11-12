@@ -50,6 +50,9 @@ guards' `treeguards.RUN_SECONDS`, so a preflight never takes the guards' time; w
 limit past it, the two stay inside the 17 minutes jbus gives `jmerge`."""
 PASSES, FAILS, OWN = "passed", "failed", "its own"
 CONFLICT, STOPPED, UNBUILT = "conflict", "stopped", "unbuilt"
+AGAIN = frozenset({STOPPED, UNBUILT})
+"""The results a loaded machine or a slot that would not start can give: each holds nothing, and
+the next run with time left runs it again, so one such run does not leave a rule unrun."""
 
 
 def rules_of(one: ready.PullRequest) -> tuple[str, ...]:
@@ -127,22 +130,26 @@ class Preflight:
         rows = [other for other in others if self.apart(one, other)]
         if not rows:
             return "", ""
-        if "alone" not in record:
-            if not self.room():
+        again = record.get("alone") in AGAIN
+        if "alone" not in record or again:
+            alone = self.run(one.head, rules) if self.room() else None
+            if alone is None and not again:
                 return ready.RULE_UNRUN.format(tests=shown, ran=0, open=len(rows)), ""
-            alone = self.run(one.head, rules)
-            if alone is None:
-                return ready.RULE_UNRUN.format(tests=shown, ran=0, open=len(rows)), ""
-            record["alone"] = alone.said
-            self.keep(one.number, record)
+            if alone is not None:
+                record["alone"] = alone.said
+                self.keep(one.number, record)
         if record["alone"] != PASSES:
             return "", ""
         on = record.get("on")
         if not isinstance(on, dict):
             on = record["on"] = {}
-        for other in sorted(rows, key=lambda row: row.number):
-            seen = on.get(str(other.number))
-            if isinstance(seen, dict) and seen.get("head") == other.head:
+        def owed(row: ready.PullRequest) -> bool:
+            seen = on.get(str(row.number))
+            return isinstance(seen, dict) and seen.get("head") == row.head
+
+        for other in sorted(rows, key=lambda row: (owed(row), row.number)):
+            seen = on.get(str(other.number)) or {}
+            if owed(other) and seen.get("said") not in AGAIN:
                 continue
             if not self.room():
                 break

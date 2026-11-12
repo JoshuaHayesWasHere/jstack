@@ -188,3 +188,21 @@ def test_a_slot_that_would_not_start_the_tests_holds_nothing(repo, monkeypatch):
     breaks = repo.pull({"bad": "x\n"})
     assert repo.preflight().of(rule, [breaks], "") == ("", "")
     assert repo.kept()[str(rule.number)]["alone"] == preflight.UNBUILT
+
+
+@pytest.mark.parametrize("at", [1, 2], ids=["the rule's head alone", "the merged tree"])
+def test_a_run_that_did_not_start_runs_again_on_the_next(repo, monkeypatch, at):
+    """A slot that would not start the tests on the `at`th run holds nothing, and the next run
+    runs those tests again, so a rule that breaks the row is named once it can be."""
+    real, calls = treeguards.run_guards, []
+
+    def once(*args):
+        calls.append(args)
+        return "jgauge test-slot exited 2" if len(calls) == at else real(*args)
+
+    monkeypatch.setattr(treeguards, "run_guards", once)
+    rule = repo.pull({RULE: TEXT})
+    breaks = repo.pull({"bad": "x\n"})
+    assert repo.preflight().of(rule, [breaks], "") == ("", "")
+    named = f"#{breaks.number} (tests/test_rule.py::test_no_bad)"
+    assert repo.preflight().of(rule, [breaks], "") == (TESTS.format(breaks=named), "")
