@@ -315,13 +315,16 @@ def test_a_failed_check_on_the_pull_request_runs_the_check_block_it_names(tmp_pa
     assert (said[-2:], code) == (["held", "done: the check exited 3"], 3)
 
 
-def lanes(stub, locks, log, exits=None, takes=None):
+def lanes(stub, locks, log, exits=None, takes=None, junit=None):
     """A `make` on the path that records its arguments, and which lane's slot was held while it
     ran: `short` when any slot of the short lane was, `full` when any of the full lane's were. It
     asks with `TAKEN`, by Python's fcntl, since macOS has no `flock` command. It ends with the
     code of the first of `exits` whose shell pattern matches what it records, and 0 by default.
     With `takes`, each run moves the clock of `clocked` on by that many seconds and records the
-    wait for a short slot it was given, in `waits` beside the clock."""
+    wait for a short slot it was given, in `waits` beside the clock. It records a run with the
+    `JUNIT=<file>` it was given left out, and with `junit`, a `(seconds, failing)` pair, writes
+    pytest's report there first: each file of `TESTS` one test of its seconds, 1 by default,
+    failed where `failing` names it, and the session's seconds where a third item gives them."""
     ends = "".join(
         f"{pattern.replace(' ', chr(92) + ' ')}) exit {code} ;; "
         for pattern, code in (exits or {}).items()
@@ -329,13 +332,22 @@ def lanes(stub, locks, log, exits=None, takes=None):
     taken = stub / "taken.py"
     taken.write_text(TAKEN)
     held = f"{shlex.quote(sys.executable)} {shlex.quote(str(taken))}"
+    report = ""
+    if junit is not None:
+        (stub / "junit.json").write_text(json.dumps(list(junit)))
+        (stub / "junit.py").write_text(REPORT)
+        report = (
+            f"for one; do case $one in JUNIT=*) {shlex.quote(sys.executable)} "
+            f'{stub / "junit.py"} {stub / "junit.json"} "$@" ;; esac; done\n'
+        )
     (stub / "make").write_text(
         "#!/bin/sh\nshort=free\nfull=free\n"
-        f'for one in {locks}/test-slot-short.*.lock; do [ -e "$one" ] && {held} "$one" '
+        + report
+        + f'for one in {locks}/test-slot-short.*.lock; do [ -e "$one" ] && {held} "$one" '
         "&& short=held; done\n"
         f'for one in {locks}/test-slot.*.lock; do [ -e "$one" ] && {held} "$one" '
         "&& full=held; done\n"
-        'said="$* short=$short full=$full"\n'
+        'said="$(printf %s "$*" | sed "s/ JUNIT=[^ ]*//") short=$short full=$full"\n'
         f'echo "$said" >> {log}\n'
         + (
             f'echo "${{JGAUGE_SHORT_WAIT_SECONDS-unset}}" >> {stub / "waits"}\n'
@@ -350,6 +362,23 @@ def lanes(stub, locks, log, exits=None, takes=None):
         clocked(stub)
 
 
+REPORT = """import json, sys
+
+seconds, failing, *wall = json.load(open(sys.argv[1]))
+words = dict(one.split("=", 1) for one in sys.argv[2:] if "=" in one)
+cases = []
+for one in words.get("TESTS", "").split():
+    dotted = one.removesuffix(".py").replace("/", ".")
+    bad = '<failure message="it failed"/>' if one in failing else ""
+    time = seconds.get(one, 1)
+    cases.append(f'<testcase classname="{dotted}" name="test_it" time="{time}">{bad}</testcase>')
+with open(words["JUNIT"], "w") as report:
+    suite = "".join(cases)
+    timed = f' time="{wall[0]}"' if wall else ""
+    report.write(f'<testsuites><testsuite name="pytest"{timed}>{suite}</testsuite></testsuites>')
+"""
+
+
 def clocked(stub):
     """A `date` on the path whose `+%s` is the clock in `stub/clock`, which only the `make` of
     `lanes` moves, so a step takes the time the test says and no more."""
@@ -360,7 +389,7 @@ def clocked(stub):
     (stub / "date").chmod(0o755)
 
 
-def selected(tmp_path, repo, on="origin/main", exits=None, takes=None):
+def selected(tmp_path, repo, on="origin/main", exits=None, takes=None, junit=None):
     """Run the check block once in `repo`, a worktree whose `origin/main` the test has set, with
     a `make` that records each run. It returns what the block printed, its exit code, the runs of
     `make` and the commit the branch left `origin/main` at."""
@@ -371,7 +400,7 @@ def selected(tmp_path, repo, on="origin/main", exits=None, takes=None):
     )
     stub.mkdir(exist_ok=True)
     room.uv(stub)
-    lanes(stub, locks, log, exits, takes)
+    lanes(stub, locks, log, exits, takes, junit)
     said, code, _ = checked(tmp_path, "echo the full lane")
     base = subprocess.run(
         ["git", "merge-base", on, "HEAD"], cwd=repo, capture_output=True, text=True
@@ -499,8 +528,8 @@ def test_a_change_runs_the_lint_each_touched_test_and_each_test_that_reads_it_in
     assert not set(reads) & {mine, *guards}
     assert said[0] == (
         f"touched: 1 test files, then {len(guards)} cross-cutting guard tests, "
-        "then 0 test files CI failed on, each alone in the short lane after the lint, "
-        f"then {len(reads)} test files that read the change in {len(steps)} steps; "
+        f"then 0 test files CI failed on, then {len(reads)} test files that read the change, "
+        f"in {1 + len(guards) + len(steps)} steps of the short lane after the lint; "
         "CI's check runs the rest of the selection"
     ), said
     assert re.fullmatch(r"lint: exit 0 in \d+ s, short lane", said[1]), said
@@ -533,7 +562,7 @@ def test_a_step_of_the_tests_that_read_the_change_runs_its_files_at_once_after_t
     said, code, ran, base = selected(tmp_path, repo, exits={"*test_o.py*": 1})
     head = git(repo, "rev-parse", "HEAD")
     assert said[0].endswith(
-        "then 3 test files that read the change in 2 steps; "
+        "then 3 test files that read the change, in 4 steps of the short lane after the lint; "
         "CI's check runs the rest of the selection"
     ), said
     assert ran == [

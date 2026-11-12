@@ -4,10 +4,13 @@
   In a repo whose pull request check selects its tests, jstack's `scripts/select_tests.py`, the touched tests are the test files the branch adds or edits since it left its base (`select_tests.py --part touched`), the guard tests are the cross-cutting tests the selection names, wherever their files live (`select_tests.py --part cross`), that are not touched already, and the tests that read the change are the ones the pull request's check selects because they name or read a file the branch edits, a skill that includes it or a read set that matches it, and that neither of the others holds (`select_tests.py --part names`, a few files a line, as many as fit 60 s of test time).
   The block asks `origin/main`'s `scripts/select_tests.py` for the three lists, a copy of it run over the branch's own tree, so a branch stacked on a base that left main before a part existed still gets them, and is not held for want of a `Checked:` line.
   Where `origin/main` has no such file the block says so and asks the branch's own.
-  The check is `make check-fast BASE=<base> PART=touched`, run in steps: the lint first, then each touched test file alone, then each guard test file alone, then each test file CI failed on (below), then each line of the names part, each step its own call of `jgauge test-slot --short`.
+  The check is `make check-fast BASE=<base> PART=touched`, run in steps, each its own call of `jgauge test-slot --short`: the lint first, then the touched test files, then the guard test files, then the test files CI failed on (below), then the files of the names part, each kind in steps of as many files as fit 60 s of measured time, half the short lane's limit.
   So a test that reads an edited skill file, as test_status_line_readers.py reads features/crew/no-pr-end.md, fails at the desk and not first on the pull request, as it failed twice on #1691.
   Over main's last 20 merges the names part added a median of 98 test files to the desk's 48 (6 to 256), in 20 steps (1 to 59), so a check takes several calls of the block more often than before.
-  A step the short lane stops at its time limit (exit 124) runs again alone in a full test slot, which has no time limit, so every step reaches a verdict however loaded the machine is.
+  A file's measured time is its share of the pytest session's seconds in the report (`JUNIT=`) of the last step that ran it in the short lane, by its tests' seconds, so it counts the lane's workers and the session's start, kept in the repo's `crew-check-times`, in the git dir every worktree shares (`git rev-parse --git-common-dir`), beside each worktree's `crew-check-steps`, so one crew's check measures the files for the next.
+  A file no step has measured runs alone, and a line of the names part with such a file runs as the selector gave it, as each did when every file was its own take: on 2026-11-12 that cost 272 slot takes a merged pull request.
+  A step of several files the short lane stops at its time limit (exit 124) reached no verdict: the block forgets their times (`<file> -`) and runs each again alone in the short lane.
+  A step of one file it stops runs again alone in a full test slot, which has no time limit, so every step reaches a verdict however loaded the machine is.
   A 124 is never a pass and never a failure: it is no verdict.
   The catch-all and the tests the change reaches through imports and features are CI's to run: the desk does not run them.
   The base is the branch the pull request goes on, as the block that opens it reads it from the brief: the branch of a `Stacked on:` line, and `origin/main` for a brief with none.
@@ -63,32 +66,67 @@
           printf 'make check-fast BASE=%s PART=touched\n' "$base" > "$code.command"
           steps=$(git rev-parse --git-path crew-check-steps)
           [ "$(sed -n 1p "$steps" 2> /dev/null)" = "$head $base" ] || printf '%s %s\n' "$head" "$base" > "$steps"
-          echo "touched: $(printf '%s' "$touched" | command grep -c .) test files, then $(printf '%s' "$guards" | command grep -c .) cross-cutting guard tests, then $(printf '%s' "$failed" | command grep -c .) test files CI failed on, each alone in the short lane after the lint, then $(printf '%s\n' $names | command grep -c .) test files that read the change in $(printf '%s' "$names" | command grep -c .) steps; CI's check runs the rest of the selection"
+          times=$(git rev-parse --path-format=absolute --git-common-dir)/crew-check-times
+          plan() {
+              awk -v steps="$steps" -v times="$times" -v most=60 '
+                  BEGIN {
+                      while ((getline line < times) > 0) { split(line, word, " "); took[word[1]] = word[2] }
+                      while ((getline line < steps) > 0) if (line ~ /^passed /) passed[substr(line, 8)] = 1
+                  }
+                  NF {
+                      unit = ""; sum = 0; known = 1
+                      for (i = 1; i <= NF; i++) {
+                          if ($i in passed) continue
+                          unit = unit (unit == "" ? "" : ",") $i
+                          if (!($i in took) || took[$i] == "-") known = 0
+                          else sum += took[$i]
+                      }
+                      if (unit == "") next
+                      if (!known) { print unit; next }
+                      if (held != "" && heldsum + sum > most) { print held; held = ""; heldsum = 0 }
+                      held = held (held == "" ? "" : ",") unit
+                      heldsum += sum
+                  }
+                  END { if (held != "") print held }'
+          }
+          todo=$(
+              command grep -qxF 'passed lint' "$steps" || echo lint
+              for kind in "$touched" "$guards" "$failed" "$names"; do printf '%s\n' "$kind" | plan; done
+          )
+          echo "touched: $(printf '%s' "$touched" | command grep -c .) test files, then $(printf '%s' "$guards" | command grep -c .) cross-cutting guard tests, then $(printf '%s' "$failed" | command grep -c .) test files CI failed on, then $(printf '%s\n' $names | command grep -c .) test files that read the change, in $(printf '%s' "$todo" | command grep -cvx -e lint -e '') steps of the short lane after the lint; CI's check runs the rest of the selection"
+          for one in lint $touched $guards $failed $names; do
+              ! command grep -qxF "passed $one" "$steps" || echo "$one: passed at this head already"
+          done
           ran=0
           ceiling=${JGAUGE_SHORT_WAIT_SECONDS:-300}
           left=
-          for step in lint $touched $guards $failed $(printf '%s\n' "$names" | tr ' ' ,); do
-              if command grep -qxF "passed $step" "$steps"; then
-                  [ -n "$left" ] || echo "$step: passed at this head already"
-                  continue
-              fi
+          junit=$code.junit
+          while [ -n "$todo" ]; do
+              step=$(printf '%s\n' "$todo" | sed -n 1p)
+              todo=$(printf '%s\n' "$todo" | sed 1d)
               have=$((budget - $(date +%s) + began))
-              [ -n "$left" ] || [ "$have" -ge "$reserve" ] || left=0
-              if [ -n "$left" ]; then
-                  left=$((left + 1))
-                  continue
+              if [ "$have" -lt "$reserve" ]; then
+                  left=$(printf '%s\n' "$step" "$todo" | command grep -c .)
+                  break
               fi
               wait=$((have - reserve))
               [ "$wait" -le "$ceiling" ] || wait=$ceiling
+              files=$(printf '%s' "$step" | tr , ' ')
               if [ "$step" = lint ]; then
                   set -- make check-fast BASE="$base" PYTEST=: PART=touched
               else
-                  set -- make test TESTS="$(printf '%s' "$step" | tr , ' ')" BASE="$base"
+                  set -- make test TESTS="$files" BASE="$base" JUNIT="$junit"
               fi
               started=$(date +%s)
               lane=short
               JGAUGE_SHORT_WAIT_SECONDS=$wait uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- "$@"
               said=$?
+              if [ "$said" = 124 ] && [ "$files" != "${files#* }" ]; then
+                  echo "$step: stopped at the short lane's limit, no verdict: its $(printf '%s\n' $files | command grep -c .) files run again, each alone"
+                  printf '%s -\n' $files >> "$times"
+                  todo=$(printf '%s\n' $files "$todo" | sed '/^$/d')
+                  continue
+              fi
               if [ "$said" = 124 ]; then
                   echo "$step: stopped at the short lane's limit, no verdict: it runs again alone in a full slot"
                   lane=full
@@ -96,10 +134,44 @@
                   said=$?
               fi
               echo "$step: exit $said in $(($(date +%s) - started)) s, $lane lane"
+              bad=
+              if [ "$step" != lint ] && [ "$said" != 124 ] && [ "$said" != 76 ]; then
+                  bad=$(python3 -c 'import os, sys, xml.etree.ElementTree as tree
+  report, step, times, lane = sys.argv[1:]
+  try:
+      root = tree.parse(report).getroot()
+  except (OSError, tree.ParseError):
+      sys.exit()
+  suite = root if root.tag == "testsuite" else root.find("testsuite")
+  dotted = {one.removesuffix(".py").replace("/", "."): one for one in step.split(",")}
+  took, failed = {}, set()
+  for case in root.iter("testcase"):
+      names = (case.get("classname") or "", case.get("name") or "")
+      hits = [key for key in dotted for name in names if name == key or name.startswith(key + ".")]
+      if hits:
+          one = dotted[max(hits, key=len)]
+          took[one] = took.get(one, 0) + float(case.get("time") or 0)
+          if case.find("failure") is not None or case.find("error") is not None:
+              failed.add(one)
+  summed = sum(took.values())
+  wall = float(suite.get("time") or 0) if suite is not None else 0
+  if lane == "short" and took:
+      with open(times, "a") as kept:
+          kept.write("".join(f"{one} {(wall * spent / summed if wall and summed else spent):.1f}\n" for one, spent in sorted(took.items())))
+  if os.path.exists(times) and os.path.getsize(times) > 1 << 20:
+      last = {}
+      for line in open(times):
+          if len(line.split()) == 2:
+              last[line.split()[0]] = line.split()[1]
+      with open(f"{times}.{os.getpid()}", "w") as new:
+          new.write("".join(f"{one} {spent}\n" for one, spent in last.items()))
+      os.replace(f"{times}.{os.getpid()}", times)
+  print("\n".join(sorted(failed)))' "$junit" "$step" "$times" "$lane")
+              fi
               case $said in
               0)
                   if [ -z "$clean" ] && [ -z "$(git status --porcelain)" ] && [ "$(git rev-parse HEAD)" = "$head" ]; then
-                      echo "passed $step" >> "$steps"
+                      printf 'passed %s\n' $files >> "$steps"
                   elif [ -z "$clean" ]; then
                       echo "$step: passed over work that $head does not have, so it is not kept"
                       ran=76
@@ -112,6 +184,14 @@
                   ;;
               124) ran=124 ;;
               *)
+                  if [ "$step" != lint ]; then
+                      if [ -z "$bad" ]; then
+                          echo "$step: pytest's report names no failing file, so each file of the step is kept"
+                          bad=$files
+                      fi
+                      for one in $bad; do echo "$one: failed in step $step"; done
+                      { printf '%s\n' $bad; cat "$kept" 2> /dev/null; } | sort -u > "$kept.new" && mv "$kept.new" "$kept"
+                  fi
                   ran=$said
                   break
                   ;;
@@ -152,12 +232,13 @@
   A `no check:` line ends the block 1: nothing was checked, and it is no proof.
   The block adds `Checked: <the command> exit <its exit> at <the full head>` to the brief for a check that ran to its end on a committed head, which `jmerge` reads, and nobody writes that line by hand.
   It does so from the first head on, whether or not the brief has a Result yet, so the first head's check is on record too.
-  For a selected check the line reads `Checked: make check-fast BASE=<base> PART=touched exit <n> at <head>`, and the block prints each step as `<step>: exit <n> in <s> s, <lane> lane`, the step `lint`, a touched test file, a cross-cutting guard test file, a test file CI failed on, or a line of the names part, its files joined by commas.
+  For a selected check the line reads `Checked: make check-fast BASE=<base> PART=touched exit <n> at <head>`, and the block prints each step as `<step>: exit <n> in <s> s, <lane> lane`, the step `lint` or its test files joined by commas.
   The block's exit is the first step's failure where one failed, and it stops there; else 76 where steps are left or a lane had no slot; else 124 where a step reached no verdict even in a full slot; else 0.
   The steps after the guards are the test files CI failed on that the block of "The failed files" kept in the worktree's `crew-failed-files` and that are in the worktree, so a fix head's `Checked:` line says exit 0 only once they pass there.
-  A name leaves that list once its step passed at a committed head.
-  A step that passed at a committed head is kept in the worktree's `crew-check-steps` (`git rev-parse --git-path crew-check-steps`), and a run of the block at the same head and base skips it, so a wait for a slot, or a call cut at its time limit, never starts the check over.
-  A step is kept only where the worktree was clean when the block began and is still clean at that head when the step ends: a call moved to the background lets the crew edit while a step runs, and a step that passed over such an edit is no pass at the head.
+  A failing step names each file pytest's report shows failing, as `<file>: failed in step <step>`, and keeps it in `crew-failed-files` too; where the report names none, as when pytest could not start, it keeps each file of the step.
+  A name leaves that list once a step it was in passed at a committed head.
+  Each file of a step that passed at a committed head is kept in the worktree's `crew-check-steps` (`git rev-parse --git-path crew-check-steps`) as `passed <file>`, and a run of the block at the same head and base skips it and packs the rest anew, so a wait for a slot, or a call cut at its time limit, never starts the check over.
+  A step's files are kept only where the worktree was clean when the block began and is still clean at that head when the step ends: a call moved to the background lets the crew edit while a step runs, and a step that passed over such an edit is no pass at the head.
   The block prints `<step>: passed over work that <head> does not have, so it is not kept`, starts no further step, and ends 76 with no `Checked:` line and no `running:` line: commit or drop the work first, then run the block again.
   `jmerge` merges a pull request only once its last `Checked:` line says the desk's check (`PART=touched`, a `PART=guards` line of an earlier head, or another repo's `jgauge check`) exited 0 at its head, or at a head whose patch the head carries unchanged (`ready.short_on_checked`): a missing line, a failure, a 124 and a line of a head whose patch changed since each hold it, until this block runs again at the head.
   Give the call a time limit of 10 minutes (`timeout: 600000` in Claude Code), in the foreground: a call that outlives 10 minutes is moved to the background, and each step's end then wakes the thread.

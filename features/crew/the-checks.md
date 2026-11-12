@@ -74,7 +74,7 @@ fi
 ```
 
 Its last line is `failed files: exit <n>`: 0 where each named file passed here, and the first failure's exit otherwise, which is `failed` for "A failed check".
-The block keeps the names in the worktree's `crew-failed-files` (`git rev-parse --git-path crew-failed-files`), and the check block of "Do the task" runs each one in the worktree as a step after the guards, until it passes at a committed head: a fix whose failed file is still red has no `Checked:` line of exit 0, so it is not pushed.
+The block keeps the names in the worktree's `crew-failed-files` (`git rev-parse --git-path crew-failed-files`), and the check block of "Do the task" runs each one in the worktree in its steps after the guards, until it passes at a committed head: a fix whose failed file is still red has no `Checked:` line of exit 0, so it is not pushed.
 A `76` in the short lane is no slot by the ceiling: run the block again at once.
 A `76` in the full lane is a wait for a slot: end the turn as "test slots" says, and on jbus's message run the block again.
 A `none` line runs nothing: the check of "Do the task" is the whole of what runs here, and its lint covers a failed lint job.
