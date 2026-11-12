@@ -50,7 +50,6 @@ def env_for(venv):
         sorted({str(Path(shutil.which("uv")).parent), str(Path(shutil.which("git")).parent)})
     )
     env["UV_PROJECT_ENVIRONMENT"] = str(venv)
-    env["UV_OFFLINE"] = "1"
     env["TLA2TOOLS"] = TOOLS.jar if TOOLS else ""
     return env
 
