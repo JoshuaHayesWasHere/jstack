@@ -22,6 +22,8 @@
 # - The id of the crew's wait (waitId) and jbus's copies of what it read (wsnap, hsnap, psnap,
 #   local, outside a ledger writer's read): they decide which write lands, and the label shows
 #   the write.
+# - What the crew heard (heard): a woken crew not told yet shows, and whether this pass tried to
+#   tell it does not, since the pass's own sends show in its steps.
 # - The ledger: `merge` keeps the larger share of one window and the later reset of two, which
 #   the model joins into "each record a writer merged in stays" (a set of writers). A window that
 #   reset and the endpoint's EARLY reading, each of which replaces a line on purpose, are not
@@ -94,6 +96,10 @@ def _full(v):
         parts.append("jbus sends a wake for a slot it counted free")
     if v["bus"] in ("unwake", "unwaking"):
         parts.append("jbus gives back the claim of a wake that did not go")
+    if v["bus"] == "retell":
+        parts.append("jbus sends again a wake an earlier pass recorded")
+    if "crew" in v["waiters"] and v["woken"] == "holds" and not v["heard"]["told"]:
+        parts.append("the woken crew is not told yet")
     if v["missed"]:
         parts.append("the woken crew found its slot taken")
     parts += [_holder(v, "crew"), _log(v, ["crew", "desk"])]
@@ -208,6 +214,8 @@ STEPS = {
     "WakeLock": "the jbus pass takes the waiters' lock to record the wake",
     "Wake": "the jbus pass records the wake",
     "UnwakeLock": "the jbus pass takes the waiters' lock to give the claim back",
+    "Owed": "the jbus pass reads the wakes it owes a send",
+    "Retell": "the jbus pass sends again a wake an earlier pass recorded",
     "Unwake": "the jbus pass gives back the claim of a wake that did not go",
     "EndedRead": "the jbus pass reads the holders",
     "Judge": "the jbus pass judges which runs are over",

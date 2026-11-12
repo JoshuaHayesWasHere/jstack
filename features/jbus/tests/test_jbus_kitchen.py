@@ -358,10 +358,11 @@ class T3(Server):
                     return {"isError": True, "content": [{"type": "text", "text": woken.refused}]}
                 if key not in self.messages:
                     woken.listing(given["message"])
+            if key not in self.messages:
+                for thread in self.threads:
+                    if thread["threadId"] == given["threadId"]:
+                        thread["updatedAt"] = iso(datetime.now(UTC))
             self.messages.setdefault(key, given)
-            for thread in self.threads:
-                if thread["threadId"] == given["threadId"]:
-                    thread["updatedAt"] = iso(datetime.now(UTC))
             made = {"threadId": given["threadId"], "status": "queued"}
         elif tool == "t3_thread_configure":
             found = [t for t in self.threads if t["threadId"] == given["threadId"]]

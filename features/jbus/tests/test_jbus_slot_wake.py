@@ -66,6 +66,13 @@ def told(kitchen):
     return [given["threadId"] for given in sends(kitchen)]
 
 
+def heard(kitchen):
+    """The thread of each slot wake T3 Code took, once a key: jbus sends a wake whose claim holds
+    again on each pass, under its key, and T3 Code keeps one message a key."""
+    taken = kitchen.t3.messages.values()
+    return [one["threadId"] for one in taken if one["clientRequestId"].startswith("slot-wake|")]
+
+
 def test_two_waiters_one_slot_frees_only_the_oldest_is_woken(kitchen, slots):
     slots.hold("full")
     younger, older = waiter(kitchen, ago=3), waiter(kitchen, ago=9)
@@ -117,7 +124,7 @@ def test_a_second_pass_wakes_no_one_twice(kitchen, slots):
     kitchen.poll()
     kitchen.poll(NOW + timedelta(minutes=1))
     kitchen.poll(NOW + timedelta(minutes=2))
-    assert told(kitchen) == [first]
+    assert heard(kitchen) == [first]
     assert [one.thread for one in waiters.read(slot.locks_dir()) if not one.woken] == [second]
 
 
@@ -128,7 +135,7 @@ def test_a_second_free_slot_wakes_the_next_waiter(kitchen, slots):
     kitchen.poll()
     slots.free("full", 2)
     kitchen.poll(NOW + timedelta(minutes=1))
-    assert told(kitchen) == [first, second]
+    assert heard(kitchen) == [first, second]
     assert third not in told(kitchen)
 
 
@@ -222,7 +229,7 @@ def test_only_a_full_lane_waiter_is_woken_and_a_short_one_is_dropped_with_one_li
     assert "short" in line and "dropped" in line
     assert [one.thread for one in waiters.read(slot.locks_dir())] == [full]
     kitchen.poll(NOW + timedelta(minutes=1))
-    assert told(kitchen) == [full]
+    assert heard(kitchen) == [full] and short not in told(kitchen)
 
 
 @pytest.mark.parametrize("how", ["lose_send", "refuse_send"])
@@ -239,6 +246,37 @@ def test_a_lost_send_is_tried_again_with_the_same_key(kitchen, slots, how):
     keys = {given["clientRequestId"] for given in sends(kitchen)}
     assert told(kitchen) == [thread, thread] and len(keys) == 1
     assert waiters.read(slot.locks_dir())[0].woken
+
+
+class Killed(BaseException):
+    """jbus's pass ends at once, as a kill ends it: nothing after it runs."""
+
+
+def test_a_wake_recorded_by_a_pass_that_died_before_its_send_is_sent_by_the_next(
+    kitchen, slots, monkeypatch
+):
+    """The pass records the wake under the waiters lock, then dies before its send. The wake's
+    claim holds, so no pass wakes the wait anew: the next pass sends the recorded wake, under the
+    same key, and the crew that ended its turn on "jbus will wake this thread" is told."""
+    slots.hold("full")
+    thread = waiter(kitchen, ago=3)
+    slots.free("full")
+    sending = outbox.send
+
+    def killed(*args, **kwargs):
+        raise Killed
+
+    monkeypatch.setattr(outbox, "send", killed)
+    with pytest.raises(Killed):
+        kitchen.poll()
+    (recorded,) = waiters.read(slot.locks_dir())
+    assert recorded.woken and sends(kitchen) == []
+    monkeypatch.setattr(outbox, "send", sending)
+    kitchen.poll(NOW + timedelta(minutes=1))
+    (given,) = sends(kitchen)
+    assert given["threadId"] == thread
+    assert given["clientRequestId"] == f"slot-wake|{thread}|{recorded.id}"
+    assert waiters.read(slot.locks_dir()) == [recorded]
 
 
 def test_no_waiters_is_a_pass_that_sends_nothing(kitchen):
@@ -419,6 +457,8 @@ def test_slot_wakes_run_once_a_pass(kitchen, slots):
     keys = sorted(given["clientRequestId"].split("|")[:2] for given in sends(kitchen))
     assert keys == [["slot-end", busy], ["slot-wake", first]]
     kitchen.poll(NOW + 2 * MIN)
-    ends = [given["clientRequestId"] for given in sends(kitchen)][1:]
+    sent = [given["clientRequestId"] for given in sends(kitchen)]
+    ends = [key for key in sent if key.startswith("slot-end|")]
     assert ends == [f"slot-end|{busy}|{run.since}", f"slot-end|{busy}|{again.since}"]
+    assert heard(kitchen) == [first]
     assert holders.read(slot.locks_dir()) == []

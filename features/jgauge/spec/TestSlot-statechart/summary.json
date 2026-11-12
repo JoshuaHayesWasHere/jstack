@@ -1,10 +1,10 @@
 {
   "view": "customer",
-  "modelStates": 85439,
-  "modelTransitions": 255206,
+  "modelStates": 129918,
+  "modelTransitions": 381129,
   "chartStates": 15,
   "chartTransitions": 14,
-  "allTransitions": 409,
+  "allTransitions": 472,
   "final": [
     "Review pool: no wait on file, the crew's second wait"
   ],
@@ -38,7 +38,7 @@
   "mixedGroups": [],
   "regions": {
     "drawn": false,
-    "why": "160 region states are not fewer than the 158 flat states"
+    "why": "178 region states are not fewer than the 176 flat states"
   },
   "classes": [],
   "codeLike": [],
@@ -47,28 +47,28 @@
       "TestSlot.chart.cfg",
       "TestSlot.cfg"
     ],
-    "states": 258,
-    "arrows": 1151
+    "states": 318,
+    "arrows": 1522
   },
   "also": {
     "cfg": "TestSlot.cfg",
-    "modelStates": 694283,
-    "modelTransitions": 3633465,
-    "states": 100,
-    "arrows": 732
+    "modelStates": 1357013,
+    "modelTransitions": 7038458,
+    "states": 142,
+    "arrows": 1040
   },
   "drawnFrom": {
     "command": "statechart from-spec TestSlot.tla --config TestSlot.chart.cfg --also-config TestSlot.cfg --title 'Who holds a test slot, who waits on one, and what the ledger keeps?'",
     "inputs": {
-      "TestSlot.cfg": "a9ef93e9772355afac949ec29208b0dcc142e4b52dbabf2fd959e38c1eea5efb",
+      "TestSlot.cfg": "9e3292406aa879c6c5b3f139ac870cdc81ec3cde6161a1eb89cb64424370d6b9",
       "TestSlot.chart.cfg": "ddade860458cb7d867f464b74ce9a784861aec20c71f9de053fc45c92ed80e8f",
-      "TestSlot.map.py": "221c86a9ef98bfde29c5f71984f867d509d0b7c72a651918ee936cc7e9d06400",
-      "TestSlot.tla": "1cb0100082db93c76a7757bcca45394c4beb1673a71fd474e515f4581dfd0ec5"
+      "TestSlot.map.py": "4838c8f904b2cb81183642b0fe9a4edc370ba1991c8c5acbe769be223081b9fe",
+      "TestSlot.tla": "85112ec14a3f386b9eb76180bba85e25710da4b14b3a987758aff91bc04eb686"
     },
     "chart": "679887cc3870485432737fb5414a3ee32d8792e888082baaed2e4b81897da0b0",
     "tables": {
-      "states.tsv": "98e8042bce243b08ba5fcaa8bae1c50197b5220752acc3a1b536ebe20c3d3258",
-      "arrows.tsv": "ec504045c50e4d47df121f6e77ae1227f6144f19db380a7fc214c4a7b2f21665"
+      "states.tsv": "b39e82943566acabce31ce7558c7adbfe320c78a0d554f243b19910768f5fd34",
+      "arrows.tsv": "19feb343d7315dff3ce956338550225dd0daedfdc1e9d1aa784717942c0bf007"
     }
   }
 }

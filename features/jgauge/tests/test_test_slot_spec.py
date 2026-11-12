@@ -120,7 +120,7 @@ def tlc(
 JAVA = pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
 TLC = pytest.mark.timeout(600)
 """A TLC run comes near the 120 s bound on CI: the mode that passes took 86 s at 614,686
-states, and has 694,283 now."""
+states, and has 1,357,013 now."""
 
 
 def test_today_s_wake_is_counted_and_recorded_under_the_waiters_lock():
@@ -132,6 +132,19 @@ def test_today_s_wake_is_counted_and_recorded_under_the_waiters_lock():
     spec = (SPEC / "TestSlot.tla").read_text()
     assert re.search(r"^TodayFaults == \{\}$", spec, re.M)
     assert 'Has(f) == Fault = f \\/ (Fault = "today" /\\ f \\in TodayFaults)' in spec
+
+
+def test_today_s_wake_that_a_dead_pass_recorded_is_told_on_a_later_pass():
+    """jbus records the wake before its send, so a pass that dies between the two leaves a crew
+    whose claim holds and that no one told. slotwait.wake sends each such wake again on each pass,
+    under its key, so today's code holds WokenIsTold at every point a pass can die: today's mode
+    is the mode that passes, whose TLC run checks WokenIsTold, and the canary no-resend breaks
+    it."""
+    spec = (SPEC / "TestSlot.tla").read_text()
+    cfg = (SPEC / "TestSlot.cfg").read_text()
+    assert re.search(r"^TodayFaults == \{\}$", spec, re.M)
+    assert re.search(r"^INVARIANT WokenIsTold$", cfg, re.M)
+    assert "\\/ Owed \\/ Retell" in spec
 
 
 @JAVA
@@ -148,6 +161,7 @@ def test_the_mode_that_passes_holds_every_rule():
     ("fault", "rule"),
     [
         ("spare-outside-lock", "WokenGetsSlot"),
+        ("no-resend", "WokenIsTold"),
         ("forget-unended", "EndNotLost"),
         ("orphan-command", "OneCommandPerSlot"),
         ("no-ledger-lock", "LedgerNoLostUpdate"),
@@ -170,7 +184,7 @@ def test_each_of_today_s_faults_breaks_its_rule(fault, rule):
 def test_a_killed_test_slot_takes_its_command_with_it_today(fault, code):
     """Today's code holds OneCommandPerSlot where a killed `jgauge test-slot` leaves the slot
     free, and the canary that lets its command live on breaks it there. The short lane's room
-    alone, since the whole of today's mode is 694,283 states."""
+    alone, since the whole of today's mode is 1,357,013 states."""
     ended, out = tlc(fault, ["OneCommandPerSlot"], room="short")
     assert ended == code, out[-4000:]
     assert ("Invariant OneCommandPerSlot is violated" in out) == bool(code), out[-4000:]
