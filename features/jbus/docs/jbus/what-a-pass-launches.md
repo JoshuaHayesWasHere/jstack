@@ -163,7 +163,9 @@ Its key is `compact|<role>|<thread>|<at>`, where `<at>` is the time of that last
 The threads of a role are:
 
 - for a home, each home thread of the project, the root home's and each scope's;
-- for a crew or a scout, each thread of the project T3 Code lists whose title gives that role. T3 Code lists no archived thread, and a finished task's or scout's thread is archived, so a thread that is woken no more gets none. A row's status cannot say this: an idle scout has written its Report, so its row is `done`.
+- for a crew or a scout, each thread of the project T3 Code lists whose title gives that role: T3 Code lists no archived thread, and a finished task's or scout's thread is archived, so a thread that is woken no more gets none.
+
+A row's status cannot say which threads are woken no more: an idle scout has written its Report, so its row is `done`.
 
 Why: T3 Code compacts only a thread whose last run has completed, two minutes before its cache expires, and a home woken every few minutes never gets there.
 On 2026-11-09 the polish home made 751 calls in eight hours with no gap over 21.5 minutes, and climbed from 57k to 630k.
