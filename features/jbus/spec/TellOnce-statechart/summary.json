@@ -1,10 +1,10 @@
 {
   "view": "customer",
-  "modelStates": 1676,
-  "modelTransitions": 3639,
-  "chartStates": 269,
-  "chartTransitions": 310,
-  "allTransitions": 432,
+  "modelStates": 1152,
+  "modelTransitions": 2888,
+  "chartStates": 143,
+  "chartTransitions": 172,
+  "allTransitions": 244,
   "final": [
     "A cancelled check",
     "A hold nobody works on",
@@ -14,22 +14,9 @@
     "A row red at two heads",
     "A short pull request's crew",
     "A work item proposed",
-    "An ask owed after a limit",
     "CI that starts no job",
     "not told, fails.json counts two heads, sent.json has its key, the row is held",
     "not told, fails.json counts two heads, the row is held",
-    "not told, owed.json says the thread ended",
-    "not told, owed.json says the thread ended, a second try",
-    "not told, owed.json says the thread ended, sent.json has failover's key, a second try",
-    "not told, owed.json says the thread ended, sent.json has failover's key, the outbox held it, a second try",
-    "not told, owed.json says the thread ended, the outbox held it",
-    "not told, owed.json says the thread ended, the outbox held it, a second try",
-    "not told, owed.json says the user asked again",
-    "not told, owed.json says the user asked again, a second try",
-    "not told, owed.json says the user asked again, sent.json has failover's key, a second try",
-    "not told, owed.json says the user asked again, sent.json has failover's key, the outbox held it, a second try",
-    "not told, owed.json says the user asked again, the outbox held it",
-    "not told, owed.json says the user asked again, the outbox held it, a second try",
     "not told, sent.json says told",
     "not told, sent.json says told, the outbox held it",
     "The second target's body",
@@ -43,31 +30,6 @@
     "told once, fails.json counts two heads, sent.json has its key, the row is held",
     "told once, fails.json says held, sent.json has its key, the row is held",
     "told once, held.json says its home woke, sent.json has its key",
-    "told once, owed.json says sent, sent.json has failover's key, a second try",
-    "told once, owed.json says sent, sent.json has its key, a second try",
-    "told once, owed.json says sent, sent.json has its key, sent.json has failover's key, a second try",
-    "told once, owed.json says the thread ended",
-    "told once, owed.json says the thread ended, a second try",
-    "told once, owed.json says the thread ended, sent.json has failover's key",
-    "told once, owed.json says the thread ended, sent.json has failover's key, a second try",
-    "told once, owed.json says the thread ended, sent.json has failover's key, the outbox held it",
-    "told once, owed.json says the thread ended, sent.json has failover's key, the outbox held it, a second try",
-    "told once, owed.json says the thread ended, sent.json has its key",
-    "told once, owed.json says the thread ended, sent.json has its key, a second try",
-    "told once, owed.json says the thread ended, sent.json has its key, sent.json has failover's key, a second try",
-    "told once, owed.json says the thread ended, the outbox held it",
-    "told once, owed.json says the thread ended, the outbox held it, a second try",
-    "told once, owed.json says the user asked again",
-    "told once, owed.json says the user asked again, a second try",
-    "told once, owed.json says the user asked again, sent.json has failover's key",
-    "told once, owed.json says the user asked again, sent.json has failover's key, a second try",
-    "told once, owed.json says the user asked again, sent.json has failover's key, the outbox held it",
-    "told once, owed.json says the user asked again, sent.json has failover's key, the outbox held it, a second try",
-    "told once, owed.json says the user asked again, sent.json has its key",
-    "told once, owed.json says the user asked again, sent.json has its key, a second try",
-    "told once, owed.json says the user asked again, sent.json has its key, sent.json has failover's key, a second try",
-    "told once, owed.json says the user asked again, the outbox held it",
-    "told once, owed.json says the user asked again, the outbox held it, a second try",
     "told once, sent.json says told",
     "told once, sent.json says told, the outbox held it",
     "told once, the counter is past it",
@@ -75,79 +37,94 @@
     "told once, word-sends.json says sent",
     "told once, word-sends.json says sent, the home's thread changed",
     "told twice, account.json keeps the newer question, main's tip moved",
-    "told twice, owed.json says sent, sent.json has its key",
-    "told twice, owed.json says sent, sent.json has its key, a second try",
-    "told twice, owed.json says sent, sent.json has its key, sent.json has failover's key",
-    "told twice, owed.json says sent, sent.json has its key, sent.json has failover's key, a second try",
-    "told twice, owed.json says the thread ended",
-    "told twice, owed.json says the thread ended, a second try",
-    "told twice, owed.json says the thread ended, sent.json has failover's key",
-    "told twice, owed.json says the thread ended, sent.json has failover's key, a second try",
-    "told twice, owed.json says the thread ended, sent.json has failover's key, the outbox held it",
-    "told twice, owed.json says the thread ended, sent.json has failover's key, the outbox held it, a second try",
-    "told twice, owed.json says the thread ended, sent.json has its key",
-    "told twice, owed.json says the thread ended, sent.json has its key, a second try",
-    "told twice, owed.json says the thread ended, sent.json has its key, sent.json has failover's key",
-    "told twice, owed.json says the thread ended, sent.json has its key, sent.json has failover's key, a second try",
-    "told twice, owed.json says the thread ended, the outbox held it",
-    "told twice, owed.json says the thread ended, the outbox held it, a second try",
-    "told twice, owed.json says the user asked again",
-    "told twice, owed.json says the user asked again, a second try",
-    "told twice, owed.json says the user asked again, sent.json has failover's key",
-    "told twice, owed.json says the user asked again, sent.json has failover's key, a second try",
-    "told twice, owed.json says the user asked again, sent.json has failover's key, the outbox held it",
-    "told twice, owed.json says the user asked again, sent.json has failover's key, the outbox held it, a second try",
-    "told twice, owed.json says the user asked again, sent.json has its key",
-    "told twice, owed.json says the user asked again, sent.json has its key, a second try",
-    "told twice, owed.json says the user asked again, sent.json has its key, sent.json has failover's key",
-    "told twice, owed.json says the user asked again, sent.json has its key, sent.json has failover's key, a second try",
-    "told twice, owed.json says the user asked again, the outbox held it",
-    "told twice, owed.json says the user asked again, the outbox held it, a second try",
     "told twice, sent.json has its key",
     "told twice, the outbox dropped it",
     "told twice, word-sends.json says sent, the home's thread changed"
   ],
   "chartStatus": {
-    "works": 194,
+    "works": 120,
     "fixed": 0,
-    "wrong": 75
+    "wrong": 23
   },
   "chartGroups": [
     {
-      "name": "Nothing owed",
+      "name": "Nothing owed yet",
       "color": "#ffffff",
-      "states": 62
+      "states": 1
     },
     {
-      "name": "Owed",
+      "name": "Not told: nothing marked",
+      "color": "#fef5e7",
+      "states": 11
+    },
+    {
+      "name": "Not told: nothing marked, a pass in its step",
       "color": "#fdebd0",
-      "states": 52
+      "states": 10
     },
     {
-      "name": "Told",
+      "name": "Not told: the outbox held it",
+      "color": "#fad7a0",
+      "states": 15
+    },
+    {
+      "name": "Not told: a mark written",
+      "color": "#f5cba7",
+      "states": 6
+    },
+    {
+      "name": "Told once: nothing marked",
+      "color": "#e8f8f5",
+      "states": 11
+    },
+    {
+      "name": "Told once: nothing marked, a pass in its step",
       "color": "#d1f2eb",
-      "states": 93
+      "states": 11
+    },
+    {
+      "name": "Told once: the outbox held it",
+      "color": "#a3e4d7",
+      "states": 14
+    },
+    {
+      "name": "Told once: sent.json has its key",
+      "color": "#d4efdf",
+      "states": 11
+    },
+    {
+      "name": "Told once: its file says done",
+      "color": "#a9dfbf",
+      "states": 14
+    },
+    {
+      "name": "Told once: the clock's stall",
+      "color": "#e9f7ef",
+      "states": 6
     },
     {
       "name": "Told twice",
+      "color": "#fadbd8",
+      "states": 12
+    },
+    {
+      "name": "Told twice: a pass in its step",
       "color": "#f5b7b1",
-      "states": 48
+      "states": 8
     }
   ],
-  "mixedGroups": [
-    "A revert's crew: told once, sent.json says told"
-  ],
+  "mixedGroups": [],
   "regions": {
     "drawn": true,
     "states": [
-      13,
-      256
+      12,
+      131
     ],
-    "transitions": 310,
-    "all": 432,
+    "transitions": 172,
+    "all": 244,
     "flat": {
-      "states": 287,
-      "transitions": 459
+      "states": 161,
+      "transitions": 271
     }
   },
   "classes": [
@@ -164,17 +141,6 @@
     },
     {
       "n": 2,
-      "end": "An ask owed after a limit: told twice, owed.json says owed, a pass is in its step",
-      "invariant": "NoTellTwice",
-      "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
-      "cause": "failover's carry-on quoted the ask, and the pass died before it closed the ask",
-      "readerSteps": 5,
-      "modelSteps": 6,
-      "counterexamples": 12,
-      "fix": null
-    },
-    {
-      "n": 3,
       "end": "The second target's body: told twice, the body waits in the outbox, a pass is in its step",
       "invariant": "NoTellTwice",
       "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
@@ -185,7 +151,7 @@
       "fix": null
     },
     {
-      "n": 4,
+      "n": 3,
       "end": "A merge that changed a skill: told twice, reload.json owes it, a pass is in its step",
       "invariant": "NoTellTwice",
       "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
@@ -196,7 +162,7 @@
       "fix": null
     },
     {
-      "n": 5,
+      "n": 4,
       "end": "CI that starts no job: told twice, main's tip moved, a pass is in its step",
       "invariant": "NoTellTwice",
       "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
@@ -207,7 +173,7 @@
       "fix": null
     },
     {
-      "n": 6,
+      "n": 5,
       "end": "The user's word: told twice, the home's thread changed, a pass is in its step",
       "invariant": "NoTellTwice",
       "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
@@ -218,7 +184,7 @@
       "fix": null
     },
     {
-      "n": 7,
+      "n": 6,
       "end": "The wait clock: told once, the clock says its home was told, sent.json has its key, the stall's key is written, no stall in the log",
       "invariant": "NoTellLost",
       "rule": "\"jbus drops no tell\": between passes, an act still owed whose mark is written was taken, so a mark with no act never stands; one with no mark the next pass does. The home's stall the clock's home says went is in the log.",
@@ -231,12 +197,12 @@
   ],
   "codeLike": [],
   "drawnFrom": {
-    "command": "statechart from-spec TellOnce.tla --title 'Does jbus tell anyone twice, or drop a tell, when a pass dies?' --png",
+    "command": "statechart from-spec TellOnce.tla --config TellOnce.chart.cfg --title 'Does jbus tell anyone twice, or drop a tell, when a pass dies?' --expect-broken NoTellTwice,NoTellLost --png",
     "inputs": {
-      "TellOnce.cfg": "a1f5ac46d6d707a3fc90ad62319a92bc860a1be864dbaa97841bb1553d90eafa",
-      "TellOnce.map.py": "d9dda5257b8f6e81b68ff6bc7a0f4620107e0aa3b9400e7fe9f384a56b82a55d",
+      "TellOnce.chart.cfg": "dda74037721bcf18bc09e3812039a087cbdc6d127699c59d070ea464eda5ff9c",
+      "TellOnce.map.py": "9156f5bce10318c4ba2c4c08c3ed12f0de1d7970bffc3785bfcf3a3c60726324",
       "TellOnce.tla": "41b23d8ea74289f120ee8a2915c393a38f69150b4d21609acbfb92a1fda743cc"
     },
-    "chart": "31296a988bf820e06a05815f06683c720f27e1356f1b4e6f5d635f29d61d2098"
+    "chart": "8c1d348d095d80d53bf7db961f0fbb9c501d775ac2a36608b84aca4b4cd2ce0a"
   }
 }

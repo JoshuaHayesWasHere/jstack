@@ -9,33 +9,41 @@ stateDiagram-v2
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group0 fill:#ffffff,stroke:#808080,color:#1b2631
   classDef group0Path fill:#ffffff,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group1 fill:#fdebd0,stroke:#7f7668,color:#1b2631
-  classDef group1Path fill:#fdebd0,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group2 fill:#d1f2eb,stroke:#697976,color:#1b2631
-  classDef group2Path fill:#d1f2eb,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group3 fill:#f5b7b1,stroke:#7b5c59,color:#1b2631
-  classDef group3Wrong fill:#f5b7b1,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group1 fill:#fef5e7,stroke:#7f7b74,color:#1b2631
+  classDef group1Path fill:#fef5e7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group2 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group2Path fill:#fdebd0,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group5 fill:#e8f8f5,stroke:#747c7b,color:#1b2631
+  classDef group5Path fill:#e8f8f5,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group6 fill:#d1f2eb,stroke:#697976,color:#1b2631
+  classDef group6Path fill:#d1f2eb,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group12 fill:#f5b7b1,stroke:#7b5c59,color:#1b2631
+  classDef group12Wrong fill:#f5b7b1,stroke:#c0392b,stroke-width:4px,color:#7b241c
   state "Legend" as legend {
-    state "Nothing owed" as legendGroup0
-    state "Owed" as legendGroup1
-    state "Told" as legendGroup2
-    state "Told twice" as legendGroup3
+    state "Nothing owed yet" as legendGroup0
+    state "Not told: nothing marked" as legendGroup1
+    state "Not told: nothing marked, a pass in its step" as legendGroup2
+    state "Told once: nothing marked" as legendGroup5
+    state "Told once: nothing marked, a pass in its step" as legendGroup6
+    state "Told twice: a pass in its step" as legendGroup12
     state "Breaks a rule" as legendWrong
   }
   class legendGroup0 group0
   class legendGroup1 group1
   class legendGroup2 group2
-  class legendGroup3 group3
+  class legendGroup5 group5
+  class legendGroup6 group6
+  class legendGroup12 group12
   class legendWrong plainWrong
-  state "CI that starts no job" as g0 {
+  state "The user's word" as g0 {
     state "not told" as s0
     state "not told, a pass is in its<br/>step" as s1
     state "nothing owed yet" as s2
     state "told once" as s3
     state "told once, a pass is in<br/>its step" as s4
-    state "told once, main's tip<br/>moved" as s5
-    state "told once, main's tip<br/>moved, a pass is in its<br/>step" as s6
-    state "told twice, main's tip<br/>moved, a pass is in its<br/>step" as s7
+    state "told once, the home's<br/>thread changed" as s5
+    state "told once, the home's<br/>thread changed, a pass is<br/>in its step" as s6
+    state "told twice, the home's<br/>thread changed, a pass is<br/>in its step" as s7
   }
   [*] --> s2
   s2 --> s0 : 1. what calls for it comes to<br/>hold
@@ -46,10 +54,10 @@ stateDiagram-v2
   s5 --> s6 : 6. a pass reaches it and reads<br/>its marks
   s6 --> s7 : 7. the receiver takes it
   class s0 group1Path
-  class s1 group1Path
+  class s1 group2Path
   class s2 group0Path
-  class s3 group2Path
-  class s4 group2Path
-  class s5 group2Path
-  class s6 group2Path
-  class s7 group3Wrong
+  class s3 group5Path
+  class s4 group6Path
+  class s5 group5Path
+  class s6 group6Path
+  class s7 group12Wrong

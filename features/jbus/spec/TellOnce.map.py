@@ -16,6 +16,7 @@
 # - reloadLock: the lock is named only while the pass holds it.
 # - account: the question's number is "the question for the tip" (1) or "for the newer tip" (2).
 reader_actions = []
+region_names = ["The act", "Where its tell stands"]
 
 ACT = {
     "clock": "The wait clock",
@@ -150,19 +151,72 @@ def state(v, facts):
     return f"{ACT[v['on']]}: " + ", ".join(one for one in parts if one)
 
 
+DONE = {
+    "clock": lambda v: v["clockRung"]["acted"],
+    "held": lambda v: v["heldJson"] == "woke",
+    "blocking": lambda v: v["blocking"] == "gone",
+    "items": lambda v: v["itemsNext"],
+    "word": lambda v: v["wordSends"] == "sent",
+    "owed": lambda v: v["askState"] != "owed",
+    "expedite": lambda v: v["expedite"] == "told",
+    "cancelled": lambda v: v["cancelled"] == "rerun",
+    "closed": lambda v: v["closed"] == "closed",
+    "account": lambda v: v["account"] != 0,
+    "revert": lambda v: v["revertMark"],
+    "twice": lambda v: v["fails"] == "held_at",
+    "reload": lambda v: v["reloadJson"] == "none",
+}
+"""Whether the act's own file says it is done, as `Done(c)` in TellOnce.tla reads it."""
+
+
 def group(v, facts):
-    if not v["due"] or not v["owed"]:
-        return "Nothing owed"
-    if v["took"] >= 2 or v["again"]:
-        return "Told twice"
-    return "Told" if v["took"] else "Owed"
+    """Where the tell stands, by what the state's label shows: the hue is how many times the
+    receiver took it, and the shade where it is short of done. The ask owed after a limit is a
+    chart of its own (TellOnceOwed.chart.cfg), split by whether the ask is still owed and by its
+    try; the other twelve acts share one chart."""
+    if not v["due"]:
+        return "Nothing owed yet"
+    told = "Told twice" if v["took"] >= 2 or v["again"] else TOOK[v["took"]].capitalize()
+    if v["on"] == "owed":
+        ask = "the ask owed" if v["askState"] == "owed" else "the ask closed"
+        return f"{told}: {ask}" + (", a second try" if v["key"] and v["took"] else "")
+    if told == "Told twice":
+        return told + (": a pass in its step" if v["pc"] else "")
+    if v["on"] == "clock" and (v["stall"] or v["clockRung"]["home"]):
+        return f"{told}: the clock's stall"
+    if DONE[v["on"]](v):
+        return f"{told}: its file says done" if v["took"] else "Not told: a mark written"
+    if v["box"] or v["rowHeld"]:
+        return f"{told}: sent.json has its key" if v["took"] else "Not told: a mark written"
+    if v["went"] == "held":
+        return f"{told}: the outbox held it"
+    return f"{told}: nothing marked" + (", a pass in its step" if v["pc"] else "")
 
 
 group_colors = {
-    "Nothing owed": "#ffffff",
-    "Owed": "#fdebd0",
-    "Told": "#d1f2eb",
-    "Told twice": "#f5b7b1",
+    "Nothing owed yet": "#ffffff",
+    "Not told: nothing marked": "#fef5e7",
+    "Not told: nothing marked, a pass in its step": "#fdebd0",
+    "Not told: the outbox held it": "#fad7a0",
+    "Not told: a mark written": "#f5cba7",
+    "Not told: the ask owed": "#fdebd0",
+    "Not told: the ask closed": "#fad7a0",
+    "Told once: nothing marked": "#e8f8f5",
+    "Told once: nothing marked, a pass in its step": "#d1f2eb",
+    "Told once: the outbox held it": "#a3e4d7",
+    "Told once: sent.json has its key": "#d4efdf",
+    "Told once: its file says done": "#a9dfbf",
+    "Told once: the clock's stall": "#e9f7ef",
+    "Told once: the ask owed": "#e8f8f5",
+    "Told once: the ask owed, a second try": "#d1f2eb",
+    "Told once: the ask closed": "#a3e4d7",
+    "Told once: the ask closed, a second try": "#a9dfbf",
+    "Told twice": "#fadbd8",
+    "Told twice: a pass in its step": "#f5b7b1",
+    "Told twice: the ask owed": "#fdedec",
+    "Told twice: the ask owed, a second try": "#fadbd8",
+    "Told twice: the ask closed": "#f5b7b1",
+    "Told twice: the ask closed, a second try": "#f1c6c0",
 }
 
 STEPS = {

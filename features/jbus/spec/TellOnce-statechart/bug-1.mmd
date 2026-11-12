@@ -9,16 +9,24 @@ stateDiagram-v2
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group0 fill:#ffffff,stroke:#808080,color:#1b2631
   classDef group0Path fill:#ffffff,stroke:#1f3a93,stroke-width:4px,color:#1b2631
-  classDef group1 fill:#fdebd0,stroke:#7f7668,color:#1b2631
-  classDef group1Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef group1Path fill:#fdebd0,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group1 fill:#fef5e7,stroke:#7f7b74,color:#1b2631
+  classDef group1Path fill:#fef5e7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group2 fill:#fdebd0,stroke:#7f7668,color:#1b2631
+  classDef group2Path fill:#fdebd0,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  classDef group4 fill:#f5cba7,stroke:#7b6654,color:#1b2631
+  classDef group4Wrong fill:#f5cba7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group4Path fill:#f5cba7,stroke:#1f3a93,stroke-width:4px,color:#1b2631
   state "Legend" as legend {
-    state "Nothing owed" as legendGroup0
-    state "Owed" as legendGroup1
+    state "Nothing owed yet" as legendGroup0
+    state "Not told: nothing marked" as legendGroup1
+    state "Not told: nothing marked, a pass in its step" as legendGroup2
+    state "Not told: a mark written" as legendGroup4
     state "Breaks a rule" as legendWrong
   }
   class legendGroup0 group0
   class legendGroup1 group1
+  class legendGroup2 group2
+  class legendGroup4 group4
   class legendWrong plainWrong
   state "A row red at two heads" as g0 {
     state "not told, fails.json<br/>counts two heads" as s0
@@ -33,7 +41,7 @@ stateDiagram-v2
   s1 --> s3 : 3. the row is held
   s3 --> s2 : 4. the pass dies
   class s0 group1Path
-  class s1 group1Path
-  class s2 group1Wrong
-  class s3 group1Path
+  class s1 group2Path
+  class s2 group4Wrong
+  class s3 group4Path
   class s4 group0Path

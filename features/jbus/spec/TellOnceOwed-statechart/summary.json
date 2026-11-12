@@ -1,0 +1,165 @@
+{
+  "view": "customer",
+  "modelStates": 524,
+  "modelTransitions": 751,
+  "chartStates": 126,
+  "chartTransitions": 172,
+  "allTransitions": 172,
+  "final": [
+    "An ask owed after a limit: not told, owed.json says the thread ended",
+    "An ask owed after a limit: not told, owed.json says the thread ended, a second try",
+    "An ask owed after a limit: not told, owed.json says the thread ended, sent.json has failover's key, a second try",
+    "An ask owed after a limit: not told, owed.json says the thread ended, sent.json has failover's key, the outbox held it, a second try",
+    "An ask owed after a limit: not told, owed.json says the thread ended, the outbox held it",
+    "An ask owed after a limit: not told, owed.json says the thread ended, the outbox held it, a second try",
+    "An ask owed after a limit: not told, owed.json says the user asked again",
+    "An ask owed after a limit: not told, owed.json says the user asked again, a second try",
+    "An ask owed after a limit: not told, owed.json says the user asked again, sent.json has failover's key, a second try",
+    "An ask owed after a limit: not told, owed.json says the user asked again, sent.json has failover's key, the outbox held it, a second try",
+    "An ask owed after a limit: not told, owed.json says the user asked again, the outbox held it",
+    "An ask owed after a limit: not told, owed.json says the user asked again, the outbox held it, a second try",
+    "An ask owed after a limit: told once, owed.json says sent, sent.json has failover's key, a second try",
+    "An ask owed after a limit: told once, owed.json says sent, sent.json has its key, a second try",
+    "An ask owed after a limit: told once, owed.json says sent, sent.json has its key, sent.json has failover's key, a second try",
+    "An ask owed after a limit: told once, owed.json says the thread ended",
+    "An ask owed after a limit: told once, owed.json says the thread ended, a second try",
+    "An ask owed after a limit: told once, owed.json says the thread ended, sent.json has failover's key",
+    "An ask owed after a limit: told once, owed.json says the thread ended, sent.json has failover's key, a second try",
+    "An ask owed after a limit: told once, owed.json says the thread ended, sent.json has failover's key, the outbox held it",
+    "An ask owed after a limit: told once, owed.json says the thread ended, sent.json has failover's key, the outbox held it, a second try",
+    "An ask owed after a limit: told once, owed.json says the thread ended, sent.json has its key",
+    "An ask owed after a limit: told once, owed.json says the thread ended, sent.json has its key, a second try",
+    "An ask owed after a limit: told once, owed.json says the thread ended, sent.json has its key, sent.json has failover's key, a second try",
+    "An ask owed after a limit: told once, owed.json says the thread ended, the outbox held it",
+    "An ask owed after a limit: told once, owed.json says the thread ended, the outbox held it, a second try",
+    "An ask owed after a limit: told once, owed.json says the user asked again",
+    "An ask owed after a limit: told once, owed.json says the user asked again, a second try",
+    "An ask owed after a limit: told once, owed.json says the user asked again, sent.json has failover's key",
+    "An ask owed after a limit: told once, owed.json says the user asked again, sent.json has failover's key, a second try",
+    "An ask owed after a limit: told once, owed.json says the user asked again, sent.json has failover's key, the outbox held it",
+    "An ask owed after a limit: told once, owed.json says the user asked again, sent.json has failover's key, the outbox held it, a second try",
+    "An ask owed after a limit: told once, owed.json says the user asked again, sent.json has its key",
+    "An ask owed after a limit: told once, owed.json says the user asked again, sent.json has its key, a second try",
+    "An ask owed after a limit: told once, owed.json says the user asked again, sent.json has its key, sent.json has failover's key, a second try",
+    "An ask owed after a limit: told once, owed.json says the user asked again, the outbox held it",
+    "An ask owed after a limit: told once, owed.json says the user asked again, the outbox held it, a second try",
+    "An ask owed after a limit: told twice, owed.json says sent, sent.json has its key",
+    "An ask owed after a limit: told twice, owed.json says sent, sent.json has its key, a second try",
+    "An ask owed after a limit: told twice, owed.json says sent, sent.json has its key, sent.json has failover's key",
+    "An ask owed after a limit: told twice, owed.json says sent, sent.json has its key, sent.json has failover's key, a second try",
+    "An ask owed after a limit: told twice, owed.json says the thread ended",
+    "An ask owed after a limit: told twice, owed.json says the thread ended, a second try",
+    "An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has failover's key",
+    "An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has failover's key, a second try",
+    "An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has failover's key, the outbox held it",
+    "An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has failover's key, the outbox held it, a second try",
+    "An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has its key",
+    "An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has its key, a second try",
+    "An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has its key, sent.json has failover's key",
+    "An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has its key, sent.json has failover's key, a second try",
+    "An ask owed after a limit: told twice, owed.json says the thread ended, the outbox held it",
+    "An ask owed after a limit: told twice, owed.json says the thread ended, the outbox held it, a second try",
+    "An ask owed after a limit: told twice, owed.json says the user asked again",
+    "An ask owed after a limit: told twice, owed.json says the user asked again, a second try",
+    "An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has failover's key",
+    "An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has failover's key, a second try",
+    "An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has failover's key, the outbox held it",
+    "An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has failover's key, the outbox held it, a second try",
+    "An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has its key",
+    "An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has its key, a second try",
+    "An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has its key, sent.json has failover's key",
+    "An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has its key, sent.json has failover's key, a second try",
+    "An ask owed after a limit: told twice, owed.json says the user asked again, the outbox held it",
+    "An ask owed after a limit: told twice, owed.json says the user asked again, the outbox held it, a second try"
+  ],
+  "chartStatus": {
+    "works": 74,
+    "wrong": 52,
+    "fixed": 0
+  },
+  "chartGroups": [
+    {
+      "name": "Nothing owed yet",
+      "color": "#ffffff",
+      "states": 1
+    },
+    {
+      "name": "Not told: the ask owed",
+      "color": "#fdebd0",
+      "states": 12
+    },
+    {
+      "name": "Not told: the ask closed",
+      "color": "#fad7a0",
+      "states": 12
+    },
+    {
+      "name": "Told once: the ask owed",
+      "color": "#e8f8f5",
+      "states": 10
+    },
+    {
+      "name": "Told once: the ask owed, a second try",
+      "color": "#d1f2eb",
+      "states": 12
+    },
+    {
+      "name": "Told once: the ask closed",
+      "color": "#a3e4d7",
+      "states": 12
+    },
+    {
+      "name": "Told once: the ask closed, a second try",
+      "color": "#a9dfbf",
+      "states": 15
+    },
+    {
+      "name": "Told twice: the ask owed",
+      "color": "#fdedec",
+      "states": 12
+    },
+    {
+      "name": "Told twice: the ask owed, a second try",
+      "color": "#fadbd8",
+      "states": 12
+    },
+    {
+      "name": "Told twice: the ask closed",
+      "color": "#f5b7b1",
+      "states": 14
+    },
+    {
+      "name": "Told twice: the ask closed, a second try",
+      "color": "#f1c6c0",
+      "states": 14
+    }
+  ],
+  "mixedGroups": [],
+  "regions": {
+    "drawn": false,
+    "why": "127 region states are not fewer than the 126 flat states"
+  },
+  "classes": [
+    {
+      "n": 1,
+      "end": "An ask owed after a limit: told twice, owed.json says owed, a pass is in its step",
+      "invariant": "NoTellTwice",
+      "rule": "\"jbus tells no one twice\": the receiver takes each act once, a repeat after a pass that died being one it takes as the same, and no pass does an act again once its guard read the act's mark.",
+      "cause": "failover's carry-on quoted the ask, and the pass died before it closed the ask",
+      "readerSteps": 5,
+      "modelSteps": 6,
+      "counterexamples": 12,
+      "fix": null
+    }
+  ],
+  "codeLike": [],
+  "drawnFrom": {
+    "command": "statechart from-spec TellOnce.tla --config TellOnceOwed.chart.cfg --title 'Does jbus send an ask owed after a limit twice when a pass dies?' --expect-broken NoTellTwice --png",
+    "inputs": {
+      "TellOnce.map.py": "9156f5bce10318c4ba2c4c08c3ed12f0de1d7970bffc3785bfcf3a3c60726324",
+      "TellOnce.tla": "41b23d8ea74289f120ee8a2915c393a38f69150b4d21609acbfb92a1fda743cc",
+      "TellOnceOwed.chart.cfg": "648bd5364ce248404f4205285ed4c1f5b4de346f017d62052b51ea9e517d9d4a"
+    },
+    "chart": "15adae136773bc2bf8c47d2d097a33f3482b9c7f20ad31fdff345cac1b163442"
+  }
+}

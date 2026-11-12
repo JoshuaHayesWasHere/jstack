@@ -288,16 +288,26 @@ Without `-continue` TLC stops at the first, stall.twice's, at depth 5.
 The canary `Fault = "mark-first"` writes the marks before the act and breaks `NoTellLost` on every act; `Fault = "no-mark"` reads no mark and breaks `NoTellTwice` on every act.
 In today's code the half of `NoTellTwice` that says no act runs after its mark was read holds by the guard's shape; the receiver's count is the half that checks the code.
 
-### Draw the act-once chart
+### Draw the act-once charts
+
+The ask owed after a limit has as many states as the other twelve acts together, so it is a chart of its own: `TellOnce.chart.cfg` draws the twelve, `TellOnceOwed.chart.cfg` the ask, and `TellOnce.cfg` still checks all thirteen.
+Since one behavior follows one act, the two charts together draw every path.
 
 ```sh
 S=features/skill-library/skills/statechart/scripts
 cd features/jbus/spec
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
-    statechart from-spec TellOnce.tla --title "Does jbus tell anyone twice, or drop a tell, when a pass dies?"
+    statechart from-spec TellOnce.tla --config TellOnce.chart.cfg \
+    --title "Does jbus tell anyone twice, or drop a tell, when a pass dies?" \
+    --expect-broken NoTellTwice,NoTellLost
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
+    statechart from-spec TellOnce.tla --config TellOnceOwed.chart.cfg --out TellOnceOwed-statechart \
+    --title "Does jbus send an ask owed after a limit twice when a pass dies?" \
+    --expect-broken NoTellTwice
 ```
 
-It writes `TellOnce-statechart/`, labelled by `TellOnce.map.py`, with one `bug-N` chart for each act that breaks a rule.
+They write `TellOnce-statechart/` and `TellOnceOwed-statechart/`, labelled by `TellOnce.map.py`, with one `bug-N` chart for each act that breaks a rule.
+A state's color says where its tell stands: orange not told, green told once, red told twice, each shade a step short of done that its label names, such as a mark written or the outbox holding it; the ask's chart splits by whether owed.json still owes the ask and by its try.
 
 ### What the act-once model leaves out
 
