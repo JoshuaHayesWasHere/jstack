@@ -1,4 +1,5 @@
-usage: jbus plan [-h] [--message THREAD/MESSAGE] [--scope SCOPE]
+usage: jbus plan [-h] [--message THREAD/MESSAGE] [--standing] [--from THREAD]
+                 [--scope SCOPE]
                  [{close,go,stop}] [entry]
 
 positional arguments:
@@ -13,4 +14,8 @@ options:
                         with go: the user's own message in T3 Code that gives
                         the entry its go; THREAD/last is the user's newest
                         message there
+  --standing            with go and --from: the root gives the go itself, on
+                        the user's standing word for goes (jbus standing
+                        --covers goes)
+  --from THREAD         with --standing: the root's thread
   --scope SCOPE         a scoped home's plan, in place of the root home's
