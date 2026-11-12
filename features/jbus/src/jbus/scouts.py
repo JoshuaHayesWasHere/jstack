@@ -6,7 +6,7 @@ is: `add` takes a text whose head has a `Request:` line and no `Task:` line as a
 `features/scout/templates/scout-request.md` (`jbus.queue.request_faults`). It refuses a line that
 only a crewmate's brief has (`queue.CREWMATE_ONLY`), and a `Request:` line over
 `jbriefs.parse.LONGEST` characters. The row is approved as any row is, by the user's word or by
-its plan entry's go (`jbus.queue.entered`), and it waits on its `--depends` as a crewmate's row
+its plan entry's go (`jbus.entrygo.entered`), and it waits on its `--depends` as a crewmate's row
 does.
 
 A pass launches each scout row whose go holds for its queued request and whose depends are over

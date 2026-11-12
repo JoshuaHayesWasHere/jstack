@@ -25,7 +25,7 @@ reads the message from T3 Code and refuses one that is not the user's own, as `q
 entry of each home's plan, and it is bound to the entry's head (`head`): its heading and its
 `Done when:` lines. Under the setting `go = "entry"` jbus approves each row filed under the entry
 (`queue add --entry`) by the go, basis `queue.ENTRY`, when it is queued and on each pass, an edit of
-its brief included (`queue.entered`). The go holds while the entry is in the plan with the same
+its brief included (`entrygo.entered`). The go holds while the entry is in the plan with the same
 head and no `jbus plan stop <entry>` stopped it (`holding`). When it no longer holds, each row of
 the entry that has not launched waits for the user's go again, and a launched one goes on.
 
@@ -66,7 +66,19 @@ import jsettings
 from jbriefs import home as homes
 from jbriefs.chains import builds_on
 from jbriefs.home import thread_of
-from jbus import Config, Refused, locked, queue, read_json, t3, verbs, word, work, write_json
+from jbus import (
+    Config,
+    Refused,
+    entrygo,
+    locked,
+    queue,
+    read_json,
+    t3,
+    verbs,
+    word,
+    work,
+    write_json,
+)
 
 LINE, STATUS = 56, 60
 _ENTRY = re.compile(r"## (?P<slug>[A-Za-z0-9][A-Za-z0-9._-]*): (?P<line>.+)")
@@ -619,7 +631,7 @@ def _given(config: Config, state: Path, home: Path, made: Go, rows: list[queue.R
             f"{made.entry} has no row yet: each jbus pass wakes its home until its first row is "
             "queued"
         )
-    return [*went, *queue.entered(state, config.user, entry_go(state, home))]
+    return [*went, *entrygo.entered(state, config.user, entry_go(state, home))]
 
 
 def stop(user: jsettings.Settings, state: Path, home: Path, scope: str, entry: str) -> list[str]:
@@ -629,7 +641,7 @@ def stop(user: jsettings.Settings, state: Path, home: Path, scope: str, entry: s
         raise Refused(f"refused: {entry} has no go to stop")
     by = queue.who(queue.runner())
     _kept(state, replace(made, stopped=f"{user.stamp(queue.clock())} by {by}"))
-    return [f"stopped {entry}'s go", *queue.entered(state, user, entry_go(state, home))]
+    return [f"stopped {entry}'s go", *entrygo.entered(state, user, entry_go(state, home))]
 
 
 def _entered(half: Any) -> None:
@@ -639,7 +651,7 @@ def _entered(half: Any) -> None:
     if not (run.state / GOES).exists():
         return
     try:
-        for line in queue.entered(run.state, run.user, entry_go(run.state, run.home)):
+        for line in entrygo.entered(run.state, run.user, entry_go(run.state, run.home)):
             run.say(f"queue {run.project.name}: {line}")
     except Refused:
         return

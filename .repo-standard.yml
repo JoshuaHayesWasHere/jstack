@@ -56,7 +56,7 @@ size:
       features/jmerge/src/jmerge/ready.py: 1062
       features/jinstall/src/jinstall/kinds.py: 1098
       features/jbus/src/jbus/watch.py: 1112
-      features/jbus/src/jbus/queue.py: 1219
+      features/jbus/src/jbus/queue.py: 1168
       features/jbus/src/jbus/view/state.py: 1405
       features/jmerge/src/jmerge/cli.py: 1586
   - files: ["features/*/tests/**/*.py", "testing/tests/**/*.py"]

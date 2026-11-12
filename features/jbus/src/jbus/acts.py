@@ -59,6 +59,7 @@ from jbriefs.home import thread_of
 from jbus import (
     Config,
     Refused,
+    entrygo,
     locked,
     party,
     questions,
@@ -358,7 +359,7 @@ def _answer(run: Pass, who: Party, action: Action, said: Evidence, keeps: bool, 
     assert given is not None
     if not given.keeps and _may_go(closed):
         heard = queue.Said(given.words, given.at, given.said_in, given.checked, given.ref)
-        went = queue.gone_ahead(run.state, closed.slug, number, given.at, run.user, heard)
+        went = entrygo.gone_ahead(run.state, closed.slug, number, given.at, run.user, heard)
     if went:
         carried = f"nothing is sent, and {went}"
     elif given.keeps and not closed.holds:
