@@ -156,37 +156,29 @@ class _Cgroup:
     @classmethod
     def make(cls, key: str) -> _Cgroup | None:
         """Make the take's cgroup under the holder's and move the holder into it, or None where
-        the holder is not in a cgroup v2 one it may write."""
+        the holder is not in a cgroup v2 one it may write: on cgroup v1 `/proc/self/cgroup` has
+        a line for each hierarchy, and on cgroup v2 it has the one, `0::/<the holder's>`."""
+        own: Path | None = None
         try:
-            lines = (PROCS / "self" / "cgroup").read_text().splitlines()
-        except OSError:
-            return None
-        if len(lines) != 1 or not lines[0].startswith("0::/"):
-            return None
-        home = CGROUPS / lines[0][4:].strip("/")
-        if not (home / "cgroup.procs").is_file():
-            return None
-        for stale in home.glob(f"{PREFIX}*"):
-            with contextlib.suppress(OSError):
-                stale.rmdir()
-        own = home / f"{PREFIX}{key}"
-        try:
+            (line,) = (PROCS / "self" / "cgroup").read_text().splitlines()
+            home = CGROUPS / line.removeprefix("0::/").strip("/")
+            for stale in home.glob(f"{PREFIX}*"):
+                with contextlib.suppress(OSError):
+                    stale.rmdir()
+            own = home / f"{PREFIX}{key}"
             own.mkdir()
-        except OSError:
-            return None
-        try:
             (own / "cgroup.procs").write_text(str(os.getpid()))
-        except OSError:
+        except (OSError, ValueError):
             with contextlib.suppress(OSError):
-                own.rmdir()
+                if own is not None:
+                    own.rmdir()
             return None
         return cls(home, own)
 
     def _others(self) -> int:
-        try:
-            listed = (self.own / "cgroup.procs").read_text().split()
-        except OSError:
-            return 0
+        """How many processes of the take there are besides the holder. The cgroup is there to
+        read until the release removes it, since the holder is in it till then."""
+        listed = (self.own / "cgroup.procs").read_text().split()
         return sum(pid != str(os.getpid()) for pid in listed)
 
     def end(self) -> tuple[float, float, int]:
@@ -194,17 +186,19 @@ class _Cgroup:
         while self._others() and time.monotonic() < deadline:
             time.sleep(LOOK_SECONDS)
         left = self._others()
-        stat = dict.fromkeys(("user_usec", "system_usec"), 0)
-        with contextlib.suppress(OSError, ValueError):
-            for line in (self.own / "cpu.stat").read_text().splitlines():
-                key, value = line.split()
-                if key in stat:
-                    stat[key] = int(value)
+        stat = dict.fromkeys(("user_usec", "system_usec"), "0")
+        stat |= {
+            key: value
+            for key, _, value in (
+                line.partition(" ") for line in (self.own / "cpu.stat").read_text().splitlines()
+            )
+            if key in stat
+        }
         with contextlib.suppress(OSError):
             (self.home / "cgroup.procs").write_text(str(os.getpid()))
         with contextlib.suppress(OSError):
             self.own.rmdir()
-        return stat["user_usec"] / 1e6, stat["system_usec"] / 1e6, left
+        return int(stat["user_usec"]) / 1e6, int(stat["system_usec"]) / 1e6, left
 
 
 class _Carriers:
@@ -225,16 +219,12 @@ class _Carriers:
         """Each live process that carries the take, by pid, with its `stat` fields from the
         state on."""
         found: dict[int, list[str]] = {}
-        try:
-            listed = [one.name for one in os.scandir(PROCS) if one.name.isdecimal()]
-        except OSError:
-            return found
-        for pid in listed:
+        for process in PROCS.glob("[0-9]*"):
             with contextlib.suppress(OSError, IndexError):
-                environ = b"\0" + (PROCS / pid / "environ").read_bytes()
-                if b"\0" + self.key + b"\0" not in environ + b"\0":
-                    continue
-                found[int(pid)] = (PROCS / pid / "stat").read_text().rsplit(")", 1)[1].split()
+                if b"\0" + self.key + b"\0" in b"\0" + (process / "environ").read_bytes() + b"\0":
+                    found[int(process.name)] = (
+                        (process / "stat").read_text().rsplit(")", 1)[1].split()
+                    )
         return found
 
     def _sample(self) -> int:
@@ -242,18 +232,21 @@ class _Carriers:
         carriers the holder did not start itself."""
         carriers = self._carriers()
         mine = os.getpid()
-        for pid, fields in carriers.items():
-            parent = int(fields[1])
-            if parent == mine or parent in carriers:
-                continue
-            user = (int(fields[11]) + int(fields[13])) / self.tick
-            system = (int(fields[12]) + int(fields[14])) / self.tick
-            self.left[(pid, fields[19])] = (user, system)
+        self.left |= {
+            (pid, fields[19]): (
+                (int(fields[11]) + int(fields[13])) / self.tick,
+                (int(fields[12]) + int(fields[14])) / self.tick,
+            )
+            for pid, fields in carriers.items()
+            if int(fields[1]) != mine and int(fields[1]) not in carriers
+        }
         return sum(int(fields[1]) != mine for fields in carriers.values())
 
     def _sample_until_stopped(self) -> None:
-        while not self.stop.wait(SAMPLE_SECONDS):
+        stopped = False
+        while not stopped:
             self._sample()
+            stopped = self.stop.wait(SAMPLE_SECONDS)
 
     def end(self) -> tuple[float, float, int]:
         self.stop.set()
