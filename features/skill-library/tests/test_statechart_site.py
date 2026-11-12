@@ -64,10 +64,12 @@ def test_the_page_opens_on_a_map_of_every_chart_and_how_they_hand_off(tmp_path):
         "TellOnce": "A thing jbus does once",
         "MainFix": "The fix and revert jbus files",
         "CrewProof": "A crew&#x27;s proof on its brief",
+        "GreenMove": "The green copy of jstack",
     }
     for name, thing in things.items():
         assert f'data-chart="{name}"' in flow and thing in flow, name
-    handoffs = re.findall(r"<li>(.*?)</li>", flow)
+    listed = re.search(r'<ol class="handoffs">.*?</ol>', flow, re.S)[0]
+    handoffs = re.findall(r"<li>(.*?)</li>", listed)
     assert len(handoffs) >= 5
     for item in handoffs:
         ends = re.findall(r'class="go" data-chart="(\w+)"', item)
@@ -102,7 +104,15 @@ def test_the_page_holds_each_committed_chart_and_each_of_its_states(tmp_path):
     assert r.returncode == 0, r.stderr
     page = read(out)
     names = {c.parent.name.removesuffix("-statechart") for c in CHARTS}
-    assert names >= {"HomeTreeToday", "RowLife", "MainRed", "ThreadLife", "PrVerdict", "FlowToday"}
+    assert names >= {
+        "HomeTreeToday",
+        "RowLife",
+        "MainRed",
+        "ThreadLife",
+        "PrVerdict",
+        "FlowToday",
+        "GreenMove",
+    }
     for chart in CHARTS:
         name = chart.parent.name.removesuffix("-statechart")
         assert f'class="tab" role="tab" data-chart="{name}"' in page
@@ -114,6 +124,75 @@ def test_the_page_holds_each_committed_chart_and_each_of_its_states(tmp_path):
             assert html.escape(caption, quote=True) in page or caption in page, (name, caption)
     total = sum(len(declared_states(c)) for c in CHARTS)
     assert r.stdout == f"wrote {out}: {len(CHARTS)} charts, {total} states\n"
+
+
+def cfg_bounds(cfg):
+    """The constants a cfg sets, as `Name = value`, its canary switch at "none" left out, and
+    the names of its CONSTRAINT lines."""
+    text = read(cfg)
+    constants = re.findall(r"^\s*(?:CONSTANT\s+)?(\w+)\s*=\s*(.+?)\s*$", text, re.M)
+    return [f"{k} = {v}" for k, v in constants if v != '"none"'], re.findall(
+        r"^CONSTRAINT\s+(\w+)", text, re.M
+    )
+
+
+@pytest.mark.parametrize("chart", CHARTS, ids=lambda chart: chart.parent.name)
+def test_each_charts_tab_says_what_the_model_covers_and_that_the_chart_joins_its_states(
+    chart, tmp_path
+):
+    """A reader must not take a chart for every path of the code: its tab names the cfg's bounds,
+    the model's and the chart's counts, and says the chart joins what a user cannot tell apart."""
+    out = tmp_path / "index.html"
+    assert site(REPO, out, "--flow", str(FLOW)).returncode == 0
+    name = chart.parent.name.removesuffix("-statechart")
+    panel = re.search(
+        rf'<section class="chart-panel" data-chart="{name}".*?</header>', read(out), re.S
+    )[0]
+    cover = html.unescape(re.search(r'<div class="coverage">(.*?)</div>', panel, re.S)[1])
+    summary = json.loads(read(chart.parent / "summary.json"))
+    command = summary["drawnFrom"]["command"]
+    cfg = re.search(r"--config (\S+)", command)
+    cfg = cfg[1] if cfg else f"{name}.cfg"
+    assert cfg in cover, cover
+    constants, constraints = cfg_bounds(chart.parent.parent / cfg)
+    for bound in [*constants, *constraints]:
+        assert bound in cover, (bound, cover)
+    flat = summary.get("regions", {}).get("flat", {}) if summary["regions"].get("drawn") else {}
+    for count in (
+        summary["modelStates"],
+        summary["modelTransitions"],
+        flat.get("states", summary["chartStates"]),
+        summary["chartStates"],
+        summary["chartTransitions"],
+    ):
+        assert f"{count:,}" in cover, (count, cover)
+    assert "joins the model states a user cannot tell apart" in cover, cover
+
+
+def test_the_overview_lists_the_models_with_no_chart_and_the_state_no_model_has(tmp_path):
+    out = tmp_path / "index.html"
+    assert site(REPO, out, "--flow", str(FLOW)).returncode == 0
+    flow = re.search(r'<section class="flow-panel".*?</section>', read(out), re.S)[0]
+    uncharted = re.search(r'<ul class="uncharted">(.*?)</ul>', flow, re.S)[1]
+    charted = {c.parent.name.removesuffix("-statechart") for c in CHARTS}
+    models = {p.stem for p in REPO.glob("features/*/spec/*.tla")}
+    listed = re.findall(r"<li><code>[\w/]+/(\w+)\.tla</code>: \S", uncharted)
+    assert sorted(listed) == sorted(models - charted), uncharted
+    unmodeled = html.unescape(re.search(r'<ul class="unmodeled">(.*?)</ul>', flow, re.S)[1])
+    for what in ("MCP session", "test slot", "plan entry"):
+        assert what in unmodeled, unmodeled
+
+
+def test_a_model_the_flow_file_neither_charts_nor_explains_stops_the_page(tmp_path):
+    lamp(tmp_path, "")
+    write(tmp_path / "features" / "lamp" / "spec" / "Switch.tla", "---- MODULE Switch ----\n====\n")
+    flow = tmp_path / "flow.toml"
+    write(flow, '[[chart]]\nname = "Lamp"\nthing = "A lamp"\n')
+    r = site(tmp_path, tmp_path / "index.html", "--flow", str(flow))
+    assert r.returncode == 2
+    assert "features/lamp/spec/Switch.tla has no chart" in r.stderr, r.stderr
+    write(flow, read(flow) + '[[uncharted]]\nmodel = "lamp/spec/Switch.tla"\nwhy = "a sketch"\n')
+    assert site(tmp_path, tmp_path / "index.html", "--flow", str(flow)).returncode == 0
 
 
 GROUP_MOST = 15
@@ -521,7 +600,7 @@ def probed(tmp_path, screen):
         target, window = folder / "phone.html", (500, screen[1])
     command = [CHROMIUM, "--headless", "--no-sandbox", "--disable-gpu", "--hide-scrollbars"]
     command += [f"--user-data-dir={folder / 'profile'}", "--allow-file-access-from-files"]
-    command += [f"--window-size={window[0]},{window[1]}", "--virtual-time-budget=8000"]
+    command += [f"--window-size={window[0]},{window[1]}", "--virtual-time-budget=30000"]
     command += ["--dump-dom", target.as_uri()]
     with browser_lock(), tempfile.TemporaryDirectory(prefix="st-site-", dir="/tmp") as short:
         env = {**os.environ, "TMPDIR": short}

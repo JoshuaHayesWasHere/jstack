@@ -94,5 +94,8 @@ Add one line per bug with the rule it breaks, its steps as the chart numbers the
 With `--against`, also say whether the spec already lists it: in the configs that `stories.md` names, in the spec's notes on what the model leaves out, or not at all.
 Do not report that a rule holds while the command lists conditions with no file and quote or line.
 Take every count you quote from `summary.json`.
+Say what the chart covers: the bounds of the cfg it was drawn with, the model's counts beside the chart's, and that a chart state joins the model states the user cannot tell apart, so the chart is not every path of the code.
+`statechart site` writes these lines on each chart's tab, and with `--flow` it lists the models with no chart and the state no model has, from the flow file's `[[uncharted]]` and `[[unmodeled]]`.
+It stops on a model under a feature's `spec/` that has neither a chart nor an `[[uncharted]]` line.
 Attach `stories.md` and the command that regenerates everything.
 Say what the model leaves out.

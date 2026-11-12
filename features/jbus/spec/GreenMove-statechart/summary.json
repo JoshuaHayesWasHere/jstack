@@ -1,0 +1,52 @@
+{
+  "view": "customer",
+  "modelStates": 11614,
+  "modelTransitions": 29402,
+  "chartStates": 26,
+  "chartTransitions": 60,
+  "allTransitions": 60,
+  "final": [],
+  "chartStatus": {
+    "works": 26,
+    "wrong": 0,
+    "fixed": 0
+  },
+  "chartGroups": [
+    {
+      "name": "Settled",
+      "color": "#d1f2eb",
+      "states": 2
+    },
+    {
+      "name": "Moving to the new tip",
+      "color": "#d6eaf8",
+      "states": 10
+    },
+    {
+      "name": "Going back after uv refused",
+      "color": "#fdebd0",
+      "states": 10
+    },
+    {
+      "name": "A step owed after a pass died",
+      "color": "#f9d6d5",
+      "states": 4
+    }
+  ],
+  "mixedGroups": [],
+  "regions": {
+    "drawn": false,
+    "why": "30 region states are not fewer than the 26 flat states"
+  },
+  "classes": [],
+  "codeLike": [],
+  "drawnFrom": {
+    "command": "statechart from-spec GreenMove.tla --title 'Does the green copy reach main'\"'\"'s green tip?' --png",
+    "inputs": {
+      "GreenMove.cfg": "ede59f2012d3a66b5fdb9004d06a4ffa70493cf04411c25eed7d1f044d1ddeaa",
+      "GreenMove.map.py": "b0965330046107a80901a300bde31e46b5e6cb62a2b196acb0db190b18d9c348",
+      "GreenMove.tla": "f6d1d416db9426456f187a570b03a96594826f99d172c3e38ea45704a60bbe50"
+    },
+    "chart": "12c751f62b0361485734f197f170f49cbf95b13fd8cb154d79b9363a1bf2b1f4"
+  }
+}
