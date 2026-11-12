@@ -66,6 +66,7 @@ When every step is backed, it is a bug: tell it as the move's writes, where the 
 - A new owed step or a new write to `green.json`: give it a step with its quote, in the code's order, and a canary that drops it.
 - Show a changed rule failing on a scratch break first (drop the write it rests on in your own worktree, uncommitted, see the trace, `git restore` the file).
 
-## Drift at the sync commit
+## The last upkeep
 
-None found.
+`/maintain-formal-verification-skill` ran at the sync commit (st-model-upkeep-run): the covered code is unchanged from it to the row's base, and `uv run pytest features/jbus/tests/test_green_move_spec.py -q` printed `7 passed`, every rule holding and each canary breaking its rules.
+In sync; nothing changed.
