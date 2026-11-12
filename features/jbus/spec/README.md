@@ -121,7 +121,7 @@ No state breaks a rule, so it draws no `bug-N` chart.
 
 ## Main's red, as a TLA+ spec
 
-`MainRed.tla` models what jbus does when main goes red, as the code of main 21112eba8 does it.
+`MainRed.tla` models what jbus does when main goes red, as the code does it, last read against it at 228c1436c (2026-11-11).
 Main's push run fails and jbus reruns it once (`watch._check`).
 If the rerun fails too, `mainmoved.tell` writes the red tip to `main.json`, and `watch.retro` hands main's tip to `culprits.judge`.
 `judge` reverts the tip's one clear culprit (`jbus.reverts`) or files main's fix row (`watch._file`).
@@ -155,7 +155,7 @@ It also checks that the spec states each property `features/jbus/tests/main_red_
   - `KnownRedReadAsRed` (S1)
   - `NoStuckRed` (S2)
   - `RedTipsOwnTests` (S3)
-  - `EachRedJudgedOnce` (S4)
+  - `EachRedJudgedOnce` (S4): `main-reds.jsonl`'s verdict lines name no tip twice and name the red tip, and its closing lines (`mainmoved.close`) close no spell twice.
 
 ### Check the rules of main's red
 
@@ -166,9 +166,9 @@ Run it from this folder, with the pinned jar copied in:
 cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar . && java -cp tla2tools.jar tlc2.TLC -config MainRed.cfg MainRed.tla; rm -rf tla2tools.jar states
 ```
 
-It exits 0: every rule holds over 140,012 distinct states (MaxTips 4), in a few seconds.
+It exits 0: every rule holds over 147,834 distinct states (MaxTips 4), in a few seconds.
 `MainRed.cfg` leaves the Mac out (`Mac = FALSE`): with it, four commits take TLC far too long.
-`MainRed.chart.cfg` has the Mac on up to three commits, where every rule holds over 112,491 distinct states.
+`MainRed.chart.cfg` has the Mac on up to three commits, where every rule holds over 116,957 distinct states.
 The test runs TLC on both configs, and on each rule of `BREAKS` alone, which is empty while the code breaks no rule, and the canary on `MainRed.chart.cfg`.
 
 ### Draw the chart of main's red
@@ -184,7 +184,7 @@ W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainRed.* "$W"
 
 Run it from the repo root.
 Then copy the files of `$W/out` into `MainRed-statechart/`, all except `tlc/`.
-`MainRed.chart.cfg` has the same rules on up to three commits, with the Mac (112,491 states), and it draws 42 chart states and 265 steps.
+`MainRed.chart.cfg` has the same rules on up to three commits, with the Mac (116,957 states), and it draws 42 chart states and 265 steps.
 TLC runs once for each rule, so drawing it takes about two minutes.
 The four commits of `MainRed.cfg` draw too many states and steps for Mermaid to render as a PNG.
 No state breaks a rule, so it draws no `bug-N` chart.
@@ -196,8 +196,9 @@ No state breaks a rule, so it draws no `bug-N` chart.
   TLC's `skew` files the row at once.
 - Whether a culprit's slug is over (`over`) before `close` drops its revert's record: the model drops it once every check passed above its red.
 - `main-reds.jsonl` keeps only the red tip of each pass, where `tell` writes a line for each failed commit it walks.
+  A pass is one step, so its closing line and `main.json` are written together: `close`'s guard against a second closing line, for a pass that dies between the two, is never needed here.
 - The browser run, and the fix row's crew ending with no pull request.
-- Of the Mac (`reverts.macos`): its rerun, folded into its run; a Mac red at a revert, a fix or an outside push, which only files its row; the `macos-red-` rows; and a Mac culprit that `tested`, `covered` or `flaky` keeps from a revert.
+- Of the Mac (`reverts.macos`): its rerun, folded into its run; a commit of its range still pending, which is `UNREAD` and later `OVERLAP`, both quiet here since no Mac row is kept; a Mac red at a revert, a fix or an outside push, which only files its row; the `macos-red-` rows; and a Mac culprit that `tested`, `covered` or `flaky` keeps from a revert.
   The Mac's one clear culprit is always reverted.
 - Time: TLC chooses on each pass whether the red tip is older than `READ_WAIT` (`late`).
 
