@@ -37,7 +37,7 @@ The home wrote it on 2026-10-23 to test the premise behind "nothing moves", and 
 
 ```sh
 S=features/skill-library/skills/statechart/scripts
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     python features/jmerge/spec/flow_canaries.py
 ```
 
@@ -109,7 +109,7 @@ A full machine stops no judgement of main's red, so both hold `MergeRedsMainOnly
 S=$PWD/features/skill-library/skills/statechart/scripts
 D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(TMPDIR=$D mktemp -d) && cp features/jmerge/spec/FlowToday.* features/jmerge/spec/FlowDesign.* "$W"
-(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec FlowToday.tla --config FlowToday.chart.cfg --against FlowDesign.tla --label "the design" \
     --title "Does work keep flowing?" --out out)
 ```
@@ -186,7 +186,7 @@ Your word has no fairness, and other work moves main at most `Moves` times, once
 
 ```sh
 S=features/skill-library/skills/statechart/scripts
-UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     python features/jmerge/spec/pr_canaries.py
 ```
 
@@ -224,7 +224,7 @@ The row says `check failed twice` and jbus pages you once; the chart draws the s
 ```sh
 S=$PWD/features/skill-library/skills/statechart/scripts
 W=$(mktemp -d) && cp features/jmerge/spec/PrVerdict.* "$W"
-(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec PrVerdict.tla --config PrVerdict.chart.cfg \
     --title "Why isn't my pull request merging?" --out out)
 ```
@@ -298,7 +298,7 @@ Each config's comment keeps TLC's verdict and the trace it prints.
 ```sh
 S=$PWD/features/skill-library/skills/statechart/scripts
 W=$(mktemp -d) && cp features/jmerge/spec/MergeRun.* "$W"
-(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
+(cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec MergeRun.tla --config MergeRun.chart.cfg \
     --title "jbus's pass starts a run of jmerge: does what it said reach you?" --out out)
 ```

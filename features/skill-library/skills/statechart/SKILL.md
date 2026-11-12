@@ -20,7 +20,7 @@ The scripts call this user the reader, as in `reader_actions` and reader steps.
 
 The scripts are a uv project in `scripts/` beside this file, a port of pstack's Node scripts to Python.
 Set `S=$(dirname "$(realpath ~/.claude/skills/statechart/SKILL.md)")/scripts`, the `scripts/` folder beside the real file and not beside the install's link to it, so that nothing is written into the installed layout.
-Run each command as `UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" statechart <command>`: the environment lives in the cache, and `--frozen` keeps `uv.lock` as it is.
+Run each command as `UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" statechart <command>`: the environment lives in the cache, and `--frozen` keeps `uv.lock` as it is, and `--exact` removes from it what another checkout's sync left there, such as a `jgauge` whose checkout is gone.
 Start with `statechart --help`, which gives the commands and how to read a chart.
 `uv run` brings Java through the pinned `jdk4py` package, so nothing is installed by hand; jdk4py has no wheel for musl Linux, such as Alpine, so set `JAVA` to a java binary there.
 TLC's `tla2tools.jar` is pinned in `scripts/statechart/tools.py` and is downloaded to `~/.cache/jstack/tla2tools/` on the first run, checked against its sha256; set `TLA2TOOLS` to use another copy.
