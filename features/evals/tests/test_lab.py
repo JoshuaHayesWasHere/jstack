@@ -210,8 +210,9 @@ def shared(tmp_path_factory):
 
 @pytest.fixture(scope="session")
 def machine(shared):
-    """A home with a live store, a sitecustomize that logs every path opened, and a `claude` that
-    says if anything called it."""
+    """A home with a live store, a sitecustomize that logs every path opened, a `claude` that
+    says if anything called it, and slot locks and jbus dirs of the lab's own: the run's, which
+    the tests beside it write, never reach the replay's jbus pass."""
     root = shared
     home = root / "home"
     store = home / ".local/state/jbus/telemetry.sqlite"
@@ -220,6 +221,11 @@ def machine(shared):
     called = root / "claude-called"
     limits = root / "limits"
     temporary = root / "tmp"
+    own = {
+        "JGAUGE_LOCKS_DIR": root / "locks",
+        "JBUS_STATE_DIR": root / "jbus-state",
+        "JBUS_CONFIG_DIR": root / "jbus-config",
+    }
     with once(root / "machine.lock"):
         if not limits.exists():
             store.unlink(missing_ok=True)
@@ -230,6 +236,8 @@ def machine(shared):
             (bin_dir / "claude").write_text(f'#!/bin/sh\necho "$@" >> "{called}"\nexit 1\n')
             (bin_dir / "claude").chmod(0o755)
             temporary.mkdir(exist_ok=True)
+            for path in own.values():
+                path.mkdir(exist_ok=True)
             limits.write_text("seven_day 41 1793563200\n")
     env = {k: v for k, v in os.environ.items() if not k.startswith("VERIFY_JSTACK_")}
     env |= {
@@ -240,6 +248,7 @@ def machine(shared):
         "PYTHONPATH": str(hook),
         "LAB_OPEN_LOG": str(root / "opened.log"),
     }
+    env |= {name: str(path) for name, path in own.items()}
     return {
         "root": root,
         "home": home,
