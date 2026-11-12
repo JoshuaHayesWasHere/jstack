@@ -650,7 +650,7 @@ def test_a_holder_whose_command_is_gone_holds_its_slot_while_its_test_slot_lives
 def test_a_holder_whose_pids_other_processes_took_is_not_counted(tmp_path):
     """Once the pids of a dead command and of its dead `jgauge test-slot` are taken by other
     processes, its run holds nothing: jbus forgets it and tells its thread the run ended
-    (TestSlot.tla's NoLostHolder with PidReuse). While either pid is still its own, the run holds."""
+    (TestSlot.tla's NoLostHolder with PidReuse). While either pid is still its own, it holds."""
     holders.hold(tmp_path, THREAD, "full", os.getpid(), ["make", "check"], NOW)
     (one,) = holders.read(tmp_path)
     assert holders.running(one)
@@ -665,7 +665,11 @@ def test_a_holder_recorded_with_no_start_time_is_judged_by_its_pid_alone(tmp_pat
     lives, so a run that holds a slot across the upgrade is not forgotten."""
     holders.hold(tmp_path, THREAD, "full", os.getpid(), ["make", "check"], NOW)
     (one,) = holders.read(tmp_path)
-    assert holders.running(replace(one, start=None, keeper=0, keeper_start=None))
+    old = replace(one, start=None, keeper=0, keeper_start=None)
+    assert holders.running(old)
+    gone = subprocess.Popen(["true"])
+    gone.wait()
+    assert not holders.running(replace(old, pid=gone.pid))
 
 
 def slot_log(slots):

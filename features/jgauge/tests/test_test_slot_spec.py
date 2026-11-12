@@ -186,4 +186,3 @@ def test_a_run_s_end_is_kept_for_jbus_to_tell_today(fault, code):
     ended, out = tlc(fault, ["EndNotLost"], room="short")
     assert ended == code, out[-4000:]
     assert ("Invariant EndNotLost is violated" in out) == bool(code), out[-4000:]
-
