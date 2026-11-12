@@ -55,7 +55,7 @@ It prints one line a run and ends 0 when every run says what it should.
   `HomeTreeToday.cfg`, the chart's scene, is child a with one call, `K = 1` and a home thread that never fails.
 - **The canaries** (`Drop`): `hand-over`, `keep-on-fail`, `flag`, `beat`, `needs`, `nudge-cap`, `relaunch-once`, `ask`, `one-merger`, `lock`, `all-homes`, `drop-release`, `keep-alive`, `going`, `waits`, each breaking the rule that rests on it; `canaries.py` names each one's rule and scene.
 - **Assumptions:** two children; a pull request drops at most once; the home thread fails at most once; a nudge and a launch are always sent; weak fairness on the steps that happen by themselves.
-  The rest is in `features/home/spec/README.md`, "What the model leaves out".
+  The rest is in `features/home/spec/HomeTreeToday.md`, "What the model leaves out".
 
 ## A real bug or a modeling error
 

@@ -15,7 +15,7 @@ import pytest
 from statechart_support import SCRIPTS, TOOLS, needs_tlc, write, write_lamp
 from testing.paths import REPO
 
-READ_SET = ("features/*/spec/README.md", "features/skill-library/skills/statechart/")
+READ_SET = ("features/*/spec/*.md", "features/skill-library/skills/statechart/")
 
 FAKE_JGAUGE = """import os
 import sys
@@ -33,7 +33,7 @@ REDRAW = re.compile(r'statechart-venv" uv run (.*?) --project "')
 def redraw_flags():
     """Each set of `uv run` flags a redraw command gives, in the skill's SKILL.md and in the
     spec READMEs, so each command these files state is the one the tests run."""
-    docs = [SCRIPTS.parent / "SKILL.md", *sorted(REPO.glob("features/*/spec/README.md"))]
+    docs = [SCRIPTS.parent / "SKILL.md", *sorted(REPO.glob("features/*/spec/*.md"))]
     flags = {
         tuple(found.split())
         for doc in docs

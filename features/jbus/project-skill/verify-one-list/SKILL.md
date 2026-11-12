@@ -67,7 +67,7 @@ uv run pytest features/jbus/tests/test_one_list_spec.py -q
 ```
 
 It finds each quote of the spec once, checks each ledger row is a variable, and runs TLC on today's world, each act alone and each canary, in under a minute; the TLC runs skip where no Java runs TLC.
-The bare TLC command and the rules are in `features/jbus/spec/README.md`, "The one list, as a TLA+ spec"; run TLC in a copy of the folder, since it writes `states/` where it runs.
+The bare TLC command and the rules are in `features/jbus/spec/OneList.md`; run TLC in a copy of the folder, since it writes `states/` where it runs.
 
 - **Bounds:** `After = 2`, `MaxLines = 2`, two Result headings; `OneList.cfg` with all three acts holds every rule, and `OneList.chart.cfg` draws the gates scene alone.
 - **The faults:** `stale-streak` breaks `ListIsTrue` with no act; `closed-listed` breaks `ListIsTrue` where a project closes; `mark-count` breaks `ReadOnce` where merge.log is cut; `ask-again` breaks `AnsweredLeaves` and `ListIsTrue` where a gate is the home's.

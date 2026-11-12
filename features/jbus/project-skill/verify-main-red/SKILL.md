@@ -68,7 +68,7 @@ The rules beyond S1 to S4, each with its harm:
 uv run pytest features/jbus/tests/test_main_red_spec.py -q
 ```
 
-It prints `6 passed` in seconds, and skips where no Java runs TLC; TLC's verdict may come from the statechart tools' cache (`tools.kept`), so to see TLC run, use the bare command in `features/jbus/spec/README.md`, "Check the rules of main's red", in a copy of the folder.
+It prints `6 passed` in seconds, and skips where no Java runs TLC; TLC's verdict may come from the statechart tools' cache (`tools.kept`), so to see TLC run, use the bare command in `features/jbus/spec/MainRed.md`, "Check the rules of main's red", in a copy of the folder.
 
 - **Bounds:** `MainRed.cfg` is `MaxTips = 4` with no Mac (`Mac = FALSE`), 147,834 distinct states; `MainRed.chart.cfg` is `MaxTips = 3` with the Mac, 116,957 states.
 - **The canary:** `Fault = "opener-only"` on `MainRed.chart.cfg` is a revert held by the check that opened it alone, and `NeverRevertedTwice` breaks.

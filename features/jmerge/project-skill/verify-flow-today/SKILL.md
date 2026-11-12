@@ -58,7 +58,7 @@ uv run pytest features/jmerge/tests/test_flow_spec.py -q
 
 TLC walks some 7M states, so it takes some minutes (about 650 s on a Linux runner, 1800 s timeout), and skips where no Java runs TLC.
 A run that ends in seconds took TLC's verdict from the statechart tools' cache (`tools.kept`), keyed by the spec, cfg and jar, and the runner script does the same: the verdict is the one TLC gives, and no change to the code alone can turn it, which is why the record above, and not a pass, says whether the model still describes the code.
-`flow_canaries.py` runs the same runs and prints one line each; its command is in `features/jmerge/spec/README.md`, "Check the rules", from the repo root.
+`flow_canaries.py` runs the same runs and prints one line each; its command is in `features/jmerge/spec/FlowToday.md`, "Check the rules", from the repo root.
 
 - **Bounds:** two pull requests, one outside break, one brief edit, at most one review round that says the brief is not met, `Gap = "turn"`; 7,024,508 distinct states at st-flow's head and again at st-model-upkeep-run's.
 - **The controls:** `Gap = "ended"` (the code from #416 to #427) and `Gap = "busy"` (before #416) each break `FlowsWhenGreen`, `MachineNotLeftFull` and `MainFixWaitsOnlyOnYou`, and hold `MergeRedsMainOnlyOnAMissedTest`.

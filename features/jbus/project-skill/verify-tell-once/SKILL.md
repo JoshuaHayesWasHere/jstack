@@ -61,7 +61,7 @@ uv run pytest features/jbus/tests/test_tell_once_spec.py -q
 ```
 
 It prints `6 passed` in about five seconds, and skips where no Java runs TLC.
-The bare TLC command, with `-continue` so a break reports every act it breaks on and not only the first, is in `features/jbus/spec/README.md`, "Check the rules of act once"; run it in a copy of the folder.
+The bare TLC command, with `-continue` so a break reports every act it breaks on and not only the first, is in `features/jbus/spec/TellOnce.md`, "Check the rules of act once"; run it in a copy of the folder.
 
 - **Bounds:** the 14 acts of `Carriers`, `Passes = 2`, `Fault = "none"`, 1496 distinct states; one behavior follows one act, so the acts' states add up and do not multiply.
 - **The canaries:** `Fault = "mark-first"` writes the marks before the act and breaks `NoTellLost` on every act; `Fault = "no-mark"` reads no mark and breaks `NoTellTwice` on every act.

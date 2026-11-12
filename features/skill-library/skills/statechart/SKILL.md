@@ -26,6 +26,8 @@ Start with `statechart --help`, which gives the commands and how to read a chart
 TLC's `tla2tools.jar` is pinned in `scripts/statechart/tools.py` and is downloaded to `~/.cache/jstack/tla2tools/` on the first run, checked against its sha256; set `TLA2TOOLS` to use another copy.
 `--png` renders with Mermaid's `@mermaid-js/mermaid-cli` through `npx`, at the version pinned in the same file, so it needs Node.
 In jstack a chart folder commits only `chart.mmd`, any `bug-N.mmd`, `stories.md` and `summary.json`: git cannot merge a drawing, and every chart change rewrites one.
+In jstack a model's prose, its rules, how to check them and draw its chart, and what it leaves out, goes in `features/<feature>/spec/<Model>.md` beside its `<Model>.tla`, and the spec folder's `README.md` lists no model.
+A new model then adds only files of its own, `.tla`, `.cfg`, `.map.py`, `.md` and its `<Model>-statechart/` folder, which the folder's `.gitattributes` glob already marks generated, so two pull requests that each add a model never conflict.
 `make charts` runs `statechart site --lanes`, which draws from those the charts page and a PNG and Excalidraw scenes of each chart and its overview beside it, in a folder git ignores, and prints the page's path.
 Run it when you want to look at them; no hook or check runs it.
 A mapping that names `lanes` draws its chart as reference lanes instead: one row of boxes per thing that moves on its own, every step of TLC's graph on one arrow, table cell or row, no two lines crossing and no words on a line; `scripts/statechart/lanes.py` says what such a mapping holds, and `features/jbus/spec/MainRed.map.py` has a worked one.

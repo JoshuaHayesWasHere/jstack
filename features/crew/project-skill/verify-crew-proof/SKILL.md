@@ -50,7 +50,7 @@ uv run pytest features/crew/tests/test_crew_proof_spec.py -q
 ```
 
 It runs TLC on the cfg, on each rule alone and on the canary, in under half a minute, and skips where no Java runs TLC.
-The bare TLC command is in `features/crew/spec/README.md`, "Check the rules"; run it in a copy of the folder, since TLC writes `states/` where it runs.
+The bare TLC command is in `features/crew/spec/CrewProof.md`, "Check the rules"; run it in a copy of the folder, since TLC writes `states/` where it runs.
 
 - **Bounds:** `MaxHead = 2`, `Background = TRUE`, repos `jstack` and `other`, kinds `code`, `tests` and `docs`; `ReviewHeld` and `RecordKept` hold over 836,904 distinct states, and with `Background = FALSE` `ProofAtHead` holds over 607,169.
 - **Today's verdicts:** `CheckedAtHead`, `RecordGoes` and `OneScopedReviewer` break, each with the trace `CrewProof.cfg` keeps; `ProvedAtHead` holds.

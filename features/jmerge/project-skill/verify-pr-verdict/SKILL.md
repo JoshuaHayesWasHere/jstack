@@ -45,7 +45,7 @@ uv run pytest features/jmerge/tests/test_pr_verdict_spec.py -q
 
 It runs TLC on today's code and the eleven canaries, in a few minutes, and skips where no Java runs TLC.
 A run that ends in seconds took TLC's verdict from the statechart tools' cache (`tools.kept`), keyed by the spec, cfg and jar, and the runner script does the same: the verdict is the one TLC gives, and no change to the code alone can turn it, which is why the record above, and not a pass, says whether the model still describes the code.
-`pr_canaries.py` prints one line a run; its command is in `features/jmerge/spec/README.md`, "Why a pull request is not merging".
+`pr_canaries.py` prints one line a run; its command is in `features/jmerge/spec/PrVerdict.md`.
 
 - **Bounds:** `Moves = 1` (other work moves main at most once), `Drop = "none"`, 1,518,172 distinct states, as many as the chart's cfg, which also moves main once.
 - **The canaries:** `over`, `go`, `touches`, `declines`, `mergeoff` and `head` break the first half (a merge past a hold of yours); `release`, `rejudge`, `again`, `batch-failed` and `twice` break the second (it waits for ever).

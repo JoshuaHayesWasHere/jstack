@@ -51,7 +51,7 @@ uv run pytest features/jsettings/tests/test_gh_budget_spec.py -q
 ```
 
 It checks each quote and each ledger carrier, and runs TLC on today's code, on the rotation alone and on the canary, in under ten seconds; it skips where no Java runs TLC.
-The bare TLC command and the findings are in `features/jsettings/spec/README.md`, "Check the rules" and "The findings"; run TLC in a copy of the folder, since it writes `states/` where it runs.
+The bare TLC command and the findings are in `features/jsettings/spec/GhBudget.md`, "Check the rules" and "The findings"; run TLC in a copy of the folder, since it writes `states/` where it runs.
 
 - **Bounds:** `Procs = {"a", "b"}`, `Cap = 1`, `Kept = 1` (a log renamed past one line), `Floor = 1`, `Start = 4`; `GhBudget.cfg` has 225,479 distinct states with `NoLostGeneration` alone, and stops at `HeldWhenLow` in 18 states.
 - **The faults:** `locked-rotate` is today's code; `unlocked-rotate` is the canary that breaks `NoLostGeneration` in 26 states.

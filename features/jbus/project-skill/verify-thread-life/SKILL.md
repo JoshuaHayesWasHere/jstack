@@ -48,7 +48,7 @@ uv run pytest features/jbus/tests/test_thread_life_spec.py -q
 ```
 
 It prints `3 passed` in about ten seconds, and skips where no Java runs TLC.
-The bare TLC command is in `features/jbus/spec/README.md`, "Check the rules of the thread"; run it in a copy of the folder, since TLC writes `states/` where it runs.
+The bare TLC command is in `features/jbus/spec/ThreadLife.md`, "Check the rules of the thread"; run it in a copy of the folder, since TLC writes `states/` where it runs.
 
 - **Bounds:** one thread of one row, `CarryOns = 2`, `Drop = "none"`, 45694 distinct states.
 - **The canaries:** `Drop = "ladder"` takes the stall ladder out and `ThreadEnds` breaks; `Drop = "repair"` takes the next pass's repair out and `LineFollows` breaks.

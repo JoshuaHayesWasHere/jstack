@@ -59,7 +59,7 @@ uv run pytest features/jinstall/tests/test_setup_spec.py -q
 ```
 
 It finds each quote of the spec once in its file, then runs TLC on `Setup.cfg`, on each rule alone over the part it reads, and on the canaries, in seconds, and skips the TLC runs where no Java runs TLC.
-The bare TLC command, the table of rules and verdicts, and the four findings are in `features/jinstall/spec/README.md`; run TLC in a copy of the folder, since it writes `states/` where it runs.
+The bare TLC command, the table of rules and verdicts, and the four findings are in `features/jinstall/spec/Setup.md`; run TLC in a copy of the folder, since it writes `states/` where it runs.
 
 - **Bounds:** `MaxId = 2` webhooks, two threads, and one mirror entry; `Setup.cfg` follows all three parts and breaks no rule over 411,730 distinct states; each install rule alone holds over 418 states and `MirrorKept` over 10.
 - **The canary:** `Fault = "note-after"` has `make_dirs` make a folder before it records it, and breaks `MadePathsRecorded`, which today's code holds.

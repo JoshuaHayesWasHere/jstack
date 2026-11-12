@@ -48,7 +48,7 @@ uv run pytest features/jbus/tests/test_green_move_spec.py -q
 ```
 
 It prints `7 passed` in about five seconds, and skips where no Java runs TLC.
-The bare TLC command, with `-deadlock` since a copy at main's last tip has no step left, is in `features/jbus/spec/README.md`, "Check the rules of the green move"; run it in a copy of the folder.
+The bare TLC command, with `-deadlock` since a copy at main's last tip has no step left, is in `features/jbus/spec/GreenMove.md`, "Check the rules of the green move"; run it in a copy of the folder.
 
 - **Bounds:** `MaxTip = 3`, tip 2 one that does not import (`Broken = {2}`), 11614 distinct states.
 - **The canaries:** `Fault = "no-owed"` (`ToolRunsCopy`, `LayoutsFollow`), `"no-back"` (`ToolRunsCopy`, `NoReloadForRemoved`), `"no-import"` (`CopyImports`), `"stamp-refused"` (`StampTrue`); `CopyOwned` has none.
