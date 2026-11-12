@@ -26,6 +26,11 @@ A check run more than once at the head, one cancelled and run again included, co
 The block of "A failed check" reads each check by its latest run too, so a run that failed and was passed since is never run again, and it runs nothing again while the workflow run of a failed check still has a job going.
 The merge goes by the checks the repo names: `jmerge` merges only when each check its `$H/required-checks` file names passed at the head, or the check named `check` where there is no such file (features/jmerge/docs/jmerge.md, "Name the checks a merge waits for").
 
+jleak's `pre-push` hook (`jleak.crewpush`) asks `jmerge`'s rule of the brief's last `Checked:` line at each head a crew pushes, and one more of a line of the guards and the lint, `make check-fast BASE=<sha> PART=guards`, which "A conflict" writes.
+Such a line binds a head whose one change over the head of the brief's last line of the whole check is the base it sits on: a merge of the base, or a rebase onto it, with as many commits of its own as that head had over a later fork.
+It refuses the line for any other head, a fix after the merge included, with `crew-push: refused: its last Checked: line, the guards and the lint at <head12>, ...`, and that head wants the check block of "Do the task".
+So a pull request in conflict pushes its merge on the guards and the lint, CI runs the rest at the pushed head, and a fix gets the desk's whole check before its push, as before.
+
 **The failed files** are the test files that the logs of CI's failed jobs name on a `FAILED` or `ERROR` line, read from the latest run of each failed check.
 Run this in this worktree with the block at the top and this thread's id in place of the words in angle brackets:
 

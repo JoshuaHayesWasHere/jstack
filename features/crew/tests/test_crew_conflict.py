@@ -209,8 +209,10 @@ def test_a_conflict_is_pushed_after_the_guards_and_the_lint_while_a_slow_test_fa
     pr = PullRequest(tmp_path, "CONFLICTING", "shared.txt")
     (pr.work / "scripts").mkdir()
     (pr.work / "scripts" / "select_tests.py").write_text("")
+    git(pr.work, "add", "scripts")
     pr.commit(pr.work, "test_slow.py", "", "a slow test the change reaches")
     git(pr.work, "push", "-q", "origin", "a-task")
+    asked(pr, "CONFLICTING")
     checked = pr.head()
     brief = fix_push.hooked(pr, tmp_path, monkeypatch, fix_push.full(checked))
     stub = tmp_path / "check-stub"
