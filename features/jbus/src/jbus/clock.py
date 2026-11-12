@@ -58,16 +58,16 @@ queue hold`, or `check failed twice`) has no `check` wait, and the outbox holds 
 holds any fix message (`outbox.FIXES`) and any line to a capped instance.
 
 `held` watches the waits no clock above takes, by their reason. Rows whose pull requests `jmerge`
-holds on one reason, with no thread at work on the cause, wake the home that owns them once the
-hold is older than `HOLD_MINUTES`, once for the hold, with the reason, the rows and how long they
-have been held. A thread is at work on the cause when the reason's code is a crew's (`aged.BOUNDS`) and
+holds on one reason, with no thread at work on the cause, wake the home that owns them once the hold
+is older than `HOLD_MINUTES`, once for the hold, with the reason, the rows and how long they have
+been held. A thread is at work on the cause when the reason's code is a crew's (`aged.BOUNDS`) and
 the thread is a held row's crew or reviewer, or the reason names its slug. A thread at work on a
 code a crew cannot clear, as a run GitHub keeps queued (`ready.NO_RUN`), is at work on something
-else, so it keeps no hold from waking the home. A wait on the merge runner (`RUNNER`), a wait
-on a row ahead (`AHEAD`) whose pull request is open, since that row's own wait is what holds it, a
-hold that is the user's (a `wait` or `hold` on step `hold`, such as a queue row held for `check
-failed twice`, which `waiting.holds` lists from its first pass) and a wait with its own clock
-above are no such hold.
+else, so it keeps no hold from waking the home. A wait on the merge runner (`RUNNER`), a wait on a
+row ahead (`AHEAD`) whose pull request is open, since that row's own wait is what holds it, a hold
+that is the user's (a `wait` or `hold` on step `hold`, such as a queue row held for `check failed
+twice`, which `waiting.holds` lists from its first pass) and a wait with its own clock above are no
+such hold.
 A required check with no run at the head (`ready.NO_RUN`) is no wait on the merge runner: no
 runner is at work on it, so it is a hold. One whose workflow GitHub runs there (`ready.LIVE_RUN`)
 is such a wait.
