@@ -285,10 +285,8 @@ def unqueue(run: Pass, world: World, slugs: set[str]) -> None:
             kept[slug] = mine
         if not (mine and mine.get("owed")) and not _queued(pull, names, run.now):
             continue
-        listed = _api(run, _runs_of(head))
-        runs = [one for one in (listed or {}).get("workflow_runs") or [] if one.get("id")]
-        if listed is None:
-            continue
+        listed = _api(run, _runs_of(head)) or {}
+        runs = [one for one in listed.get("workflow_runs") or [] if one.get("id")]
         key = f"{QUEUED}|{slug}|{head[:12]}"
         if key in run.box.sent():
             _again(run, slug, pull, mine or {}, _stuck(run, runs, names))

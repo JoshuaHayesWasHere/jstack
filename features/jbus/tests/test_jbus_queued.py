@@ -207,3 +207,12 @@ def test_a_rerun_github_refuses_for_ten_minutes_is_given_up_and_logged_once(kitc
         "ago and started no job, and did not run them again in 10 minutes of tries: run cannot "
         "be rerun"
     ]
+
+
+def test_a_pull_request_of_no_row_is_left_alone(kitchen):
+    """Only an open row's pull request is restarted: one of no row is not jbus's."""
+    no_jobs(kitchen)
+    made = {**kitchen.opened("beta", 1695), "headRefOid": STUCK, "statusCheckRollup": []}
+    kitchen.set("open.json", [made])
+    passes(kitchen, "20:49:30")
+    assert acts(kitchen) == [] and kitchen.lines("queued") == []
