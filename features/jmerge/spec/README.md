@@ -216,7 +216,7 @@ jbus tells the crew of a conflict from GitHub's `CONFLICTING` whatever jmerge sa
 The first run of the widened rule found a pull request that merged past jbus's hold: the crew's fix went out before the hold, a third head passed and joined the batch, and the hold landed while the batch's check ran.
 The code has no such order: a pass runs its tellers, `stall.twice` among them, before the steps after expedite, where `rebase.github` tells the crew of the failed check, so the row is held in the pass that counts its second failed head before its crew hears of it, and the model's crew gets no fix while a count at the limit waits for its hold.
 jbus's hold is the one wait on you that jmerge words as its crew's: with the check failed, jmerge says `check has failed`, as GitHub's waits come before the row's go, while the outbox holds the crew's fix until your approve or a head whose check passes.
-The row says `check failed twice` and jbus pages you once; the chart draws the state in "Waits on your word" as `its check failed, and held: its check failed twice`.
+The row says `check failed twice` and jbus pages you once; the chart draws the state in "Waits on your word" as `held: its check failed twice`, whatever jmerge last said, with your approve as its way out.
 
 ## Draw the chart
 
@@ -230,7 +230,7 @@ W=$(mktemp -d) && cp features/jmerge/spec/PrVerdict.* "$W"
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `PrVerdict-statechart/`.
 `PrVerdict.chart.cfg` moves main once (655,106 model states, about two minutes), and `PrVerdict.map.py` labels each state by main and what jmerge last said, and a row jbus held for its failed checks as held.
-The chart has 21 states and draws 55 of its 154 steps, at least one way out of each state but merged, and no state breaks the rule.
+The chart has 20 states and draws 54 of its 142 steps, at least one way out of each state but merged, and no state breaks the rule.
 Then draw its Excalidraw file and the charts page again, from the repo root:
 
 ```sh

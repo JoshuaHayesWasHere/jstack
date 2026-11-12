@@ -25,11 +25,13 @@ CREW = {"no-review", "check-failed", "conflicts", "merged-tree-fails"}
 FIXES = {"check-failed", "conflicts", "merged-tree-fails"}
 
 
+HELD = "held: its check failed twice"
+"""A row jbus held at two failed heads, whatever jmerge last said of it: only your approve or a
+head whose check passes lifts it."""
+
+
 def _held(v):
-    """Why a row whose crew jbus tells nothing is held, where jmerge says it waits on its crew."""
-    if v["st"] != "open" or not v["held"] or v["said"] not in FIXES:
-        return ""
-    return "its check failed twice"
+    return v["st"] == "open" and v["held"] and v["said"] in FIXES
 
 
 # The steps of jmerge's run. Once one can be taken, the verdict jmerge last said no longer holds:
@@ -55,8 +57,7 @@ def _main(v):
 
 
 def state(v, facts):
-    held = _held(v)
-    return f"{_main(v)}: {SAID[_said(v, facts)]}" + (f", and held: {held}" if held else "")
+    return f"{_main(v)}: {HELD if _held(v) else SAID[_said(v, facts)]}"
 
 
 region_names = ["Main", "What jmerge says"]
