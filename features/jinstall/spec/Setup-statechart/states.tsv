@@ -1,631 +1,175 @@
 state	group	status	start	chart	states in Setup.chart.cfg	within in Setup.chart.cfg	states in Setup.cfg	within in Setup.cfg
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1 starting, a webhook no record names	Leaves something behind	wrong		r0s0 r1s0	342	493	342	493
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s0 r1s1	45	40	45	40
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s0 r1s2	36	50	36	50
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1 starting, no webhook	Leaves something behind	wrong		r0s0 r1s3	198	275	198	275
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind	wrong		r0s0 r1s4	126	112	126	112
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s0 r1s5	45	40	45	40
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind	wrong		r0s0 r1s6	18	16	18	16
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind	wrong		r0s0 r1s7	18	16	18	16
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1, no webhook, its turn stopped	Leaves something behind	wrong		r0s0 r1s8	54	48	54	48
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2 starting, a webhook no record names	Leaves something behind	wrong		r0s0 r1s9	342	493	342	493
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s0 r1s10	36	50	36	50
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s0 r1s11	45	40	45	40
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2 starting, no webhook	Leaves something behind	wrong		r0s0 r1s12	198	275	198	275
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind	wrong		r0s0 r1s13	126	112	126	112
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind	wrong		r0s0 r1s14	18	16	18	16
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s0 r1s15	45	40	45	40
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind	wrong		r0s0 r1s16	18	16	18	16
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2, no webhook, its turn stopped	Leaves something behind	wrong		r0s0 r1s17	54	48	54	48
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: No expert yet	Leaves something behind	wrong		r0s0 r1s18	9	8	9	8
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	342	493
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	45	40
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	36	50
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	198	275
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	126	112
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	45	40
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	18	16
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	18	16
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	54	48
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	342	493
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	36	50
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	45	40
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	198	275
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	126	112
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	18	16
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	45	40
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	18	16
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	54	48
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: No expert yet	Leaves something behind				0	0	9	8
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	684	1670
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	90	170
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	72	172
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	396	946
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	252	476
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	90	170
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	36	68
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	36	68
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	108	204
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	684	1670
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	72	172
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	90	170
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	396	946
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	252	476
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	36	68
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	90	170
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	36	68
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	108	204
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: No expert yet	Leaves something behind				0	0	18	34
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	342	493
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	45	40
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	36	50
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	198	275
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	126	112
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	45	40
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	18	16
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	18	16
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	54	48
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	342	493
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	36	50
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	45	40
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	198	275
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	126	112
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	18	16
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	45	40
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	18	16
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	54	48
-Installed, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: No expert yet	Leaves something behind				0	0	9	8
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 1 starting, a webhook no record names	Leaves something behind	wrong		r0s1 r1s0	722	1083	722	1083
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s1 r1s1	95	90	95	90
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s1 r1s2	76	110	76	110
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 1 starting, no webhook	Leaves something behind	wrong		r0s1 r1s3	418	605	418	605
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind	wrong		r0s1 r1s4	266	252	266	252
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s1 r1s5	95	90	95	90
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind	wrong		r0s1 r1s6	38	36	38	36
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind	wrong		r0s1 r1s7	38	36	38	36
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 1, no webhook, its turn stopped	Leaves something behind	wrong		r0s1 r1s8	114	108	114	108
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 2 starting, a webhook no record names	Leaves something behind	wrong		r0s1 r1s9	722	1083	722	1083
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s1 r1s10	76	110	76	110
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s1 r1s11	95	90	95	90
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 2 starting, no webhook	Leaves something behind	wrong		r0s1 r1s12	418	605	418	605
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind	wrong		r0s1 r1s13	266	252	266	252
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind	wrong		r0s1 r1s14	38	36	38	36
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s1 r1s15	95	90	95	90
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind	wrong		r0s1 r1s16	38	36	38	36
-Installed, uninstall leaves ~/.local/state behind: Expert in thread 2, no webhook, its turn stopped	Leaves something behind	wrong		r0s1 r1s17	114	108	114	108
-Installed, uninstall leaves ~/.local/state behind: No expert yet	Leaves something behind	wrong		r0s1 r1s18	19	18	19	18
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	722	1083
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	95	90
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	76	110
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	418	605
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	266	252
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	95	90
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	38	36
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	38	36
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	114	108
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	722	1083
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	76	110
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	95	90
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	418	605
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	266	252
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	38	36
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	95	90
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	38	36
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	114	108
-Installed, uninstall leaves ~/.local/state behind; The mirror holds its own entry: No expert yet	Leaves something behind				0	0	19	18
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	1444	3610
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	190	370
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	152	372
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	836	2046
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	532	1036
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	190	370
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	76	148
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	76	148
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	228	444
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	1444	3610
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	152	372
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	190	370
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	836	2046
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	532	1036
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	76	148
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	190	370
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	76	148
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	228	444
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: No expert yet	Leaves something behind				0	0	38	74
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	722	1083
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	95	90
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	76	110
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	418	605
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	266	252
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	95	90
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	38	36
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	38	36
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	114	108
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	722	1083
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	76	110
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	95	90
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	418	605
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	266	252
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	38	36
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	95	90
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	38	36
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	114	108
-Installed, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: No expert yet	Leaves something behind				0	0	19	18
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1 starting, a webhook no record names	Leaves something behind	wrong		r0s2 r1s0	342	493	342	493
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s2 r1s1	45	40	45	40
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s2 r1s2	36	50	36	50
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1 starting, no webhook	Leaves something behind	wrong		r0s2 r1s3	198	275	198	275
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind	wrong		r0s2 r1s4	126	112	126	112
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s2 r1s5	45	40	45	40
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind	wrong		r0s2 r1s6	18	16	18	16
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind	wrong		r0s2 r1s7	18	16	18	16
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1, no webhook, its turn stopped	Leaves something behind	wrong		r0s2 r1s8	54	48	54	48
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2 starting, a webhook no record names	Leaves something behind	wrong		r0s2 r1s9	342	493	342	493
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s2 r1s10	36	50	36	50
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s2 r1s11	45	40	45	40
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2 starting, no webhook	Leaves something behind	wrong		r0s2 r1s12	198	275	198	275
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind	wrong		r0s2 r1s13	126	112	126	112
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind	wrong		r0s2 r1s14	18	16	18	16
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s2 r1s15	45	40	45	40
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind	wrong		r0s2 r1s16	18	16	18	16
-Installed, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2, no webhook, its turn stopped	Leaves something behind	wrong		r0s2 r1s17	54	48	54	48
-Installed, uninstall leaves ~/.local/state/jstack behind: No expert yet	Leaves something behind	wrong		r0s2 r1s18	9	8	9	8
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	342	493
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	45	40
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	36	50
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	198	275
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	126	112
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	45	40
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	18	16
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	18	16
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	54	48
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	342	493
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	36	50
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	45	40
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	198	275
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	126	112
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	18	16
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	45	40
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	18	16
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	54	48
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: No expert yet	Leaves something behind				0	0	9	8
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	684	1670
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	90	170
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	72	172
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	396	946
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	252	476
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	90	170
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	36	68
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	36	68
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	108	204
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	684	1670
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	72	172
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	90	170
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	396	946
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	252	476
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	36	68
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	90	170
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	36	68
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	108	204
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: No expert yet	Leaves something behind				0	0	18	34
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	342	493
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	45	40
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	36	50
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	198	275
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	126	112
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	45	40
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	18	16
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	18	16
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	54	48
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	342	493
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	36	50
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	45	40
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	198	275
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	126	112
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	18	16
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	45	40
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	18	16
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	54	48
-Installed, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: No expert yet	Leaves something behind				0	0	9	8
-Installed, uninstall removes it all: Expert in thread 1 starting, a webhook no record names		wrong		r0s3 r1s0	1710	945	1710	945
-Installed, uninstall removes it all: Expert in thread 1 starting, its webhook kept, posting into thread 1		wrong		r0s3 r1s1	225	0	225	0
-Installed, uninstall removes it all: Expert in thread 1 starting, its webhook kept, posting into thread 2		wrong		r0s3 r1s2	180	90	180	90
-Installed, uninstall removes it all: Expert in thread 1 starting, no webhook		wrong		r0s3 r1s3	990	495	990	495
-Installed, uninstall removes it all: Expert in thread 1, a webhook no record names, its turn stopped		wrong		r0s3 r1s4	630	0	630	0
-Installed, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 1		wrong		r0s3 r1s5	225	0	225	0
-Installed, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped		wrong		r0s3 r1s6	90	0	90	0
-Installed, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped		wrong		r0s3 r1s7	90	0	90	0
-Installed, uninstall removes it all: Expert in thread 1, no webhook, its turn stopped		wrong		r0s3 r1s8	270	0	270	0
-Installed, uninstall removes it all: Expert in thread 2 starting, a webhook no record names		wrong		r0s3 r1s9	1710	945	1710	945
-Installed, uninstall removes it all: Expert in thread 2 starting, its webhook kept, posting into thread 1		wrong		r0s3 r1s10	180	90	180	90
-Installed, uninstall removes it all: Expert in thread 2 starting, its webhook kept, posting into thread 2		wrong		r0s3 r1s11	225	0	225	0
-Installed, uninstall removes it all: Expert in thread 2 starting, no webhook		wrong		r0s3 r1s12	990	495	990	495
-Installed, uninstall removes it all: Expert in thread 2, a webhook no record names, its turn stopped		wrong		r0s3 r1s13	630	0	630	0
-Installed, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped		wrong		r0s3 r1s14	90	0	90	0
-Installed, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 2		wrong		r0s3 r1s15	225	0	225	0
-Installed, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped		wrong		r0s3 r1s16	90	0	90	0
-Installed, uninstall removes it all: Expert in thread 2, no webhook, its turn stopped		wrong		r0s3 r1s17	270	0	270	0
-Installed, uninstall removes it all: No expert yet		wrong		r0s3 r1s18	45	0	45	0
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, a webhook no record names					0	0	1710	945
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 1					0	0	225	0
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 2					0	0	180	90
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, no webhook					0	0	990	495
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, a webhook no record names, its turn stopped					0	0	630	0
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1					0	0	225	0
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped					0	0	90	0
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped					0	0	90	0
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, no webhook, its turn stopped					0	0	270	0
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, a webhook no record names					0	0	1710	945
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 1					0	0	180	90
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 2					0	0	225	0
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, no webhook					0	0	990	495
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, a webhook no record names, its turn stopped					0	0	630	0
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped					0	0	90	0
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2					0	0	225	0
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped					0	0	90	0
-Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, no webhook, its turn stopped					0	0	270	0
-Installed, uninstall removes it all; The mirror holds its own entry: No expert yet					0	0	45	0
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, a webhook no record names					0	0	3420	5310
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 1					0	0	450	450
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 2					0	0	360	540
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, no webhook					0	0	1980	2970
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, a webhook no record names, its turn stopped					0	0	1260	1260
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1					0	0	450	450
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped					0	0	180	180
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped					0	0	180	180
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, no webhook, its turn stopped					0	0	540	540
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, a webhook no record names					0	0	3420	5310
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 1					0	0	360	540
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 2					0	0	450	450
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, no webhook					0	0	1980	2970
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, a webhook no record names, its turn stopped					0	0	1260	1260
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped					0	0	180	180
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2					0	0	450	450
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped					0	0	180	180
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, no webhook, its turn stopped					0	0	540	540
-Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: No expert yet					0	0	90	90
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, a webhook no record names					0	0	1710	945
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 1					0	0	225	0
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 2					0	0	180	90
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, no webhook					0	0	990	495
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, a webhook no record names, its turn stopped					0	0	630	0
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1					0	0	225	0
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped					0	0	90	0
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped					0	0	90	0
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, no webhook, its turn stopped					0	0	270	0
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, a webhook no record names					0	0	1710	945
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 1					0	0	180	90
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 2					0	0	225	0
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, no webhook					0	0	990	495
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, a webhook no record names, its turn stopped					0	0	630	0
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped					0	0	90	0
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2					0	0	225	0
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped					0	0	90	0
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, no webhook, its turn stopped					0	0	270	0
-Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: No expert yet					0	0	45	0
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1 starting, a webhook no record names	Leaves something behind	wrong		r0s4 r1s0	2394	3033	2394	3033
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s4 r1s1	315	225	315	225
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s4 r1s2	252	306	252	306
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1 starting, no webhook	Leaves something behind	wrong		r0s4 r1s3	1386	1683	1386	1683
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind	wrong		r0s4 r1s4	882	630	882	630
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s4 r1s5	315	225	315	225
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind	wrong		r0s4 r1s6	126	90	126	90
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind	wrong		r0s4 r1s7	126	90	126	90
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 1, no webhook, its turn stopped	Leaves something behind	wrong		r0s4 r1s8	378	270	378	270
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2 starting, a webhook no record names	Leaves something behind	wrong		r0s4 r1s9	2394	3033	2394	3033
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s4 r1s10	252	306	252	306
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s4 r1s11	315	225	315	225
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2 starting, no webhook	Leaves something behind	wrong		r0s4 r1s12	1386	1683	1386	1683
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind	wrong		r0s4 r1s13	882	630	882	630
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind	wrong		r0s4 r1s14	126	90	126	90
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s4 r1s15	315	225	315	225
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind	wrong		r0s4 r1s16	126	90	126	90
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: Expert in thread 2, no webhook, its turn stopped	Leaves something behind	wrong		r0s4 r1s17	378	270	378	270
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind: No expert yet	Leaves something behind	wrong		r0s4 r1s18	63	45	63	45
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	2394	3033
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	315	225
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	252	306
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	1386	1683
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	882	630
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	315	225
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	126	90
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	126	90
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	378	270
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	2394	3033
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	252	306
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	315	225
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	1386	1683
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	882	630
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	126	90
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	315	225
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	126	90
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	378	270
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror holds its own entry: No expert yet	Leaves something behind				0	0	63	45
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	4788	10854
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	630	1080
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	504	1116
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	2772	6138
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	1764	3024
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	630	1080
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	252	432
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	252	432
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	756	1296
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	4788	10854
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	504	1116
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	630	1080
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	2772	6138
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	1764	3024
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	252	432
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	630	1080
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	252	432
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	756	1296
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: No expert yet	Leaves something behind				0	0	126	216
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	2394	3033
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	315	225
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	252	306
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	1386	1683
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	882	630
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	315	225
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	126	90
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	126	90
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	378	270
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	2394	3033
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	252	306
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	315	225
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	1386	1683
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	882	630
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	126	90
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	315	225
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	126	90
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	378	270
-Installing, uninstall leaves ~/.local/state and ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: No expert yet	Leaves something behind				0	0	63	45
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 1 starting, a webhook no record names	Leaves something behind	wrong		r0s5 r1s0	4332	5814	4332	5814
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s5 r1s1	570	450	570	450
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s5 r1s2	456	588	456	588
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 1 starting, no webhook	Leaves something behind	wrong		r0s5 r1s3	2508	3234	2508	3234
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind	wrong		r0s5 r1s4	1596	1260	1596	1260
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s5 r1s5	570	450	570	450
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind	wrong		r0s5 r1s6	228	180	228	180
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind	wrong		r0s5 r1s7	228	180	228	180
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 1, no webhook, its turn stopped	Leaves something behind	wrong		r0s5 r1s8	684	540	684	540
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 2 starting, a webhook no record names	Leaves something behind	wrong		r0s5 r1s9	4332	5814	4332	5814
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s5 r1s10	456	588	456	588
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s5 r1s11	570	450	570	450
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 2 starting, no webhook	Leaves something behind	wrong		r0s5 r1s12	2508	3234	2508	3234
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind	wrong		r0s5 r1s13	1596	1260	1596	1260
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind	wrong		r0s5 r1s14	228	180	228	180
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s5 r1s15	570	450	570	450
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind	wrong		r0s5 r1s16	228	180	228	180
-Installing, uninstall leaves ~/.local/state behind: Expert in thread 2, no webhook, its turn stopped	Leaves something behind	wrong		r0s5 r1s17	684	540	684	540
-Installing, uninstall leaves ~/.local/state behind: No expert yet	Leaves something behind	wrong		r0s5 r1s18	114	90	114	90
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	4332	5814
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	570	450
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	456	588
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	2508	3234
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	1596	1260
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	570	450
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	228	180
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	228	180
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	684	540
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	4332	5814
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	456	588
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	570	450
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	2508	3234
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	1596	1260
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	228	180
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	570	450
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	228	180
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	684	540
-Installing, uninstall leaves ~/.local/state behind; The mirror holds its own entry: No expert yet	Leaves something behind				0	0	114	90
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	8664	20292
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	1140	2040
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	912	2088
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	5016	11484
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	3192	5712
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	1140	2040
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	456	816
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	456	816
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	1368	2448
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	8664	20292
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	912	2088
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	1140	2040
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	5016	11484
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	3192	5712
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	456	816
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	1140	2040
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	456	816
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	1368	2448
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry is in its backup, not linked: No expert yet	Leaves something behind				0	0	228	408
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	4332	5814
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	570	450
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	456	588
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	2508	3234
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	1596	1260
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	570	450
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	228	180
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	228	180
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	684	540
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	4332	5814
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	456	588
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	570	450
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	2508	3234
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	1596	1260
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	228	180
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	570	450
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	228	180
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	684	540
-Installing, uninstall leaves ~/.local/state behind; The mirror's entry links to ~/.claude's, its own in a backup: No expert yet	Leaves something behind				0	0	114	90
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1 starting, a webhook no record names	Leaves something behind	wrong		r0s6 r1s0	2280	2970	2280	2970
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s6 r1s1	300	225	300	225
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s6 r1s2	240	300	240	300
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1 starting, no webhook	Leaves something behind	wrong		r0s6 r1s3	1320	1650	1320	1650
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind	wrong		r0s6 r1s4	840	630	840	630
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s6 r1s5	300	225	300	225
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind	wrong		r0s6 r1s6	120	90	120	90
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind	wrong		r0s6 r1s7	120	90	120	90
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 1, no webhook, its turn stopped	Leaves something behind	wrong		r0s6 r1s8	360	270	360	270
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2 starting, a webhook no record names	Leaves something behind	wrong		r0s6 r1s9	2280	2970	2280	2970
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind	wrong		r0s6 r1s10	240	300	240	300
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s6 r1s11	300	225	300	225
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2 starting, no webhook	Leaves something behind	wrong		r0s6 r1s12	1320	1650	1320	1650
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind	wrong		r0s6 r1s13	840	630	840	630
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind	wrong		r0s6 r1s14	120	90	120	90
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind	wrong		r0s6 r1s15	300	225	300	225
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind	wrong		r0s6 r1s16	120	90	120	90
-Installing, uninstall leaves ~/.local/state/jstack behind: Expert in thread 2, no webhook, its turn stopped	Leaves something behind	wrong		r0s6 r1s17	360	270	360	270
-Installing, uninstall leaves ~/.local/state/jstack behind: No expert yet	Leaves something behind	wrong		r0s6 r1s18	60	45	60	45
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	2280	2970
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	300	225
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	240	300
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	1320	1650
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	840	630
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	300	225
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	120	90
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	120	90
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	360	270
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	2280	2970
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	240	300
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	300	225
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	1320	1650
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	840	630
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	120	90
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	300	225
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	120	90
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	360	270
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror holds its own entry: No expert yet	Leaves something behind				0	0	60	45
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	4560	10500
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	600	1050
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	480	1080
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	2640	5940
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	1680	2940
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	600	1050
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	240	420
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	240	420
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	720	1260
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	4560	10500
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	480	1080
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	600	1050
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	2640	5940
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	1680	2940
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	240	420
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	600	1050
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	240	420
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	720	1260
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry is in its backup, not linked: No expert yet	Leaves something behind				0	0	120	210
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, a webhook no record names	Leaves something behind				0	0	2280	2970
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	300	225
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	240	300
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, no webhook	Leaves something behind				0	0	1320	1650
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, a webhook no record names, its turn stopped	Leaves something behind				0	0	840	630
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1	Leaves something behind				0	0	300	225
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	120	90
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	120	90
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, no webhook, its turn stopped	Leaves something behind				0	0	360	270
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, a webhook no record names	Leaves something behind				0	0	2280	2970
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 1	Leaves something behind				0	0	240	300
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 2	Leaves something behind				0	0	300	225
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, no webhook	Leaves something behind				0	0	1320	1650
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, a webhook no record names, its turn stopped	Leaves something behind				0	0	840	630
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Leaves something behind				0	0	120	90
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2	Leaves something behind				0	0	300	225
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Leaves something behind				0	0	120	90
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, no webhook, its turn stopped	Leaves something behind				0	0	360	270
-Installing, uninstall leaves ~/.local/state/jstack behind; The mirror's entry links to ~/.claude's, its own in a backup: No expert yet	Leaves something behind				0	0	60	45
-Installing, uninstall removes it all: Expert in thread 1 starting, a webhook no record names		works		r0s7 r1s0	10944	14940	10944	14940
-Installing, uninstall removes it all: Expert in thread 1 starting, its webhook kept, posting into thread 1		works		r0s7 r1s1	1440	1170	1440	1170
-Installing, uninstall removes it all: Expert in thread 1 starting, its webhook kept, posting into thread 2		works		r0s7 r1s2	1152	1512	1152	1512
-Installing, uninstall removes it all: Expert in thread 1 starting, no webhook		works		r0s7 r1s3	6336	8316	6336	8316
-Installing, uninstall removes it all: Expert in thread 1, a webhook no record names, its turn stopped		works		r0s7 r1s4	4032	3276	4032	3276
-Installing, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 1		works		r0s7 r1s5	1440	1170	1440	1170
-Installing, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped		works		r0s7 r1s6	576	468	576	468
-Installing, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped		works		r0s7 r1s7	576	468	576	468
-Installing, uninstall removes it all: Expert in thread 1, no webhook, its turn stopped		works		r0s7 r1s8	1728	1404	1728	1404
-Installing, uninstall removes it all: Expert in thread 2 starting, a webhook no record names		works		r0s7 r1s9	10944	14940	10944	14940
-Installing, uninstall removes it all: Expert in thread 2 starting, its webhook kept, posting into thread 1		works		r0s7 r1s10	1152	1512	1152	1512
-Installing, uninstall removes it all: Expert in thread 2 starting, its webhook kept, posting into thread 2		works		r0s7 r1s11	1440	1170	1440	1170
-Installing, uninstall removes it all: Expert in thread 2 starting, no webhook		works		r0s7 r1s12	6336	8316	6336	8316
-Installing, uninstall removes it all: Expert in thread 2, a webhook no record names, its turn stopped		works		r0s7 r1s13	4032	3276	4032	3276
-Installing, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped		works		r0s7 r1s14	576	468	576	468
-Installing, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 2		works		r0s7 r1s15	1440	1170	1440	1170
-Installing, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped		works		r0s7 r1s16	576	468	576	468
-Installing, uninstall removes it all: Expert in thread 2, no webhook, its turn stopped		works		r0s7 r1s17	1728	1404	1728	1404
-Installing, uninstall removes it all: No expert yet		works		r0s7 r1s18	288	234	288	234
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, a webhook no record names					0	0	10944	14940
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 1					0	0	1440	1170
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 2					0	0	1152	1512
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, no webhook					0	0	6336	8316
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, a webhook no record names, its turn stopped					0	0	4032	3276
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1					0	0	1440	1170
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped					0	0	576	468
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped					0	0	576	468
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, no webhook, its turn stopped					0	0	1728	1404
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, a webhook no record names					0	0	10944	14940
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 1					0	0	1152	1512
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 2					0	0	1440	1170
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, no webhook					0	0	6336	8316
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, a webhook no record names, its turn stopped					0	0	4032	3276
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped					0	0	576	468
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2					0	0	1440	1170
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped					0	0	576	468
-Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, no webhook, its turn stopped					0	0	1728	1404
-Installing, uninstall removes it all; The mirror holds its own entry: No expert yet					0	0	288	234
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, a webhook no record names					0	0	21888	51768
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 1					0	0	2880	5220
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 2					0	0	2304	5328
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, no webhook					0	0	12672	29304
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, a webhook no record names, its turn stopped					0	0	8064	14616
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1					0	0	2880	5220
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped					0	0	1152	2088
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped					0	0	1152	2088
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, no webhook, its turn stopped					0	0	3456	6264
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, a webhook no record names					0	0	21888	51768
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 1					0	0	2304	5328
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 2					0	0	2880	5220
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, no webhook					0	0	12672	29304
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, a webhook no record names, its turn stopped					0	0	8064	14616
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped					0	0	1152	2088
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2					0	0	2880	5220
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped					0	0	1152	2088
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, no webhook, its turn stopped					0	0	3456	6264
-Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: No expert yet					0	0	576	1044
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, a webhook no record names					0	0	10944	14940
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 1					0	0	1440	1170
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 2					0	0	1152	1512
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, no webhook					0	0	6336	8316
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, a webhook no record names, its turn stopped					0	0	4032	3276
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1					0	0	1440	1170
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped					0	0	576	468
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped					0	0	576	468
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, no webhook, its turn stopped					0	0	1728	1404
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, a webhook no record names					0	0	10944	14940
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 1					0	0	1152	1512
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 2					0	0	1440	1170
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, no webhook					0	0	6336	8316
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, a webhook no record names, its turn stopped					0	0	4032	3276
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped					0	0	576	468
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2					0	0	1440	1170
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped					0	0	576	468
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, no webhook, its turn stopped					0	0	1728	1404
-Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: No expert yet					0	0	288	234
-Nothing of jstack's on disk: Expert in thread 1 starting, a webhook no record names		works		r0s8 r1s0	76	42	76	42
-Nothing of jstack's on disk: Expert in thread 1 starting, its webhook kept, posting into thread 1		works		r0s8 r1s1	10	0	10	0
-Nothing of jstack's on disk: Expert in thread 1 starting, its webhook kept, posting into thread 2		works		r0s8 r1s2	8	4	8	4
-Nothing of jstack's on disk: Expert in thread 1 starting, no webhook		works		r0s8 r1s3	44	22	44	22
-Nothing of jstack's on disk: Expert in thread 1, a webhook no record names, its turn stopped		works		r0s8 r1s4	28	0	28	0
-Nothing of jstack's on disk: Expert in thread 1, its webhook kept, posting into thread 1		works		r0s8 r1s5	10	0	10	0
-Nothing of jstack's on disk: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped		works		r0s8 r1s6	4	0	4	0
-Nothing of jstack's on disk: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped		works		r0s8 r1s7	4	0	4	0
-Nothing of jstack's on disk: Expert in thread 1, no webhook, its turn stopped		works		r0s8 r1s8	12	0	12	0
-Nothing of jstack's on disk: Expert in thread 2 starting, a webhook no record names		works		r0s8 r1s9	76	42	76	42
-Nothing of jstack's on disk: Expert in thread 2 starting, its webhook kept, posting into thread 1		works		r0s8 r1s10	8	4	8	4
-Nothing of jstack's on disk: Expert in thread 2 starting, its webhook kept, posting into thread 2		works		r0s8 r1s11	10	0	10	0
-Nothing of jstack's on disk: Expert in thread 2 starting, no webhook		works		r0s8 r1s12	44	22	44	22
-Nothing of jstack's on disk: Expert in thread 2, a webhook no record names, its turn stopped		works		r0s8 r1s13	28	0	28	0
-Nothing of jstack's on disk: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped		works		r0s8 r1s14	4	0	4	0
-Nothing of jstack's on disk: Expert in thread 2, its webhook kept, posting into thread 2		works		r0s8 r1s15	10	0	10	0
-Nothing of jstack's on disk: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped		works		r0s8 r1s16	4	0	4	0
-Nothing of jstack's on disk: Expert in thread 2, no webhook, its turn stopped		works		r0s8 r1s17	12	0	12	0
-Nothing of jstack's on disk: No expert yet		works	yes	r0s8 r1s18	2	0	2	0
+Installed, uninstall removes it all: Expert in thread 1 starting, a webhook no record names	Installed	works		r0s0 r1s0	2128	1176	2128	1176
+Installed, uninstall removes it all: Expert in thread 1 starting, its webhook kept, posting into thread 1	Installed	works		r0s0 r1s1	280	0	280	0
+Installed, uninstall removes it all: Expert in thread 1 starting, its webhook kept, posting into thread 2	Installed	works		r0s0 r1s2	224	112	224	112
+Installed, uninstall removes it all: Expert in thread 1 starting, no webhook	Installed	works		r0s0 r1s3	1232	616	1232	616
+Installed, uninstall removes it all: Expert in thread 1, a webhook no record names, its turn stopped	Installed	works		r0s0 r1s4	784	0	784	0
+Installed, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 1	Installed	works		r0s0 r1s5	280	0	280	0
+Installed, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Installed	works		r0s0 r1s6	112	0	112	0
+Installed, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Installed	works		r0s0 r1s7	112	0	112	0
+Installed, uninstall removes it all: Expert in thread 1, no webhook, its turn stopped	Installed	works		r0s0 r1s8	336	0	336	0
+Installed, uninstall removes it all: Expert in thread 2 starting, a webhook no record names	Installed	works		r0s0 r1s9	2128	1176	2128	1176
+Installed, uninstall removes it all: Expert in thread 2 starting, its webhook kept, posting into thread 1	Installed	works		r0s0 r1s10	224	112	224	112
+Installed, uninstall removes it all: Expert in thread 2 starting, its webhook kept, posting into thread 2	Installed	works		r0s0 r1s11	280	0	280	0
+Installed, uninstall removes it all: Expert in thread 2 starting, no webhook	Installed	works		r0s0 r1s12	1232	616	1232	616
+Installed, uninstall removes it all: Expert in thread 2, a webhook no record names, its turn stopped	Installed	works		r0s0 r1s13	784	0	784	0
+Installed, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Installed	works		r0s0 r1s14	112	0	112	0
+Installed, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 2	Installed	works		r0s0 r1s15	280	0	280	0
+Installed, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Installed	works		r0s0 r1s16	112	0	112	0
+Installed, uninstall removes it all: Expert in thread 2, no webhook, its turn stopped	Installed	works		r0s0 r1s17	336	0	336	0
+Installed, uninstall removes it all: No expert yet	Installed	works		r0s0 r1s18	56	0	56	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, a webhook no record names	Installed				0	0	2128	1176
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 1	Installed				0	0	280	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 2	Installed				0	0	224	112
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, no webhook	Installed				0	0	1232	616
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, a webhook no record names, its turn stopped	Installed				0	0	784	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1	Installed				0	0	280	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Installed				0	0	112	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Installed				0	0	112	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, no webhook, its turn stopped	Installed				0	0	336	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, a webhook no record names	Installed				0	0	2128	1176
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 1	Installed				0	0	224	112
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 2	Installed				0	0	280	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, no webhook	Installed				0	0	1232	616
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, a webhook no record names, its turn stopped	Installed				0	0	784	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Installed				0	0	112	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2	Installed				0	0	280	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Installed				0	0	112	0
+Installed, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, no webhook, its turn stopped	Installed				0	0	336	0
+Installed, uninstall removes it all; The mirror holds its own entry: No expert yet	Installed				0	0	56	0
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, a webhook no record names	Installed				0	0	4256	6608
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 1	Installed				0	0	560	560
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 2	Installed				0	0	448	672
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, no webhook	Installed				0	0	2464	3696
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, a webhook no record names, its turn stopped	Installed				0	0	1568	1568
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1	Installed				0	0	560	560
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Installed				0	0	224	224
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Installed				0	0	224	224
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, no webhook, its turn stopped	Installed				0	0	672	672
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, a webhook no record names	Installed				0	0	4256	6608
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 1	Installed				0	0	448	672
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 2	Installed				0	0	560	560
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, no webhook	Installed				0	0	2464	3696
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, a webhook no record names, its turn stopped	Installed				0	0	1568	1568
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Installed				0	0	224	224
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2	Installed				0	0	560	560
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Installed				0	0	224	224
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, no webhook, its turn stopped	Installed				0	0	672	672
+Installed, uninstall removes it all; The mirror's entry is in its backup, not linked: No expert yet	Installed				0	0	112	112
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, a webhook no record names	Installed				0	0	2128	1176
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 1	Installed				0	0	280	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 2	Installed				0	0	224	112
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, no webhook	Installed				0	0	1232	616
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, a webhook no record names, its turn stopped	Installed				0	0	784	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1	Installed				0	0	280	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped	Installed				0	0	112	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped	Installed				0	0	112	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, no webhook, its turn stopped	Installed				0	0	336	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, a webhook no record names	Installed				0	0	2128	1176
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 1	Installed				0	0	224	112
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 2	Installed				0	0	280	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, no webhook	Installed				0	0	1232	616
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, a webhook no record names, its turn stopped	Installed				0	0	784	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped	Installed				0	0	112	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2	Installed				0	0	280	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped	Installed				0	0	112	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, no webhook, its turn stopped	Installed				0	0	336	0
+Installed, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: No expert yet	Installed				0	0	56	0
+Installing, uninstall removes it all: Expert in thread 1 starting, a webhook no record names		works		r0s1 r1s0	13680	19188	13680	19188
+Installing, uninstall removes it all: Expert in thread 1 starting, its webhook kept, posting into thread 1		works		r0s1 r1s1	1800	1530	1800	1530
+Installing, uninstall removes it all: Expert in thread 1 starting, its webhook kept, posting into thread 2		works		r0s1 r1s2	1440	1944	1440	1944
+Installing, uninstall removes it all: Expert in thread 1 starting, no webhook		works		r0s1 r1s3	7920	10692	7920	10692
+Installing, uninstall removes it all: Expert in thread 1, a webhook no record names, its turn stopped		works		r0s1 r1s4	5040	4284	5040	4284
+Installing, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 1		works		r0s1 r1s5	1800	1530	1800	1530
+Installing, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped		works		r0s1 r1s6	720	612	720	612
+Installing, uninstall removes it all: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped		works		r0s1 r1s7	720	612	720	612
+Installing, uninstall removes it all: Expert in thread 1, no webhook, its turn stopped		works		r0s1 r1s8	2160	1836	2160	1836
+Installing, uninstall removes it all: Expert in thread 2 starting, a webhook no record names		works		r0s1 r1s9	13680	19188	13680	19188
+Installing, uninstall removes it all: Expert in thread 2 starting, its webhook kept, posting into thread 1		works		r0s1 r1s10	1440	1944	1440	1944
+Installing, uninstall removes it all: Expert in thread 2 starting, its webhook kept, posting into thread 2		works		r0s1 r1s11	1800	1530	1800	1530
+Installing, uninstall removes it all: Expert in thread 2 starting, no webhook		works		r0s1 r1s12	7920	10692	7920	10692
+Installing, uninstall removes it all: Expert in thread 2, a webhook no record names, its turn stopped		works		r0s1 r1s13	5040	4284	5040	4284
+Installing, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped		works		r0s1 r1s14	720	612	720	612
+Installing, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 2		works		r0s1 r1s15	1800	1530	1800	1530
+Installing, uninstall removes it all: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped		works		r0s1 r1s16	720	612	720	612
+Installing, uninstall removes it all: Expert in thread 2, no webhook, its turn stopped		works		r0s1 r1s17	2160	1836	2160	1836
+Installing, uninstall removes it all: No expert yet		works		r0s1 r1s18	360	306	360	306
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, a webhook no record names					0	0	13680	19188
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 1					0	0	1800	1530
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 2					0	0	1440	1944
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1 starting, no webhook					0	0	7920	10692
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, a webhook no record names, its turn stopped					0	0	5040	4284
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1					0	0	1800	1530
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped					0	0	720	612
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped					0	0	720	612
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 1, no webhook, its turn stopped					0	0	2160	1836
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, a webhook no record names					0	0	13680	19188
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 1					0	0	1440	1944
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, its webhook kept, posting into thread 2					0	0	1800	1530
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2 starting, no webhook					0	0	7920	10692
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, a webhook no record names, its turn stopped					0	0	5040	4284
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped					0	0	720	612
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2					0	0	1800	1530
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped					0	0	720	612
+Installing, uninstall removes it all; The mirror holds its own entry: Expert in thread 2, no webhook, its turn stopped					0	0	2160	1836
+Installing, uninstall removes it all; The mirror holds its own entry: No expert yet					0	0	360	306
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, a webhook no record names					0	0	27360	65736
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 1					0	0	3600	6660
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, its webhook kept, posting into thread 2					0	0	2880	6768
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1 starting, no webhook					0	0	15840	37224
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, a webhook no record names, its turn stopped					0	0	10080	18648
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1					0	0	3600	6660
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped					0	0	1440	2664
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped					0	0	1440	2664
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 1, no webhook, its turn stopped					0	0	4320	7992
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, a webhook no record names					0	0	27360	65736
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 1					0	0	2880	6768
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, its webhook kept, posting into thread 2					0	0	3600	6660
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2 starting, no webhook					0	0	15840	37224
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, a webhook no record names, its turn stopped					0	0	10080	18648
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped					0	0	1440	2664
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2					0	0	3600	6660
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped					0	0	1440	2664
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: Expert in thread 2, no webhook, its turn stopped					0	0	4320	7992
+Installing, uninstall removes it all; The mirror's entry is in its backup, not linked: No expert yet					0	0	720	1332
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, a webhook no record names					0	0	13680	19188
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 1					0	0	1800	1530
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, its webhook kept, posting into thread 2					0	0	1440	1944
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1 starting, no webhook					0	0	7920	10692
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, a webhook no record names, its turn stopped					0	0	5040	4284
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1					0	0	1800	1530
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped					0	0	720	612
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped					0	0	720	612
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 1, no webhook, its turn stopped					0	0	2160	1836
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, a webhook no record names					0	0	13680	19188
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 1					0	0	1440	1944
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, its webhook kept, posting into thread 2					0	0	1800	1530
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2 starting, no webhook					0	0	7920	10692
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, a webhook no record names, its turn stopped					0	0	5040	4284
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped					0	0	720	612
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2					0	0	1800	1530
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped					0	0	720	612
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: Expert in thread 2, no webhook, its turn stopped					0	0	2160	1836
+Installing, uninstall removes it all; The mirror's entry links to ~/.claude's, its own in a backup: No expert yet					0	0	360	306
+Nothing of jstack's on disk: Expert in thread 1 starting, a webhook no record names		works		r0s2 r1s0	76	42	76	42
+Nothing of jstack's on disk: Expert in thread 1 starting, its webhook kept, posting into thread 1		works		r0s2 r1s1	10	0	10	0
+Nothing of jstack's on disk: Expert in thread 1 starting, its webhook kept, posting into thread 2		works		r0s2 r1s2	8	4	8	4
+Nothing of jstack's on disk: Expert in thread 1 starting, no webhook		works		r0s2 r1s3	44	22	44	22
+Nothing of jstack's on disk: Expert in thread 1, a webhook no record names, its turn stopped		works		r0s2 r1s4	28	0	28	0
+Nothing of jstack's on disk: Expert in thread 1, its webhook kept, posting into thread 1		works		r0s2 r1s5	10	0	10	0
+Nothing of jstack's on disk: Expert in thread 1, its webhook kept, posting into thread 1, its turn stopped		works		r0s2 r1s6	4	0	4	0
+Nothing of jstack's on disk: Expert in thread 1, its webhook kept, posting into thread 2, its turn stopped		works		r0s2 r1s7	4	0	4	0
+Nothing of jstack's on disk: Expert in thread 1, no webhook, its turn stopped		works		r0s2 r1s8	12	0	12	0
+Nothing of jstack's on disk: Expert in thread 2 starting, a webhook no record names		works		r0s2 r1s9	76	42	76	42
+Nothing of jstack's on disk: Expert in thread 2 starting, its webhook kept, posting into thread 1		works		r0s2 r1s10	8	4	8	4
+Nothing of jstack's on disk: Expert in thread 2 starting, its webhook kept, posting into thread 2		works		r0s2 r1s11	10	0	10	0
+Nothing of jstack's on disk: Expert in thread 2 starting, no webhook		works		r0s2 r1s12	44	22	44	22
+Nothing of jstack's on disk: Expert in thread 2, a webhook no record names, its turn stopped		works		r0s2 r1s13	28	0	28	0
+Nothing of jstack's on disk: Expert in thread 2, its webhook kept, posting into thread 1, its turn stopped		works		r0s2 r1s14	4	0	4	0
+Nothing of jstack's on disk: Expert in thread 2, its webhook kept, posting into thread 2		works		r0s2 r1s15	10	0	10	0
+Nothing of jstack's on disk: Expert in thread 2, its webhook kept, posting into thread 2, its turn stopped		works		r0s2 r1s16	4	0	4	0
+Nothing of jstack's on disk: Expert in thread 2, no webhook, its turn stopped		works		r0s2 r1s17	12	0	12	0
+Nothing of jstack's on disk: No expert yet		works	yes	r0s2 r1s18	2	0	2	0
 Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 1 starting, a webhook no record names					0	0	76	42
 Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 1					0	0	10	0
 Nothing of jstack's on disk; The mirror holds its own entry: Expert in thread 1 starting, its webhook kept, posting into thread 2					0	0	8	4

@@ -1,0 +1,68 @@
+from	to	label	action	chart	steps in TellOnceOther.chart.cfg
+A cancelled check: not told	A cancelled check: not told, a pass is in its step	a pass reaches it and reads its marks	Begin	r1s0>r1s1	1
+A cancelled check: not told, a pass is in its step	A cancelled check: not told	the pass dies	Die		1
+A cancelled check: not told, a pass is in its step	A cancelled check: told once, a pass is in its step	the receiver takes it	Step	r1s1>r1s16	1
+A cancelled check: nothing owed yet	A cancelled check: not told	what calls for it comes to hold	Due	r1s14>r1s0	1
+A cancelled check: told once	A cancelled check: told once, a pass is in its step	a pass reaches it and reads its marks	Begin		2
+A cancelled check: told once, a pass is in its step	A cancelled check: told once	the pass dies	Die	r1s16>r1s15	3
+A cancelled check: told once, a pass is in its step	A cancelled check: told once, sent.json has its key, a pass is in its step	its key goes in sent.json	Step	r1s16>r1s29	2
+A cancelled check: told once, sent.json has its key	A cancelled check: told once, sent.json has its key, a pass is in its step	a pass reaches it and reads its marks	Begin	r1s28>r1s29	2
+A cancelled check: told once, sent.json has its key, a pass is in its step	A cancelled check: told once, cancelled.json says run again, sent.json has its key	its own file says done	Step	r1s29>r1s19	2
+A cancelled check: told once, sent.json has its key, a pass is in its step	A cancelled check: told once, sent.json has its key	the pass dies	Die	r1s29>r1s28	4
+A project closed: not told	A project closed: not told, a pass is in its step	a pass reaches it and reads its marks	Begin	r1s0>r1s1	1
+A project closed: not told, a pass is in its step	A project closed: not told	the pass dies	Die		1
+A project closed: not told, a pass is in its step	A project closed: not told, closed.json lists what to archive, a pass is in its step	closed.json lists what to archive	Step	r1s1>r1s3	1
+A project closed: not told, closed.json lists what to archive	A project closed: not told, closed.json lists what to archive, a pass is in its step	a pass reaches it and reads its marks	Begin	r1s2>r1s3	1
+A project closed: not told, closed.json lists what to archive, a pass is in its step	A project closed: not told, closed.json lists what to archive	the pass dies	Die	r1s3>r1s2	2
+A project closed: not told, closed.json lists what to archive, a pass is in its step	A project closed: told once, closed.json lists what to archive, a pass is in its step	the receiver takes it	Step	r1s3>r1s21	1
+A project closed: nothing owed yet	A project closed: not told	what calls for it comes to hold	Due	r1s14>r1s0	1
+A project closed: told once, closed.json lists what to archive	A project closed: told once, closed.json lists what to archive, a pass is in its step	a pass reaches it and reads its marks	Begin	r1s20>r1s21	1
+A project closed: told once, closed.json lists what to archive, a pass is in its step	A project closed: told once, closed.json lists what to archive	the pass dies	Die	r1s21>r1s20	3
+A project closed: told once, closed.json lists what to archive, a pass is in its step	A project closed: told once, closed.json says closed	its own file says done	Step	r1s21>r1s22	1
+A row red at two heads: not told, fails.json counts two heads	A row red at two heads: not told, fails.json counts two heads, a pass is in its step	a pass reaches it and reads its marks	Begin	r1s4>r1s5	1
+A row red at two heads: not told, fails.json counts two heads, a pass is in its step	A row red at two heads: not told, fails.json counts two heads	the pass dies	Die		1
+A row red at two heads: not told, fails.json counts two heads, a pass is in its step	A row red at two heads: not told, fails.json counts two heads, the row is held, a pass is in its step	the row is held	Step	r1s5>r1s9	1
+A row red at two heads: not told, fails.json counts two heads, sent.json has its key, the row is held, a pass is in its step	A row red at two heads: not told, fails.json counts two heads, sent.json has its key, the row is held	the pass dies	Die	r1s7>r1s6	1
+A row red at two heads: not told, fails.json counts two heads, sent.json has its key, the row is held, a pass is in its step	A row red at two heads: told once, fails.json counts two heads, sent.json has its key, the row is held, a pass is in its step	the receiver takes it	Step	r1s7>r1s24	1
+A row red at two heads: not told, fails.json counts two heads, the row is held, a pass is in its step	A row red at two heads: not told, fails.json counts two heads, sent.json has its key, the row is held, a pass is in its step	the page's key is written	Step	r1s9>r1s7	1
+A row red at two heads: not told, fails.json counts two heads, the row is held, a pass is in its step	A row red at two heads: not told, fails.json counts two heads, the row is held	the pass dies	Die	r1s9>r1s8	1
+A row red at two heads: nothing owed yet	A row red at two heads: not told, fails.json counts two heads	what calls for it comes to hold	Due	r1s14>r1s4	1
+A row red at two heads: told once, fails.json counts two heads, sent.json has its key, the row is held, a pass is in its step	A row red at two heads: told once, fails.json counts two heads, sent.json has its key, the row is held	the pass dies	Die	r1s24>r1s23	1
+A row red at two heads: told once, fails.json counts two heads, sent.json has its key, the row is held, a pass is in its step	A row red at two heads: told once, fails.json says held, sent.json has its key, the row is held	its own file says done	Step	r1s24>r1s25	1
+A work item proposed: not told	A work item proposed: not told, a pass is in its step	a pass reaches it and reads its marks	Begin	r1s0>r1s1	1
+A work item proposed: not told, a pass is in its step	A work item proposed: not told	the pass dies	Die		1
+A work item proposed: not told, a pass is in its step	A work item proposed: told once, a pass is in its step	the receiver takes it	Step	r1s1>r1s16	1
+A work item proposed: nothing owed yet	A work item proposed: not told	what calls for it comes to hold	Due	r1s14>r1s0	1
+A work item proposed: told once	A work item proposed: told once, a pass is in its step	a pass reaches it and reads its marks	Begin		2
+A work item proposed: told once, a pass is in its step	A work item proposed: told once	the pass dies	Die	r1s16>r1s15	3
+A work item proposed: told once, a pass is in its step	A work item proposed: told once, the counter is past it	its own file says done	Step	r1s16>r1s32	2
+CI that starts no job: not told	CI that starts no job: not told, a pass is in its step	a pass reaches it and reads its marks	Begin	r1s0>r1s1	1
+CI that starts no job: not told	CI that starts no job: not told, main's tip moved	the key the next try names changes	Rekey	r1s0>r1s10	1
+CI that starts no job: not told, a pass is in its step	CI that starts no job: not told	the pass dies	Die		1
+CI that starts no job: not told, a pass is in its step	CI that starts no job: told once, a pass is in its step	the receiver takes it	Step	r1s1>r1s16	1
+CI that starts no job: not told, main's tip moved	CI that starts no job: not told, main's tip moved, a pass is in its step	a pass reaches it and reads its marks	Begin	r1s10>r1s11	1
+CI that starts no job: not told, main's tip moved, a pass is in its step	CI that starts no job: not told, main's tip moved	the pass dies	Die		1
+CI that starts no job: not told, main's tip moved, a pass is in its step	CI that starts no job: told once, main's tip moved, a pass is in its step	the receiver takes it	Step	r1s11>r1s27	1
+CI that starts no job: nothing owed yet	CI that starts no job: not told	what calls for it comes to hold	Due	r1s14>r1s0	1
+CI that starts no job: told once	CI that starts no job: told once, a pass is in its step	a pass reaches it and reads its marks	Begin		1
+CI that starts no job: told once	CI that starts no job: told once, main's tip moved	the key the next try names changes	Rekey	r1s15>r1s26	1
+CI that starts no job: told once, a pass is in its step	CI that starts no job: told once	the pass dies	Die	r1s16>r1s15	2
+CI that starts no job: told once, a pass is in its step	CI that starts no job: told once, account.json keeps the question	its own file says done	Step	r1s16>r1s18	1
+CI that starts no job: told once, main's tip moved	CI that starts no job: told once, main's tip moved, a pass is in its step	a pass reaches it and reads its marks	Begin	r1s26>r1s27	2
+CI that starts no job: told once, main's tip moved, a pass is in its step	CI that starts no job: told once, account.json keeps the newer question, main's tip moved	its own file says done	Step	r1s27>r1s17	1
+CI that starts no job: told once, main's tip moved, a pass is in its step	CI that starts no job: told once, main's tip moved	the pass dies	Die		3
+CI that starts no job: told once, main's tip moved, a pass is in its step	CI that starts no job: told twice, main's tip moved, a pass is in its step	the receiver takes it	Step	r1s27>r1s36	1
+CI that starts no job: told twice, main's tip moved	CI that starts no job: told twice, main's tip moved, a pass is in its step	a pass reaches it and reads its marks	Begin	r1s35>r1s36	1
+CI that starts no job: told twice, main's tip moved, a pass is in its step	CI that starts no job: told twice, account.json keeps the newer question, main's tip moved	its own file says done	Step	r1s36>r1s34	1
+CI that starts no job: told twice, main's tip moved, a pass is in its step	CI that starts no job: told twice, main's tip moved	the pass dies	Die	r1s36>r1s35	2
+The second target's body: not told, the body waits in the outbox	The second target's body: not told, the body waits in the outbox, a pass is in its step	a pass reaches it and reads its marks	Begin	r1s12>r1s13	1
+The second target's body: not told, the body waits in the outbox, a pass is in its step	The second target's body: not told, the body waits in the outbox	the pass dies	Die		1
+The second target's body: not told, the body waits in the outbox, a pass is in its step	The second target's body: told once, the body waits in the outbox, a pass is in its step	the receiver takes it	Step	r1s13>r1s31	1
+The second target's body: nothing owed yet	The second target's body: not told, the body waits in the outbox	what calls for it comes to hold	Due	r1s14>r1s12	1
+The second target's body: told once, the body waits in the outbox	The second target's body: told once, the body waits in the outbox, a pass is in its step	a pass reaches it and reads its marks	Begin	r1s30>r1s31	1
+The second target's body: told once, the body waits in the outbox, a pass is in its step	The second target's body: told once, the body waits in the outbox	the pass dies	Die	r1s31>r1s30	2
+The second target's body: told once, the body waits in the outbox, a pass is in its step	The second target's body: told once, the outbox dropped it	its own file says done	Step	r1s31>r1s33	1
+The second target's body: told once, the body waits in the outbox, a pass is in its step	The second target's body: told twice, the body waits in the outbox, a pass is in its step	the receiver takes it	Step	r1s31>r1s38	1
+The second target's body: told twice, the body waits in the outbox	The second target's body: told twice, the body waits in the outbox, a pass is in its step	a pass reaches it and reads its marks	Begin	r1s37>r1s38	1
+The second target's body: told twice, the body waits in the outbox, a pass is in its step	The second target's body: told twice, the body waits in the outbox	the pass dies	Die	r1s38>r1s37	2
+The second target's body: told twice, the body waits in the outbox, a pass is in its step	The second target's body: told twice, the outbox dropped it	its own file says done	Step	r1s38>r1s39	1

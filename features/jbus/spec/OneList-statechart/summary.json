@@ -74,6 +74,13 @@
   },
   "classes": [],
   "codeLike": [],
+  "map": {
+    "runs": [
+      "OneList.chart.cfg"
+    ],
+    "states": 152,
+    "arrows": 366
+  },
   "drawnFrom": {
     "command": "statechart from-spec OneList.tla --config OneList.chart.cfg --title 'Does a gate reach my list, and leave it once I answer?'",
     "inputs": {
@@ -81,6 +88,10 @@
       "OneList.map.py": "6f9d741ec2611eff16d0d6e5812882a1b3e09f667e80226c9f8de6179b36c13a",
       "OneList.tla": "47d62e8c80947c9ca659627ef41a6004525f2e6534320d180c98c38556c03430"
     },
-    "chart": "544feaadd7c8a95a8a8623170ed7cafd7267d61e20b75b29ff3e90365893b86e"
+    "chart": "544feaadd7c8a95a8a8623170ed7cafd7267d61e20b75b29ff3e90365893b86e",
+    "tables": {
+      "states.tsv": "63556eb8b1360f12ee713276840b3e676ae1e14c41047643803f6eedbf8aef60",
+      "arrows.tsv": "6ba76a6c58394de8eaa668cc999db46d67f7ceef893aa8ee5b6096debaea403a"
+    }
   }
 }

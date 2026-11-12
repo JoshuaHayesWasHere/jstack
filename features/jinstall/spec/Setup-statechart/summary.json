@@ -34,13 +34,33 @@
   },
   "classes": [],
   "codeLike": [],
+  "map": {
+    "runs": [
+      "Setup.chart.cfg",
+      "Setup.cfg"
+    ],
+    "states": 228,
+    "arrows": 1668
+  },
+  "also": {
+    "cfg": "Setup.cfg",
+    "modelStates": 411730,
+    "modelTransitions": 2175016,
+    "states": 171,
+    "arrows": 1308
+  },
   "drawnFrom": {
-    "command": "statechart from-spec Setup.tla --config Setup.chart.cfg --title 'Does an uninstall or an expert'\"'\"'s takeover leave anything behind?'",
+    "command": "statechart from-spec Setup.tla --config Setup.chart.cfg --also-config Setup.cfg --title 'Does an uninstall or an expert'\"'\"'s takeover leave anything behind?'",
     "inputs": {
+      "Setup.cfg": "d6f50065e9b0d394ea5219107c123ae2ff60d46c674518d18cb9b36ff5a88f19",
       "Setup.chart.cfg": "82184ec43abcd894a521d66e4615837a8661c1e90eee0806b14b6547a7565dfd",
       "Setup.map.py": "1bab336da5c080a588e5549845a9071ab62868f9de25cf0046734f5ad818b457",
       "Setup.tla": "960af2a253312c6208a5fdcfa60bde3717d75488cae7413a5ce4a500c37fa5e9"
     },
-    "chart": "9cfbe34be91fa0f621d361279083471997f379a156258705580df5b9d6e0a7ee"
+    "chart": "9cfbe34be91fa0f621d361279083471997f379a156258705580df5b9d6e0a7ee",
+    "tables": {
+      "states.tsv": "39e5bf922258fd5e3d1060c374a8aab8f7f563cd5233a22673db77a82e49fa93",
+      "arrows.tsv": "4998dfc63237828f1da9859128642af32ee7eae61de73da4d8a220d4811efad3"
+    }
   }
 }

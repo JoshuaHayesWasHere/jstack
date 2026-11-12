@@ -1,0 +1,56 @@
+state	group	status	start	chart	states in TellOnceOther.chart.cfg	within in TellOnceOther.chart.cfg
+A cancelled check: not told	Not told: nothing marked	works		r0s0 r1s0	1	0
+A cancelled check: not told, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s0 r1s1	1	0
+A cancelled check: nothing owed yet	Not told: nothing marked	works	yes	r0s0 r1s14	1	0
+A cancelled check: told once	Told once: nothing marked	works		r0s0 r1s15	2	0
+A cancelled check: told once, a pass is in its step	Told once: a pass in its step	works		r0s0 r1s16	3	1
+A cancelled check: told once, cancelled.json says run again, sent.json has its key	Told once: its file says done	works		r0s0 r1s19	2	0
+A cancelled check: told once, sent.json has its key	Told once: sent.json has its key	works		r0s0 r1s28	2	0
+A cancelled check: told once, sent.json has its key, a pass is in its step	Told once: sent.json has its key	works		r0s0 r1s29	4	2
+A project closed: not told	Not told: nothing marked	works		r0s1 r1s0	1	0
+A project closed: not told, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s1 r1s1	1	0
+A project closed: not told, closed.json lists what to archive	Not told: nothing marked	works		r0s1 r1s2	1	0
+A project closed: not told, closed.json lists what to archive, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s1 r1s3	2	1
+A project closed: nothing owed yet	Not told: nothing marked	works	yes	r0s1 r1s14	1	0
+A project closed: told once, closed.json lists what to archive	Told once: nothing marked	works		r0s1 r1s20	1	0
+A project closed: told once, closed.json lists what to archive, a pass is in its step	Told once: a pass in its step	works		r0s1 r1s21	3	2
+A project closed: told once, closed.json says closed	Told once: its file says done	works		r0s1 r1s22	1	0
+A row red at two heads: not told, fails.json counts two heads	Not told: nothing marked	works		r0s2 r1s4	1	0
+A row red at two heads: not told, fails.json counts two heads, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s2 r1s5	1	0
+A row red at two heads: not told, fails.json counts two heads, sent.json has its key, the row is held	Not told: a pass in its step or a mark written	wrong		r0s2 r1s6	2	1
+A row red at two heads: not told, fails.json counts two heads, sent.json has its key, the row is held, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s2 r1s7	1	0
+A row red at two heads: not told, fails.json counts two heads, the row is held	Not told: a pass in its step or a mark written	wrong		r0s2 r1s8	2	1
+A row red at two heads: not told, fails.json counts two heads, the row is held, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s2 r1s9	1	0
+A row red at two heads: nothing owed yet	Not told: nothing marked	works	yes	r0s2 r1s14	1	0
+A row red at two heads: told once, fails.json counts two heads, sent.json has its key, the row is held	Told once: sent.json has its key	works		r0s2 r1s23	2	1
+A row red at two heads: told once, fails.json counts two heads, sent.json has its key, the row is held, a pass is in its step	Told once: sent.json has its key	works		r0s2 r1s24	1	0
+A row red at two heads: told once, fails.json says held, sent.json has its key, the row is held	Told once: its file says done	works		r0s2 r1s25	1	0
+A work item proposed: not told	Not told: nothing marked	works		r0s3 r1s0	1	0
+A work item proposed: not told, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s3 r1s1	1	0
+A work item proposed: nothing owed yet	Not told: nothing marked	works	yes	r0s3 r1s14	1	0
+A work item proposed: told once	Told once: nothing marked	works		r0s3 r1s15	2	0
+A work item proposed: told once, a pass is in its step	Told once: a pass in its step	works		r0s3 r1s16	3	1
+A work item proposed: told once, the counter is past it	Told once: its file says done	works		r0s3 r1s32	2	0
+CI that starts no job: not told	Not told: nothing marked	works		r0s4 r1s0	1	0
+CI that starts no job: not told, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s4 r1s1	1	0
+CI that starts no job: not told, main's tip moved	Not told: nothing marked	works		r0s4 r1s10	1	0
+CI that starts no job: not told, main's tip moved, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s4 r1s11	1	0
+CI that starts no job: nothing owed yet	Not told: nothing marked	works	yes	r0s4 r1s14	1	0
+CI that starts no job: told once	Told once: nothing marked	works		r0s4 r1s15	1	0
+CI that starts no job: told once, a pass is in its step	Told once: a pass in its step	works		r0s4 r1s16	2	1
+CI that starts no job: told once, account.json keeps the newer question, main's tip moved	Told once: its file says done	works		r0s4 r1s17	1	0
+CI that starts no job: told once, account.json keeps the question	Told once: its file says done	works		r0s4 r1s18	1	0
+CI that starts no job: told once, main's tip moved	Told once: nothing marked	works		r0s4 r1s26	2	0
+CI that starts no job: told once, main's tip moved, a pass is in its step	Told once: a pass in its step	works		r0s4 r1s27	3	1
+CI that starts no job: told twice, account.json keeps the newer question, main's tip moved	Told twice	wrong		r0s4 r1s34	1	0
+CI that starts no job: told twice, main's tip moved	Told twice	wrong		r0s4 r1s35	1	0
+CI that starts no job: told twice, main's tip moved, a pass is in its step	Told twice	wrong		r0s4 r1s36	2	1
+The second target's body: not told, the body waits in the outbox	Not told: nothing marked	works		r0s5 r1s12	1	0
+The second target's body: not told, the body waits in the outbox, a pass is in its step	Not told: a pass in its step or a mark written	works		r0s5 r1s13	1	0
+The second target's body: nothing owed yet	Not told: nothing marked	works	yes	r0s5 r1s14	1	0
+The second target's body: told once, the body waits in the outbox	Told once: nothing marked	works		r0s5 r1s30	1	0
+The second target's body: told once, the body waits in the outbox, a pass is in its step	Told once: a pass in its step	works		r0s5 r1s31	2	0
+The second target's body: told once, the outbox dropped it	Told once: its file says done	works		r0s5 r1s33	1	0
+The second target's body: told twice, the body waits in the outbox	Told twice	wrong		r0s5 r1s37	1	0
+The second target's body: told twice, the body waits in the outbox, a pass is in its step	Told twice	wrong		r0s5 r1s38	2	1
+The second target's body: told twice, the outbox dropped it	Told twice	wrong		r0s5 r1s39	1	0

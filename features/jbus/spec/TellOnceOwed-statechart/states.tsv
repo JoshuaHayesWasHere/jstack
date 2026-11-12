@@ -1,0 +1,127 @@
+state	group	status	start	chart	states in TellOnceOwed.chart.cfg	within in TellOnceOwed.chart.cfg
+An ask owed after a limit: not told, owed.json says owed	Not told: the ask owed or not yet due	works		s0	2	0
+An ask owed after a limit: not told, owed.json says owed, a pass is in its step	Not told: the ask owed or not yet due	works		s1	1	0
+An ask owed after a limit: not told, owed.json says owed, a second try	Not told: the ask owed or not yet due	works		s2	12	0
+An ask owed after a limit: not told, owed.json says owed, a second try, a pass is in its step	Not told: the ask owed or not yet due	works		s3	3	0
+An ask owed after a limit: not told, owed.json says owed, sent.json has failover's key, a second try	Not told: the ask owed or not yet due	works		s4	2	0
+An ask owed after a limit: not told, owed.json says owed, sent.json has failover's key, a second try, a pass is in its step	Not told: the ask owed or not yet due	works		s5	1	0
+An ask owed after a limit: not told, owed.json says owed, sent.json has failover's key, the outbox held it, a second try	Not told: the ask owed or not yet due	works		s6	1	0
+An ask owed after a limit: not told, owed.json says owed, sent.json has failover's key, the outbox held it, a second try, a pass is in its step	Not told: the ask owed or not yet due	works		s7	1	0
+An ask owed after a limit: not told, owed.json says owed, the outbox held it	Not told: the ask owed or not yet due	works		s8	1	0
+An ask owed after a limit: not told, owed.json says owed, the outbox held it, a pass is in its step	Not told: the ask owed or not yet due	works		s9	1	0
+An ask owed after a limit: not told, owed.json says owed, the outbox held it, a second try	Not told: the ask owed or not yet due	works		s10	2	0
+An ask owed after a limit: not told, owed.json says owed, the outbox held it, a second try, a pass is in its step	Not told: the ask owed or not yet due	works		s11	2	0
+An ask owed after a limit: not told, owed.json says the thread ended	Not told: the ask closed	works		s12	2	0
+An ask owed after a limit: not told, owed.json says the thread ended, a second try	Not told: the ask closed	works		s13	12	0
+An ask owed after a limit: not told, owed.json says the thread ended, sent.json has failover's key, a second try	Not told: the ask closed	works		s14	2	0
+An ask owed after a limit: not told, owed.json says the thread ended, sent.json has failover's key, the outbox held it, a second try	Not told: the ask closed	works		s15	1	0
+An ask owed after a limit: not told, owed.json says the thread ended, the outbox held it	Not told: the ask closed	works		s16	1	0
+An ask owed after a limit: not told, owed.json says the thread ended, the outbox held it, a second try	Not told: the ask closed	works		s17	2	0
+An ask owed after a limit: not told, owed.json says the user asked again	Not told: the ask closed	works		s18	2	0
+An ask owed after a limit: not told, owed.json says the user asked again, a second try	Not told: the ask closed	works		s19	12	0
+An ask owed after a limit: not told, owed.json says the user asked again, sent.json has failover's key, a second try	Not told: the ask closed	works		s20	2	0
+An ask owed after a limit: not told, owed.json says the user asked again, sent.json has failover's key, the outbox held it, a second try	Not told: the ask closed	works		s21	1	0
+An ask owed after a limit: not told, owed.json says the user asked again, the outbox held it	Not told: the ask closed	works		s22	1	0
+An ask owed after a limit: not told, owed.json says the user asked again, the outbox held it, a second try	Not told: the ask closed	works		s23	2	0
+An ask owed after a limit: nothing owed yet	Not told: the ask owed or not yet due	works	yes	s24	1	0
+An ask owed after a limit: told once, owed.json says owed	Told once: the ask owed	works		s25	5	0
+An ask owed after a limit: told once, owed.json says owed, a pass is in its step	Told once: the ask owed	works		s26	13	8
+An ask owed after a limit: told once, owed.json says owed, a second try	Told once: the ask owed, a second try	works		s27	7	0
+An ask owed after a limit: told once, owed.json says owed, a second try, a pass is in its step	Told once: the ask owed, a second try	works		s28	14	6
+An ask owed after a limit: told once, owed.json says owed, sent.json has failover's key	Told once: the ask owed	works		s29	1	0
+An ask owed after a limit: told once, owed.json says owed, sent.json has failover's key, a pass is in its step	Told once: the ask owed	works		s30	2	0
+An ask owed after a limit: told once, owed.json says owed, sent.json has failover's key, a second try	Told once: the ask owed, a second try	works		s31	8	0
+An ask owed after a limit: told once, owed.json says owed, sent.json has failover's key, a second try, a pass is in its step	Told once: the ask owed, a second try	works		s32	17	7
+An ask owed after a limit: told once, owed.json says owed, sent.json has failover's key, the outbox held it	Told once: the ask owed	works		s33	1	0
+An ask owed after a limit: told once, owed.json says owed, sent.json has failover's key, the outbox held it, a pass is in its step	Told once: the ask owed	works		s34	1	0
+An ask owed after a limit: told once, owed.json says owed, sent.json has failover's key, the outbox held it, a second try	Told once: the ask owed, a second try	works		s35	4	0
+An ask owed after a limit: told once, owed.json says owed, sent.json has failover's key, the outbox held it, a second try, a pass is in its step	Told once: the ask owed, a second try	works		s36	6	2
+An ask owed after a limit: told once, owed.json says owed, sent.json has its key	Told once: the ask owed	works		s37	6	0
+An ask owed after a limit: told once, owed.json says owed, sent.json has its key, a pass is in its step	Told once: the ask owed	works		s38	15	9
+An ask owed after a limit: told once, owed.json says owed, sent.json has its key, a second try	Told once: the ask owed, a second try	works		s39	4	0
+An ask owed after a limit: told once, owed.json says owed, sent.json has its key, a second try, a pass is in its step	Told once: the ask owed, a second try	works		s40	10	6
+An ask owed after a limit: told once, owed.json says owed, sent.json has its key, sent.json has failover's key, a second try	Told once: the ask owed, a second try	works		s41	4	0
+An ask owed after a limit: told once, owed.json says owed, sent.json has its key, sent.json has failover's key, a second try, a pass is in its step	Told once: the ask owed, a second try	works		s42	10	6
+An ask owed after a limit: told once, owed.json says owed, the outbox held it	Told once: the ask owed	works		s43	4	0
+An ask owed after a limit: told once, owed.json says owed, the outbox held it, a pass is in its step	Told once: the ask owed	works		s44	7	3
+An ask owed after a limit: told once, owed.json says owed, the outbox held it, a second try	Told once: the ask owed, a second try	works		s45	3	0
+An ask owed after a limit: told once, owed.json says owed, the outbox held it, a second try, a pass is in its step	Told once: the ask owed, a second try	works		s46	5	2
+An ask owed after a limit: told once, owed.json says sent, sent.json has failover's key	Told once: the ask closed	works		s47	1	0
+An ask owed after a limit: told once, owed.json says sent, sent.json has failover's key, a second try	Told once: the ask closed, a second try	works		s48	5	0
+An ask owed after a limit: told once, owed.json says sent, sent.json has its key	Told once: the ask closed	works		s49	6	0
+An ask owed after a limit: told once, owed.json says sent, sent.json has its key, a second try	Told once: the ask closed, a second try	works		s50	4	0
+An ask owed after a limit: told once, owed.json says sent, sent.json has its key, sent.json has failover's key, a second try	Told once: the ask closed, a second try	works		s51	4	0
+An ask owed after a limit: told once, owed.json says the thread ended	Told once: the ask closed	works		s52	5	0
+An ask owed after a limit: told once, owed.json says the thread ended, a second try	Told once: the ask closed, a second try	works		s53	7	0
+An ask owed after a limit: told once, owed.json says the thread ended, sent.json has failover's key	Told once: the ask closed	works		s54	1	0
+An ask owed after a limit: told once, owed.json says the thread ended, sent.json has failover's key, a second try	Told once: the ask closed, a second try	works		s55	8	0
+An ask owed after a limit: told once, owed.json says the thread ended, sent.json has failover's key, the outbox held it	Told once: the ask closed	works		s56	1	0
+An ask owed after a limit: told once, owed.json says the thread ended, sent.json has failover's key, the outbox held it, a second try	Told once: the ask closed, a second try	works		s57	4	0
+An ask owed after a limit: told once, owed.json says the thread ended, sent.json has its key	Told once: the ask closed	works		s58	6	0
+An ask owed after a limit: told once, owed.json says the thread ended, sent.json has its key, a second try	Told once: the ask closed, a second try	works		s59	4	0
+An ask owed after a limit: told once, owed.json says the thread ended, sent.json has its key, sent.json has failover's key, a second try	Told once: the ask closed, a second try	works		s60	4	0
+An ask owed after a limit: told once, owed.json says the thread ended, the outbox held it	Told once: the ask closed	works		s61	4	0
+An ask owed after a limit: told once, owed.json says the thread ended, the outbox held it, a second try	Told once: the ask closed, a second try	works		s62	3	0
+An ask owed after a limit: told once, owed.json says the user asked again	Told once: the ask closed	works		s63	5	0
+An ask owed after a limit: told once, owed.json says the user asked again, a second try	Told once: the ask closed, a second try	works		s64	7	0
+An ask owed after a limit: told once, owed.json says the user asked again, sent.json has failover's key	Told once: the ask closed	works		s65	1	0
+An ask owed after a limit: told once, owed.json says the user asked again, sent.json has failover's key, a second try	Told once: the ask closed, a second try	works		s66	8	0
+An ask owed after a limit: told once, owed.json says the user asked again, sent.json has failover's key, the outbox held it	Told once: the ask closed	works		s67	1	0
+An ask owed after a limit: told once, owed.json says the user asked again, sent.json has failover's key, the outbox held it, a second try	Told once: the ask closed, a second try	works		s68	4	0
+An ask owed after a limit: told once, owed.json says the user asked again, sent.json has its key	Told once: the ask closed	works		s69	6	0
+An ask owed after a limit: told once, owed.json says the user asked again, sent.json has its key, a second try	Told once: the ask closed, a second try	works		s70	4	0
+An ask owed after a limit: told once, owed.json says the user asked again, sent.json has its key, sent.json has failover's key, a second try	Told once: the ask closed, a second try	works		s71	4	0
+An ask owed after a limit: told once, owed.json says the user asked again, the outbox held it	Told once: the ask closed	works		s72	4	0
+An ask owed after a limit: told once, owed.json says the user asked again, the outbox held it, a second try	Told once: the ask closed, a second try	works		s73	3	0
+An ask owed after a limit: told twice, owed.json says owed	Told twice: the ask owed	wrong		s74	3	0
+An ask owed after a limit: told twice, owed.json says owed, a pass is in its step	Told twice: the ask owed	wrong		s75	8	6
+An ask owed after a limit: told twice, owed.json says owed, a second try	Told twice: the ask owed, a second try	wrong		s76	2	0
+An ask owed after a limit: told twice, owed.json says owed, a second try, a pass is in its step	Told twice: the ask owed, a second try	wrong		s77	5	4
+An ask owed after a limit: told twice, owed.json says owed, sent.json has failover's key	Told twice: the ask owed	wrong		s78	3	0
+An ask owed after a limit: told twice, owed.json says owed, sent.json has failover's key, a pass is in its step	Told twice: the ask owed	wrong		s79	8	6
+An ask owed after a limit: told twice, owed.json says owed, sent.json has failover's key, a second try	Told twice: the ask owed, a second try	wrong		s80	4	0
+An ask owed after a limit: told twice, owed.json says owed, sent.json has failover's key, a second try, a pass is in its step	Told twice: the ask owed, a second try	wrong		s81	10	8
+An ask owed after a limit: told twice, owed.json says owed, sent.json has failover's key, the outbox held it	Told twice: the ask owed	wrong		s82	2	0
+An ask owed after a limit: told twice, owed.json says owed, sent.json has failover's key, the outbox held it, a pass is in its step	Told twice: the ask owed	wrong		s83	4	2
+An ask owed after a limit: told twice, owed.json says owed, sent.json has failover's key, the outbox held it, a second try	Told twice: the ask owed, a second try	wrong		s84	2	0
+An ask owed after a limit: told twice, owed.json says owed, sent.json has failover's key, the outbox held it, a second try, a pass is in its step	Told twice: the ask owed, a second try	wrong		s85	4	2
+An ask owed after a limit: told twice, owed.json says owed, sent.json has its key	Told twice: the ask owed	wrong		s86	4	0
+An ask owed after a limit: told twice, owed.json says owed, sent.json has its key, a pass is in its step	Told twice: the ask owed	wrong		s87	10	6
+An ask owed after a limit: told twice, owed.json says owed, sent.json has its key, a second try	Told twice: the ask owed, a second try	wrong		s88	2	0
+An ask owed after a limit: told twice, owed.json says owed, sent.json has its key, a second try, a pass is in its step	Told twice: the ask owed, a second try	wrong		s89	5	3
+An ask owed after a limit: told twice, owed.json says owed, sent.json has its key, sent.json has failover's key	Told twice: the ask owed	wrong		s90	4	0
+An ask owed after a limit: told twice, owed.json says owed, sent.json has its key, sent.json has failover's key, a pass is in its step	Told twice: the ask owed	wrong		s91	10	6
+An ask owed after a limit: told twice, owed.json says owed, sent.json has its key, sent.json has failover's key, a second try	Told twice: the ask owed, a second try	wrong		s92	4	0
+An ask owed after a limit: told twice, owed.json says owed, sent.json has its key, sent.json has failover's key, a second try, a pass is in its step	Told twice: the ask owed, a second try	wrong		s93	10	6
+An ask owed after a limit: told twice, owed.json says owed, the outbox held it	Told twice: the ask owed	wrong		s94	2	0
+An ask owed after a limit: told twice, owed.json says owed, the outbox held it, a pass is in its step	Told twice: the ask owed	wrong		s95	4	2
+An ask owed after a limit: told twice, owed.json says owed, the outbox held it, a second try	Told twice: the ask owed, a second try	wrong		s96	1	0
+An ask owed after a limit: told twice, owed.json says owed, the outbox held it, a second try, a pass is in its step	Told twice: the ask owed, a second try	wrong		s97	2	1
+An ask owed after a limit: told twice, owed.json says sent, sent.json has its key	Told twice: the ask closed	wrong		s98	4	0
+An ask owed after a limit: told twice, owed.json says sent, sent.json has its key, a second try	Told twice: the ask closed, a second try	wrong		s99	2	0
+An ask owed after a limit: told twice, owed.json says sent, sent.json has its key, sent.json has failover's key	Told twice: the ask closed	wrong		s100	4	0
+An ask owed after a limit: told twice, owed.json says sent, sent.json has its key, sent.json has failover's key, a second try	Told twice: the ask closed, a second try	wrong		s101	4	0
+An ask owed after a limit: told twice, owed.json says the thread ended	Told twice: the ask closed	wrong		s102	3	0
+An ask owed after a limit: told twice, owed.json says the thread ended, a second try	Told twice: the ask closed, a second try	wrong		s103	2	0
+An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has failover's key	Told twice: the ask closed	wrong		s104	3	0
+An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has failover's key, a second try	Told twice: the ask closed, a second try	wrong		s105	4	0
+An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has failover's key, the outbox held it	Told twice: the ask closed	wrong		s106	2	0
+An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has failover's key, the outbox held it, a second try	Told twice: the ask closed, a second try	wrong		s107	2	0
+An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has its key	Told twice: the ask closed	wrong		s108	4	0
+An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has its key, a second try	Told twice: the ask closed, a second try	wrong		s109	2	0
+An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has its key, sent.json has failover's key	Told twice: the ask closed	wrong		s110	4	0
+An ask owed after a limit: told twice, owed.json says the thread ended, sent.json has its key, sent.json has failover's key, a second try	Told twice: the ask closed, a second try	wrong		s111	4	0
+An ask owed after a limit: told twice, owed.json says the thread ended, the outbox held it	Told twice: the ask closed	wrong		s112	2	0
+An ask owed after a limit: told twice, owed.json says the thread ended, the outbox held it, a second try	Told twice: the ask closed, a second try	wrong		s113	1	0
+An ask owed after a limit: told twice, owed.json says the user asked again	Told twice: the ask closed	wrong		s114	3	0
+An ask owed after a limit: told twice, owed.json says the user asked again, a second try	Told twice: the ask closed, a second try	wrong		s115	2	0
+An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has failover's key	Told twice: the ask closed	wrong		s116	3	0
+An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has failover's key, a second try	Told twice: the ask closed, a second try	wrong		s117	4	0
+An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has failover's key, the outbox held it	Told twice: the ask closed	wrong		s118	2	0
+An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has failover's key, the outbox held it, a second try	Told twice: the ask closed, a second try	wrong		s119	2	0
+An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has its key	Told twice: the ask closed	wrong		s120	4	0
+An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has its key, a second try	Told twice: the ask closed, a second try	wrong		s121	2	0
+An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has its key, sent.json has failover's key	Told twice: the ask closed	wrong		s122	4	0
+An ask owed after a limit: told twice, owed.json says the user asked again, sent.json has its key, sent.json has failover's key, a second try	Told twice: the ask closed, a second try	wrong		s123	4	0
+An ask owed after a limit: told twice, owed.json says the user asked again, the outbox held it	Told twice: the ask closed	wrong		s124	2	0
+An ask owed after a limit: told twice, owed.json says the user asked again, the outbox held it, a second try	Told twice: the ask closed, a second try	wrong		s125	1	0
