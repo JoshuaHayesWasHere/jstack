@@ -562,6 +562,7 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         kept[slug]["moved"] = moved
         if head in heads and not ready.waiting(pull.get("statusCheckRollup") or [], required):
             del heads[head]
+            kept[slug]["last"] = {"head": head, "failed": []}
             run.say(f"uncounted {slug}: every required check passed at {head[:12]} on a rerun")
             continue
         if row.get("held") or any(head in seen for seen in (heads, on_red, flakes, infras)):

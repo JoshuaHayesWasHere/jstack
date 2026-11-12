@@ -623,6 +623,7 @@ def test_a_counted_head_green_on_a_rerun_leaves_the_count_as_1708_s_183801_did(l
     launched.set("open.json", [pull(launched, [passed, rerun], head=first)])
     passes(launched, 3)
     assert fails(launched)["heads"] == {}
+    assert fails(launched)["last"] == {"head": first, "failed": []}
 
     launched.set("open.json", [pull(launched, [failed("33"), rerun], head=second)])
     passes(launched, 6)
