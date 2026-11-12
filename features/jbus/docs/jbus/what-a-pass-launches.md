@@ -154,23 +154,34 @@ It goes on the first pass where all of these hold:
 A pass where one of these does not hold sends nothing and writes no key, so a later pass asks again.
 `outbox.jsonl` keeps one `compact` line for each send.
 
-## A home is compacted at its ceiling
+## A home, a crew or a scout is compacted at its ceiling
 
-`compact.tell_homes` sends the same message to a home thread of the project, the root home's and each scope's, once its last call has sent 150k tokens or more (`compact.CEILING`).
-Its key is `compact|home|<thread>|<at>`, where `<at>` is the time of that last call, so a home is compacted once for each climb, and again each time it climbs back to the ceiling.
+`compact.tell_at_ceiling` sends the same message to a thread of a role once its last call has sent the role's ceiling or more (`compact.CEILINGS`): 430k tokens for a home, 180k for a crew and 330k for a scout, the user's ceilings of 2026-11-12.
+A crew is still compacted at its pull request too, at 100k, as above.
+Its key is `compact|<role>|<thread>|<at>`, where `<at>` is the time of that last call, so a thread is compacted once for each climb, and again each time it climbs back to the ceiling.
+
+The threads of a role are:
+
+- for a home, each home thread of the project, the root home's and each scope's;
+- for a crew or a scout, each thread of the project T3 Code lists whose title gives that role. T3 Code lists no archived thread, and a finished task's or scout's thread is archived, so a thread that is woken no more gets none. A row's status cannot say this: an idle scout has written its Report, so its row is `done`.
 
 Why: T3 Code compacts only a thread whose last run has completed, two minutes before its cache expires, and a home woken every few minutes never gets there.
 On 2026-11-09 the polish home made 751 calls in eight hours with no gap over 21.5 minutes, and climbed from 57k to 630k.
-Over the week from 2026-11-08 a home call sent 213k tokens on average, and the homes' 17 compactions came at 162k to 630k.
-A 150k ceiling replayed over that week's calls gives a mean of 101.3k, with 37 compactions in place of 17.
+A crew or a scout that waits between turns, on a review, a check or an answer, replays its whole context on each call it is woken for.
+
+Replayed over the main calls of 2026-11-08 to 2026-11-12 in the telemetry store, a pass compacting a thread idle for 2 minutes or more, and its next call sending the median size of a call after a compaction:
+
+- crews: 217 of 707 threads compacted 246 times, and the mean crew call goes from 130.4k to 103.7k;
+- scouts: none, since no scout call went over 298.9k that week;
+- homes, over their calls before the 150k ceiling began (2026-11-10 13:34): 4 compactions of 2 threads in place of 50 of 16, and the mean home call goes from 102.4k under the 150k ceiling to 185.7k.
 
 It goes on the first pass where all of these hold:
 
-- the home's last call, in [the telemetry store](the-telemetry-store.md), sent 150k tokens or more: a home the store holds no call of gets none;
-- no compact message went for that call yet: the store keeps no call for a compaction itself, so a home stays at its last big call until it speaks again, and a key of the thread alone would compact a home once and never again;
-- the call is newer than the last compact message the home was sent: the store is built by a chore that can trail a pass, and a call it reads late from before the compaction is not a new climb;
-- T3 Code says the home has no turn running or queued: a home is compacted between turns, never in the middle of one;
-- the outbox holds it under none of its rules: a home this pass already told something waits for the next pass.
+- the thread's last call, in [the telemetry store](the-telemetry-store.md), sent its role's ceiling or more: a thread the store holds no call of gets none;
+- no compact message went for that call yet: the store keeps no call for a compaction itself, so a thread stays at its last big call until it speaks again, and a key of the thread alone would compact a thread once and never again;
+- the call is newer than the last compact message the thread was sent, by either rule: the store is built by a chore that can trail a pass, and a call it reads late from before the compaction is not a new climb, and a crew compacted at its pull request is not compacted again for that call;
+- T3 Code says the thread has no turn running or queued: a thread is compacted between turns, never in the middle of one;
+- the outbox holds it under none of its rules: a thread this pass already told something waits for the next pass.
 
 The step runs before `wakes.tell`, so a home sent the compact message hears its wake on the next pass, when its compaction has ended, with nothing of the wake lost: the outbox holds a second message that needs `act` to a thread this pass told, and the items stay new to the home until a wake goes.
 A send T3 Code did not take writes no key, so the next pass sends it again; one T3 Code refused is marked and not sent again for that call.

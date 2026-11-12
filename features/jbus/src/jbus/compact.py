@@ -1,5 +1,7 @@
 """This module sends a thread `/compact` under two rules: a crew once, when its pull request has
-opened and its turn has ended, and a home each time its context reaches a ceiling.
+opened and its turn has ended, and a home, a crew or a scout each time its context reaches its
+role's ceiling: 430k for a home, 180k for a crew and 330k for a scout (`CEILINGS`). A crew is
+compacted at its pull request too, under the first rule, at its own floor of 100k.
 
 T3 Code runs a compaction for any user message that is `/compact`: po-compact-probe sent one to a
 finished crew at 137k, and its next call sent 38.9k with the brief still known to it. Each rule
@@ -25,15 +27,25 @@ Its key is `compact|<slug>`, so a row is compacted once.
 
 A home is never compacted by T3 Code while it is busy: T3 Code compacts only a thread whose last
 run completed, two minutes before its cache expires, and a home woken every few minutes never gets
-there (the polish home climbed to 630k on 2026-11-09, po-worse-home-context). `tell_homes` sends
-`/compact` to each home thread of the project (`jbus.t3.homes`) that is idle and whose last call
-sent `CEILING` tokens or more. Its key is `compact|home|<thread>|<at>`, `<at>` that call's time: a
-home climbs many times, and the store keeps no call for a compaction itself, so the key sends once
-for a climb, and again only once a newer call is at the ceiling. A home whose last call in the
-store is older than its last `/compact` is skipped too: the store is built by a chore that can
-trail a pass, and a call it reads late from before the compaction is not a new climb. A home this
-pass already told something waits, so a home told something every pass is not compacted; the step
-runs before `wakes.tell`, so it is the wake that waits a pass behind a `/compact` (`outbox.busy`).
+there (the polish home climbed to 630k on 2026-11-09, po-worse-home-context). A crew or a scout
+that sits idle above its ceiling, waiting on a review or a check, replays its whole context on each
+call it is woken for. `tell_at_ceiling` sends `/compact` to each thread of a role (`threads`) that
+is idle and whose last call sent its role's ceiling or more:
+
+- a home is each home thread of the project (`jbus.t3.homes`): the root home's and each scope's;
+- a crew or a scout is each thread of the project that T3 Code lists, whose title gives that role
+  (`roles.role_of`): T3 Code lists no archived thread, and `jbus.threads.settle` archives the
+  threads of a finished task or scout, which are woken no more and have nothing to save. A row's
+  status cannot say this: a scout that sits idle has written its Report, so its row is `done`.
+
+Its key is `compact|<role>|<thread>|<at>`, `<at>` that call's time: a thread climbs many times, and
+the store keeps no call for a compaction itself, so the key sends once for a climb, and again only
+once a newer call is at the ceiling. A thread whose last call in the store is older than its last
+`/compact`, under either rule, is skipped too: the store is built by a chore that can trail a pass,
+and a call it reads late from before the compaction is not a new climb, and a crew compacted at its
+pull request is not compacted again for the same call. A thread this pass already told something
+waits, so a thread told something every pass is not compacted; the step runs before `wakes.tell`,
+so it is the wake that waits a pass behind a `/compact` (`outbox.busy`).
 
 Each message goes through `outbox.send`, under the template `compact`, and its key is marked in
 `sent.json` once it went or T3 Code refused it. A pass that sends nothing writes no key, so a later
@@ -59,9 +71,9 @@ TEMPLATE = "compact"
 MESSAGE = "/compact"
 FLOOR = 100_000
 """The tokens a crew's last call must have sent for a compaction to be worth its run."""
-CEILING = 150_000
-"""The tokens a home's last call may send before it is compacted: replayed over the week of
-2026-11-08, 150k gives a mean home call of 101.3k, 120k gives 88.6k and 200k gives 122.4k."""
+CEILINGS = {"home": 430_000, "crew": 180_000, "scout": 330_000}
+"""The tokens a thread's last call may send, by its role, before it is compacted: the user's
+ceilings of 2026-11-12."""
 _LAST = (
     "SELECT c.input + c.cache_write + c.cache_read, c.at FROM sessions s "
     "JOIN calls c USING (provider, session) WHERE s.thread = ? "
@@ -83,8 +95,22 @@ def key(slug: str) -> str:
     return f"{TEMPLATE}|{slug}"
 
 
-def home_key(thread: str, at: str) -> str:
-    return f"{TEMPLATE}|home|{jsettings.thread_id(thread)}|{at}"
+def ceiling_key(role: str, thread: str, at: str) -> str:
+    return f"{TEMPLATE}|{role}|{jsettings.thread_id(thread)}|{at}"
+
+
+def threads(run: Pass, client: Client, role: str) -> set[str]:
+    """The threads of the project of a role that has a ceiling: see the module. Raises what
+    `t3.listed` raises."""
+    if role == "home":
+        return t3.homes(run.home)
+    prefix = next(one.prefix for one in roles.ROLES if one.name == role)
+    listed = t3.listed(client, run.project.project_id, titleContains=prefix)
+    return {
+        jsettings.thread_id(str(one["threadId"]))
+        for one in listed
+        if one.get("threadId") and roles.role_of(str(one.get("title", "")))[0] == role
+    }
 
 
 def last_call(run: Pass, thread: str) -> Last | None:
@@ -118,16 +144,22 @@ def _when(stamp: str) -> datetime:
 
 
 def compacted(run: Pass, thread: str) -> datetime | None:
-    """Return when this project's outbox last sent the home thread `/compact`, or None. A line of
-    `outbox.jsonl` is read only where it holds the key's prefix, `went` `sent` and its `at`."""
+    """Return when this project's outbox last sent the thread `/compact`, under either rule, or
+    None. A line of `outbox.jsonl` is parsed only where it holds the template `compact` and `went`
+    `sent`."""
     path = run.state / outbox.FILE
-    prefix = json.dumps(home_key(thread, ""))[:-1]
+    want = jsettings.thread_id(thread)
     text = path.read_text(encoding="utf-8") if path.exists() else ""
-    found = [
-        at[1]
-        for line in text.splitlines()
-        if prefix in line and '"went": "sent"' in line and (at := _AT.search(line))
-    ]
+    found = []
+    for line in text.splitlines():
+        if f'"template": "{TEMPLATE}"' not in line or '"went": "sent"' not in line:
+            continue
+        try:
+            one = json.loads(line)
+        except ValueError:
+            continue
+        if jsettings.thread_id(str(one.get("thread") or "")) == want and one.get("at"):
+            found.append(str(one["at"]))
     return _when(found[-1]) if found else None
 
 
@@ -171,21 +203,27 @@ def tell(run: Pass, client: Client, world: World) -> None:
             run.say(f"compact {slug}: sent its crew /compact ({line})")
 
 
-def tell_homes(run: Pass, client: Client) -> None:
-    """Send each idle home thread whose last call sent `CEILING` tokens or more `/compact`, once
-    for that call."""
+def tell_at_ceiling(run: Pass, client: Client, role: str) -> None:
+    """Send each idle thread of the role whose last call sent the role's ceiling or more
+    `/compact`, once for that call."""
     sent = set(run.box.sent())
-    for thread in sorted(t3.homes(run.home)):
+    ceiling = CEILINGS[role]
+    try:
+        found = threads(run, client, role)
+    except T3Error as error:
+        run.say(f"wait {run.project.name}: T3 Code did not list its {role} threads ({error})")
+        return
+    for thread in sorted(found):
         last = last_call(run, thread)
-        if last is None or last.tokens < CEILING:
+        if last is None or last.tokens < ceiling:
             continue
-        mark = home_key(thread, last.at)
+        mark = ceiling_key(role, thread, last.at)
         if mark in sent:
             continue
         was = compacted(run, thread)
         if was is not None and _when(last.at) <= was:
             continue
-        if not idle(client, thread, "home"):
+        if not idle(client, thread, role):
             continue
         name = run.project.name
         try:
@@ -201,18 +239,19 @@ def tell_homes(run: Pass, client: Client) -> None:
             )
         except T3Refused as error:
             run.say(
-                f"compact {name}: T3 Code refused {thread}'s, so it is not sent again ({error})"
+                f"compact {name}: T3 Code refused {role} {thread}'s, so it is not sent again "
+                f"({error})"
             )
             run.box.mark(mark)
             continue
         except T3Error as error:
-            run.say(f"wait {name}: home {thread} could not be compacted ({error})")
+            run.say(f"wait {name}: {role} {thread} could not be compacted ({error})")
             continue
         if went:
             run.box.mark(mark)
             tokens = f"{last.tokens:,}"
             run.say(
-                f"compact {name}: sent home {thread} /compact (its last call at {tokens} tokens)"
+                f"compact {name}: sent {role} {thread} /compact (its last call at {tokens} tokens)"
             )
 
 
@@ -227,8 +266,8 @@ STEPS = (
     verbs.Step(
         "after-expedite",
         36,
-        "compact.homes",
-        lambda half: tell_homes(half.run, half.client),
+        "compact.ceilings",
+        lambda half: [tell_at_ceiling(half.run, half.client, role) for role in CEILINGS],
         ("client",),
     ),
 )

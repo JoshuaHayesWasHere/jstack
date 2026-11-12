@@ -124,7 +124,7 @@ ORDER = [
     "after-expedite 27 stack.move (client, world)",
     "after-expedite 30 rebase.github (client, world)",
     "after-expedite 35 compact.tell (client, world)",
-    "after-expedite 36 compact.homes (client)",
+    "after-expedite 36 compact.ceilings (client)",
     "after-expedite 38 scouts.clear (client, world)",
     "after-expedite 40 scouts.launch (client, world)",
     "derive 5 merge.shown",

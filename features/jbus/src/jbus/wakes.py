@@ -21,7 +21,7 @@ time wakes its home only when what it says changed.
 
 A pass sends each home thread at most one `wakes` message through the outbox. Its retry key is
 made from each item's key and digest, so an item whose words changed is a new message and not a
-retry of the one before. A home this pass sent `/compact` (`jbus.compact.tell_homes`, a step
+retry of the one before. A home this pass sent `/compact` (`jbus.compact.tell_at_ceiling`, a step
 before this one) is not woken in this pass: the outbox holds the wake (`outbox.busy`), nothing of
 it is recorded as told, and the next pass sends it whole. `wakes.json` is the
 one record of what a home was told, which the view reads too (`state._fixing`). It keeps the line
