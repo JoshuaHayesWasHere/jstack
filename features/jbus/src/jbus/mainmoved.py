@@ -397,12 +397,22 @@ def close(run: Pass, under: str, green: str) -> None:
 
 
 def reclose(run: Pass, green: str) -> None:
-    """Close the last spell of `REDS` at `green`, the green tip `main.json` keeps, where it ended
-    with no closing line: the pass that found main green could not read a merge's files. The last
-    spell only, which `green` ended, since a spell's `after` names the green tip before it."""
-    opened = [one for one in ledger(run.state / REDS) if "verdict" in one and "after" in one]
-    if green and opened and opened[-1]["after"] != green:
-        close(run, str(opened[-1]["after"]), green)
+    """Close each spell of `REDS` that ended with no closing line, as when the pass that found
+    main green could not read a merge's files: a spell ends at the `after` of the spell that
+    followed it, since a spell's `after` names the green tip before it, and the last one at
+    `green`, the green tip `main.json` keeps, once that is not its own `after`."""
+    lines = ledger(run.state / REDS)
+    closed = {one.get("sha") for one in lines if "cause" in one}
+    firsts: dict[str, object] = {}
+    for one in lines:
+        if "verdict" in one and "after" in one:
+            firsts.setdefault(str(one["after"]), one.get("sha"))
+    afters = list(firsts)
+    if not afters:
+        return
+    for under, end in zip(afters, [*afters[1:], green], strict=True):
+        if end and end != under and firsts[under] not in closed:
+            close(run, under, end)
 
 
 def landed(run: Pass, last: str, main: str) -> list[str]:
