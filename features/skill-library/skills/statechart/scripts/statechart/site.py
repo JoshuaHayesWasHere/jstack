@@ -1186,12 +1186,14 @@ def page(charts, out_dir, flow):
             else f"{count} states, {steps} steps."
         )
         covers = coverage_html(chart.coverage) if chart.coverage else ""
+        model = None if chart.coverage else chart.summary.get("modelStates")
+        model_note = f" TLC walked {model} model states to draw it." if model else ""
         panels.append(
             f'<section class="chart-panel" data-chart="{esc(chart.name)}" hidden>'
             '<header class="chart-head">'
             f'<p class="feature">{esc(chart.feature)} &middot; {esc(chart.name)}</p>'
             f"<h2>{esc(chart.question)}</h2>"
-            f'<p class="sub">{sizes}{at_once}'
+            f'<p class="sub">{sizes}{at_once}{model_note}'
             f' Spec: <a href="{esc(spec)}">README</a> &middot;'
             f' <a href="{esc(png)}">chart.png</a></p>{covers}</header>'
             f"{parts[chart.name]}"
