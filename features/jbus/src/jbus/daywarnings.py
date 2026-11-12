@@ -21,6 +21,8 @@ days>`, unapproved and as jbus's pass, and the next pass approves it by the foll
 neither launches a row nor loses a warning (the root home set the bar from the week audit's
 replay, in which a bar of 3 launched 9 rows of 14). A day with no warning files nothing. Where the
 queue refuses the row, its warnings stay kept for the next pass, and the refusal is a condition.
+The row is queued before its brief's copy is written to `tasks/` (`watch.copy_brief`), so a pass
+that stops between the two leaves a row, never a brief that no row names.
 """
 
 from __future__ import annotations
@@ -167,13 +169,13 @@ def keep(half: Half) -> None:
     name = f"{PREFIX}{day}"
     if queue.fresh(run.state, name) is None:
         text = brief(day, warnings)
-        (run.home / "tasks").mkdir(parents=True, exist_ok=True)
-        (run.home / "tasks" / f"{name}.md").write_text(text)
         try:
             queue.add(run.state, name, 0, [], text, user=run.user, ran_by=queue.PASS)
         except Refused as refused:
             run.condition(name, f"its brief was not queued: {refused}")
+            watch.copy_brief(run, name, text)
             return
+        watch.copy_brief(run, name, text)
     for one in warnings:
         ledger["filed"][one.key] = name
     write_json(run.state / LEDGER, ledger)

@@ -156,6 +156,26 @@ def test_an_entry_whose_rows_are_all_over_is_closed_by_its_section_as_it_is(kitc
     )
 
 
+def test_a_close_killed_between_its_two_writes_and_run_again_keeps_one_copy(kitchen, monkeypatch):
+    """The close appends to plan-done.md, dies before it rewrites plan.md, and the home runs it
+    again: the entry ends in plan-done.md once and in plan.md not at all."""
+    done = kitchen.home / "plan-done.md"
+    older = "## older: closed before\n"
+    done.write_text(older)
+
+    def killed(*_):
+        raise KeyboardInterrupt
+
+    with monkeypatch.context() as patched:
+        patched.setattr(plans.os, "replace", killed)
+        with pytest.raises(KeyboardInterrupt):
+            kitchen.main("plan", "close", "bare")
+    assert "## bare: " in (kitchen.home / "plan.md").read_text()
+    assert kitchen.main("plan", "close", "bare") == (0, f"closed bare: its section is in {done}\n")
+    assert done.read_text() == older + "\n## bare: an entry with nothing under it\n"
+    assert "## bare: " not in (kitchen.home / "plan.md").read_text()
+
+
 def test_a_typed_status_line_is_passed_over_with_rows_and_shown_as_typed_with_none(kitchen):
     text = (
         "# demo: plan\n\n"

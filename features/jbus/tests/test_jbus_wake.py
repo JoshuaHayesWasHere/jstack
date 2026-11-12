@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 
 import pytest
 
-from jbus import Project, wake
+from jbus import Project, relay, wake
 
 NOW = datetime(2026, 10, 12, 15, 0, tzinfo=UTC)
 KEY = "wake-key-for-tests"
@@ -97,8 +97,21 @@ def test_the_second_target_gets_the_key_in_both_headers_and_jbus_as_its_user_age
     assert seen["x-automation-key"] == KEY
     assert seen["content-type"] == "application/json"
     assert seen["user-agent"] == wake.AGENT and "jbus" in wake.AGENT
-    assert target.posts == [ITEMS]
+    (posted,) = target.posts
+    assert {key: value for key, value in posted.items() if key != "id"} == ITEMS
+    assert relay.event_id(posted) == posted["id"]
     assert made.waiting(made.blocking) == 0
+
+
+def test_the_same_body_queued_again_later_gets_an_id_of_its_own(tmp_path, target):
+    """The relay sends a body on once ever under its own id, so a retry keeps the id it was queued
+    with and the same alert queued again is a new body, which the relay sends too."""
+    made = box(tmp_path, target)
+    made.post(ITEMS)
+    made.post(ITEMS)
+    (first, again) = wake.read_json(made.blocking.folder / "outbox.json", [])
+    assert first["id"] != again["id"]
+    assert relay.event_id(first) == first["id"] and relay.event_id(again) == again["id"]
 
 
 @pytest.mark.parametrize(
@@ -228,3 +241,64 @@ def test_a_keyed_send_parses_sent_json_again_only_once_another_process_wrote_it(
     assert made.send("s", "merged", "the tick's", key="from a tick") is False
     assert made.send("s", "merged", "then", key="then") is True
     assert parsed.count(sent) == 1
+
+
+class Died(BaseException):
+    """The pass dies here, between two of its writes."""
+
+
+def test_a_keyed_line_a_pass_appended_and_died_after_is_logged_once(tmp_path, monkeypatch):
+    """A keyed line waits with its key in `unlogged.json` until both are written: a pass that died
+    after it appended the line, before it cleared `unlogged.json`, leaves the line to stand once."""
+    made, real = box(tmp_path), wake.store.append_jsonl
+
+    def dying(path, lines, **kwargs):
+        real(path, lines, **kwargs)
+        if lines:
+            raise Died
+
+    monkeypatch.setattr(wake.store, "append_jsonl", dying)
+    with pytest.raises(Died):
+        made.send("alpha", "stall", "stall alpha", key="stall|alpha")
+    monkeypatch.setattr(wake.store, "append_jsonl", real)
+    assert made.send("alpha", "stall", "stall alpha", key="stall|alpha") is False
+    assert [one["line"] for one in made.log()] == ["stall alpha"]
+
+
+def test_two_equal_lines_under_two_keys_in_one_second_are_both_logged(tmp_path, monkeypatch):
+    """Equal lines are two events (`wake.entries`): a keyed line is not taken for one a dead pass
+    appended because the log ends with its words."""
+    made = box(tmp_path)
+    monkeypatch.setattr(wake.Box, "clock", staticmethod(lambda: datetime(2026, 11, 11, tzinfo=UTC)))
+    assert made.send("alpha", "condition", "T3 Code could not be asked", key="t3 day-1")
+    assert made.send("alpha", "condition", "T3 Code could not be asked", key="t3 day-2")
+    assert [one["line"] for one in made.log()] == ["T3 Code could not be asked"] * 2
+
+
+def test_the_prune_writes_a_keyed_line_a_dead_pass_left_waiting_first(tmp_path, monkeypatch):
+    made, real = box(tmp_path), wake.store.append_jsonl
+
+    def died(path, lines, **kwargs):
+        if lines:
+            raise Died
+
+    monkeypatch.setattr(wake.store, "append_jsonl", died)
+    with pytest.raises(Died):
+        made.send("alpha", "stall", "stall alpha", key="stall|alpha")
+    monkeypatch.setattr(wake.store, "append_jsonl", real)
+    made.forget(datetime(2000, 1, 1, tzinfo=UTC), 0)
+    assert [one["line"] for one in made.log()] == ["stall alpha"]
+    assert made.has("stall|alpha")
+
+
+def test_a_line_jbus_could_not_write_goes_into_the_log_before_the_next(tmp_path, monkeypatch):
+    made, real = box(tmp_path), wake.store.append_jsonl
+
+    def full(*args, **kwargs):
+        raise OSError("no space left on device")
+
+    monkeypatch.setattr(wake.store, "append_jsonl", full)
+    made.send("alpha", "stall", "first")
+    monkeypatch.setattr(wake.store, "append_jsonl", real)
+    made.send("alpha", "stall", "second")
+    assert [one["line"] for one in made.log()] == ["first", "second"]

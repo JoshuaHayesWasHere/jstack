@@ -107,10 +107,10 @@ HomeOf(x) ==
 Other(h) == IF h = "s" THEN "u" ELSE "s"
 Count(t) == Cardinality({h \in Homes : t \in ledger[h]})
 
-\* Today's close appends whatever plan-done.md holds: jbus/plan.py
-\* `was = done.read_text() if done.is_file() else ""` reads it only for the gap before the
-\* section, so a close run again after one cut short appends a second copy.
-TodayAppendsAgain == TRUE
+\* Today's close appends only where plan-done.md does not already end with the section:
+\* jbus/plan.py `if was != section and not was.endswith(f"\n{section}"):`, so a close run again
+\* after one cut short finds its append done and only rewrites the plan.
+TodayAppendsAgain == FALSE
 AppendsAgain == TodayAppendsAgain \/ Fault = "close-twice"
 
 \* HomeTree's `life` of the child s, which these steps refine: a scope works until its plan is
@@ -182,11 +182,12 @@ RowsEnd ==
 \* `jbus plan close`, its first write. It refuses a home with no plan.md, jbus/plan.py
 \* `raise Refused(f"refused: no plan at {plan}")`, and an entry with a row not over, jbus/plan.py
 \* `raise Refused(f"refused: {slug} has rows that are not over: {named}")`; an entry with no row
-\* closes. Then jbus/plan.py `with open(done, "a") as kept:`. The model stops at a second copy.
+\* closes. Then jbus/plan.py `with open(done, "a") as kept:`, which a close run again after one
+\* cut short skips unless it AppendsAgain. The model stops at a second copy.
 CloseAppend ==
-  /\ cpc = "idle" /\ inPlan /\ plan = "plan" /\ rows /= "open"
-  /\ done = 0 \/ (AppendsAgain /\ done < 2)
-  /\ done' = done + 1 /\ cpc' = "appended"
+  /\ cpc = "idle" /\ inPlan /\ plan = "plan" /\ rows /= "open" /\ done < 2
+  /\ done' = IF done = 0 \/ AppendsAgain THEN done + 1 ELSE done
+  /\ cpc' = "appended"
   /\ UNCHANGED <<stage, typed, buildsOn, inPlan, rows>> /\ UNCHANGED scope /\ UNCHANGED fix
 
 \* Its second write, the plan without the section: jbus/plan.py `os.replace(new, plan)`.

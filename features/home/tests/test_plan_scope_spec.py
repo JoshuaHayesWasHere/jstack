@@ -1,8 +1,9 @@
 """A plan entry's life and a scope's retire, as a TLA+ spec, `features/home/spec/PlanScope.tla`:
 each quote of the code it models stands once in its file, each carrier of the state ledger is a
 variable whose comment quotes the code that writes it, TLC finds that today's code holds
-RetireWhole and FixCountedOnce and breaks the rules `PlanScope.cfg` expects broken along the
-story it keeps, and each canary breaks its rule. The TLC tests skip where no Java runs TLC."""
+RetireWhole, FixCountedOnce and EntryOnce and breaks the rule `PlanScope.cfg` expects broken
+along the story it keeps, and each canary breaks its rule. The TLC tests skip where no Java runs
+TLC."""
 
 import importlib
 import re
@@ -129,9 +130,9 @@ def rules():
     return every, broken
 
 
-def test_the_cfg_expects_the_two_rules_today_s_code_breaks():
+def test_the_cfg_expects_the_one_rule_today_s_code_breaks():
     every, broken = rules()
-    assert set(broken) == {"EntryOnce", "FixCountedWhereRead"}
+    assert set(broken) == {"FixCountedWhereRead"}
     assert set(broken) < set(every)
     assert {"EntryOnce", "RetireWhole", "FixCountedOnce"} <= set(every)
 
@@ -150,10 +151,10 @@ def steps(out):
 
 
 @JAVA
-def test_a_close_cut_short_and_run_again_puts_the_entry_twice_in_plan_done():
-    """The story PlanScope.cfg keeps: plan close appends, dies before it rewrites the plan, and
-    the home's close run again appends a second copy."""
-    code, out = tlc("EntryOnce")
+def test_a_close_cut_short_and_run_again_puts_the_entry_twice_in_plan_done_only_as_the_canary():
+    """The close-twice canary's story: plan close appends, dies before it rewrites the plan, and
+    the home's close run again appends a second copy, which today's close skips."""
+    code, out = tlc("EntryOnce", "close-twice")
     assert code != 0
     assert "Invariant EntryOnce is violated" in out, out[-4000:]
     assert steps(out) == ["Initial", "CloseAppend", "CloseDies", "CloseAppend"]

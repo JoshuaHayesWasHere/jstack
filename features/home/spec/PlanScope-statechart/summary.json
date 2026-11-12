@@ -1,15 +1,15 @@
 {
   "view": "customer",
-  "modelStates": 2097,
-  "modelTransitions": 6975,
-  "chartStates": 87,
-  "chartTransitions": 131,
-  "allTransitions": 212,
+  "modelStates": 1215,
+  "modelTransitions": 4131,
+  "chartStates": 79,
+  "chartTransitions": 119,
+  "allTransitions": 199,
   "final": [],
   "chartStatus": {
     "works": 70,
     "fixed": 0,
-    "wrong": 17
+    "wrong": 9
   },
   "chartGroups": [
     {
@@ -43,58 +43,47 @@
     "drawn": true,
     "states": [
       10,
-      77
+      69
     ],
-    "transitions": 131,
-    "all": 212,
+    "transitions": 119,
+    "all": 199,
     "flat": {
-      "states": 465,
-      "transitions": 1380
+      "states": 395,
+      "transitions": 1219
     }
   },
   "classes": [
     {
       "n": 1,
-      "end": "Scope s working: the entry in plan-done.md twice; no fix",
-      "invariant": "EntryOnce",
-      "rule": "An entry is in its plan or in plan-done.md, once, and in both only between the two writes of one close: no line is lost, and no close leaves a second copy. A close cut short is still between its two writes, as the disk shows it, until a close finishes it.",
-      "cause": "jbus plan close died between its append to plan-done.md and its rewrite of the plan, and the close run again appended the section a second time: plan.close reads plan-done.md only for the blank line before the section",
-      "readerSteps": 3,
-      "modelSteps": 4,
-      "counterexamples": 144,
-      "fix": null
-    },
-    {
-      "n": 2,
       "end": "Scope s working: the entry proposed or planned; the fix counted in s, not where its home reads it",
       "invariant": "FixCountedWhereRead",
       "rule": "A counted fix is in the ledger admit reads for it, the one of its brief's home, once no move runs. (A rule this model adds to the brief's three: today's code breaks it.)",
       "cause": "jbus queue move rewrote the fix's Home: line and died before blockers.rehome carried its try, which only a move run again carries",
       "readerSteps": 3,
       "modelSteps": 4,
-      "counterexamples": 126,
+      "counterexamples": 72,
       "fix": null
     },
     {
-      "n": 3,
+      "n": 2,
       "end": "Scope s's plan archived, its home-id still there: the entry proposed or planned (in plan-archived.md); the fix counted in s, not where its home reads it",
       "invariant": "FixCountedWhereRead",
       "rule": "A counted fix is in the ledger admit reads for it, the one of its brief's home, once no move runs. (A rule this model adds to the brief's three: today's code breaks it.)",
       "cause": "the archive moved plan.md aside, so the fix's brief is the catch-all's, but no step moves blockers.json: the try stays in s's ledger, which admit no longer reads",
       "readerSteps": 7,
       "modelSteps": 8,
-      "counterexamples": 60,
+      "counterexamples": 36,
       "fix": null
     }
   ],
   "codeLike": [],
   "drawnFrom": {
-    "command": "statechart from-spec PlanScope.tla --config PlanScope.chart.cfg --title 'A plan entry and a scope'\"'\"'s retire: is any work lost?' --expect-broken EntryOnce,FixCountedWhereRead --png",
+    "command": "statechart from-spec PlanScope.tla --config PlanScope.chart.cfg --title 'A plan entry and a scope'\"'\"'s retire: is any work lost?' --expect-broken FixCountedWhereRead",
     "inputs": {
-      "PlanScope.chart.cfg": "2744ef6bdc9ced241656af12fb68512eba2b60058d3e3cebabd44231ec3de5d6",
-      "PlanScope.map.py": "9cef1306b458a2a634e6ebb840fecedb4e618f901aff78bceb63694accbd5441",
-      "PlanScope.tla": "918aed7dedebbf7dd7b1236073f26f99313655ef6a48f5be7232e3e05a78052f"
+      "PlanScope.chart.cfg": "8a811a11d7b1332da55b3ee92f42995ceef21da92b7919fec08b3314069ef380",
+      "PlanScope.map.py": "e99abd7fde0acc9d92bac3360156fff62ed061fce6e53ff65888a50beb545411",
+      "PlanScope.tla": "4fd62773f00d9f861b651cdd24e6650cc5d2a08a6462d3e88151d487ffac76c4"
     },
-    "chart": "42bcf0d5e815e07e75cc153bfbf9fbe3490b465bde53b21aaff27508d1d4ae13"
+    "chart": "b92f44406275ac45041a1a12ff85c8c251b63dadbc0767c09d42706d465d3655"
   }
 }
