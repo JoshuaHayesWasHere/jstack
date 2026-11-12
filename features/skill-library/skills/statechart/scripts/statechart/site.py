@@ -123,6 +123,7 @@ class Coverage:
     steps: tuple
     covered: bool
     also: dict | None = None
+    checked: dict | None = None
 
 
 @dataclass
@@ -494,13 +495,17 @@ def coverage_of(folder, name, summary):
         if not re.match(r"(module|expect):", said):
             scene.append(said)
     bounds = _bounds(text, spec_text)
-    also = summary.get("also")
-    if also:
+    def with_bounds(other):
+        if not other:
+            return None
         try:
-            also_text = (spec / also["cfg"]).read_text(encoding="utf-8")
+            other_text = (spec / other["cfg"]).read_text(encoding="utf-8")
         except OSError as e:
             raise ChartError(f"cannot read {e.filename}: {e.strerror}") from e
-        also = {**also, "bounds": _bounds(also_text, spec_text)}
+        return {**other, "bounds": _bounds(other_text, spec_text)}
+
+    also = with_bounds(summary.get("also"))
+    checked = with_bounds(summary.get("checked"))
     mapped = spec / _drawn_with(drawn["command"], model, "--map", ".map.py")
     if not mapped.is_file():
         raise ChartError(f"cannot read {mapped}: no such file")
@@ -519,6 +524,7 @@ def coverage_of(folder, name, summary):
         steps=(summary["chartTransitions"], regions.get("all") if regions.get("drawn") else None),
         covered=bool(getattr(load_mapping(mapped), "reader_actions", None)),
         also=also,
+        checked=checked,
     )
 
 
@@ -567,6 +573,15 @@ def coverage_html(cov, tables=None):
             f" states and {a['modelTransitions']:,} steps, which cost too much to draw. It"
             f" reaches {a['states']:,} states and {a['arrows']:,} arrows this cfg does not; the"
             f" tables list them, with their counts under <code>{esc(a['cfg'])}</code>.</p>"
+        )
+    elif cov.checked:
+        c = cov.checked
+        larger = (
+            f"<p><strong>At other bounds:</strong> TLC also checks <code>{esc(c['cfg'])}</code>"
+            f" ({_said_bounds(c['bounds']) or 'no bounds in the cfg'}), {c['modelStates']:,}"
+            " states, which cost too much to draw or even to list: the chart and its tables hold"
+            f" only what <code>{esc(cov.cfg)}</code> reaches, and the states and steps only the"
+            " larger bounds reach are in neither.</p>"
         )
     return (
         '<div class="coverage">'

@@ -207,6 +207,44 @@ def test_each_charts_tab_says_what_the_model_covers_and_that_the_chart_joins_its
     assert "joins the model states a user cannot tell apart" in cover, cover
 
 
+@pytest.mark.parametrize("chart", CHARTS, ids=lambda chart: chart.parent.name)
+def test_a_chart_drawn_at_cut_bounds_names_on_its_tab_the_checked_cfg_and_what_it_reaches(
+    chart, tmp_path
+):
+    """A chart drawn from a chart cfg is not the model TLC checks: its tab names the cfg the
+    model's tests check, with its bounds and its count of states, from a run at those bounds,
+    and says how much of it the tables hold."""
+    summary = json.loads(read(chart.parent / "summary.json"))
+    command = summary["drawnFrom"]["command"]
+    model = re.search(r"from-spec (\S+)\.tla", command)[1]
+    cfg = re.search(r"--config (\S+)", command)
+    checked = f"{model}.cfg"
+    if not cfg or cfg[1] == checked or not (chart.parent.parent / checked).is_file():
+        pytest.skip("drawn from the cfg TLC checks")
+    run = summary.get("also") or summary.get("checked")
+    assert run and run["cfg"] == checked, (
+        f"{chart.parent.name} is drawn from {cfg[1]}: draw it with --also-config {checked}, or"
+        f" --count-config {checked} where labelling its states costs too much"
+    )
+    out = tmp_path / "index.html"
+    assert site(REPO, out, "--flow", str(FLOW)).returncode == 0
+    name = chart.parent.name.removesuffix("-statechart")
+    panel = re.search(
+        rf'<section class="chart-panel" data-chart="{name}".*?</header>', read(out), re.S
+    )[0]
+    cover = html.unescape(re.search(r'<div class="coverage">(.*?)</div>', panel, re.S)[1])
+    larger = re.sub(r"<[^>]+>", "", cover[cover.index("At other bounds:") :])
+    assert f"TLC also checks {checked}" in larger, cover
+    assert f"{run['modelStates']:,} states" in larger, cover
+    constants, constraints = cfg_bounds(chart.parent.parent / checked)
+    for bound in [*constants, *constraints]:
+        assert bound in larger, (bound, cover)
+    if summary.get("also"):
+        assert "the tables list them" in larger, cover
+    else:
+        assert "are in neither" in larger, cover
+
+
 def table(path):
     """A tab-separated table the statechart command writes: its header and its rows, each a dict
     by the header's names."""

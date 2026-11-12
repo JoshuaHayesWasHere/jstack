@@ -37,8 +37,8 @@ from statechart.tools import MERMAID_CLI, TLA2TOOLS_URL, NoTlc, find_tlc, in_tes
 USAGE = {
     "from-spec": (
         "statechart from-spec SPEC.tla [--config FILE] [--fixed FIXED.tla [--fixed-config FILE]"
-        " | --against AGREED.tla [--against-config FILE]] [--also-config FILE] [--label TEXT]"
-        " [--map FILE]"
+        " | --against AGREED.tla [--against-config FILE]] [--also-config FILE | --count-config FILE]"
+        " [--label TEXT] [--map FILE]"
         " [--expect-broken RULE]... [--title TEXT] [--out DIR] [--png] [--keep-work]"
     ),
     "from-chart": (
@@ -88,6 +88,11 @@ FROM_SPEC = """from-spec SPEC.tla
                      states.tsv and arrows.tsv count what it reaches beside what the chart's
                      config does. summary.json's also counts the chart states and the arrows only
                      it reaches. The chart draws none of them.
+  --count-config FILE
+                     A config of SPEC.tla that TLC checks at other bounds than --config, where
+                     even labelling its states costs too much. TLC counts its states, with no
+                     dump, and summary.json's checked names the config and its count, so the
+                     chart's tab says what the tables leave out. Not with --also-config.
   --label TEXT       The name of the --fixed or --against model in the charts and the stories.
                      Default: "the fix", or "the spec".
   --map FILE         The labels for each model state and step, a Python file. Default:
@@ -293,6 +298,7 @@ FLAGS = {
         "--against",
         "--against-config",
         "--also-config",
+        "--count-config",
         "--label",
         "--expect-broken",
         "--title",
@@ -687,6 +693,24 @@ def dump_also(tools, model, work):
         f" tables in {time.monotonic() - started:.1f} s."
     )
     return {"dot": f"{base}.dot", "cfgFile": model["cfgFile"]}
+
+
+def count_states(tools, model, work):
+    """What TLC reaches at the bounds of `model`, its --count-config, with no rule checked and no
+    state graph kept: its config's own tests check the rules."""
+    name = re.sub(r"\.cfg$", "", os.path.basename(model["cfgFile"]))
+    base = os.path.join(work, "tlc", f"count-{name}")
+    started = time.monotonic()
+    ran = run_tlc(tools, model["spec"], model["cfgWithoutRules"], base, workers=workers())
+    found = re.findall(r"([\d,]+) distinct states found", ran["stdout"])
+    if not found:
+        raise CannotFinish(f"TLC printed no count of distinct states for {rel(model['cfgFile'])}")
+    states = int(found[-1].replace(",", ""))
+    print(
+        f"TLC counted {states:,} states of {os.path.basename(model['spec'])} with"
+        f" {rel(model['cfgFile'])} in {time.monotonic() - started:.1f} s."
+    )
+    return {"cfg": os.path.basename(model["cfgFile"]), "modelStates": states}
 
 
 def rules_as_expected(now, other, expected):
@@ -1341,6 +1365,7 @@ def drawn_from(given, flags, expected, out, inputs, files):
         "against",
         "against-config",
         "also-config",
+        "count-config",
         "map",
     ):
         if flags.get(name):
@@ -1364,9 +1389,11 @@ def drawn_from(given, flags, expected, out, inputs, files):
     }
 
 
-def stamp(files, drawn):
+def stamp(files, drawn, checked=None):
     with open(files["summary"], encoding="utf-8") as handle:
         summary = json.load(handle)
+    if checked:
+        summary["checked"] = checked
     with open(files["summary"], "w", encoding="utf-8") as handle:
         handle.write(
             json.dumps({**summary, "drawnFrom": drawn}, indent=2, ensure_ascii=False) + "\n"
@@ -1380,12 +1407,24 @@ def from_spec(given, flags):
     cfg = flags.get("config") or cfg_of(given)
     other_cfg = second_cfg(cfg, flags)
     also_cfg = flags.get("also-config")
+    count_cfg = flags.get("count-config")
+    if also_cfg and count_cfg:
+        raise CannotFinish("Give --also-config or --count-config, not both.")
     inputs = snapshot(
-        [given, cfg, map_file, flags.get("fixed") or flags.get("against"), other_cfg, also_cfg]
+        [
+            given,
+            cfg,
+            map_file,
+            flags.get("fixed") or flags.get("against"),
+            other_cfg,
+            also_cfg,
+            count_cfg,
+        ]
     )
     second = second_model(given, other_cfg, flags)
     model = read_input(given, cfg, expected)
     also_model = read_model(given, also_cfg, "--also-config") if also_cfg else None
+    count_model = read_model(given, count_cfg, "--count-config") if count_cfg else None
     out = out_dir(flags.get("out"), given, name)
     snapshot(local_modules(given), inputs)
     if second:
@@ -1421,10 +1460,15 @@ def from_spec(given, flags):
                 warn_unlisted(now, other)
             uncited = warn_uncited([now, other] if second["role"] == "fixed" else [now])
         also = dump_also(tools, also_model, work) if also_model else None
+        checked = count_states(tools, count_model, work) if count_model else None
         drawn = draw(
             now, map_file, work, out, flags.get("title"), other=other, uncited=uncited, also=also
         )
-        stamp(drawn["files"], drawn_from(given, flags, expected, out, inputs, drawn["files"]))
+        stamp(
+            drawn["files"],
+            drawn_from(given, flags, expected, out, inputs, drawn["files"]),
+            checked,
+        )
         return finish(
             work, out, inputs, drawn, rules_as_expected(now, other, expected), flags.get("png")
         )
