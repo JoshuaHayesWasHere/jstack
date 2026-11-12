@@ -851,6 +851,21 @@
       ]
     },
     {
+      "name": "check-foreground.sh",
+      "path": "features/crew/hooks/check-foreground.sh",
+      "harnesses": [
+        "claude-code"
+      ],
+      "events": [
+        {
+          "harness": "claude-code",
+          "event": "PreToolUse",
+          "matcher": "Bash",
+          "refuses": true
+        }
+      ]
+    },
+    {
       "name": "door-command.sh",
       "path": "features/jbus/hooks/door-command.sh",
       "harnesses": [

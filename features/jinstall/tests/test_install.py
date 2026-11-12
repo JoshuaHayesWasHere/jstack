@@ -267,6 +267,7 @@ class User:
         self.CODEX_MERGE = group(
             "merge-command.sh", self.home, matcher="Bash", refuses=True, harness="codex"
         )
+        self.FOREGROUND = group("check-foreground.sh", self.home, matcher="Bash", refuses=True)
         limits = self.layout / "hooks" / "limits.sh"
         self.STATUS = {"type": "command", "command": f"sh '{limits}'"}
         self.home.mkdir()
@@ -1004,13 +1005,14 @@ def test_a_machine_with_one_hook_before_a_tool_call_gets_the_others_too(user):
     code, said = user.run("--check")
     assert (code, line_for(said, part)) == (
         1,
-        [*[f"missing hard {part}"] * 5, f"ok hard {part}"],
+        [*[f"missing hard {part}"] * 6, f"ok hard {part}"],
     )
     assert user.run() == (0, user.every("ok"))
     assert json.loads(user.settings.read_text())["hooks"]["PreToolUse"] == [
         user.OUTBOUND,
         user.SENDS,
         user.TRAILER,
+        user.FOREGROUND,
         user.DOOR,
         user.INFRA,
         user.MERGE,
