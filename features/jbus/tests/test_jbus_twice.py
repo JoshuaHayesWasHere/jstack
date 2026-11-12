@@ -580,3 +580,27 @@ def test_twice_holds_a_row_whose_crew_commits_fail_at_two_heads(launched):
     assert list(fails(launched)["heads"]) == [A, B]
     assert rows(launched)["alpha"]["held"] is True
     assert len(pages(launched)) == 1
+
+
+def test_twice_holds_a_row_whose_merges_bring_in_a_branch_that_is_not_on_main(launched):
+    """A merge whose second parent is not on the main its check ran on is a merge of another
+    branch, not of main: main did not move under it, so each head that fails is counted."""
+    green_at(launched, GREEN_1720)
+    passes(launched, 0)
+    launched.set(
+        "compare.json",
+        {
+            f"{'e' * 40}...{GREEN}": {"status": "diverged"},
+            f"{'f' * 40}...{GREEN}": {"status": "behind"},
+        },
+    )
+    made(launched, FIRST_1720, GREEN_1720, "e" * 40)
+    failing(launched, FIRST_1720, "130937656772", CAP)
+    passes(launched, 3)
+    made(launched, SECOND_1720, FIRST_1720, "f" * 40)
+    failing(launched, SECOND_1720, "130941258618", CAP + OVERVIEW)
+    passes(launched, 6, 9)
+    kept = fails(launched)
+    assert (set(kept["heads"]), kept.get("moved", [])) == ({FIRST_1720, SECOND_1720}, [])
+    assert rows(launched)["alpha"]["held"] is True
+    assert len(pages(launched)) == 1
