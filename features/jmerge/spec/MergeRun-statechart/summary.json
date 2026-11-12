@@ -3,7 +3,13 @@
   "modelStates": 396,
   "modelTransitions": 1478,
   "chartStates": 64,
-  "chartTransitions": 95,
+  "chartTransitions": 103,
+  "allTransitions": 147,
+  "final": [
+    "no run out, a run died and nobody is told",
+    "no run out, a run's lines are lost, the pass said a run left no record, though it did",
+    "no run out, the pass said a run left no record, though it did"
+  ],
   "chartStatus": {
     "works": 33,
     "fixed": 0,
@@ -48,7 +54,7 @@
       3,
       61
     ],
-    "transitions": 95,
+    "transitions": 103,
     "all": 147,
     "flat": {
       "states": 73,
@@ -98,6 +104,6 @@
       "MergeRun.map.py": "ccb90fca039a3a99b4067506d4acfd59ca0123db756996edab0ca4121c4c2974",
       "MergeRun.tla": "e415f32d5635e1a234c8a7d2bace22e2e8ea52b8218c5d8bfc991afdc3cc4fa1"
     },
-    "chart": "54fba73e931cd10dae841bb1999c161254ee0742eddc2b480ed1aef3a5b033b8"
+    "chart": "b21188cfcd78793dedb8b27fbbf63446a4636eb4f97b25ee71d19c2227142253"
   }
 }

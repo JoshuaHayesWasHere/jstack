@@ -114,6 +114,8 @@ stateDiagram-v2
     r1s0 --> r1s25 : the pass takes the oldest<br/>unread record [when Between<br/>passes]
     %% when r0s2
     r1s1 --> r1s28 : the run writes its record
+    r1s2 --> r1s33 : the run removes the stamp and<br/>ends
+    r1s3 --> r1s34 : the run removes the stamp and<br/>ends
     r1s4 --> r1s9 : the pass takes the oldest<br/>unread record
     r1s4 --> r1s35 : the run's process dies
     r1s5 --> r1s1 : a pass looks at the runs<br/>folder
@@ -155,11 +157,13 @@ stateDiagram-v2
     r1s23 --> r1s17 : the pass dies
     r1s23 --> r1s21 : the pass sends the record's<br/>lines
     r1s23 --> r1s54 : the run's process dies
+    r1s24 --> r1s55 : the run removes the stamp and<br/>ends
     r1s25 --> r1s2 : the pass dies
     r1s25 --> r1s24 : the pass sends the record's<br/>lines
     r1s26 --> r1s1 : the pass says the last run<br/>ended with no record [when A<br/>pass removed a stale stamp and<br/>has not said why]
     %% when r0s1
     r1s26 --> r1s0 : the run writes its record
+    r1s27 --> r1s58 : the run removes the stamp and<br/>ends
     r1s28 --> r1s29 : the pass takes the oldest<br/>unread record [when Between<br/>passes]
     %% when r0s2
     r1s28 --> r1s59 : the run removes the stamp and<br/>ends
@@ -190,10 +194,14 @@ stateDiagram-v2
     r1s45 --> r1s50 : the pass takes the oldest<br/>unread record
     r1s46 --> r1s36 : a minute goes by
     r1s46 --> r1s15 : the pass starts a run of<br/>jmerge in the background
+    r1s47 --> r1s37 : a minute goes by
+    r1s48 --> r1s38 : a minute goes by
+    r1s49 --> r1s39 : a minute goes by
     r1s50 --> r1s47 : the pass dies
     r1s50 --> r1s49 : the pass sends the record's<br/>lines
     r1s51 --> r1s41 : a minute goes by
     r1s51 --> r1s20 : the pass starts a run of<br/>jmerge in the background
+    r1s52 --> r1s42 : a minute goes by
     r1s53 --> r1s54 : the pass takes the oldest<br/>unread record
     r1s54 --> r1s48 : the pass dies
     r1s54 --> r1s52 : the pass sends the record's<br/>lines

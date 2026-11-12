@@ -285,7 +285,7 @@ W=$(mktemp -d) && cp features/jmerge/spec/MergeRun.* "$W"
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `MergeRun-statechart/`.
-`MergeRun.chart.cfg` has one pass run and no tick (396 model states), labelled by `MergeRun.map.py`: 64 chart states and 95 steps, and three bug paths, for RunHeard, NoFalseNoRecord and DeathTold.
+`MergeRun.chart.cfg` has one pass run and no tick (396 model states), labelled by `MergeRun.map.py`: 64 chart states and 103 of its 147 steps, each state but the three final ones with a way out, and three bug paths, for RunHeard, NoFalseNoRecord and DeathTold.
 With two runs TLC printed 2.27M lines of states that break DeathTold and failed inside itself, so the two-run stories are `MergeRun.cfg`'s, which the test checks.
 
 ## What MergeRun leaves out
