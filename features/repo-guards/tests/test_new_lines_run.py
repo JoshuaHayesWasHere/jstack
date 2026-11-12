@@ -511,6 +511,44 @@ def test_an_untested_line_is_listed_once_its_own_tests_end_not_another_modules(t
     assert len(list(ended.iterdir())) < 12, "the run waited on every slow test of another module"
 
 
+def test_an_added_function_stops_the_run_once_a_test_runs_it_not_after_every_test(tmp_path):
+    """A `def` runs as its module is imported at collection, while no test does, so a run that
+    counted only the lines a test ran waited on every test that names the module, as #1718's 132
+    lines of `jbus.queue` held its desk run for 1122 s, over the guard's 900."""
+    repo = tmp_path / "repo"
+    code = repo / "features/pkg/src/pkg"
+    tests = repo / "features/pkg/tests"
+    ended = tmp_path / "ended"
+    code.mkdir(parents=True)
+    tests.mkdir(parents=True)
+    ended.mkdir()
+    (code / "__init__.py").write_text("")
+    (code / "held.py").write_text("def held(row):\n    return row == 'held'\n")
+    (tests / "test_held.py").write_text(
+        "import sys\n"
+        "import time\n"
+        "from pathlib import Path\n\n"
+        "import pytest\n\n"
+        "sys.path.insert(0, 'features/pkg/src')\n"
+        "from pkg import held\n\n\n"
+        "def test_a_late_row():\n"
+        "    assert held.late(1) == 1\n\n\n"
+        "@pytest.mark.parametrize('n', range(12))\n"
+        "def test_a_slow_row(n):\n"
+        "    time.sleep(2)\n"
+        f"    Path({str(ended)!r}, str(n)).touch()\n"
+    )
+    for args in (["init", "-q"], ["add", "."], ["commit", "-qm", "base"]):
+        git("-c", "user.name=t", "-c", "user.email=t@t", *args, repo=repo)
+    since = git("rev-parse", "HEAD", repo=repo)
+    (code / "held.py").write_text(
+        "def held(row):\n    return row == 'held'\n\n\ndef late(row):\n    return row\n"
+    )
+    assert faults(added(since, repo), tmp_path / "ran", repo) == []
+    assert (tmp_path / "ran/own/stopped").exists(), "the run went on to its end"
+    assert len(list(ended.iterdir())) < 12, "the run waited on every test once the def had run"
+
+
 def a_part(repo: Path, since: str, folder: Path, *tests: str) -> None:
     """Run `repo`'s tests as one of CI's parts runs its own, with `part_lines`, on one worker, so
     the test files run in the order of their names."""
