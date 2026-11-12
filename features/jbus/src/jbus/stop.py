@@ -1,28 +1,45 @@
-"""A scoped home reaches the root home only by a stop: `jbus stop`, which jbus takes only when the
-home's own open row is held by something the home cannot clear, and only for a one-way door.
+"""A scoped home reaches the root home only by a stop: `jbus stop`, of one of three kinds
+(`KINDS`, `--kind`). A `door` stop, the default, is taken only when the home's own open row is
+held by something the home cannot clear, at a one-way door. A `decision` or a `go` stop is the
+home's escalation of a choice it may not make alone, or of a go it may not give, on its own open
+row or on an entry of its own plan (`--entry`).
 
-A stop carries a one-way door and nothing else: `--holds` names one case of
-`features/home/templates/gates.md` word for word (`party.CASES`). A stop with no `--holds`, or
-with a case the table does not have, is refused, and the refusal tells the home to tell the user
-directly from its own thread: a scoped home's own decisions are the user's and its, never the
-root's. On a door stop the root scouts if it needs facts and answers the stop with its
-recommendation, which the home adds to the gate it parked for the door; the root writes nothing
-into a scope's files, and the user alone opens or refuses the door.
+A door stop carries a one-way door: `--holds` names one case of `features/home/templates/gates.md`
+word for word (`party.CASES`). A door stop with no `--holds`, or with a case the table does not
+have, is refused, and the refusal points the home at `--kind decision`. On a door stop the root
+scouts if it needs facts and answers the stop with its recommendation, which the home adds to the
+gate it parked for the door; the root writes nothing into a scope's files, and the user alone
+opens or refuses the door.
+
+A decision or a go stop takes no `--holds`, `--on` or `--outside`: nothing holds it but the root's
+word. jbus refuses it unless its row is the scope's own and open, as a door's is, or its entry is in
+the scope's `plan.md` (`plan.entries`). The root answers it with its own word (`jbus stop answer`),
+which the home acts on: for a go on an entry that the user's standing word for goes covers, the root
+gives the go first with `jbus plan go <entry> --scope <scope> --standing --from <root id>`. Or the
+root passes it to the user with `jbus stop pass <scope> <row or entry> ["<recommendation>"] --from
+<root id>` (`passed`). That closes each open decision and go stop of the row or entry as `passed`
+and parks one gate for each, on the scope's own slug `home-<scope>` so `jbus needs` lists it under
+that home, through `questions.park`. The gate holds for the user (`PASSED`), so silence never closes
+it, and only the user's own word answers it. jbus tells the scope it was passed, and once the user
+answers, carries the answer to the scope (`relay`). A door stop is never passed: its gate is the
+home's own and holds already.
 
 Being stuck is a fact of the queue, so jbus checks it and reads no words. A stop names the scope's
 own row and what holds it: `--on` another home's open row, by its slug or its pull request's `#<n>`,
 or `--outside` something no home owns, such as the machine or a sign-in. jbus refuses a stop
 unless:
 
-- `--holds` is a case of the gates table;
+- for a door, `--holds` is a case of the gates table;
 - `--from` is the thread in a scoped home's `home-id`, and not the root's (`_scope`);
 - the own row is in the queue, is that scope's by its stored brief's `Home:` line
   (`jbriefs.home.home_of`), and is not merged, done or removed;
 - `--on` names a row of the queue that is not merged, done or removed, and is another home's: the
   root's or another scope's;
-- no stop with the same key is open. The key is `stop|<scope>|<own row>|<on>`, where `<on>` is the
-  slug of the row that holds it, or `outside`. So a row has one open stop on each row that holds it,
-  and one on what is outside.
+- no stop with the same key is open. The key of a door stop is `stop|<scope>|<own row>|<on>`, where
+  `<on>` is the slug of the row that holds it, or `outside`. So a row has one open stop on each row
+  that holds it, and one on what is outside. The key of a decision or a go is `stop|<scope>|<own
+  row>|a <kind>`, or `stop|<scope>|entry <entry>|a <kind>`: no slug has a space, so it is no door
+  stop's key, and an entry and a row of the same slug have two keys.
 
 `stops.json` in the project's jbus state holds three lists, `stops` of `Stop`, `answers` of `Answer`
 and `tells` of `Tell` (`Kept`): each record is one message and what became of it. A taken stop goes
@@ -34,10 +51,11 @@ time it was taken, so a stop taken again after its close is a new message and no
 old one.
 
 The root answers with `jbus stop answer <scope> <own row> "<text>" --from <root id>`. The answer
-closes every open stop of that row, and goes as one message that needs `act` to the scope's thread,
-read when it goes, however many stops it closed. It waits as a stop does. A stop whose own row
-merges, is done or is removed closes itself on the next pass, with no message (`settle`). A pass
-settles before it delivers, so a stop of a row that just merged is not sent.
+closes every open stop of that row or entry, and goes as one message that needs `act` to the scope's
+thread, read when it goes, however many stops it closed. It waits as a stop does. A stop whose own
+row merges, is done or is removed, or whose entry left the plan, closes itself on the next pass,
+with no message (`settle`), and so does the gate of a passed stop that still waits. A pass settles
+before it delivers, so a stop of a row that just merged is not sent.
 
 The verb and a pass can both hold the same unsent stop, so under `stops.lock` jbus rereads the file
 and writes that a stop or an answer went only where it had not (`_change`). T3 Code takes a second
@@ -53,28 +71,47 @@ handed off between the tell and the send gets it in its new thread. It waits as 
 scope with no `home-id` gets it on the first pass after its home starts and writes its id there.
 An older jbus that writes `stops.json` drops `tells`, since it knows only the two lists.
 
-A `decision` is not a stop: the user makes it, so a scoped home parks it as a gate (`jbus gate`).
 The digest counts the `--outside` stops of each scope (`digest`), since those are the stops that no
-row of the queue backs.
+row of the queue backs. The verb and the step of a pass are `jbus.stopverbs`.
 """
 
 from __future__ import annotations
 
-import argparse
 import json
 from dataclasses import asdict, dataclass, replace
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypedDict, Unpack
+from typing import Any, TypedDict, Unpack
 
 from jbriefs import home as homes
 from jbriefs.home import thread_of
-from jbus import Config, Refused, locked, outbox, party, queue, verbs, work, write_json
+from jbus import (
+    Refused,
+    locked,
+    outbox,
+    party,
+    plan,
+    questions,
+    queue,
+    stoptexts,
+    work,
+    write_json,
+)
 from jbus.passes import Pass
+from jbus.stoptexts import (
+    ANSWERS,
+    ASKS,
+    DIRECT,
+    ESCALATES,
+    GIVE,
+    PASSED,
+    PASSES,
+    SAFE,
+    TELLS,
+    USERS,
+    WORD,
+)
 from jbus.t3 import Client, T3Error
-
-if TYPE_CHECKING:
-    from jbus.poll import Half
 
 NAME = "stops.json"
 LOCK = "stops.lock"
@@ -83,38 +120,15 @@ ANSWER = "stop-answer"
 TELL = "tell"
 EVERY = "every"
 OUTSIDE = "outside"
+DOOR, DECISION, GO = "door", "decision", "go"
+KINDS = (DOOR, DECISION, GO)
 ENDED = {**{status: status for status in work.FINAL}, "removed": "removed"}
-ASKS = (
-    "jbus: the {scope} home is stopped at a one-way door, {holds}. Its row {row} is held by "
-    "{held}, and it cannot clear that itself. What the root must clear: {what}\n\n"
-    "Scout if you need facts, then answer the stop with your recommendation, once, with "
-    '`jbus stop answer {scope} {row} "<your recommendation>" --from <this home\'s id>`: jbus '
-    "carries it to the {scope} home, which adds it to its own gate for the door. The root writes "
-    "nothing into the {scope} home's files, and the user alone opens or refuses the door. A stop "
-    "whose row merges or is removed closes itself."
-)
-ANSWERS = (
-    "jbus: the root home's answer to the {scope} home's stop on {row}: {answer}\n\n"
-    "Add it, as the root's recommendation, to your own gate for the door: the user alone opens or "
-    "refuses the door."
-)
-TELLS = (
-    "jbus: the root home's own message to the {scope} home, written by the root and not the "
-    "user's word: {text}\n\n"
-    "Take it as the root's steer. It is no go for any row, gate or door, and where it differs "
-    "from the user's word, the user's word stands. Nothing is sent back for it."
-)
-DIRECT = (
-    "a stop carries only a one-way door, --holds '<case>' with a case of "
-    "features/home/templates/gates.md ({cases}): anything else, tell the user directly from this "
-    "home's own thread, and stop"
-)
 NO_ROOT = "no root home is running, its home-id holds no thread"
 NO_SCOPE = "the {scope} home is not running, its home-id holds no thread"
 NO_T3 = "jbus is not signed in to T3 Code"
 NO_ANSWER = "T3 Code gave no answer"
 HELD = "the outbox holds it, its thread capped or at work, and outbox.jsonl names the rule"
-SHOWN = ("scope", "row", "on", "outside", "what", "at", "sent_at", "waits")
+SHOWN = ("scope", "kind", "row", "entry", "on", "outside", "what", "at", "sent_at", "waits")
 """The columns of an open stop that the digest shows."""
 
 
@@ -124,7 +138,11 @@ class Unparsable(Refused):
 
 @dataclass(frozen=True)
 class Stop:
-    """One stop, and its message to the root: the thread it went to, when, or why it waits."""
+    """One stop, and its message to the root: the thread it went to, when, or why it waits.
+    `kind` is one of `KINDS`; a record from before kinds is a door. `row` is the scope's own row,
+    or empty for a stop on `entry`, an entry of the scope's plan. A stop the root passed keeps the
+    number of the gate it parked (`question`), and when jbus was done with that gate's answer
+    (`relayed`)."""
 
     key: str
     scope: str
@@ -139,10 +157,24 @@ class Stop:
     waits: str = ""
     closed: str = ""
     closed_at: str = ""
+    kind: str = DOOR
+    entry: str = ""
+    question: int = 0
+    relayed: str = ""
 
     @property
     def open(self) -> bool:
         return not self.closed
+
+    @property
+    def slug(self) -> str:
+        """The row or the entry the stop is on, as `answer` and `pass` name it."""
+        return self.row or self.entry
+
+    @property
+    def subject(self) -> str:
+        """The row or the entry the stop is on, in words."""
+        return self.row or f"the entry {self.entry} of its plan"
 
     @property
     def sent(self) -> str:
@@ -152,8 +184,9 @@ class Stop:
 
 @dataclass(frozen=True)
 class Answer:
-    """The root's answer to the open stops of one row, `stops` by their keys, and its one message
-    to the scope."""
+    """The root's answer to the open stops of one row or entry, `stops` by their keys, and its one
+    message to the scope: `message`, or for a record from before it, `ANSWERS` with `text`. The
+    same record carries the root's pass and the user's answer to a passed stop."""
 
     scope: str
     row: str
@@ -163,10 +196,14 @@ class Answer:
     thread: str = ""
     sent_at: str = ""
     waits: str = ""
+    message: str = ""
 
     @property
     def sent(self) -> str:
         return f"{ANSWER}|{self.scope}|{self.row}|{self.at}"
+
+    def said(self) -> str:
+        return self.message or ANSWERS.format(scope=self.scope, row=self.row, answer=self.text)
 
 
 @dataclass(frozen=True)
@@ -203,6 +240,11 @@ def path(state: Path) -> Path:
 
 def key(scope: str, row: str, on: str) -> str:
     return f"{KIND}|{scope}|{row}|{on}"
+
+
+def escalation(scope: str, row: str, entry: str, kind: str) -> str:
+    """The key of a decision or a go: no slug has a space, so it is no door stop's key."""
+    return key(scope, row or f"entry {entry}", f"a {kind}")
 
 
 def load(state: Path) -> Kept:
@@ -281,26 +323,63 @@ def _door(holds: str) -> str:
     raise Refused(f"refused: {named}; {DIRECT.format(cases=', '.join(party.CASES))}")
 
 
-def take(
-    run: Pass, thread: str, row: str, on: str, outside: str, what: str, holds: str = ""
-) -> Stop:
-    """Check a stop and keep it, or refuse it. `holds` is the one-way door, a case of the gates
-    table. `on` is the row or `#<n>` that holds the own row, and `outside` what holds it that no
-    home owns: exactly one of the two is given."""
-    what = " ".join(what.split())
-    outside = " ".join(outside.split())
-    holds = _door(holds)
-    if not what:
-        raise Refused("refused: a stop says what the root must clear")
-    if bool(on) == bool(outside):
-        raise Refused("refused: a stop names what holds its row, --on <row or #pr> or --outside")
-    scope = _scope(run.home, thread)
+def _entry(run: Pass, scope: Path, entry: str) -> None:
+    """Refuse an entry that the scope's plan does not have, and a scope with no plan."""
+    text = plan.path(run.home, scope.name).read_text()
+    if not any(one.slug == entry for one in plan.entries(text)):
+        raise Refused(f"refused: the {scope.name} home's plan has no entry {entry}")
+
+
+def _own(run: Pass, scope: Path, row: str) -> None:
+    """Refuse a row that is not the scope's own and open."""
     _, mine = _open_row(run, row)
     if mine != scope:
         raise Refused(
             f"refused: {row} is the {_home_name(run.home, mine)} home's row, not the {scope.name} "
             "home's: a home stops only on its own row"
         )
+
+
+def take(
+    run: Pass,
+    thread: str,
+    row: str,
+    on: str,
+    outside: str,
+    what: str,
+    holds: str = "",
+    kind: str = DOOR,
+    entry: str = "",
+) -> Stop:
+    """Check a stop and keep it, or refuse it. A door stop is on the scope's own `row`: `holds`
+    is its one-way door, a case of the gates table, `on` the row or `#<n>` that holds the own row,
+    and `outside` what holds it that no home owns, exactly one of the two. A decision or a go is
+    on the own `row` or on `entry` of the scope's plan, and names none of the three."""
+    what = " ".join(what.split())
+    outside = " ".join(outside.split())
+    if kind == DOOR:
+        if entry:
+            raise Refused("refused: a door stop is on the home's own row, not on --entry")
+        holds = _door(holds)
+    elif holds:
+        raise Refused(
+            "refused: a decision or a go holds for no door, so it takes no --holds: a one-way "
+            "door is --kind door"
+        )
+    elif on or outside:
+        raise Refused(
+            "refused: a decision or a go names no --on or --outside: nothing holds it but the "
+            "root's word"
+        )
+    if not what:
+        raise Refused("refused: a stop says what the root must clear")
+    if kind == DOOR and bool(on) == bool(outside):
+        raise Refused("refused: a stop names what holds its row, --on <row or #pr> or --outside")
+    scope = _scope(run.home, thread)
+    if entry:
+        _entry(run, scope, entry)
+    else:
+        _own(run, scope, row)
     if on:
         on = _pulled(run, on.removeprefix("#")) if on.startswith("#") else on
         _, theirs = _open_row(run, on)
@@ -309,15 +388,22 @@ def take(
                 f"refused: {on} is the {scope.name} home's own row, which it clears itself: "
                 "a stop is on another home's row"
             )
+    named = (
+        key(scope.name, row, on or OUTSIDE)
+        if kind == DOOR
+        else escalation(scope.name, row, entry, kind)
+    )
     made = Stop(
-        key(scope.name, row, on or OUTSIDE),
+        named,
         scope.name,
-        row,
+        "" if entry else row,
         on,
         outside,
         what,
         _stamp(run),
         holds,
+        kind=kind,
+        entry=entry,
     )
     with locked(run.state, LOCK):
         kept = load(run.state)
@@ -327,28 +413,48 @@ def take(
     return made
 
 
+def _root(run: Pass, thread: str, does: str) -> None:
+    root = thread_of(run.home)
+    if not root or thread != root:
+        raise Refused(f"refused: --from {thread} is not the root home's thread, which {does}")
+
+
+def _mine(kept: Kept, scope: str, slug: str, kinds: tuple[str, ...]) -> list[bool]:
+    """Mark each stop that is open, of the scope, on the row or the entry `slug`, of `kinds`."""
+    return [
+        one.open and (one.scope, one.slug) == (scope, slug) and one.kind in kinds
+        for one in kept.stops
+    ]
+
+
 def answer(run: Pass, thread: str, scope: str, row: str, text: str) -> Answer:
-    """Close the open stops of a scope's row with the root's answer, and return the answer. Refuse
-    an answer from any thread but the root's, and one to a row with no open stop."""
+    """Close the open stops of a scope's row or entry with the root's answer, and return the
+    answer. Refuse an answer from any thread but the root's, and one to a row or an entry with no
+    open stop."""
     text = " ".join(text.split())
     if not text:
         raise Refused("refused: an answer has the root's words")
-    root = thread_of(run.home)
-    if not root or thread != root:
-        raise Refused(f"refused: --from {thread} is not the root home's thread, which answers")
+    _root(run, thread, "answers")
     at = _stamp(run)
     with locked(run.state, LOCK):
         kept = load(run.state)
-        mine = [one.open and (one.scope, one.row) == (scope, row) for one in kept.stops]
+        mine = _mine(kept, scope, row, KINDS)
         if not any(mine):
             raise Refused(f"refused: the {scope} home has no open stop on {row}")
         stops = tuple(
             replace(one, closed="answered", closed_at=at) if ours else one
             for one, ours in zip(kept.stops, mine, strict=True)
         )
-        closed = tuple(one.key for one, ours in zip(kept.stops, mine, strict=True) if ours)
-        made = Answer(scope, row, text, at, closed)
-        _write(run.state, Kept(stops, (*kept.answers, made)))
+        closed = [one for one, ours in zip(kept.stops, mine, strict=True) if ours]
+        door = any(one.kind == DOOR for one in closed)
+        first = closed[0]
+        message = (
+            ""
+            if door
+            else WORD.format(scope=scope, kind=first.kind, subject=first.subject, answer=text)
+        )
+        made = Answer(scope, row, text, at, tuple(one.key for one in closed), message=message)
+        _write(run.state, replace(kept, stops=stops, answers=(*kept.answers, made)))
     return made
 
 
@@ -380,6 +486,89 @@ def tell(run: Pass, thread: str, to: str, text: str) -> list[tuple[Tell, bool]]:
     return told
 
 
+def passed(run: Pass, thread: str, scope: str, row: str, text: str) -> Answer:
+    """Pass the open decision and go stops of a scope's row or entry to the user: park a gate
+    that holds for each (`PASSED`) on `home-<scope>`, close each stop as `passed` with its gate's
+    number, and return the message that tells the scope. `text` is the root's recommendation, or
+    nothing. Refuse a pass from any thread but the root's, and one with no open decision or go
+    stop on the row or the entry."""
+    text = " ".join(text.split())
+    _root(run, thread, "passes")
+    asked = thread_of(run.home / scope)
+    at = _stamp(run)
+    with locked(run.state, LOCK):
+        kept = load(run.state)
+        mine = _mine(kept, scope, row, (DECISION, GO))
+        if not any(mine):
+            door = any(_mine(kept, scope, row, (DOOR,)))
+            why = (
+                ": a door stop is the user's already, through the home's own gate, so answer it"
+                if door
+                else ""
+            )
+            raise Refused(f"refused: the {scope} home has no open decision or go on {row}{why}")
+        numbers: dict[str, int] = {}
+        for one, ours in zip(kept.stops, mine, strict=True):
+            if ours:
+                gate, _ = questions.park(
+                    run,
+                    f"home-{scope}",
+                    stoptexts.gate(
+                        one.what, one.kind, one.slug, one.subject, one.scope, asked, text
+                    ),
+                    (PASSED, SAFE),
+                )
+                numbers[one.key] = gate.number
+        stops = tuple(
+            replace(one, closed="passed", closed_at=at, question=numbers[one.key]) if ours else one
+            for one, ours in zip(kept.stops, mine, strict=True)
+        )
+        first = next(one for one, ours in zip(kept.stops, mine, strict=True) if ours)
+        message = PASSES.format(
+            scope=scope,
+            kind=first.kind,
+            subject=first.subject,
+            number=" and ".join(map(str, numbers.values())),
+            said=f", with the root's recommendation: {text}" if text else "",
+        )
+        made = Answer(scope, row, text, at, tuple(numbers), message=message)
+        _write(run.state, replace(kept, stops=stops, answers=(*kept.answers, made)))
+    return made
+
+
+def relay(run: Pass) -> None:
+    """Carry the user's answer to each gate of a passed stop to the stop's scope, once, as a
+    message of the same kind as the root's answer. A gate that a pass cleared is done with too,
+    and carries nothing."""
+    waiting = [one for one in load(run.state).stops if one.question and not one.relayed]
+    if not waiting:
+        return
+    at = _stamp(run)
+    with locked(run.state, LOCK):
+        kept = load(run.state)
+        made, stops = [], []
+        for one in kept.stops:
+            gate = questions.question(run.state, one.question) if one.question else None
+            given = gate.answer if gate is not None else None
+            if one.relayed or given is None or given.closed_by == questions.SILENCE:
+                stops.append(one)
+                continue
+            if given.closed_by == questions.COMMAND:
+                message = USERS.format(
+                    number=one.question,
+                    scope=one.scope,
+                    kind=one.kind,
+                    subject=one.subject,
+                    words=given.words,
+                )
+                made.append(
+                    Answer(one.scope, one.slug, given.words, at, (one.key,), message=message)
+                )
+            stops.append(replace(one, relayed=at))
+        if made or stops != list(kept.stops):
+            _write(run.state, replace(kept, stops=tuple(stops), answers=(*kept.answers, *made)))
+
+
 class _Sent(TypedDict, total=False):
     thread: str
     sent_at: str
@@ -404,7 +593,7 @@ def _change(run: Pass, one: Record, **changed: Unpack[_Sent]) -> bool:
     return True
 
 
-def _reread(state: Path, one: Record) -> Record:
+def reread(state: Path, one: Record) -> Record:
     """Return the record of a stop, an answer or a tell as the file has it now."""
     kept = load(state)
     return next(each for each in getattr(kept, FIELDS[type(one)]) if each.sent == one.sent)
@@ -444,24 +633,39 @@ def _held(run: Pass, one: Stop) -> str:
     return f"{one.on}, the {_home_name(run.home, homes.home_of(run.home, whose))} home's row"
 
 
+def _asks(run: Pass, one: Stop) -> str:
+    """The stop's message to the root."""
+    if one.kind == DOOR:
+        return ASKS.format(
+            scope=one.scope, row=one.row, held=_held(run, one), what=one.what, holds=one.holds
+        )
+    give = GIVE.format(entry=one.entry, scope=one.scope) if one.kind == GO and one.entry else ""
+    return ESCALATES.format(
+        scope=one.scope,
+        kind=one.kind,
+        subject=one.subject,
+        what=one.what,
+        give=give,
+        slug=one.slug,
+    )
+
+
 def _ask(run: Pass, client: Client | None, one: Stop) -> None:
     thread = thread_of(run.home)
-    text = ASKS.format(
-        scope=one.scope, row=one.row, held=_held(run, one), what=one.what, holds=one.holds
-    )
+    text = _asks(run, one)
     waits = _send(
-        run, client, thread, NO_ROOT, row=one.row, sent=one.sent, text=text, needs="decide"
+        run, client, thread, NO_ROOT, row=one.slug, sent=one.sent, text=text, needs="decide"
     )
     if not waits:
         if _change(run, one, thread=thread, sent_at=_stamp(run), waits=""):
-            run.say(f"{KIND} {one.row}: sent to the root home at {thread}")
+            run.say(f"{KIND} {one.slug}: sent to the root home at {thread}")
     elif waits != one.waits and _change(run, one, waits=waits):
-        run.say(f"wait {one.row}: the {one.scope} home's stop waits, {waits}")
+        run.say(f"wait {one.slug}: the {one.scope} home's stop waits, {waits}")
 
 
 def _tell(run: Pass, client: Client | None, one: Answer) -> None:
     thread = thread_of(run.home / one.scope)
-    text = ANSWERS.format(scope=one.scope, row=one.row, answer=one.text)
+    text = one.said()
     gone = NO_SCOPE.format(scope=one.scope)
     waits = _send(run, client, thread, gone, row=one.row, sent=one.sent, text=text, needs="act")
     if not waits:
@@ -483,34 +687,68 @@ def _steer(run: Pass, client: Client | None, one: Tell) -> None:
         run.say(f"wait {one.scope}: the root's message to the {one.scope} home waits, {waits}")
 
 
+def _planned(run: Pass, scope: str) -> set[str]:
+    """The entries of a scope's plan now: none for a scope with no plan."""
+    try:
+        return {one.slug for one in plan.entries(plan.path(run.home, scope).read_text())}
+    except (Refused, OSError):
+        return set()
+
+
+def _ended(run: Pass, stops: tuple[Stop, ...]) -> dict[str, str]:
+    """Return how each stop's row or entry ended, by the stop's key: a row merged, done or
+    removed, or an entry no longer in its scope's plan (`closed`). Read the plan of a scope only
+    where it has a stop on an entry."""
+    gone = queue.removed(run.state)
+    rows = {row["slug"]: row for row in queue.load(run.state)}
+    plans = {one.scope: _planned(run, one.scope) for one in stops if one.entry}
+    ended = {}
+    for one in stops:
+        if one.entry:
+            status = "" if one.entry in plans[one.scope] else "closed"
+        else:
+            status = "removed" if one.row in gone else rows.get(one.row, {}).get("status", "")
+        if status in ENDED or status == "closed":
+            ended[one.key + one.at] = ENDED.get(status, status)
+    return ended
+
+
 def settle(run: Pass) -> None:
-    """Close each open stop whose own row merged, is done or was removed, with no message. A
-    `queue.json` that does not parse closes nothing: a pass reports that file itself. With no
-    stop open, `settle` reads no queue."""
-    if not any(one.open for one in load(run.state).stops):
+    """Close each open stop whose own row merged, is done or was removed, or whose entry left its
+    plan, with no message, and clear the gate of a passed stop that still waits when its row or
+    entry ends so. A `queue.json` that does not parse closes nothing: a pass reports that file
+    itself. With no stop open and no passed gate waiting, `settle` reads no queue."""
+    kept = load(run.state)
+    held = [one for one in kept.stops if one.question and not one.relayed]
+    if not any(one.open for one in kept.stops) and not held:
         return
     try:
-        gone = queue.removed(run.state)
-        rows = {row["slug"]: row for row in queue.load(run.state)}
+        ends = _ended(run, tuple(one for one in kept.stops if one.open or one in held))
     except queue.Unparsable:
         return
     with locked(run.state, LOCK):
         kept = load(run.state)
         ended = {}
         for one in kept.stops:
-            status = "removed" if one.row in gone else rows.get(one.row, {}).get("status", "")
-            if one.open and status in ENDED:
-                ended[id(one)] = replace(one, closed=ENDED[status], closed_at=_stamp(run))
+            end = ends.get(one.key + one.at)
+            if one.open and end:
+                ended[id(one)] = replace(one, closed=end, closed_at=_stamp(run))
         if ended:
             stops = tuple(ended.get(id(one), one) for one in kept.stops)
             _write(run.state, replace(kept, stops=stops))
     for one in ended.values():
-        run.say(f"{KIND} {one.row}: closed, the row is {one.closed}")
+        run.say(f"{KIND} {one.slug}: closed, the {'entry' if one.entry else 'row'} is {one.closed}")
+    for one in held:
+        end = ends.get(one.key + one.at)
+        if end:
+            words = f"the stop's {'entry' if one.entry else 'row'} {one.slug} is {end}"
+            questions.clear(run, one.question, words)
 
 
 def deliver(run: Pass, client: Client | None) -> None:
     """Send each stop that waits to the root, and each answer and tell that waits to its scope,
     once."""
+    relay(run)
     kept = load(run.state)
     for one in kept.stops:
         if one.open and not one.sent_at:
@@ -538,136 +776,3 @@ def digest(state: Path, start: datetime) -> dict[str, Any]:
         "open": [{column: getattr(one, column) for column in SHOWN} for one in kept if one.open],
         "outside": outside,
     }
-
-
-def _client(config: Config) -> Client | None:
-    try:
-        return Client(config.server, config.token_path)
-    except Refused:
-        return None
-
-
-def _stop(args: argparse.Namespace, config: Config) -> int:
-    """`jbus stop`: a scoped home's stop to the root, or the root's answer to one (`take`,
-    `answer`). The command sends what it kept at once, and a pass sends what could not go."""
-    run = Pass(config, verbs.project(config, args.project), datetime.now(UTC), lambda _: None)
-    try:
-        if args.row == "answer":
-            given = (args.on, args.outside, args.holds)
-            if any(one is not None for one in given) or len(args.words) < 3:
-                raise Refused(
-                    'refused: an answer is jbus stop answer <scope> <row> "<text>" --from <root id>'
-                )
-            scope, row, *words = args.words
-            settle(run)
-            given = answer(run, args.thread, scope, row, " ".join(words))
-            deliver(run, _client(config))
-            now = _reread(run.state, given)
-            to = now.thread if now.sent_at else f"nobody yet, {now.waits}"
-            print(f"answered: {', '.join(given.stops)}, closed, the answer sent to {to}")
-            return 0
-        one = take(
-            run,
-            args.thread,
-            args.row,
-            args.on or "",
-            args.outside or "",
-            " ".join(args.words),
-            args.holds or "",
-        )
-        settle(run)
-        deliver(run, _client(config))
-        now = _reread(run.state, one)
-        to = f"the root home at {now.thread}" if now.sent_at else f"nobody yet, {now.waits}"
-        print(f"stopped: {one.key}, sent to {to}")
-        return 0
-    except Refused as error:
-        print(error)
-        return 1
-
-
-def _tells(args: argparse.Namespace, config: Config) -> int:
-    """`jbus tell`: keep the root's own message for one scope or every scope (`tell`), send it at
-    once, and print one line for each scope. A pass sends what could not go."""
-    run = Pass(config, verbs.project(config, args.project), datetime.now(UTC), lambda _: None)
-    try:
-        told = tell(run, args.thread, args.to, " ".join(args.words))
-    except Refused as error:
-        print(error)
-        return 1
-    deliver(run, _client(config))
-    for one, new in told:
-        if not new:
-            print(f"held: {one.scope}, it already has this message from the root")
-            continue
-        now = _reread(run.state, one)
-        to = now.thread if now.sent_at else f"nobody yet, {now.waits}"
-        print(f"told: {one.scope}, sent to {to}")
-    return 0
-
-
-def _tell_arguments(tell: argparse.ArgumentParser) -> None:
-    tell.add_argument("to", metavar="SCOPE", help=f"the scoped home it goes to, or {EVERY}")
-    tell.add_argument(
-        "--from",
-        dest="thread",
-        metavar="THREAD",
-        required=True,
-        help="the root home's thread",
-    )
-    tell.add_argument("words", nargs="*", help="the root's own words")
-
-
-def _arguments(stop: argparse.ArgumentParser) -> None:
-    stop.add_argument("row", help="this home's own open row, or `answer` for the root's answer")
-    held = stop.add_mutually_exclusive_group()
-    held.add_argument(
-        "--on", metavar="ROW", help="the other home's open row, or #<n>, that holds it"
-    )
-    held.add_argument("--outside", metavar="WHAT", help="what holds it that no home owns")
-    stop.add_argument(
-        "--holds",
-        metavar="CASE",
-        help="the one-way door, a case of features/home/templates/gates.md, word for word",
-    )
-    stop.add_argument(
-        "--from",
-        dest="thread",
-        metavar="THREAD",
-        required=True,
-        help="this home's thread: a scoped home's for a stop, the root's for an answer",
-    )
-    stop.add_argument(
-        "words",
-        nargs="*",
-        help="what the root must clear; for an answer, <scope> <row> and the root's words",
-    )
-
-
-VERBS = (
-    verbs.Verb(
-        "stop",
-        "a scoped home's stop at a one-way door on its own row, or the root's answer",
-        _arguments,
-        _stop,
-    ),
-    verbs.Verb(
-        "tell",
-        "the root home's own message to one scoped home, or to every one, signed as the root's",
-        _tell_arguments,
-        _tells,
-    ),
-)
-
-
-def _pass(half: Half) -> None:
-    """Close the stops whose rows ended, then send what waits. A `stops.json` that does not parse
-    raises a gate, and the pass goes on."""
-    try:
-        settle(half.run)
-        deliver(half.run, half.client)
-    except Unparsable:
-        half.run.gate(half.run.project.name, "stops.json does not parse", str(path(half.run.state)))
-
-
-STEPS = (verbs.Step("before-watch", 12, "stop.deliver", _pass),)

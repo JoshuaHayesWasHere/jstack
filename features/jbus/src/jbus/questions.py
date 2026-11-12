@@ -576,7 +576,14 @@ def _shaped(lines: str) -> None:
     raise Refused(f"not sent: {what}.")
 
 
-def ask(state: Path, home: Path, slug: str, lines: str, now: datetime) -> tuple[Question, bool]:
+def ask(
+    state: Path,
+    home: Path,
+    slug: str,
+    lines: str,
+    now: datetime,
+    held: tuple[str, str] = ("", ""),
+) -> tuple[Question, bool]:
     """Store the gate that a thread piped, and return its record and whether the record is new.
 
     `ask` refuses lines that are not one filled-in gate of the template (`_shaped`). Lines
@@ -584,11 +591,15 @@ def ask(state: Path, home: Path, slug: str, lines: str, now: datetime) -> tuple[
     answer undoes. It also refuses lines that do not propose two options, one of them the
     default and the recommended one (`_proposed`), and lines with a wrong `Holds:` line
     (`_held`).
+
+    `held` is what jbus itself parks a gate holding for, and its fail-safe, where that is no door
+    of the table: a stop the root passed to the user (`jbus.stop.passed`). The lines then have no
+    `Holds:` line of their own. A thread's gate never gives it.
     """
     _shaped(lines)
     asked, default = mirror.question(lines), below.line(lines, "Default:")
     options = _proposed(lines)
-    holds, fail_safe = _held(lines)
+    holds, fail_safe = held if held[0] else _held(lines)
     named = _THREAD.search(below.line(lines, "Asked by:"))
     with locked(state, LOCK):
         count, records = _kept(state)
@@ -616,11 +627,13 @@ def ask(state: Path, home: Path, slug: str, lines: str, now: datetime) -> tuple[
     return made, True
 
 
-def park(run: Pass, slug: str, lines: str) -> tuple[Question, bool]:
+def park(
+    run: Pass, slug: str, lines: str, held: tuple[str, str] = ("", "")
+) -> tuple[Question, bool]:
     """Keep a gate as a question (`ask`), and queue its `gate` event while it waits for an
     answer. It is the one path a gate takes, piped by a thread to `jbus gate` or raised by a
-    pass."""
-    one, new = ask(run.state, run.home, slug, lines, run.now)
+    pass. `held` is what jbus holds it for that is no door, as `ask` has it."""
+    one, new = ask(run.state, run.home, slug, lines, run.now, held)
     if not one.answer:
         line = f"gate {slug}: question {one.number}: {one.question}"
         run.find(slug, "gate", line, lines, key=one.key)
