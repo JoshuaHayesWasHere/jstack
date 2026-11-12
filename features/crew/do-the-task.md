@@ -100,7 +100,7 @@
           ran=0
           ceiling=${JGAUGE_SHORT_WAIT_SECONDS:-300}
           left=
-          n=0
+          junit=$code.junit
           while [ -n "$todo" ]; do
               step=$(printf '%s\n' "$todo" | sed -n 1p)
               todo=$(printf '%s\n' "$todo" | sed 1d)
@@ -112,8 +112,6 @@
               wait=$((have - reserve))
               [ "$wait" -le "$ceiling" ] || wait=$ceiling
               files=$(printf '%s' "$step" | tr , ' ')
-              n=$((n + 1))
-              junit=$code.junit.$n
               if [ "$step" = lint ]; then
                   set -- make check-fast BASE="$base" PYTEST=: PART=touched
               else

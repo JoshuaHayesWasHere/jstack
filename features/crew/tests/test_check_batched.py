@@ -254,3 +254,16 @@ def test_a_batched_step_that_passed_over_work_the_head_lacks_keeps_none_of_its_f
     assert re.search(r"passed over work that \w+ does not have, so it is not kept$", said[-1])
     assert code == 76
     assert "Checked:" not in brief.read_text()
+
+
+def test_a_call_leaves_one_report_however_many_steps_it_runs(tmp_path, monkeypatch):
+    """Each step's pytest report goes to the one file of the call, which the next step's run
+    writes over: a check of many steps leaves no report a step behind in the temp directory."""
+    scratch = tmp_path / "scratch"
+    scratch.mkdir()
+    monkeypatch.setenv("TMPDIR", str(scratch))
+    repo = stubbed(tmp_path, touching(*TOUCHED[:3], cross=GUARDS, names=NAMES))
+    a_brief(tmp_path)
+    said, code, ran, base = selected(tmp_path, repo, junit=({}, []))
+    assert (len(ran), code) == (10, 0), said
+    assert len(list(scratch.glob("code.*.junit*"))) == 1
