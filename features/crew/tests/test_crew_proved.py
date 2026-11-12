@@ -186,7 +186,8 @@ def worktrees(tree, head=True):
 
 
 def copies(tree):
-    return sorted(path.name for kind in ("base", "head", "fork") for path in tree.parent.glob(f"{kind}.*"))
+    kinds = ("base", "head", "fork")
+    return sorted(path.name for kind in kinds for path in tree.parent.glob(f"{kind}.*"))
 
 
 def proof(tree, shell="", moves_head=False, **more):
@@ -353,8 +354,8 @@ def test_an_edit_left_uncommitted_while_the_head_side_runs_gets_no_proved_line(r
     said, line = proof(repo, DURING="echo '# edited' >> calc.py")
     assert "Proved:" not in said
     assert (
-        "no proof: the head or the worktree moved while it ran: the worktree has changes: M calc.py\n"
-        in said
+        "no proof: the head or the worktree moved while it ran:"
+        " the worktree has changes: M calc.py\n" in said
     )
     assert line is None
 

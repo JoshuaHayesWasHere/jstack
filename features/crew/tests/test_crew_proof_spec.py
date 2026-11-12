@@ -133,9 +133,7 @@ def test_tlc_breaks_proof_at_head_on_todays_code_with_the_trace_the_cfg_keeps():
 
 
 @JAVA
-@pytest.mark.parametrize(
-    "rule", ["CheckedAtHead", "RecordGoes", "OneScopedReviewer"]
-)
+@pytest.mark.parametrize("rule", ["CheckedAtHead", "RecordGoes", "OneScopedReviewer"])
 def test_each_rule_the_code_breaks_breaks_with_the_trace_the_cfg_keeps(rule):
     ran = tlc(alone([rule]))
     assert f"Invariant {rule} is violated" in ran.stdout, ran.stdout[-4000:]
