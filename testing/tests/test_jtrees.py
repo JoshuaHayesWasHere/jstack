@@ -284,8 +284,25 @@ def declare(root, feature, folder, like=None):
 def test_each_project_skill_a_feature_declares_is_in_skills_json_by_its_frontmatter_name():
     listed = json.loads((REPO / "skills.json").read_text())["projectSkills"]
     assert listed == [
+        {"name": "verify-flow-design", "path": "features/jmerge/project-skill/verify-flow-design"},
+        {"name": "verify-flow-today", "path": "features/jmerge/project-skill/verify-flow-today"},
+        {"name": "verify-green-move", "path": "features/jbus/project-skill/verify-green-move"},
+        {"name": "verify-home-tree", "path": "features/home/project-skill/verify-home-tree"},
+        {
+            "name": "verify-home-tree-today",
+            "path": "features/home/project-skill/verify-home-tree-today",
+        },
         {"name": "verify-jstack", "path": "features/verify-jstack/project-skill"},
+        {"name": "verify-main-fix", "path": "features/jbus/project-skill/verify-main-fix"},
         {"name": "verify-main-red", "path": "features/jbus/project-skill/verify-main-red"},
+        {
+            "name": "verify-output-folder",
+            "path": "features/skill-library/project-skill/verify-output-folder",
+        },
+        {"name": "verify-pr-verdict", "path": "features/jmerge/project-skill/verify-pr-verdict"},
+        {"name": "verify-row-life", "path": "features/jbus/project-skill/verify-row-life"},
+        {"name": "verify-tell-once", "path": "features/jbus/project-skill/verify-tell-once"},
+        {"name": "verify-thread-life", "path": "features/jbus/project-skill/verify-thread-life"},
     ]
 
 
