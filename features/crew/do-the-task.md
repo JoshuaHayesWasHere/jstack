@@ -230,6 +230,8 @@
   Do not merge.
   What follows it is under "Stay on the pull request".
   The base is the home's to give, never yours to choose.
+  Where the task needs code that is only on an open row's branch, not on main, build on that branch in this worktree, commit, and pause with `Waits on: <that row>` on the Result: jbus stacks the task on that row's pull request, writes the `Stacked on:` line, and tells this thread to check and push on it.
+  Never open a pull request on the default branch that carries another row's commits.
   Run this in this worktree, with the block at the top.
   It is the only check:
 
