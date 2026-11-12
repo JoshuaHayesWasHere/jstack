@@ -1,0 +1,32 @@
+---
+title: "A plan entry and a scope's retire: is any work lost?, bug 2"
+config:
+  markdownAutoWrap: false
+  state:
+    useMaxWidth: false
+---
+stateDiagram-v2
+  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0 fill:#d6eaf8,stroke:#6b757c,color:#1b2631
+  classDef group0Wrong fill:#d6eaf8,stroke:#c0392b,stroke-width:4px,color:#7b241c
+  classDef group0Path fill:#d6eaf8,stroke:#1f3a93,stroke-width:4px,color:#1b2631
+  state "Legend" as legend {
+    state "Working" as legendGroup0
+    state "Breaks a rule today" as legendWrong
+  }
+  class legendGroup0 group0
+  class legendWrong plainWrong
+  state "Scope s working" as g0 {
+    state "the entry proposed or<br/>planned; no fix" as s0
+    state "the entry proposed or<br/>planned; the fix counted<br/>in s" as s1
+    state "the entry proposed or<br/>planned; the fix counted<br/>in s, not where its home<br/>reads it" as s2
+    state "the entry proposed or<br/>planned; the fix counted<br/>in s, not where its home<br/>reads it, the move at work" as s3
+  }
+  [*] --> s0
+  s0 --> s1 : 1. the home queues the fix,<br/>and jbus counts it
+  s1 --> s3 : 2. the home moves the fix to<br/>the catch-all: queue move<br/>rewrites its Home: line
+  s3 --> s2 : 3. the move dies
+  class s0 group0Path
+  class s1 group0Path
+  class s2 group0Wrong
+  class s3 group0Path

@@ -1,10 +1,10 @@
 {
   "view": "customer",
-  "modelStates": 344,
-  "modelTransitions": 964,
-  "chartStates": 70,
-  "chartTransitions": 90,
-  "allTransitions": 186,
+  "modelStates": 304,
+  "modelTransitions": 860,
+  "chartStates": 53,
+  "chartTransitions": 65,
+  "allTransitions": 132,
   "final": [
     "A gate",
     "A gate that holds",
@@ -14,12 +14,10 @@
     "Status: answered in gates-moved.md, not on your list, settled",
     "Status: done in gates-moved.md, its question answered, not on your list, settled",
     "Status: done in gates-moved.md, not on your list, settled",
-    "Status: open in gates-moved.md, asked again as the catch-all's answered, not on your list, settled",
-    "Status: open in gates-moved.md, its question answered, asked again as the catch-all's answered, not on your list, settled",
     "Status: open in gates-moved.md, its question answered, not on your list, settled"
   ],
   "chartStatus": {
-    "works": 70,
+    "works": 53,
     "fixed": 0,
     "wrong": 0
   },
@@ -38,16 +36,6 @@
       "name": "Open, moved aside",
       "color": "#fad7a0",
       "states": 5
-    },
-    {
-      "name": "Open, asked again by the catch-all",
-      "color": "#f5b7b1",
-      "states": 5
-    },
-    {
-      "name": "Open, asked twice",
-      "color": "#fdedec",
-      "states": 12
     },
     {
       "name": "Answered in gates.md",
@@ -75,24 +63,24 @@
     "drawn": true,
     "states": [
       4,
-      66
+      49
     ],
-    "transitions": 90,
-    "all": 186,
+    "transitions": 65,
+    "all": 132,
     "flat": {
-      "states": 172,
-      "transitions": 412
+      "states": 152,
+      "transitions": 366
     }
   },
   "classes": [],
   "codeLike": [],
   "drawnFrom": {
-    "command": "statechart from-spec OneList.tla --config OneList.chart.cfg --title 'Does a gate reach my list, and leave it once I answer?' --expect-broken AnsweredLeaves,ListIsTrue --png",
+    "command": "statechart from-spec OneList.tla --config OneList.chart.cfg --title 'Does a gate reach my list, and leave it once I answer?'",
     "inputs": {
-      "OneList.chart.cfg": "6298662483d005cc078ade9d2c441114b07b0808368ccb1b290802611455e8cb",
-      "OneList.map.py": "dd8a4233af90a287899d3968869ce8b02089fc610f4db3fce2a03e202a8c2c79",
-      "OneList.tla": "2e878bc452c64d6fe9de6f8589682a20e5eb397b9c742bb39a6d0fbe0fa4430b"
+      "OneList.chart.cfg": "b9af02e7b6235f9ec2b7b7e4f638d33e2ca838befd603891de3f70ddb63dab0b",
+      "OneList.map.py": "6f9d741ec2611eff16d0d6e5812882a1b3e09f667e80226c9f8de6179b36c13a",
+      "OneList.tla": "47d62e8c80947c9ca659627ef41a6004525f2e6534320d180c98c38556c03430"
     },
-    "chart": "2e293075f31332a6dffc4f8e0ce4863708adea51d18454898a7ac6bac17c5667"
+    "chart": "544feaadd7c8a95a8a8623170ed7cafd7267d61e20b75b29ff3e90365893b86e"
   }
 }

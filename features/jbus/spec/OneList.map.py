@@ -21,7 +21,7 @@
 # - `hold`: the budget hold on the list is budget-hold.json on disk; `jbus needs` lists it only
 #   after `LISTED` and before its reset, and the file goes when a pass reads the budget held no
 #   more.
-# - `mark` under MarkBy = "line" is the last merge line read, a value no code writes.
+# - `mark` is the merge line merge-seen names as the last one read, 0 for none.
 
 # Each kind of waiting-on-user.json, and the alerts and the hold, with the HomeTree `msg` it
 # refines (features/home/spec/HomeTree.tla): a call is `msg` none, waiting in the home thread
@@ -75,7 +75,13 @@ def marks(v):
     log = v["log"]
     lines = ", ".join(f"merge {one}" for one in log) or "nothing"
     # A mark past MaxLines is Absent: there is no merge-seen file.
-    seen = "no merge-seen" if v["mark"] > 2 else f"merge-seen says {v['mark']} read"
+    seen = (
+        "no merge-seen"
+        if v["mark"] > 2
+        else f"merge-seen names merge {v['mark']}"
+        if v["mark"]
+        else "merge-seen says none read"
+    )
     shown = [f"merge {n} shown {k}x" for n, k in enumerate(v["shown"], 1) if k]
     results = f"{v['heads']} Results"
     if not v["readseen"]:
@@ -200,5 +206,5 @@ def step(action, before, after):
 
 def cause(v, facts, invariant):
     if invariant == "ReadOnce":
-        return "merge.log was cut, so merge-seen's count points at lines the home never saw"
+        return "merge.log was cut, so merge-seen's mark points at lines the home never saw"
     return None
