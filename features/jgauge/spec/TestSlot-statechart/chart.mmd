@@ -34,51 +34,68 @@ stateDiagram-v2
     state "the slot held by a desk's<br/>run, the crew is woken,<br/>its claim holds" as s4
     state "the slot held by a desk's<br/>run, the crew is woken,<br/>its claim holds, the woken<br/>crew found its slot taken" as s5
     state "the slot held by a desk's<br/>run, the crew waits, not<br/>woken, jbus sends a wake<br/>for a slot it counted free" as s6
+    state "the slot held by a desk's<br/>run, the crew waits, not<br/>woken, the woken crew<br/>found its slot taken" as s7
+    state "the slot held by a desk's<br/>run, the woken crew found<br/>its slot taken" as s8
   }
   state "Review pool" as g1 {
-    state "no wait on file" as s7
-    state "no wait on file, the<br/>crew's second wait" as s8
-    state "the crew waits on file for<br/>the cap to end, the crew's<br/>second wait" as s9
+    state "no wait on file" as s9
+    state "no wait on file, the<br/>crew's second wait" as s10
+    state "the crew waits on file for<br/>the cap to end, the crew's<br/>second wait" as s11
   }
   state "Short lane" as g2 {
-    state "the slot free" as s10
-    state "the slot free, the crew<br/>waits in the line" as s11
-    state "the slot held by a crew's<br/>run" as s12
-    state "the slot held by a crew's<br/>run, its run on file as<br/>running" as s13
-    state "the slot held by a crew's<br/>run, its run on file with<br/>no end, its command gone" as s14
-    state "the slot held by a crew's<br/>run, its run's end written<br/>after jbus forgot it" as s15
+    state "the slot free" as s12
+    state "the slot free, the crew<br/>waits in the line" as s13
+    state "the slot held by a crew's<br/>run" as s14
+    state "the slot held by a crew's<br/>run, its run on file as<br/>running" as s15
+    state "the slot held by a crew's<br/>run, its run on file with<br/>no end, its command gone" as s16
+    state "the slot held by a crew's<br/>run, its run's end written<br/>after jbus forgot it" as s17
   }
   state "Usage ledger" as g3 {
-    state "the ledger keeps the<br/>records of jbus, the<br/>status line wrote and its<br/>record is gone, the last<br/>capped read is older than<br/>the ledger" as s16
-    state "the ledger keeps the<br/>records of no one" as s17
-    state "the ledger keeps the<br/>records of no one, the<br/>status line merges into<br/>the copy it read, of no<br/>one" as s18
-    state "the ledger keeps the<br/>records of no one, the<br/>status line merges into<br/>the copy it read, of no<br/>one, jbus merges into the<br/>copy it read, of no one" as s19
-    state "the ledger keeps the<br/>records of the status<br/>line, jbus merges into the<br/>copy it read, of no one,<br/>the last capped read is<br/>older than the ledger" as s20
+    state "the ledger keeps the<br/>records of jbus and jgauge<br/>limits, jgauge limits<br/>merges into the copy it<br/>read, of jbus and jgauge<br/>limits, the status line<br/>wrote and its record is<br/>gone" as s18
+    state "the ledger keeps the<br/>records of jbus and jgauge<br/>limits, the status line<br/>wrote and its record is<br/>gone" as s19
+    state "the ledger keeps the<br/>records of jbus and jgauge<br/>limits, the status line<br/>wrote and its record is<br/>gone, the last capped read<br/>is older than the ledger" as s20
+    state "the ledger keeps the<br/>records of jbus, jgauge<br/>limits merges into the<br/>copy it read, of jbus, the<br/>status line wrote and its<br/>record is gone" as s21
+    state "the ledger keeps the<br/>records of jbus, the<br/>status line wrote and its<br/>record is gone" as s22
+    state "the ledger keeps the<br/>records of jbus, the<br/>status line wrote and its<br/>record is gone, the last<br/>capped read is older than<br/>the ledger" as s23
+    state "the ledger keeps the<br/>records of no one" as s24
+    state "the ledger keeps the<br/>records of no one, the<br/>status line merges into<br/>the copy it read, of no<br/>one" as s25
+    state "the ledger keeps the<br/>records of no one, the<br/>status line merges into<br/>the copy it read, of no<br/>one, jbus merges into the<br/>copy it read, of no one" as s26
+    state "the ledger keeps the<br/>records of the status<br/>line, jbus merges into the<br/>copy it read, of no one,<br/>the last capped read is<br/>older than the ledger" as s27
   }
   [*] --> s0
-  [*] --> s7
-  [*] --> s10
-  [*] --> s17
-  s17 --> s18 : a writer reads the ledger
-  s10 --> s11 : the crew takes a place in the<br/>line
-  s18 --> s19 : a writer reads the ledger
+  [*] --> s9
+  [*] --> s12
+  [*] --> s24
+  s24 --> s25 : a writer reads the ledger
+  s12 --> s13 : the crew takes a place in the<br/>line
+  s25 --> s26 : a writer reads the ledger
   s0 --> s3 : the call counts the slots to<br/>spare
-  s11 --> s12 : the first in the line looks<br/>for a slot
-  s19 --> s20 : a writer writes the ledger
-  s20 --> s16 : a writer writes the ledger
+  s13 --> s14 : the first in the line looks<br/>for a slot
+  s26 --> s27 : a writer writes the ledger
+  s27 --> s23 : a writer writes the ledger
+  s23 --> s22 : a capped read is noted
   s3 --> s0 : the slot is let go
-  s12 --> s13 : the run goes on the holders<br/>file
-  s13 --> s14 : the command ends
-  s7 --> s9 : the crew registers its wait
-  s9 --> s8 : the crew finds headroom and<br/>leaves
+  s14 --> s15 : the run goes on the holders<br/>file
+  s22 --> s21 : a writer reads the ledger
+  s15 --> s16 : the command ends
+  s20 --> s19 : a capped read is noted
+  s21 --> s20 : a writer writes the ledger
+  s9 --> s11 : the crew registers its wait
+  s11 --> s10 : the crew finds headroom and<br/>leaves
+  s19 --> s18 : a writer reads the ledger
   s0 --> s1 : the crew registers as a waiter<br/>and ends its turn
-  s14 --> s12 : the jbus pass forgets the runs<br/>that are over
+  s18 --> s19 : a writer writes the ledger
+  s16 --> s14 : the jbus pass forgets the runs<br/>that are over
   s1 --> s2 : the jbus pass counts the slots<br/>to spare, with no lock
-  s12 --> s15 : the run's end goes on the<br/>holders file
+  s14 --> s17 : the run's end goes on the<br/>holders file
   s2 --> s6 : the call counts the slots to<br/>spare
   s6 --> s4 : the jbus pass records the wake
   s4 --> s5 : the call counts the slots to<br/>spare
-  s10 --> s10 : a call to test-slot starts
+  s17 --> s15 : the run goes on the holders<br/>file
+  s5 --> s7 : the crew registers as a waiter<br/>and ends its turn
+  s8 --> s7 : the crew registers as a waiter<br/>and ends its turn
+  s7 --> s8 : the jbus pass forgets a wait<br/>woken over an hour ago
+  s12 --> s12 : a call to test-slot starts
   s0 --> s0 : a call to test-slot starts
   s1 --> s1 : a call to test-slot starts
   class s0 group0
@@ -88,17 +105,24 @@ stateDiagram-v2
   class s4 group0
   class s5 group0Wrong
   class s6 group0
-  class s7 group3
-  class s8 group3
+  class s7 group0Wrong
+  class s8 group0Wrong
   class s9 group3
-  class s10 group1
-  class s11 group1
+  class s10 group3
+  class s11 group3
   class s12 group1
   class s13 group1
   class s14 group1
-  class s15 group1Wrong
-  class s16 group2Wrong
-  class s17 group2
-  class s18 group2
-  class s19 group2
-  class s20 group2
+  class s15 group1
+  class s16 group1
+  class s17 group1Wrong
+  class s18 group2Wrong
+  class s19 group2Wrong
+  class s20 group2Wrong
+  class s21 group2Wrong
+  class s22 group2Wrong
+  class s23 group2Wrong
+  class s24 group2
+  class s25 group2
+  class s26 group2
+  class s27 group2
