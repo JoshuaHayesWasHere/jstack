@@ -12,17 +12,17 @@ gate it parked for the door; the root writes nothing into a scope's files, and t
 opens or refuses the door.
 
 A decision or a go stop takes no `--holds`, `--on` or `--outside`: nothing holds it but the root's
-word. jbus refuses it unless its row is the scope's own and open, as a door's is, or its entry is
-in the scope's `plan.md` (`plan.entries`). The root answers it with its own word (`jbus stop
-answer`), which the home acts on: for a go on an entry that the user's standing word for goes
-covers, the root gives the go first with `jbus plan go <entry> --scope <scope> --standing`. Or the
+word. jbus refuses it unless its row is the scope's own and open, as a door's is, or its entry is in
+the scope's `plan.md` (`plan.entries`). The root answers it with its own word (`jbus stop answer`),
+which the home acts on: for a go on an entry that the user's standing word for goes covers, the root
+gives the go first with `jbus plan go <entry> --scope <scope> --standing --from <root id>`. Or the
 root passes it to the user with `jbus stop pass <scope> <row or entry> ["<recommendation>"] --from
 <root id>` (`passed`). That closes each open decision and go stop of the row or entry as `passed`
 and parks one gate for each, on the scope's own slug `home-<scope>` so `jbus needs` lists it under
-that home, through `questions.park`. The gate holds for the user (`PASSED`), so silence never
-closes it, and only the user's own word answers it. jbus tells the scope it was passed, and once
-the user answers, carries the answer to the scope (`relay`). A door stop is never passed: its gate
-is the home's own and holds already.
+that home, through `questions.park`. The gate holds for the user (`PASSED`), so silence never closes
+it, and only the user's own word answers it. jbus tells the scope it was passed, and once the user
+answers, carries the answer to the scope (`relay`). A door stop is never passed: its gate is the
+home's own and holds already.
 
 Being stuck is a fact of the queue, so jbus checks it and reads no words. A stop names the scope's
 own row and what holds it: `--on` another home's open row, by its slug or its pull request's `#<n>`,
