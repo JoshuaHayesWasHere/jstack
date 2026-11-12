@@ -4,6 +4,8 @@
   "modelTransitions": 380972,
   "chartStates": 77,
   "chartTransitions": 200,
+  "allTransitions": 200,
+  "final": [],
   "chartStatus": {
     "works": 75,
     "wrong": 2,
@@ -79,9 +81,7 @@
       "fix": null
     }
   ],
-  "codeLike": [
-    "GitHub says the pull request is in conflict"
-  ],
+  "codeLike": [],
   "drawnFrom": {
     "command": "statechart from-spec CrewProof.tla --config CrewProof.chart.cfg --title 'Does the proof on the brief match the head, and does a rebase leave its record?' --expect-broken RebaseRecorded --png",
     "inputs": {

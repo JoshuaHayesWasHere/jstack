@@ -195,7 +195,14 @@ def stalls(chart):
     and the one fix is to draw it again."""
     summary = json.loads(read(chart.parent / "summary.json"))
     name = chart.parent.name
-    final = set(summary.get("final", ()))
+    if "final" not in summary:
+        command = summary.get("drawnFrom", {}).get("command", "statechart from-spec")
+        return [
+            f"{name}/summary.json names no final state, so an older from-spec drew it, one that"
+            f" drew no way out of a state the model can leave: draw it again, in"
+            f" {chart.parent.parent.relative_to(chart.parents[4])}, with {command}"
+        ]
+    final = set(summary["final"])
     out = []
     for region in ways_out(chart):
         dead = sorted(s for s, labels in region.items() if not labels and s not in final)
