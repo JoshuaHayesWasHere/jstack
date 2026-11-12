@@ -5,9 +5,9 @@
 # features/*/spec/ folder with no chart is an [[uncharted]], by its path under features/, with
 # why, and `statechart site` stops on a model that is neither. [[unmodeled]] is state of the
 # code that no model has.
-# This file is written by hand; index.html is built, not committed, and reads this file as the
-# flow.toml beside it:
-#   statechart site --out features/home/docs/charts/index.html
+# This file is written by hand and committed. `make charts` draws index.html, and a PNG and
+# Excalidraw scenes of each chart, beside it, none of them committed, and the page reads this file
+# as the flow.toml beside it.
 
 [[chart]]
 name = "RowLife"

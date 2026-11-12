@@ -110,7 +110,7 @@ W=$(mktemp -d) && cp features/jgauge/spec/TestSlot.tla features/jgauge/spec/Test
     --expect-broken LedgerNoLostUpdate --expect-broken WokenGetsSlot \
     --expect-broken EndNotLost \
     --title "Who holds a test slot, who waits on one, and what the ledger keeps?" \
-    --out TestSlot-statechart --png)
+    --out TestSlot-statechart)
 ```
 
 Run it from the repo root.

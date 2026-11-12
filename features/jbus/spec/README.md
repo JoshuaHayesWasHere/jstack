@@ -36,10 +36,11 @@ java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -config RowLife.
 S=features/skill-library/skills/statechart/scripts
 cd features/jbus/spec
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
-    statechart from-spec RowLife.tla --title "A row's life" --png
+    statechart from-spec RowLife.tla --title "A row's life"
 ```
 
-It writes `RowLife-statechart/`: `chart.mmd` and `chart.png`, `stories.md` and `summary.json`, labelled by `RowLife.map.py`.
+It writes `RowLife-statechart/`: `chart.mmd`, `stories.md` and `summary.json`, labelled by `RowLife.map.py`.
+No chart's PNG or Excalidraw scenes, nor the charts page, is committed: `make charts`, at the repo's root, draws them from each committed `chart.mmd` into a folder git ignores, and prints the page's path.
 Each status on the chart says what in `work.py` sets it, and each step that moves the status is labelled by its row of `queue.MOVES`.
 The regions draw 64 of their 111 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
 Its `tlc/` folder holds TLC's output, which is not committed.
@@ -97,10 +98,10 @@ The ladder also carries a crew that jbus told once to open the pull request its 
 S=../../skill-library/skills/statechart/scripts
 cd features/jbus/spec
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
-    statechart from-spec ThreadLife.tla --title "What does jbus do with a thread, launch to archive?" --png
+    statechart from-spec ThreadLife.tla --title "What does jbus do with a thread, launch to archive?"
 ```
 
-It writes `ThreadLife-statechart/`: `chart.mmd` and `chart.png`, `stories.md` and `summary.json`, with labels from `ThreadLife.map.py`.
+It writes `ThreadLife-statechart/`: `chart.mmd`, `stories.md` and `summary.json`, with labels from `ThreadLife.map.py`.
 Its `tlc/` folder holds TLC's output, which is not committed.
 The chart has two regions: who has the thread (launching, gated, out, its home's, put away), and where it stands.
 No state breaks a rule, so it draws no `bug-N` chart.
@@ -176,7 +177,7 @@ D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainRed.* "$W"
 (cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec MainRed.tla --config MainRed.chart.cfg \
-    --title "Main went red: what fixes it?" --out out --png)
+    --title "Main went red: what fixes it?" --out out)
 ```
 
 Run it from the repo root.
@@ -243,7 +244,7 @@ S=$PWD/features/skill-library/skills/statechart/scripts
 D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/GreenMove.* "$W"
 (cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
-    statechart from-spec GreenMove.tla --title "Does the green copy reach main's green tip?" --out out --png)
+    statechart from-spec GreenMove.tla --title "Does the green copy reach main's green tip?" --out out)
 ```
 
 Run it from the repo root, then copy the files of `$W/out` into `GreenMove-statechart/`, all except `tlc/`.
@@ -293,7 +294,7 @@ In today's code the half of `NoTellTwice` that says no act runs after its mark w
 S=features/skill-library/skills/statechart/scripts
 cd features/jbus/spec
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
-    statechart from-spec TellOnce.tla --title "Does jbus tell anyone twice, or drop a tell, when a pass dies?" --png
+    statechart from-spec TellOnce.tla --title "Does jbus tell anyone twice, or drop a tell, when a pass dies?"
 ```
 
 It writes `TellOnce-statechart/`, labelled by `TellOnce.map.py`, with one `bug-N` chart for each act that breaks a rule.
@@ -355,7 +356,7 @@ D=$HOME/.cache/jstack/tlc-tmp && mkdir -p "$D"
 W=$(TMPDIR=$D mktemp -d) && cp features/jbus/spec/MainFix.* "$W"
 (cd "$W" && TMPDIR=$D UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "$S" \
     statechart from-spec MainFix.tla --config MainFix.chart.cfg --expect-broken FiledWhole,RevertKnown,RevertSaid \
-    --title "Main went red: what has jbus filed when a pass dies?" --out out --png)
+    --title "Main went red: what has jbus filed when a pass dies?" --out out)
 ```
 
 Run it from the repo root, then copy the files of `$W/out` into `MainFix-statechart/`, all except `tlc/`.
@@ -410,7 +411,7 @@ S=features/skill-library/skills/statechart/scripts
 cd features/jbus/spec
 UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --exact --project "../../../$S" \
     statechart from-spec OneList.tla --config OneList.chart.cfg --expect-broken AnsweredLeaves,ListIsTrue \
-    --title "Does a gate reach my list, and leave it once I answer?" --png
+    --title "Does a gate reach my list, and leave it once I answer?"
 ```
 
 `OneList.chart.cfg` draws the gates scene alone: the other scenes have too many states to draw.

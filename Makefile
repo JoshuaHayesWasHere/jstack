@@ -154,6 +154,14 @@ view-preview:
 check-browser:
 	uv run pytest -m browser
 
+# The charts page, features/home/docs/charts/index.html, with a PNG and an Excalidraw scene of
+# each chart beside it, drawn from each committed features/*/spec/*-statechart/chart.mmd and
+# summary.json, with no TLC run. git ignores all of them, and nothing runs this but a reader who
+# wants them: the PNGs need Node, for npx's mermaid-cli. Open the page in a browser.
+.PHONY: charts
+charts:
+	UV_PROJECT_ENVIRONMENT="$$HOME/.cache/jstack/statechart-venv" uv run --frozen --project features/skill-library/skills/statechart/scripts statechart site --out features/home/docs/charts/index.html
+
 # skills.json, the generated regions of pyproject.toml and the docs indexes, written from
 # features/ and the files they own. Run it after any change to those, and commit what it
 # writes: the check fails on a stale one.
