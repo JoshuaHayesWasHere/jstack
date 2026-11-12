@@ -225,15 +225,16 @@ def test_only_a_full_lane_waiter_is_woken_and_a_short_one_is_dropped_with_one_li
     assert told(kitchen) == [full]
 
 
-def test_a_lost_send_is_tried_again_with_the_same_key(kitchen, slots):
+@pytest.mark.parametrize("how", ["lose_send", "refuse_send"])
+def test_a_lost_send_is_tried_again_with_the_same_key(kitchen, slots, how):
     slots.hold("full")
     thread = waiter(kitchen, ago=3)
     slots.free("full")
-    kitchen.t3.lose_send = True
+    setattr(kitchen.t3, how, True)
     said = kitchen.poll()
     assert any("could not be told a slot is free" in line for line in said)
     assert not waiters.read(slot.locks_dir())[0].woken
-    kitchen.t3.lose_send = False
+    setattr(kitchen.t3, how, False)
     kitchen.poll(NOW + timedelta(minutes=1))
     keys = {given["clientRequestId"] for given in sends(kitchen)}
     assert told(kitchen) == [thread, thread] and len(keys) == 1
