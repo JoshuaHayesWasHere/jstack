@@ -1,6 +1,6 @@
 """These tests cover what waits on the user. For each approved row that cannot move, a pass
-follows the row back to its root. It sends one `waiting-on-user` event per root per hour, and
-keeps the roots in the list that `jbus queue show` prints.
+follows the row back to its root (`jbus.stall.walk`). It sends one `waiting-on-user` event per
+root per hour, and keeps the roots in the list that `jbus queue show` prints.
 (`features/jbus/tests/test_jbus_digest.py` has the list's other kinds.) Like `test_jbus.py`, the
 tests run the real command and the real pass against a faked T3 Code server, `gh` and
 `jmerge`."""
