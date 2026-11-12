@@ -94,11 +94,12 @@ from jbus.mainmoved import main_check
 from jbus.merge import parse
 from jbus.passes import Changed, Depends, Pass
 from jbus.record import PASSES as PASS_LOG
+from jbus.redlog import failed_step, failures, named
 from jbus.t3 import Client
 from jbus.wake import notify
 from jbus.watch import FAILS, TOLD, TWICE, World, _api, job_log, ran, task_brief
 from jmerge import judgement, ready
-from jmerge.joblog import failed_in, plain
+from jmerge.joblog import failed_in
 from jmerge.lines import READY
 from jsettings import store
 
@@ -403,16 +404,6 @@ def _failure(red: rebase.Red, names: list[str], tests: list[str]) -> dict[str, A
     return {"checks": names, "jobs": jobs, "tests": tests}
 
 
-def named(run: Pass, red: rebase.Red) -> list[str]:
-    """Return the failed tests that the failed jobs' logs name (`failed_in`), or nothing where no
-    log GitHub gave names one."""
-    tests: dict[str, None] = {}
-    for repo, job in red.jobs:
-        log = job_log(run, repo, job)
-        tests.update(dict.fromkeys(failed_in(log).tests if log is not None else ()))
-    return list(tests)
-
-
 def holds(heads: dict[str, dict[str, Any]]) -> bool:
     """Say whether the row's counted failed heads hold it: at the `LIMIT`-th, or at the second
     where its logs name no failed test, which leaves its crew nothing to mend by name."""
@@ -466,21 +457,6 @@ error, an HTTP 5xx, a host that did not resolve, a connection reset or timed out
 download that failed. The connection's words are matched as the system prints them, so a lint
 line that quotes them in prose is no sign."""
 
-RUN = re.compile(r"(?m)^(?:\S+ )?##\[group\]Run ")
-EXITED = re.compile(r"(?m)^(?:\S+ )?##\[error\]Process completed with exit code .*$")
-
-
-def failed_step(log: str) -> str:
-    """Return the own part of a job's log of the step that failed the job: from the last
-    `##[group]Run` line before the last `##[error]Process completed with exit code` line, to that
-    line. An earlier error line is a step's that ran with `continue-on-error: true`, failed, and
-    let the job go on. Where no such error line is given, the part runs to the log's end, and where
-    no `Run` line comes before it, from the log's start."""
-    exits = list(EXITED.finditer(log))
-    end = exits[-1].end() if exits else len(log)
-    starts = [run.start() for run in RUN.finditer(log, 0, end)]
-    return log[starts[-1] if starts else 0 : end]
-
 
 def infra(run: Pass, world: World, red: rebase.Red) -> list[str]:
     """Return the step each failed job failed at, where every one failed at a step whose log names
@@ -504,21 +480,6 @@ def infra(run: Pass, world: World, red: rebase.Red) -> list[str]:
             return []
         steps.append(step)
     return steps
-
-
-LINT = re.compile(r"(?m)\berror ([a-z0-9][a-z0-9-]*): ([^\s:]+)")
-"""`repo-standard conform`'s line for an error of a rule: the rule's id and the path it names."""
-
-
-def failures(run: Pass, red: rebase.Red) -> set[str]:
-    """Return what failed at a head: each failed test's id and each lint rule with its path that
-    the failed jobs' logs name, or the failed checks' names where the logs name neither."""
-    found: set[str] = set()
-    for repo, job in red.jobs:
-        log = plain(job_log(run, repo, job) or "")
-        found.update(failed_in(log).tests)
-        found.update(f"{rule} {path}" for rule, path in LINT.findall(log))
-    return found or {f"check {name}" for name in red.names}
 
 
 def merge_of_main(run: Pass, head: str, before: str, main: str) -> bool:
