@@ -141,13 +141,16 @@ ValueOf(g, t, w, p, q, l) ==
   ELSE IF t = "hung" THEN "hung"
   ELSE IF t = "waiting" THEN "waiting"
   ELSE IF p = "merged" /\ w \in {"none", "clean"} THEN "merged"
-  ELSE IF t \in There /\ w = "leftover" /\ p \in {"none", "merged"} THEN "leftover"
+  \* A thread at work with no pull request is at work whatever its last Result says (#1724,
+  \* work.py `apart=(("thread", AT_WORK), ("pull", _set(Pull.NONE))),`).
+  ELSE IF t \in There /\ w = "leftover" /\ p \in {"none", "merged"} /\ ~(t = "atwork" /\ p = "none")
+    THEN "leftover"
   ELSE IF t \in EndedThreads /\ w = "clean" /\ p = "none" THEN "done"
   ELSE IF p = "closed" THEN "closed"
   ELSE IF p = "open" THEN "check"
   ELSE IF p = "opening" THEN "opening"
   ELSE IF t = "starting" /\ p = "none" THEN "launching"
-  ELSE IF t = "atwork" /\ w \in {"none", "clean"} /\ p = "none" THEN "working"
+  ELSE IF t = "atwork" /\ p = "none" THEN "working"    \* work.py `WORKING = {"written": frozenset(Written),`
   ELSE IF t \in {"none", "failed", "ended", "settled", "missing"} /\ l /\ w = "none" /\ p = "none"
     THEN "lost"
   ELSE IF Unstarted(t, p, l) /\ g \in {"waiting", "held", "kept"} THEN "unapproved"

@@ -4,6 +4,11 @@
   "modelTransitions": 33589,
   "chartStates": 17,
   "chartTransitions": 69,
+  "allTransitions": 132,
+  "final": [
+    "merged (its pull request merged)",
+    "removed (queue.py `remove`, no pass sets it)"
+  ],
   "chartStatus": {
     "works": 17,
     "fixed": 0,
@@ -52,7 +57,7 @@
     "inputs": {
       "RowLife.cfg": "1819e4c8fae1e0d9875b294adc7ebec3fbc964eb7a520a1db5f5ef13b857f04e",
       "RowLife.map.py": "6cc5d7b61c62be9b922bc617257af0be31a2244dc97cff6d6e9ad7f1923e9a45",
-      "RowLife.tla": "18056db45b6e6fd9add2bb692f4804e64fe1b4a1244e1bf8a764d85a084d09fe"
+      "RowLife.tla": "a31b6138357fac047e43ddb8231bca3518bd3f7fbdee76ffe49a8fcc711bd1a0"
     },
     "chart": "48459205babffe28c347c535d1d4a323e3a59a7439d02220ac2acf19be55c782"
   }
