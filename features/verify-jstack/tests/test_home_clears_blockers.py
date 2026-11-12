@@ -5,8 +5,12 @@ Each test drives the real commands in a verify-jstack sandbox, as a home types t
 sent in `t3/wake.jsonl`, and that file is what a test reads to say what reached Josh.
 """
 
+import contextlib
 import json
+import os
+import signal
 import subprocess
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -35,6 +39,9 @@ Fail-safe: the dry-run lists the 3 branches, bundle at ~/b.bundle
 Option: remove them (default, recommended): the branches go
 Option: keep them: nothing changes
 """
+QUIET = 60
+"""How long `quiet` waits for a pass's runs to end: a sandbox's jmerge asks only the stand-in gh,
+so its run ends in seconds."""
 
 
 @pytest.fixture(scope="module")
@@ -58,8 +65,11 @@ def demo(sandbox):
 def fresh(sandbox):
     """Empty the demo project's jbus state and home state, and run one pass. That pass pages
     each reading of the host past its limit, a full disk say: the page is the host's and not the
-    project's, so the test starts once it is out, with no five-minute gap after it to wait on."""
+    project's, so the test starts once it is out, with no five-minute gap after it to wait on.
+    It empties the state folder once no pass writes into it, and hands over a sandbox none does
+    (`quiet`)."""
     root = sandbox.parent
+    quiet(root)
     for gone in (root / "state", root / "home" / ".local" / "state" / "home" / "demo"):
         subprocess.run(["rm", "-rf", gone], check=True)
     (root / "state").mkdir()
@@ -71,7 +81,21 @@ def fresh(sandbox):
         kept = json.loads(threads.read_text())
         threads.write_text(json.dumps([one | {"settled": True} for one in kept]))
     assert run(sandbox, "jbus poll").returncode == 0
+    quiet(root)
     assert posted(sandbox) == []
+
+
+def quiet(root):
+    """Wait until no process a pass left running writes into the sandbox's state folder
+    (`writers`), and end any still going after `QUIET` seconds."""
+    deadline = time.monotonic() + QUIET
+    while (left := writers(root)) and time.monotonic() < deadline:
+        time.sleep(0.05)
+    for pid in left:
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(pid, signal.SIGKILL)
+    while writers(root):
+        time.sleep(0.05)
 
 
 def writers(root):
