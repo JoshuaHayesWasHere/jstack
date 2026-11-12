@@ -146,7 +146,13 @@ Each go the root gave on it then ends, and the rows of those entries that have n
 
 ## A waiver in plain words
 
-A home asks you once, in its own thread, whether to waive the Done when lines a review says are unmet, naming each row by its slug with the numbers of the lines, as `alpha: lines 2 and 3`.
+The root home judges a waiver itself, and asks you only when the waiver is unjustified or its merge cannot be undone.
+It records its own with `jbus waive <slug> <line number>... --as root --from <root thread> --reason "<why the line need not hold>" --undo "<how to undo the merge>"`, which jbus takes only from the thread in the root's `home-id`, with both the reason and the undo, and never for a brief that holds for a one-way door: those stay yours.
+It logs one `waive` act of the party `root` with the reason and the undo, and appends the brief's `Waived: <the Done when line>, root/<act id>` lines, which `jmerge` counts as it counts yours.
+It prints `root waived <slug>: line <n>, as root/<act id>`, and the same command again writes nothing new.
+You read each one in `jbus needs`, and so in the catch-up, for a day after it was made, as one line with nothing to answer: `<project> root waived <slug>: line <n> "<the line>", because <reason>; undo: <undo>; nothing to answer`.
+
+When the root asks you, it asks once, in its own thread, whether to waive the Done when lines a review says are unmet, naming each row by its slug with the numbers of the lines, as `alpha: lines 2 and 3`.
 Your plain reply ("yes", "clear them") is the waiver, and the home records it with `jbus waive <slug> <line number>... --message <thread id>/<message id>`, which takes `--to <project>` where the repo does not say the project, and `--as user` or `--as home` for the party, `home` by default.
 jbus reads the message in T3 Code and refuses it unless it is your own, it was said in a home's thread of the project, and the home's last message before it named the slug and each line.
 It then logs one `waive` act and appends the brief's `Waived: <the Done when line>, <thread>/<message>` lines, which `jmerge` counts for those lines and no others.

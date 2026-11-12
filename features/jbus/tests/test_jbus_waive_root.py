@@ -47,7 +47,9 @@ def homes(kitchen):
 
 
 def waive(kitchen, *more, by=ROOT, lines=("2",)):
-    return kitchen.main("waive", "alpha", *lines, "--to", "demo", "--as", "root", "--from", by, *more)
+    return kitchen.main(
+        "waive", "alpha", *lines, "--to", "demo", "--as", "root", "--from", by, *more
+    )
 
 
 def brief(kitchen):
@@ -168,3 +170,33 @@ def test_the_users_own_waive_still_needs_their_message(homes):
         "refused: --message names the user's own reply to the home's ask; only --as root "
         "waives without one\n",
     )
+
+
+@pytest.mark.parametrize(
+    ("argv", "said"),
+    [
+        (
+            ("--message", f"{ROOT}/yes", "--reason", REASON),
+            "refused: --reason is only for --as root, and records nothing here\n",
+        ),
+        (
+            (
+                "--as",
+                "root",
+                "--from",
+                ROOT,
+                "--reason",
+                REASON,
+                "--undo",
+                UNDO,
+                "--message",
+                f"{ROOT}/yes",
+            ),
+            "refused: --as root waives on the root's own judgment, with no --message\n",
+        ),
+    ],
+    ids=["a reason on the user's path", "a message on the root's"],
+)
+def test_the_two_paths_take_no_word_of_the_other(homes, argv, said):
+    assert homes.main("waive", "alpha", "2", "--to", "demo", *argv) == (1, said)
+    assert "Waived:" not in brief(homes)

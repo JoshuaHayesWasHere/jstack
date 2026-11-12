@@ -76,14 +76,21 @@ T=$(realpath ~/.claude/skills/root/../../templates)
    > If they weren't and / or are one way doors then flag me
 
    Judge each line yourself first: is it met in substance, or worth less than its fix, and can the merge be undone by its revert, with no case of `$T/gates.md`?
-   - **Justified, and it can be undone**: waive it.
-     jbus binds a waiver only on the user's own reply to a home's message that names the line (`jbus waive`).
-     So send one short message in this thread that names each line as `<slug>: line <n>`, never by a pull request's number, with your pick and its reason in a clause: `alpha: line 4, waive: the test takes 15.2 s where the line asks for 15, and a revert undoes it`.
-     The user's bare "yes" is the waiver: bind it with `jbus waive <slug> <n>... --message <thread id>/last` for each row.
+   - **Justified, and it can be undone**: waive it yourself, and ask the user nothing.
+     In one call with the block at the top and the block that reads jbus, the row's slug, each line's number, your reason and how to undo the merge in place of the words in angle brackets:
+
+     ```sh
+     : "${P:?run the block that reads jbus first}"
+     jbus waive '<slug>' <n>... --to "$P" --as root --from "$ME" --reason '<why the line need not hold>' --undo '<how to undo the merge>'
+     ```
+
+     It writes the brief's `Waived:` lines that `jmerge` counts, and logs the waiver with its reason and its undo.
+     The user reads each one once, as a line of `jbus needs` and the catch-up with nothing to answer, so name the line, the reason and the undo plainly.
+     jbus refuses it from any thread but this one, with no reason or no undo, and for a brief that holds for a case of `$T/gates.md`: that one is the user's.
    - **Not justified, or it cannot be undone**: flag the user.
      Write a `decision` line of the turn's end with the evidence: what the review found, what the line guards, and why a revert would not undo it.
-     Name the line as `<slug>: line <n>` there too, so a "yes" from the user still binds through `jbus waive`, and recommend the fix.
-   A child's waiver reaches the root as a `decision` escalation, and is judged the same way.
+     Name each line as `<slug>: line <n>`, never by a pull request's number, so the user's "yes" binds through `jbus waive <slug> <n>... --message <thread id>/last`, and recommend the fix.
+   A child's waiver reaches the root as a `decision` escalation with its pick and its evidence, and is judged the same way: waived here with `--as root`, or flagged to the user.
 9. **Move a row** to the child whose work it is: a row in `uncategorized`, or in another child, at any status short of merged or done.
    In one call with the block at the top and the block that reads jbus, with the row's slug and the scope's name in place of the words in angle brackets:
 

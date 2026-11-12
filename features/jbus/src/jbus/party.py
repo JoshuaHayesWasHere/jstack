@@ -3,7 +3,8 @@
 One act is one `Act`, a line of `acts.jsonl` that `jbus.acts` writes. It names the `Party`
 that acted, the `Action` it took, the `Evidence` it acted on, and what came of it.
 
-- `Party`: the user, the one bot, a home, or jbus's own pass. Its `route` is how it reached
+- `Party`: the user, the one bot, a home, the root home when it waives a line on its own
+  judgment (`jbus.waive`), or jbus's own pass. Its `route` is how it reached
   jbus: the command line, the view's page, or the bot's own route, `POST /act` on the view.
   The bot has no name: one bot speaks for the user, and it is known by its route alone.
 - `Door`: an action that is irreversible or slow to revert. `DOORS` is the one table of them:
@@ -35,7 +36,7 @@ from typing import Literal, get_args
 
 from jbriefs import parse as briefs
 
-Kind = Literal["user", "bot", "home", "jbus"]
+Kind = Literal["user", "bot", "home", "root", "jbus"]
 Route = Literal["cli", "view", "bot"]
 Source = Literal[
     "t3-message",
@@ -72,6 +73,7 @@ class Party:
 
 USER = Party("user", "cli")
 HOME = Party("home", "cli")
+ROOT = Party("root", "cli")
 BOT = Party("bot", "bot")
 
 
@@ -189,7 +191,9 @@ class Pick:
 class Evidence:
     """`picks` are the labels of a question box (`t3-pick`), and no other source has any.
     `answers` is the bot's message that the user's words in its chat answer (`bot-chat`), as
-    the bot or the home that carries them gives it, and no other source has any."""
+    the bot or the home that carries them gives it, and no other source has any. `undo` is how
+    the root home's own waiver is undone, beside its reason in `words` (`jbus.waive`), and no
+    other act has one."""
 
     source: Source
     ref: str
@@ -199,6 +203,7 @@ class Evidence:
     checked: bool = False
     picks: tuple[Pick, ...] = ()
     answers: str = ""
+    undo: str = ""
 
     @property
     def basis(self) -> str:
