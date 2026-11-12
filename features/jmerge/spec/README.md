@@ -230,7 +230,7 @@ W=$(mktemp -d) && cp features/jmerge/spec/PrVerdict.* "$W"
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `PrVerdict-statechart/`.
 `PrVerdict.chart.cfg` moves main once (655,106 model states, about two minutes), and `PrVerdict.map.py` labels each state by main and what jmerge last said, and a row jbus held for its failed checks as held.
-The chart has 22 states and 29 steps, and no state breaks the rule.
+The chart has 21 states and draws 55 of its 154 steps, at least one way out of each state but merged, and no state breaks the rule.
 Then draw its Excalidraw file and the charts page again, from the repo root:
 
 ```sh
