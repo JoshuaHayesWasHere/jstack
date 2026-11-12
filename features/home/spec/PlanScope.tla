@@ -392,6 +392,15 @@ FixCountedOnce ==
 FixCountedWhereRead ==
   mpc = "idle" => \A t \in admitted : t \in ledger[HomeOf(t)]
 
+\* FixCountedWhereRead breaks only where a move was cut before its carry: f1's Home: line names u
+\* and its try is still in s's ledger, and a move run again, which is open to the home
+\* (MoveName), carries it. A retire leaves no counted fix where admit does not read it.
+FixCountedWhereReadOrMoveAgain ==
+  mpc = "idle" =>
+    \A t \in admitted :
+      \/ t \in ledger[HomeOf(t)]
+      \/ t = "f1" /\ home["f1"] = "u" /\ ENABLED MoveName
+
 ----
 \* The chart's scene, PlanScope.chart.cfg: each line of the entry as the template writes it, one
 \* fix f1 with both its head lines, no fix that fails and no run of `jbus clear`, so the chart
