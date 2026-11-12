@@ -203,8 +203,8 @@ SAYS |= {
     "meets-no": SECOND_PASS
     + "the last review says the brief is not met, so fix each `Done when` line the reason names "
     "and push, and the block gives the one scoped review whose own `Meets the brief:` line must "
-    "say yes. Never write or rewrite a review's line yourself: only the user's `Waived:` line, "
-    'as the crew skill\'s "The review" says, clears a line otherwise.',
+    "say yes. Never write or rewrite a review's line yourself: only a `Waived:` line, the user's "
+    "or the root home's `jbus waive --as root`, clears a line otherwise.",
     "meets-unread": SECOND_PASS
     + "the last review has no `Meets the brief:` line `jmerge` reads, so the block gives the one "
     "scoped review whose own line judges the brief. Never write or rewrite a review's line "
