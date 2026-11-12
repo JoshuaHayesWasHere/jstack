@@ -992,9 +992,9 @@ def test_files(names):
 
 def near(name, edit):
     """The test files a change to module `name` reaches through imports by the narrow reach
-    (`--part names`), `edit` the two sides of its diff (`edits`), or `None` where all of it counts as
-    changed. They are the tests that import the module, and the tests that import a module that
-    carries the change on: one that imports it and names a name the change touched
+    (`--part names`), `edit` the two sides of its diff (`edits`), or `None` where all of it
+    counts as changed. They are the tests that import the module, and the tests that import a
+    module that carries the change on: one that imports it and names a name the change touched
     (`names_touched`), as `jbus.poll` names `tick.once`, or a module of the tests that is no
     test file, such as a helper or a `conftest.py`, which counts as the test's own code and
     carries on whatever it imports. A test that asks for a plugin's fixture that uses a module
