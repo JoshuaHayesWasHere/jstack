@@ -19,7 +19,7 @@ empty repository has nothing for the fetch to link to.
 
 A git that cannot read the commits is the runner's fault, not the pull request's: the step still
 fails, as an unread range is not a clean one, and says so in words jbus reads as a fetch failure
-(`jbus.stall.FETCH`), so the row is not counted red for it.
+(`jbus.redhead.FETCH`), so the row is not counted red for it.
 
 The patterns are `jmerge.trailers`, the ones jmerge strips from the squash commit it writes.
 """
@@ -38,7 +38,7 @@ RUNNER_FAULT = (
     " Unable to download them from origin with the runner's git"
 )
 """What the step says where git could not read the commits. "Unable to download" is a sign
-`jbus.stall.FETCH` reads as a fetch failure, which counts the red as the runner's."""
+`jbus.redhead.FETCH` reads as a fetch failure, which counts the red as the runner's."""
 
 
 def fetched(base, head, env):
