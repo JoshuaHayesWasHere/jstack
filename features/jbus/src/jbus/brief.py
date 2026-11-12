@@ -10,7 +10,10 @@ scout's request, `scouts/<slug>.md`.
   Where stdin starts with `## `, or the brief has no Result, they go at the end of the brief.
 
 Each prints the one line it wrote, or `unchanged:` where `new` or `set` found the brief as asked,
-and `set` and `append` refuse a brief that is not there.
+and `set` and `append` refuse a brief that is not there. `set` and `append` also refuse a write
+that leaves the last Result waiting on a merge in prose, "after #1717 merges" on a `Steers:` line,
+with no `Waits on:` line naming it (`mirror.unwritten`): that line is the one jbus reads and wakes
+the crew on (`jbus.pausedon`). A fault the Result had before the write does not refuse it.
 
 Every write is `_change`: it takes the brief's lock, reads the brief as it is under the lock, makes
 one pure edit (`with_line`, `appended`) and replaces the file through a temp file. So no reader sees
@@ -59,6 +62,23 @@ class NoResult(jbus.Refused):
 
 class Malformed(jbus.Refused):
     """A label, a value or a text the verb cannot place."""
+
+
+class Unwritten(jbus.Refused):
+    """A write that leaves the last Result waiting on a merge in prose alone."""
+
+
+def _waits_written(was: str, text: str) -> str:
+    """Return `text`, or refuse it where its last Result waits on a merge in prose that its
+    `Waits on:` line does not name, and `was` did not already (`mirror.unwritten`). `mirror`
+    reads the queue, so it is imported here and not above."""
+    from jbus import mirror
+
+    old = set(mirror.unwritten(mirror.last_result(was)))
+    new = [one for one in mirror.unwritten(mirror.last_result(text)) if one not in old]
+    if new:
+        raise Unwritten(f"refused: {new[0]}")
+    return text
 
 
 @dataclass(frozen=True)
@@ -285,7 +305,7 @@ def set_line(path: str | Path, label: str, value: str, *, result: bool = False) 
         lines = _lines(text)
         span = last_result(lines) if result else None
         where.append(f"in {lines[span[0]]}" if span else "in the head")
-        return with_line(text, label, value, result=result)
+        return _waits_written(text, with_line(text, label, value, result=result))
 
     changed = _change(one, edit)
     return Wrote(
@@ -305,7 +325,7 @@ def append(path: str | Path, block: str) -> Wrote:
         lines = _lines(text)
         span = None if added[0].startswith("## ") else last_result(lines)
         where.append(f"to {lines[span[0]]}" if span else "at the end")
-        return appended(text, block)
+        return _waits_written(text, appended(text, block))
 
     _change(one, edit)
     if added[0].startswith("## "):

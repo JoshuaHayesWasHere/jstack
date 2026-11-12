@@ -399,7 +399,7 @@ def test_a_left_row_launches_again_on_its_own_branch_once_its_cause_clears(left)
     assert "Resume: " in head and "one, two landed" in head
     assert f"Thread: {crew_of(left, 'three')['threadId']}" in head
     assert git_said(left, "-C", str(tree), "rev-parse", "HEAD") == left.head
-    assert not any(ask["clientRequestId"].startswith("paused-on|") for ask in asks(left))
+    assert not any(ask["clientRequestId"].startswith("waits|") for ask in asks(left))
 
     crew_of(left, "three").update(status="completed", settled=True)
     for minute in (3, 6):
@@ -443,7 +443,7 @@ def test_the_leftover_message_offers_no_new_brief_for_a_branch_with_commits(left
     assert "write a brief for what is left" not in said
     assert "carried by" not in said
     assert "launches it again on its own slug, branch and worktree" in said
-    assert "the rows `one`, `two` landing" in said
+    assert "`one`, `two` landing, what its `Waits on:` names" in said
 
 
 def test_a_crew_carried_on_in_place_is_not_launched_again_for_the_same_rows(left):
@@ -451,7 +451,7 @@ def test_a_crew_carried_on_in_place_is_not_launched_again_for_the_same_rows(left
     left.poll(NOW - timedelta(minutes=20))
     landed(left)
     left.poll(NOW)
-    (told,) = [ask for ask in asks(left) if ask["clientRequestId"].startswith("paused-on|")]
+    (told,) = [ask for ask in asks(left) if ask["clientRequestId"].startswith("waits|")]
     assert told["threadId"] == crew_of(left, "three")["threadId"]
     crew_of(left, "three").update(status="running", settled=True)
     left.poll(NOW + timedelta(minutes=3))
@@ -483,7 +483,7 @@ def test_a_left_row_carried_on_in_place_runs_once_its_thread_does_with_its_why_w
 
     landed(left)
     left.poll(NOW)
-    (told,) = [ask for ask in asks(left) if ask["clientRequestId"].startswith("paused-on|")]
+    (told,) = [ask for ask in asks(left) if ask["clientRequestId"].startswith("waits|")]
     assert told["threadId"] == thread["threadId"]
 
     thread.update(status="running", latestRunId="run-3")

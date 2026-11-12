@@ -77,9 +77,9 @@ VARIABLES
                \* moves it to another instance; the model has one instance that is never capped.
     owed,      \* jbus told the thread once to open the pull request its Result owes
     woken,     \* jbus told the paused crew once to carry on, under its key in sent.json
-               \* (jbus/pausedon.py `key = "|".join([TEMPLATE, slug, *named])`). A crew that pauses
-               \* again on other rows has another key, which the model, with one set of rows, leaves
-               \* out.
+               \* (jbus/pausedon.py `return "|".join([TEMPLATE, slug, ",".join(named), ident(run, slug, result)])`).
+               \* A crew that pauses again on other rows, or in a new Result, has another key, which
+               \* the model, with one set of rows, leaves out.
     told,      \* the row is its home's: jbus told the home
     why,       \* leftover.json `why`: "" while the row is its home's or not judged yet, or why it is
                \* the user's at once: its home has no thread (jbus/leftover.py
