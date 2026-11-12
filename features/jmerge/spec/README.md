@@ -248,7 +248,8 @@ each with `UV_PROJECT_ENVIRONMENT` and `uv run --frozen --project "$S"` in front
 
 - A stacked link, a base other than main, another home's pull request, one no brief names, and a draft opened by hand.
 - The browser run, migrations, `merge_after`, and `row_first`'s order among GitHub's waits.
-- A required check with no run at its head (`NO_RUN`), the restart of a queued run, and `repeats`, which only saves a CI round.
+- A required check with no run at its head (`NO_RUN`) apart from a conflicting one's, the restart of a queued run, and `repeats`, which only saves a CI round.
+  GitHub runs no check on a pull request that conflicts with its base, so a check not ended at a decided clash is one with no run, said as the conflict (#1721); the model has no run started before the clash.
 - GitHub's merge state and `merge-tree` disagreeing (`FRESH_CONFLICT`): `CONFLICTS` stands for both.
 - Main moving between the verdict and the merge (`merge_holding`'s judge again): each step is atomic.
 - A batch of two or more: its timeout, its rerun, its narrowing to suspects, and `BATCH_FIRST`.

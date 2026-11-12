@@ -21,7 +21,7 @@ The rules are `FlowsWhenGreen`, `NoMergeTurnsMainRed`, `MachineNotLeftFull` and 
 FlowDesign models no line of code: each guard stands for the code that is that guard today, and a change there can make the guard not the one the design proves.
 
 Model: `features/jmerge/spec/FlowDesign.tla`
-Sync: `228c1436cc6fe94de479d333c7aab7b007460462`
+Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
 Covers:
 - `scripts/select_tests.py`: `cross_cutting`, `unowned`, `owns`, `declared`
 - `features/jmerge/src/jmerge/cli.py`: `Repo.judge`, `Repo.again`, `Repo.in_turn`
@@ -63,9 +63,11 @@ A canary that no longer breaks its rule means the rule holds without that guard,
 
 ## The last upkeep
 
-`/maintain-formal-verification-skill` ran at the sync commit (st-model-upkeep-run): the covered code is unchanged from it to the row's base, and the stale comments were fixed.
+`/maintain-formal-verification-skill` ran at `228c1436c` (st-model-upkeep-run): the covered code is unchanged from it to the row's first base, and the stale comments were fixed.
 
 - `proved` and `told` are gone: nothing read `proved`, and `told` was never set, so `Rejudge`'s `~told` and `CrewFix`'s `told[p]` were constants.
   The design holds over the same 425 states, and `NoGuard`, `NoRejudge` and `NoSweep` (rebuilt from it) still break their rules.
 - The header no longer cites FlowToday.tla's `named`, which fl-no-draft took out; `CrewFix` says the code has the step since #946, and wider; `Rejudge` says the code's once a head and tip and main's line are FlowToday.tla's; `ApproveMainFix` says jbus approves the row by rule since #547.
 - `MainFixWaitsOnlyOnYou` keeps its words, "waits only on your approval", while the approval is jbus's by rule: a rule's words change only on the user's word, so this is for them.
+
+The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `ready.py` changed in #1715, #1721 and #1727, and `dispatch.py` in #1726, none of it in `red_only` or `room`, so the sync commit moved there.

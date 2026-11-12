@@ -24,7 +24,7 @@ The rules, each with its harm:
 ## The record
 
 Model: `features/jmerge/spec/FlowToday.tla`
-Sync: `228c1436cc6fe94de479d333c7aab7b007460462`
+Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
 Covers:
 - `features/jmerge/src/jmerge/cli.py`: `Repo.judge`, `Repo.judged`, `Repo.again`, `Repo.in_turn`, `Repo.over_main`, `Repo.waits`, `Repo.accept`, `Repo.merge_holding`, `Repo.start_batch`, `Repo.batched`, `Repo.after_batch`, `Repo.build_batch`, `Repo.guards_batch`, `Repo.merge_members`, `in_line`, `IN_LINE`
 - `features/jmerge/src/jmerge/batch.py`: `Record`, `Batching`, `narrow`, `kind_of`, `LEAST`, `GUARDS_LEAST`, `GUARDS_MOST`
@@ -80,7 +80,7 @@ When every step is backed, it is a bug: tell it as the rows' story (launch, chec
 
 ## The last upkeep
 
-`/maintain-formal-verification-skill` ran at the sync commit (st-model-upkeep-run): the covered code is unchanged from it to the row's base, and st-model-sync's drift was settled from the code.
+`/maintain-formal-verification-skill` ran at `228c1436c` (st-model-upkeep-run): the covered code is unchanged from it to the row's first base, and st-model-sync's drift was settled from the code.
 
 - **The batch (#1642, #1668):** kept as an abstraction, now said exactly: two pull requests stand for many, the batch of two for CI's batch of five or more, its half of one for a half, and the batch steps take a guards batch of two too, with other work between its build and its verdict that the code's one run lacks (`BuildBatch`'s comment, the README).
 - **`Alone` (#1670):** a run that builds a pending batch again merges the ones held for it first, which `Alone` now allows; the state count is unchanged, since a rebuild then a merge reaches the same states.
@@ -89,3 +89,5 @@ When every step is backed, it is a bug: tell it as the rows' story (launch, chec
 - **Stale prose:** the spec and README no longer name main 21112eba8.
 
 `uv run pytest features/jmerge/tests/test_flow_spec.py -q` printed `6 passed`: every rule holds over 7,024,508 states, the two controls break their three rules, and the design and its canaries say what they should.
+
+The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `ready.py` changed in #1715, #1721 and #1727, `dispatch.py` in #1726 and `watch.py` in #1724, none of it in a name this model covers, so the sync commit moved there; the chart was drawn again from the spec as it is now.

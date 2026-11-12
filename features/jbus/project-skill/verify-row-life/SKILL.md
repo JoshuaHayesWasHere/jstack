@@ -81,3 +81,5 @@ None breaks a rule as modeled; `/maintain-formal-verification-skill` fixes them.
   Old: `status \in Final => status' \in Final`; new: `status \in Final => status' \in Final \cup {"removed"}`, and `removed` stays.
   The break: dropping the merged guard lets a merged row be removed, and `FinalStays` fails.
 - **An add's new depends:** `Depends` moves an approved row between free and behind with its line unchanged (`restated.restate` keeps an approved facet beside another), and `Pass` writes the line again with no fact changed.
+
+The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: #1724 drifted the model: a thread at work with no pull request is now at work whatever its last Result says (`work.py`'s `WORKING`, and the leftover pattern's `apart`), so `ValueOf` reads a leftover of a thread at work with no pull request as `working`, and every rule still holds with each canary breaking its rule. #1726's order (`queue.order`, `Turns.rest`) is not in what this model covers. The sync commit moved there.

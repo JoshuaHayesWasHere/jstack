@@ -29,7 +29,7 @@ The rules, each with its harm:
 The rules stand for the code that keeps them; that code is `HomeTreeToday.tla`'s, and a rule whose code is gone is a rule nothing keeps.
 
 Model: `features/home/spec/HomeTree.tla`
-Sync: `228c1436cc6fe94de479d333c7aab7b007460462`
+Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
 Covers:
 - `features/home/skills/handoff/SKILL.md`: `home-id`, `plan-archived.md`
 - `features/jbus/src/jbus/children.py`: `watch`, `keep_alive`, `launch`, `PATIENCE`
@@ -68,5 +68,7 @@ A rule that holds with its canary's guard out tests nothing: fix the rule or the
 
 ## The last upkeep
 
-`/maintain-formal-verification-skill` ran at the sync commit (st-model-upkeep-run): the covered code is unchanged from it to the row's base, no rule's words changed, and every rule holds on today's code in every scene with each canary breaking its rule (`46 passed`).
+`/maintain-formal-verification-skill` ran at `228c1436c` (st-model-upkeep-run): the covered code is unchanged from it to the row's first base, no rule's words changed, and every rule holds on today's code in every scene with each canary breaking its rule (`46 passed`).
 The one fix was to today's code's model, `RaiseCall`, in `verify-home-tree-today`.
+
+The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: no covered file changed, so the sync commit moved there.

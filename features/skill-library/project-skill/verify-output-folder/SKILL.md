@@ -23,7 +23,7 @@ The rules, each with its harm:
 ## The record
 
 Model: `features/skill-library/skills/statechart/scripts/model/OutputFolder.tla`
-Sync: `228c1436cc6fe94de479d333c7aab7b007460462`
+Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
 Covers:
 - `features/skill-library/skills/statechart/scripts/statechart/cli.py`: `from_spec`, `snapshot`, `read_input`, `out_dir`, `refuse_foreign`, `foreign`, `OWN`, `run_tlc`, `publish`, `moved`, `put_back`, `unchanged`, `finish`, `in_work_folder`, `run_in_own_group`, `stop_group`
 
@@ -62,7 +62,7 @@ When every step is the command's, it is a bug: tell it as the two runs' steps an
 
 ## The last upkeep
 
-`/maintain-formal-verification-skill` ran at the sync commit (st-model-upkeep-run): `cli.py` is unchanged from it to the row's base, and the drift st-model-sync found was settled from the code.
+`/maintain-formal-verification-skill` ran at `228c1436c` (st-model-upkeep-run): `cli.py` is unchanged from it to the row's first base, and the drift st-model-sync found was settled from the code.
 
 - **`ExitTwoLeavesFolder` was false of the code, and the code says so on purpose:** `finish` returns 2 after `publish` when `--png` renders fewer PNGs than charts, and `--help` states it ("When a chart does not render, the command keeps the files it wrote and exits 2").
   The model has `RenderFails`, and the rule and `OverlapNeverRefuses` take that exception; with the old rule TLC breaks it at once, which is the drift.
@@ -70,3 +70,5 @@ When every step is the command's, it is a bug: tell it as the two runs' steps an
 - **Left out, each in the assumptions above:** `moved`'s copy fallback (`ENOSYS`, `EXDEV`, `EISDIR`), which is not atomic; a rename onto an empty folder, which no chart of a run's can be; the work folder a SIGKILL leaves, outside the output folder; and the snapshot of local modules and expectations after `out_dir`, later than `Start`.
 
 Every rule holds over 11,477 states, and `uv run pytest features/skill-library/tests/test_statechart_runs.py -q -k "output_folder or worked_example or overlap"` printed `8 passed`.
+
+The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `cli.py` changed in #1698 and #1702, in its help, `from_chart` and `site_main`, none of the names this model covers, so the sync commit moved there.

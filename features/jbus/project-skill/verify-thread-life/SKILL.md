@@ -22,7 +22,7 @@ The rules, each with its harm:
 ## The record
 
 Model: `features/jbus/spec/ThreadLife.tla`
-Sync: `228c1436cc6fe94de479d333c7aab7b007460462`
+Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
 Covers:
 - `features/jbus/src/jbus/dispatch.py`: `Turns.take`, `settle_lost`, `scratch`
 - `features/jbus/src/jbus/crewthread.py`: `move`, `repair`, `crew`, `_answer`
@@ -69,8 +69,10 @@ When every step is backed, it is a bug: tell it as the thread's story in the cod
 
 ## The last upkeep
 
-`/maintain-formal-verification-skill` ran at the sync commit (st-model-upkeep-run) and fixed one drift in the model:
+`/maintain-formal-verification-skill` ran at `228c1436c` (st-model-upkeep-run) and fixed one drift in the model:
 
 - **`ResumeGuard` asked `~told`**, which `threads.resume` never reads: the guard is gone, so a thread whose home was told can still be carried on or told to open its pull request, as the code does.
   The rerun reaches the same 45694 states, since no told thread reaches a later failed turn in the model; the chart's carry-on arrows lost their "unless its home's".
   The break: `carry <= CarryOns` in place of `carry < CarryOns` fails at once (`TypeOK`, a third carry-on).
+
+The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `dispatch.py` changed in #1726, in `turns` and `Turns.rest`, and `watch.py` in #1724, in `left`; neither touches `Turns.take`, `settle_lost`, `scratch` or `ENDED`, so the sync commit moved there.

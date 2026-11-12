@@ -16,7 +16,7 @@ This skill is for what the code does: when a step here stops being the code's, t
 ## The record
 
 Model: `features/home/spec/HomeTreeToday.tla`
-Sync: `228c1436cc6fe94de479d333c7aab7b007460462`
+Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
 Covers:
 - `features/jbus/src/jbus/children.py`: `watch`, `_act`, `_stall`, `keep_alive`, `launch`, `_going`, `_failed`, `_waits`, `_stage`, `started`, `live`, `whose`, `watched`, `_rhythm`, `STAGES`, `FAILURE`, `PATIENCE`, `USERS`, `LAUNCHES`
 - `features/jbus/src/jbus/wakes.py`: `need_items`, `pick`, `kept`, `_send`
@@ -71,7 +71,7 @@ When every step is backed, it is a bug: tell it as the homes' story (a call, a n
 
 ## The last upkeep
 
-`/maintain-formal-verification-skill` ran at the sync commit (st-model-upkeep-run): the covered code is unchanged from it to the row's base, and the three older mismatches were settled from the code.
+`/maintain-formal-verification-skill` ran at `228c1436c` (st-model-upkeep-run): the covered code is unchanged from it to the row's first base, and the three older mismatches were settled from the code.
 
 - **Fixed, `RaiseCall`:** a call no longer calms the spell. `children.watch` leaves calls out of the spell's signature (`USERS`), so a call is only a write of the child's home thread, which ends the spell only while it is `calm`.
   Every rule still holds in every scene with the same states (398,880, 237,780, 280,108), and every canary still breaks its rule: `uv run pytest features/home/tests/test_home_tree_spec.py -q` printed `46 passed`.
@@ -79,3 +79,5 @@ When every step is backed, it is a bug: tell it as the homes' story (a call, a n
   The code tries again each pass, so the step is late, not lost. The README's "leaves out" says so.
 - **Kept as an abstraction, one route to you:** `wakes.need_items` sends a child's gate to its own home thread, and approve, stalled, install and self-asked gates to no thread; the model's single `up` flag is every route, and the README's "leaves out" says so.
 - The spec's header no longer names main 21112eba8, and the README and `canaries.py` give `uv run python`.
+
+The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: no covered file changed, so the sync commit moved there; the chart's record was made to match its drawing again after the rebase.

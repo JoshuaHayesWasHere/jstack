@@ -20,7 +20,7 @@ The rules, each with its harm:
 ## The record
 
 Model: `features/jbus/spec/MainFix.tla`
-Sync: `228c1436cc6fe94de479d333c7aab7b007460462`
+Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
 Covers:
 - `features/jbus/src/jbus/reverts.py`: `revert`, `opened`, `FIELDS`, `brief`, `_keep`, `macos`, `_mac_red`, `_mac_file`, `culprit`, `Keep`, `tested`
 - `features/jbus/src/jbus/culprits.py`: `judge`, `kept_why`
@@ -68,10 +68,12 @@ A new break, past `FINDINGS`, is a bug: tell it as the writes, the crash, and th
 
 ## The last upkeep
 
-`/maintain-formal-verification-skill` ran at the sync commit (st-model-upkeep-run) and fixed two drifts in the model; neither broke a rule, and no new finding came of them:
+`/maintain-formal-verification-skill` ran at `228c1436c` (st-model-upkeep-run) and fixed two drifts in the model; neither broke a rule, and no new finding came of them:
 
 - **The pass order:** a pass now reads the nightlies (phases 1 to N), then judges the Mac and main, as `poll.first_half` runs `tellers` before `after-expedite`.
   The World fault `"blind"` is a pass with no world (no token, T3 Code or GitHub silent, the budget under its floor): it skips `watch.watch` and `reverts.macos`, which need one, and runs `culprits.judge` alone.
   `FiledWhole` now reads "by the next pass that runs every step": a blind pass launches nothing, and the next pass with a world queues the brief.
   The break: counting a blind pass as whole makes `FiledWhole` fail under `"blind"`.
 - **The shots row is any nightly's:** every nightly's run may be its shots alone (`drawn_apart` runs on each), the Mac's only after a run that passed, and a nightly's day is taken only when both its row and the shots row are.
+
+The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `watch.py` changed in #1724, in `left` and the words it keeps, which no step here stands for, so the sync commit moved there.

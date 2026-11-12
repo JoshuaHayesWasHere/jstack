@@ -18,7 +18,7 @@ Each condition quotes its code with no line number.
 ## The record
 
 Model: `features/jmerge/spec/PrVerdict.tla`
-Sync: `228c1436cc6fe94de479d333c7aab7b007460462`
+Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
 Covers:
 - `features/jmerge/src/jmerge/cli.py`: `Repo.judged`, `Repo.judge`, `Repo.again`, `Repo.in_turn`, `Repo.over_main`, `Repo.merge_holding`, `Repo.merge_members`, `Repo.lifted`, `Repo.lift`, `Repo.accept`, `Repo.waits`, `_merging`
 - `features/jmerge/src/jmerge/ready.py`: `red_only`, `short_on_github`, `still_to_pass`, `ROW_HELD`, `NO_GO`, `ROW_OVER`, `TOUCHES`
@@ -66,7 +66,7 @@ When every step is backed, it is a bug: tell it as what jmerge said of the pull 
 
 ## The last upkeep
 
-`/maintain-formal-verification-skill` ran at the sync commit (st-model-upkeep-run): the covered code is unchanged from it to the row's base, and the drift st-model-sync found was fixed from the code.
+`/maintain-formal-verification-skill` ran at `228c1436c` (st-model-upkeep-run): the covered code is unchanged from it to the row's first base, and the drift st-model-sync found was fixed from the code.
 
 - **The batch:** a member its run judged with no other goes the single path in that run (`kind_of(1) == ""`, `Batching.chosen`), which `Alone` now is, with no fairness; `JoinBatch`, `BatchProves` and `BatchFails` are a batch with other pull requests, and `batch-failed`'s loop is such a batch failing again at one head.
 - **`ROW_OVER` (#1657):** the hold `over` comes first in the row's checks, with its canary `over`; `VerdictAccepted` keeps it, since `Repo.judged` passes no queue wait through `Repo.lift`.
@@ -78,3 +78,5 @@ Every run says what it should (`uv run pytest features/jmerge/tests/test_pr_verd
 A rule that each hold you are asked about has a word that moves it (`HoldLiftable`, scratch only) breaks in four states: the row is over from the start, the review holds, the check ends, and jmerge says `row-over`; no word of yours is enabled.
 The real commands do the same on a kitchen with a row `done` and its pull request open: `jmerge` holds 6 with `ROW_OVER`, and `jmerge --accept 6` exits 1 with the same line.
 It came with 5e3275596 (#1657), and the queued row jm-row-over-accept fixes it; once it lands, take `over` out of `VerdictAccepted`'s keep.
+
+The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: #1721 drifted the model: GitHub runs no check on a pull request that conflicts with its base, so `short_on_github` now says `it conflicts with its base` for a required check with no run at a conflicting head, which `Verdict` and `VerdictAccepted` now say for a check not ended at a decided clash, where they said `not-passed`. Main's #1702 test that each waiting verdict draws its owner's step now takes the batch's check passing as "in jmerge's batch"'s owner, since a run may take a lone member alone while its batch is pending (`Repo.batched` builds again where a kept member was not judged) and the chart's one "the batch's check fails" arrow leaves from "in line". The sync commit moved there.

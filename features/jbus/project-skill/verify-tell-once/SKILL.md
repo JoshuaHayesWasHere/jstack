@@ -24,7 +24,7 @@ The other six acts (held, items, expedite, cancelled, closed, revert) hold both.
 ## The record
 
 Model: `features/jbus/spec/TellOnce.tla`
-Sync: `228c1436cc6fe94de479d333c7aab7b007460462`
+Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
 Covers:
 - `features/jbus/src/jbus/wake.py`: `Box.send`, `Box.mark`, `Box.flush_blocking`, `_post_blocking`
 - `features/jbus/src/jbus/clock.py`: `tick`, `_send`, `_act`, `_home`, `held`, `HELD_FILE`
@@ -83,9 +83,11 @@ A new break on an act that held is a bug: tell it as the act, the write the pass
 
 ## The last upkeep
 
-`/maintain-formal-verification-skill` ran at the sync commit (st-model-upkeep-run) and fixed one drift in the model:
+`/maintain-formal-verification-skill` ran at `228c1436c` (st-model-upkeep-run) and fixed one drift in the model:
 
 - **`clock.held`'s lift branch** was not modeled: a hold only the user's accept lifts sets `woke`, logs a finding through `run.find` and sends nothing to T3 Code.
   It is the act `heldlift`, `<<"key", "act", "record">>`, guarded by `woke` and the finding's key.
   TLC finds it breaks `NoTellLost` (bug-8): `Box.send` writes the key, the pass dies before the event line, and the next pass finds the key, logs nothing and writes `woke`, so the user is never told the hold is theirs.
   That is the clock's stall's cause, `Box.send`'s key-first write, which st-fix-tell-once (#1725) fixes in `wake.py`; once it merges, `heldlift` should hold and leave `TODAY`.
+
+The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `queue.py` changed in #1726, in `order` and the new `lifted`, not in `hold`, so the sync commit moved there.

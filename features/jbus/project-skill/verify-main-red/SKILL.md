@@ -35,7 +35,7 @@ Its docstring says what each step is, the code line that backs it, what is stubb
 Two checks share this record, and one sha confirms both: `main_red_model.py` walks the real `tell` and `mainjson.read`, and `features/jbus/spec/MainRed.tla` models the wider red, from the rerun through the revert or the fix row to the close.
 
 Model: `features/jbus/spec/MainRed.tla`
-Sync: `228c1436cc6fe94de479d333c7aab7b007460462`
+Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
 Covers:
 - `features/jbus/src/jbus/mainmoved.py`: `tell`, `main_check`, `failed_at`, `failed_steps`, `red_line`, `REDS`, `landed`, `close`, `closing_line`, `spell`
 - `features/jmerge/src/jmerge/mainjson.py`: `record`, `read`, `fix_of`, `FIX`
@@ -80,7 +80,7 @@ It prints `6 passed` in seconds, and skips where no Java runs TLC; TLC's verdict
 
 ### The last upkeep
 
-`/maintain-formal-verification-skill` ran at the sync commit (st-model-upkeep-run) and fixed three drifts in `MainRed.tla`; the walk of `main_red_model.py` was rerun there and holds (`9 passed`):
+`/maintain-formal-verification-skill` ran at `228c1436c` (st-model-upkeep-run) and fixed three drifts in `MainRed.tla`; the walk of `main_red_model.py` was rerun there and holds (`9 passed`):
 
 - **The closing lines:** `reds` holds the verdict lines, each with the green it came after, and `closing` the closing lines `mainmoved.close` appends when a green past the last one ends a spell, once a spell.
   `tell`'s `judged` reads every line's sha, a closing line's too.
@@ -89,6 +89,8 @@ It prints `6 passed` in seconds, and skips where no Java runs TLC; TLC's verdict
   The break: closing on every pass with a spell fails S4. Dropping only the once guard passes, since the model's pass is one step and the guard is for a pass that dies between `close` and `main.json`; the README says so.
 - **The Mac's pending commit:** a commit of the Mac's range whose run has not ended is quiet (`UNREAD`), and the model has no clock and no Mac row for its later `OVERLAP`.
 - **Stale prose:** the spec and README no longer name main 21112eba8.
+
+The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `watch.py` changed in #1724, in `left`, and `jmerge.md` in #1715 and #1721, in the desk check's words and a conflict's line, none of them in what this model covers, so the sync commit moved there.
 
 ## Does a change touch it
 
