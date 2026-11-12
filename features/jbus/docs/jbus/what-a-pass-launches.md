@@ -20,6 +20,7 @@ Rows launch in this order (`queue.order`):
 3. Then by slug.
 
 So a row that a paused crew waits on launches ahead of the rows that crew would launch ahead of, and a newer row never passes an older one of the same priority.
+
 A launch sends the brief in the message, as a home's launch does, and writes `tasks/<slug>.md` when it is not there.
 jbus then writes `Thread: <id>` in the head of that file, the one line it writes in a brief after the launch, but for a stacked link's line below.
 
