@@ -60,6 +60,11 @@ def _out(v):
 
 def scope(v):
     """The scope's retire, step by step: each file the archive block writes keeps apart a label."""
+    said = _scope(v)
+    return f"{said}, jbus retire at work" if v["rpc"] != "idle" else said
+
+
+def _scope(v):
     if v["plan"] == "plan":
         if v["next"] == "none":
             return "Scope s working"
@@ -120,8 +125,6 @@ def fix(v):
         said.append("a fix's check failed")
     if v["mpc"] != "idle":
         said.append("the move at work")
-    if v["rpc"] != "idle":
-        said.append("jbus retire at work")
     return ("; " + ", ".join(said) if said else "; no fix") + CLEAR[v["clear"]]
 
 

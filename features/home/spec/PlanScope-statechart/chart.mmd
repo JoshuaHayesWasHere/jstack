@@ -10,7 +10,6 @@ stateDiagram-v2
   classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group0 fill:#d6eaf8,stroke:#6b757c,color:#1b2631
   classDef group1 fill:#fdebd0,stroke:#7f7668,color:#1b2631
-  classDef group1Wrong fill:#fdebd0,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group2 fill:#fadbd8,stroke:#7d6e6c,color:#1b2631
   classDef group3 fill:#e5e8e8,stroke:#737474,color:#1b2631
   classDef group4 fill:#d5f5e3,stroke:#6b7b72,color:#1b2631
@@ -30,442 +29,294 @@ stateDiagram-v2
   class legendWrong plainWrong
   state "At the same time" as regions {
     state "The scope" as region0 {
-      [*] --> r0s8
+      [*] --> r0s9
       state "Scope s archived, its note<br/>not yet cleared" as r0s0
       state "Scope s archiving, its<br/>gate asked of the<br/>catch-all, gates.md still<br/>there" as r0s1
       state "Scope s archiving, its<br/>gates asked of the<br/>catch-all, gates.md moved<br/>aside" as r0s2
       state "Scope s archiving, its<br/>note and the older one in<br/>log/" as r0s3
-      state "Scope s archiving, its<br/>note kept in log/" as r0s4
-      state "Scope s archiving, its<br/>note written" as r0s5
-      state "Scope s handed to the<br/>catch-all" as r0s6
-      state "Scope s retired" as r0s7
-      state "Scope s working" as r0s8
-      state "Scope s's plan archived,<br/>its home-id still there" as r0s9
-      r0s0 --> r0s7 : the archive clears the note<br/>[when the entry closed, no fix<br/>or the entry in its plan and<br/>in plan-done.md, its close cut<br/>short, no fix or the entry in<br/>plan-done.md twice, no fix or<br/>the entry proposed or planned<br/>(in plan-archived.md), no fix<br/>or the entry's rows over (in<br/>plan-archived.md), no fix]
-      %% when r1s1, r1s17, r1s49, r1s65, r1s117
-      r0s0 --> r0s6 : the archive clears the note<br/>[unless the entry proposed or<br/>planned (in plan-archived.md),<br/>no fix or the entry's rows<br/>over (in plan-archived.md), no<br/>fix]
-      %% when not r1s65, r1s117
+      state "Scope s archiving, its<br/>note and the older one in<br/>log/, jbus retire at work" as r0s4
+      state "Scope s archiving, its<br/>note kept in log/" as r0s5
+      state "Scope s archiving, its<br/>note written" as r0s6
+      state "Scope s handed to the<br/>catch-all" as r0s7
+      state "Scope s retired" as r0s8
+      state "Scope s working" as r0s9
+      state "Scope s's plan archived,<br/>its home-id still there" as r0s10
+      state "Scope s's plan archived,<br/>its home-id still there,<br/>jbus retire at work" as r0s11
+      r0s0 --> r0s8 : the archive clears the note<br/>[when the entry closed, no fix<br/>or the entry in its plan and<br/>in plan-done.md, its close cut<br/>short, no fix or the entry in<br/>plan-done.md twice, no fix or<br/>the entry proposed or planned<br/>(in plan-archived.md), no fix<br/>or the entry's rows over (in<br/>plan-archived.md), no fix]
+      %% when r1s0, r1s8, r1s24, r1s32, r1s58
+      r0s0 --> r0s7 : the archive clears the note<br/>[unless the entry proposed or<br/>planned (in plan-archived.md),<br/>no fix or the entry's rows<br/>over (in plan-archived.md), no<br/>fix]
+      %% when not r1s32, r1s58
       r0s1 --> r0s2 : the archive moves gates.md<br/>aside [unless the entry in its<br/>plan and in plan-done.md, the<br/>close at work, no fix or the<br/>entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s and<br/>the catch-all or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s and the<br/>catch-all, the move at work or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it,<br/>the move at work or the entry<br/>in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in the<br/>catch-all or the entry in its<br/>plan and in plan-done.md, the<br/>close at work, the fix counted<br/>in the catch-all, the move at<br/>work]
-      %% when not r1s33, r1s34, r1s35, r1s37, r1s40, r1s42, r1s44, r1s46
-      r0s2 --> r0s4 : the archive keeps the note in<br/>log/, with its Was home line<br/>[unless the entry in its plan<br/>and in plan-done.md, the close<br/>at work, no fix or the entry<br/>in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s and<br/>the catch-all or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s and the<br/>catch-all, the move at work or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it,<br/>the move at work or the entry<br/>in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in the<br/>catch-all or the entry in its<br/>plan and in plan-done.md, the<br/>close at work, the fix counted<br/>in the catch-all, the move at<br/>work]
-      %% when not r1s33, r1s34, r1s35, r1s37, r1s40, r1s42, r1s44, r1s46
-      r0s3 --> r0s9 : jbus retire moves plan.md to<br/>plan-archived.md [when the<br/>entry closed, jbus retire at<br/>work or the entry closed, the<br/>fix counted in s and the<br/>catch-all, jbus retire at work<br/>or the entry closed, the fix<br/>counted in s and the<br/>catch-all, the move at work,<br/>jbus retire at work or the<br/>entry closed, the fix counted<br/>in the catch-all, jbus retire<br/>at work or the entry closed,<br/>the fix counted in the<br/>catch-all, the move at work,<br/>jbus retire at work or the<br/>entry in its plan and in<br/>plan-done.md, its close cut<br/>short, jbus retire at work or<br/>the entry in its plan and in<br/>plan-done.md, its close cut<br/>short, the fix counted in s<br/>and the catch-all, jbus retire<br/>at work or the entry in its<br/>plan and in plan-done.md, its<br/>close cut short, the fix<br/>counted in s and the<br/>catch-all, the move at work,<br/>jbus retire at work or the<br/>entry in its plan and in<br/>plan-done.md, its close cut<br/>short, the fix counted in the<br/>catch-all, jbus retire at work<br/>or the entry in its plan and<br/>in plan-done.md, its close cut<br/>short, the fix counted in the<br/>catch-all, the move at work,<br/>jbus retire at work or the<br/>entry in its plan and in<br/>plan-done.md, the close at<br/>work, jbus retire at work or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s and<br/>the catch-all, jbus retire at<br/>work or the entry in its plan<br/>and in plan-done.md, the close<br/>at work, the fix counted in s<br/>and the catch-all, the move at<br/>work, jbus retire at work or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in the<br/>catch-all, jbus retire at work<br/>or the entry in its plan and<br/>in plan-done.md, the close at<br/>work, the fix counted in the<br/>catch-all, the move at work,<br/>jbus retire at work or the<br/>entry in plan-done.md twice,<br/>jbus retire at work or the<br/>entry in plan-done.md twice,<br/>the fix counted in s and the<br/>catch-all, jbus retire at work<br/>or the entry in plan-done.md<br/>twice, the fix counted in s<br/>and the catch-all, the move at<br/>work, jbus retire at work or<br/>the entry in plan-done.md<br/>twice, the fix counted in the<br/>catch-all, jbus retire at work<br/>or the entry in plan-done.md<br/>twice, the fix counted in the<br/>catch-all, the move at work,<br/>jbus retire at work or the<br/>entry proposed or planned,<br/>jbus retire at work or the<br/>entry proposed or planned, the<br/>fix counted in s and the<br/>catch-all, jbus retire at work<br/>or the entry proposed or<br/>planned, the fix counted in s<br/>and the catch-all, the move at<br/>work, jbus retire at work or<br/>the entry proposed or planned,<br/>the fix counted in the<br/>catch-all, jbus retire at work<br/>or the entry proposed or<br/>planned, the fix counted in<br/>the catch-all, the move at<br/>work, jbus retire at work or<br/>the entry's row out, jbus<br/>retire at work or the entry's<br/>row out, the fix counted in s<br/>and the catch-all, jbus retire<br/>at work or the entry's row<br/>out, the fix counted in s and<br/>the catch-all, the move at<br/>work, jbus retire at work or<br/>the entry's row out, the fix<br/>counted in the catch-all, jbus<br/>retire at work or the entry's<br/>row out, the fix counted in<br/>the catch-all, the move at<br/>work, jbus retire at work or<br/>the entry's rows over, jbus<br/>retire at work or the entry's<br/>rows over, the fix counted in<br/>s and the catch-all, jbus<br/>retire at work or the entry's<br/>rows over, the fix counted in<br/>s and the catch-all, the move<br/>at work, jbus retire at work<br/>or the entry's rows over, the<br/>fix counted in the catch-all,<br/>jbus retire at work or the<br/>entry's rows over, the fix<br/>counted in the catch-all, the<br/>move at work, jbus retire at<br/>work]
-      %% when r1s0, r1s4, r1s6, r1s13, r1s15, r1s16, r1s20, r1s22, r1s29, r1s31, r1s32, r1s36, r1s38, r1s45, r1s47, r1s48, r1s52, r1s54, r1s61, r1s63, r1s74, r1s78, r1s80, r1s87, r1s89, r1s100, r1s104, r1s106, r1s113, r1s115, r1s126, r1s130, r1s132, r1s139, r1s141
-      r0s4 --> r0s3 : the archive moves the older<br/>handoff.md to log/ [unless the<br/>entry in its plan and in<br/>plan-done.md, the close at<br/>work, no fix or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s and the catch-all<br/>or the entry in its plan and<br/>in plan-done.md, the close at<br/>work, the fix counted in s and<br/>the catch-all, the move at<br/>work or the entry in its plan<br/>and in plan-done.md, the close<br/>at work, the fix counted in s,<br/>not where its home reads it or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it,<br/>the move at work or the entry<br/>in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in the<br/>catch-all or the entry in its<br/>plan and in plan-done.md, the<br/>close at work, the fix counted<br/>in the catch-all, the move at<br/>work]
-      %% when not r1s33, r1s34, r1s35, r1s37, r1s40, r1s42, r1s44, r1s46
-      r0s5 --> r0s1 : the archive asks the scope's<br/>gate of the catch-all [unless<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, no fix or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s and the catch-all<br/>or the entry in its plan and<br/>in plan-done.md, the close at<br/>work, the fix counted in s and<br/>the catch-all, the move at<br/>work or the entry in its plan<br/>and in plan-done.md, the close<br/>at work, the fix counted in s,<br/>not where its home reads it or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it,<br/>the move at work or the entry<br/>in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in the<br/>catch-all or the entry in its<br/>plan and in plan-done.md, the<br/>close at work, the fix counted<br/>in the catch-all, the move at<br/>work]
-      %% when not r1s33, r1s34, r1s35, r1s37, r1s40, r1s42, r1s44, r1s46
-      r0s6 --> r0s7 : the entry's rows end [when the<br/>entry closed, no fix or the<br/>entry in its plan and in<br/>plan-done.md, its close cut<br/>short, no fix or the entry in<br/>plan-done.md twice, no fix or<br/>the entry's row out (in<br/>plan-archived.md), no fix]
-      %% when r1s1, r1s17, r1s49, r1s91
-      r0s7 --> r0s6 : the home queues the fix, and<br/>jbus counts it
-      r0s8 --> r0s5 : you run /handoff: the home<br/>writes its note [unless the<br/>entry in its plan and in<br/>plan-done.md, the close at<br/>work, no fix or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s and the catch-all<br/>or the entry in its plan and<br/>in plan-done.md, the close at<br/>work, the fix counted in s and<br/>the catch-all, the move at<br/>work or the entry in its plan<br/>and in plan-done.md, the close<br/>at work, the fix counted in s,<br/>not where its home reads it or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it,<br/>the move at work or the entry<br/>in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in the<br/>catch-all or the entry in its<br/>plan and in plan-done.md, the<br/>close at work, the fix counted<br/>in the catch-all, the move at<br/>work]
-      %% when not r1s33, r1s34, r1s35, r1s37, r1s40, r1s42, r1s44, r1s46
-      r0s9 --> r0s0 : the archive removes home-id<br/>[when the entry closed, no fix<br/>or the entry closed, the fix<br/>counted in the catch-all or<br/>the entry closed, the fix<br/>counted in the catch-all, the<br/>move at work or the entry in<br/>its plan and in plan-done.md,<br/>its close cut short, no fix or<br/>the entry in its plan and in<br/>plan-done.md, its close cut<br/>short, the fix counted in the<br/>catch-all or the entry in its<br/>plan and in plan-done.md, its<br/>close cut short, the fix<br/>counted in the catch-all, the<br/>move at work or the entry in<br/>plan-done.md twice, no fix or<br/>the entry in plan-done.md<br/>twice, the fix counted in the<br/>catch-all or the entry in<br/>plan-done.md twice, the fix<br/>counted in the catch-all, the<br/>move at work or the entry<br/>proposed or planned (in<br/>plan-archived.md), no fix or<br/>the entry proposed or planned<br/>(in plan-archived.md), the fix<br/>counted in the catch-all or<br/>the entry proposed or planned<br/>(in plan-archived.md), the fix<br/>counted in the catch-all, the<br/>move at work or the entry's<br/>row out (in plan-archived.md),<br/>no fix or the entry's row out<br/>(in plan-archived.md), the fix<br/>counted in the catch-all or<br/>the entry's row out (in<br/>plan-archived.md), the fix<br/>counted in the catch-all, the<br/>move at work or the entry's<br/>rows over (in<br/>plan-archived.md), no fix or<br/>the entry's rows over (in<br/>plan-archived.md), the fix<br/>counted in the catch-all or<br/>the entry's rows over (in<br/>plan-archived.md), the fix<br/>counted in the catch-all, the<br/>move at work]
-      %% when r1s1, r1s12, r1s14, r1s17, r1s28, r1s30, r1s49, r1s60, r1s62, r1s65, r1s70, r1s72, r1s91, r1s96, r1s98, r1s117, r1s122, r1s124
+      %% when not r1s16, r1s17, r1s18, r1s19, r1s20, r1s21, r1s22, r1s23
+      r0s2 --> r0s5 : the archive keeps the note in<br/>log/, with its Was home line<br/>[unless the entry in its plan<br/>and in plan-done.md, the close<br/>at work, no fix or the entry<br/>in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s and<br/>the catch-all or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s and the<br/>catch-all, the move at work or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it,<br/>the move at work or the entry<br/>in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in the<br/>catch-all or the entry in its<br/>plan and in plan-done.md, the<br/>close at work, the fix counted<br/>in the catch-all, the move at<br/>work]
+      %% when not r1s16, r1s17, r1s18, r1s19, r1s20, r1s21, r1s22, r1s23
+      r0s3 --> r0s4 : the archive runs jbus retire,<br/>which locks both ledgers<br/>[unless the entry in its plan<br/>and in plan-done.md, the close<br/>at work, no fix or the entry<br/>in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s and<br/>the catch-all or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s and the<br/>catch-all, the move at work or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it,<br/>the move at work or the entry<br/>in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in the<br/>catch-all or the entry in its<br/>plan and in plan-done.md, the<br/>close at work, the fix counted<br/>in the catch-all, the move at<br/>work]
+      %% when not r1s16, r1s17, r1s18, r1s19, r1s20, r1s21, r1s22, r1s23
+      r0s4 --> r0s3 : jbus retire dies
+      r0s4 --> r0s11 : jbus retire moves plan.md to<br/>plan-archived.md [unless the<br/>entry closed, the fix counted<br/>in s or the entry closed, the<br/>fix counted in s, not where<br/>its home reads it or the entry<br/>closed, the fix counted in s,<br/>not where its home reads it,<br/>the move at work or the entry<br/>in its plan and in<br/>plan-done.md, its close cut<br/>short, the fix counted in s or<br/>the entry in its plan and in<br/>plan-done.md, its close cut<br/>short, the fix counted in s,<br/>not where its home reads it or<br/>the entry in its plan and in<br/>plan-done.md, its close cut<br/>short, the fix counted in s,<br/>not where its home reads it,<br/>the move at work or the entry<br/>in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it,<br/>the move at work or the entry<br/>in plan-done.md twice, the fix<br/>counted in s or the entry in<br/>plan-done.md twice, the fix<br/>counted in s, not where its<br/>home reads it or the entry in<br/>plan-done.md twice, the fix<br/>counted in s, not where its<br/>home reads it, the move at<br/>work or the entry proposed or<br/>planned, the fix counted in s<br/>or the entry proposed or<br/>planned, the fix counted in s,<br/>not where its home reads it or<br/>the entry proposed or planned,<br/>the fix counted in s, not<br/>where its home reads it, the<br/>move at work or the entry's<br/>row out, the fix counted in s<br/>or the entry's row out, the<br/>fix counted in s, not where<br/>its home reads it or the<br/>entry's row out, the fix<br/>counted in s, not where its<br/>home reads it, the move at<br/>work or the entry's rows over,<br/>the fix counted in s or the<br/>entry's rows over, the fix<br/>counted in s, not where its<br/>home reads it or the entry's<br/>rows over, the fix counted in<br/>s, not where its home reads<br/>it, the move at work]
+      %% when not r1s1, r1s4, r1s5, r1s9, r1s12, r1s13, r1s17, r1s20, r1s21, r1s25, r1s28, r1s29, r1s38, r1s41, r1s42, r1s51, r1s54, r1s55, r1s64, r1s67, r1s68
+      r0s5 --> r0s3 : the archive moves the older<br/>handoff.md to log/ [unless the<br/>entry in its plan and in<br/>plan-done.md, the close at<br/>work, no fix or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s and the catch-all<br/>or the entry in its plan and<br/>in plan-done.md, the close at<br/>work, the fix counted in s and<br/>the catch-all, the move at<br/>work or the entry in its plan<br/>and in plan-done.md, the close<br/>at work, the fix counted in s,<br/>not where its home reads it or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it,<br/>the move at work or the entry<br/>in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in the<br/>catch-all or the entry in its<br/>plan and in plan-done.md, the<br/>close at work, the fix counted<br/>in the catch-all, the move at<br/>work]
+      %% when not r1s16, r1s17, r1s18, r1s19, r1s20, r1s21, r1s22, r1s23
+      r0s6 --> r0s1 : the archive asks the scope's<br/>gate of the catch-all [unless<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, no fix or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s and the catch-all<br/>or the entry in its plan and<br/>in plan-done.md, the close at<br/>work, the fix counted in s and<br/>the catch-all, the move at<br/>work or the entry in its plan<br/>and in plan-done.md, the close<br/>at work, the fix counted in s,<br/>not where its home reads it or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it,<br/>the move at work or the entry<br/>in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in the<br/>catch-all or the entry in its<br/>plan and in plan-done.md, the<br/>close at work, the fix counted<br/>in the catch-all, the move at<br/>work]
+      %% when not r1s16, r1s17, r1s18, r1s19, r1s20, r1s21, r1s22, r1s23
+      r0s7 --> r0s8 : the entry's rows end [when the<br/>entry closed, no fix or the<br/>entry in its plan and in<br/>plan-done.md, its close cut<br/>short, no fix or the entry in<br/>plan-done.md twice, no fix or<br/>the entry's row out (in<br/>plan-archived.md), no fix]
+      %% when r1s0, r1s8, r1s24, r1s45
+      r0s8 --> r0s7 : the home queues the fix, and<br/>jbus counts it
+      r0s9 --> r0s6 : you run /handoff: the home<br/>writes its note [unless the<br/>entry in its plan and in<br/>plan-done.md, the close at<br/>work, no fix or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s and the catch-all<br/>or the entry in its plan and<br/>in plan-done.md, the close at<br/>work, the fix counted in s and<br/>the catch-all, the move at<br/>work or the entry in its plan<br/>and in plan-done.md, the close<br/>at work, the fix counted in s,<br/>not where its home reads it or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s,<br/>not where its home reads it,<br/>the move at work or the entry<br/>in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in the<br/>catch-all or the entry in its<br/>plan and in plan-done.md, the<br/>close at work, the fix counted<br/>in the catch-all, the move at<br/>work]
+      %% when not r1s16, r1s17, r1s18, r1s19, r1s20, r1s21, r1s22, r1s23
+      r0s10 --> r0s0 : the archive removes home-id<br/>[unless the entry closed, the<br/>fix counted in s and the<br/>catch-all or the entry closed,<br/>the fix counted in s and the<br/>catch-all, the move at work or<br/>the entry in its plan and in<br/>plan-done.md, its close cut<br/>short, the fix counted in s<br/>and the catch-all or the entry<br/>in its plan and in<br/>plan-done.md, its close cut<br/>short, the fix counted in s<br/>and the catch-all, the move at<br/>work or the entry in its plan<br/>and in plan-done.md, the close<br/>at work, no fix or the entry<br/>in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in s and<br/>the catch-all or the entry in<br/>its plan and in plan-done.md,<br/>the close at work, the fix<br/>counted in s and the<br/>catch-all, the move at work or<br/>the entry in its plan and in<br/>plan-done.md, the close at<br/>work, the fix counted in the<br/>catch-all or the entry in its<br/>plan and in plan-done.md, the<br/>close at work, the fix counted<br/>in the catch-all, the move at<br/>work or the entry in<br/>plan-done.md twice, the fix<br/>counted in s and the catch-all<br/>or the entry in plan-done.md<br/>twice, the fix counted in s<br/>and the catch-all, the move at<br/>work or the entry proposed or<br/>planned (in plan-archived.md),<br/>the fix counted in s and the<br/>catch-all or the entry<br/>proposed or planned (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all, the move at work or<br/>the entry's row out (in<br/>plan-archived.md), the fix<br/>counted in s and the catch-all<br/>or the entry's row out (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all, the move at work or<br/>the entry's rows over (in<br/>plan-archived.md), the fix<br/>counted in s and the catch-all<br/>or the entry's rows over (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all, the move at work]
+      %% when not r1s2, r1s3, r1s10, r1s11, r1s16, r1s18, r1s19, r1s22, r1s23, r1s26, r1s27, r1s33, r1s34, r1s46, r1s47, r1s59, r1s60
+      r0s11 --> r0s10 : jbus retire dies
+      r0s11 --> r0s10 : jbus retire empties s's<br/>ledger, and unlocks
     }
     --
     state "Its entry and fix" as region1 {
-      [*] --> r1s75
-      state "the entry closed, jbus<br/>retire at work" as r1s0
-      state "the entry closed, no fix" as r1s1
-      state "the entry closed, the fix<br/>counted in s" as r1s2
-      state "the entry closed, the fix<br/>counted in s and the<br/>catch-all" as r1s3
-      state "the entry closed, the fix<br/>counted in s and the<br/>catch-all, jbus retire at<br/>work" as r1s4
-      state "the entry closed, the fix<br/>counted in s and the<br/>catch-all, the move at<br/>work" as r1s5
-      state "the entry closed, the fix<br/>counted in s and the<br/>catch-all, the move at<br/>work, jbus retire at work" as r1s6
-      state "the entry closed, the fix<br/>counted in s, jbus retire<br/>at work" as r1s7
-      state "the entry closed, the fix<br/>counted in s, not where<br/>its home reads it" as r1s8
-      state "the entry closed, the fix<br/>counted in s, not where<br/>its home reads it, jbus<br/>retire at work" as r1s9
-      state "the entry closed, the fix<br/>counted in s, not where<br/>its home reads it, the<br/>move at work" as r1s10
-      state "the entry closed, the fix<br/>counted in s, not where<br/>its home reads it, the<br/>move at work, jbus retire<br/>at work" as r1s11
-      state "the entry closed, the fix<br/>counted in the catch-all" as r1s12
-      state "the entry closed, the fix<br/>counted in the catch-all,<br/>jbus retire at work" as r1s13
-      state "the entry closed, the fix<br/>counted in the catch-all,<br/>the move at work" as r1s14
-      state "the entry closed, the fix<br/>counted in the catch-all,<br/>the move at work, jbus<br/>retire at work" as r1s15
-      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, jbus retire at<br/>work" as r1s16
-      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, no fix" as r1s17
-      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in s" as r1s18
-      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in s and the catch-all" as r1s19
-      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in s and the catch-all,<br/>jbus retire at work" as r1s20
-      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in s and the catch-all,<br/>the move at work" as r1s21
-      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in s and the catch-all,<br/>the move at work, jbus<br/>retire at work" as r1s22
-      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in s, jbus retire at work" as r1s23
-      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in s, not where its home<br/>reads it" as r1s24
-      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in s, not where its home<br/>reads it, jbus retire at<br/>work" as r1s25
-      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in s, not where its home<br/>reads it, the move at work" as r1s26
-      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in s, not where its home<br/>reads it, the move at<br/>work, jbus retire at work" as r1s27
-      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in the catch-all" as r1s28
-      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in the catch-all, jbus<br/>retire at work" as r1s29
-      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in the catch-all, the move<br/>at work" as r1s30
-      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in the catch-all, the move<br/>at work, jbus retire at<br/>work" as r1s31
-      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, jbus retire at<br/>work" as r1s32
-      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, no fix" as r1s33
-      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in s" as r1s34
-      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in s and the catch-all" as r1s35
-      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in s and the catch-all,<br/>jbus retire at work" as r1s36
-      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in s and the catch-all,<br/>the move at work" as r1s37
-      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in s and the catch-all,<br/>the move at work, jbus<br/>retire at work" as r1s38
-      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in s, jbus retire at work" as r1s39
-      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in s, not where its home<br/>reads it" as r1s40
-      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in s, not where its home<br/>reads it, jbus retire at<br/>work" as r1s41
-      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in s, not where its home<br/>reads it, the move at work" as r1s42
-      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in s, not where its home<br/>reads it, the move at<br/>work, jbus retire at work" as r1s43
-      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in the catch-all" as r1s44
-      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in the catch-all, jbus<br/>retire at work" as r1s45
-      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in the catch-all, the move<br/>at work" as r1s46
-      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in the catch-all, the move<br/>at work, jbus retire at<br/>work" as r1s47
-      state "the entry in plan-done.md<br/>twice, jbus retire at work" as r1s48
-      state "the entry in plan-done.md<br/>twice, no fix" as r1s49
-      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>s" as r1s50
-      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>s and the catch-all" as r1s51
-      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>s and the catch-all, jbus<br/>retire at work" as r1s52
-      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>s and the catch-all, the<br/>move at work" as r1s53
-      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>s and the catch-all, the<br/>move at work, jbus retire<br/>at work" as r1s54
-      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>s, jbus retire at work" as r1s55
-      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>s, not where its home<br/>reads it" as r1s56
-      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>s, not where its home<br/>reads it, jbus retire at<br/>work" as r1s57
-      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>s, not where its home<br/>reads it, the move at work" as r1s58
-      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>s, not where its home<br/>reads it, the move at<br/>work, jbus retire at work" as r1s59
-      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>the catch-all" as r1s60
-      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>the catch-all, jbus retire<br/>at work" as r1s61
-      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>the catch-all, the move at<br/>work" as r1s62
-      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>the catch-all, the move at<br/>work, jbus retire at work" as r1s63
-      state "the entry proposed or<br/>planned (in<br/>plan-archived.md), jbus<br/>retire at work" as r1s64
-      state "the entry proposed or<br/>planned (in<br/>plan-archived.md), no fix" as r1s65
-      state "the entry proposed or<br/>planned (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all" as r1s66
-      state "the entry proposed or<br/>planned (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all, jbus retire at<br/>work" as r1s67
-      state "the entry proposed or<br/>planned (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all, the move at<br/>work" as r1s68
-      state "the entry proposed or<br/>planned (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all, the move at<br/>work, jbus retire at work" as r1s69
-      state "the entry proposed or<br/>planned (in<br/>plan-archived.md), the fix<br/>counted in the catch-all" as r1s70
-      state "the entry proposed or<br/>planned (in<br/>plan-archived.md), the fix<br/>counted in the catch-all,<br/>jbus retire at work" as r1s71
-      state "the entry proposed or<br/>planned (in<br/>plan-archived.md), the fix<br/>counted in the catch-all,<br/>the move at work" as r1s72
-      state "the entry proposed or<br/>planned (in<br/>plan-archived.md), the fix<br/>counted in the catch-all,<br/>the move at work, jbus<br/>retire at work" as r1s73
-      state "the entry proposed or<br/>planned, jbus retire at<br/>work" as r1s74
-      state "the entry proposed or<br/>planned, no fix" as r1s75
-      state "the entry proposed or<br/>planned, the fix counted<br/>in s" as r1s76
-      state "the entry proposed or<br/>planned, the fix counted<br/>in s and the catch-all" as r1s77
-      state "the entry proposed or<br/>planned, the fix counted<br/>in s and the catch-all,<br/>jbus retire at work" as r1s78
-      state "the entry proposed or<br/>planned, the fix counted<br/>in s and the catch-all,<br/>the move at work" as r1s79
-      state "the entry proposed or<br/>planned, the fix counted<br/>in s and the catch-all,<br/>the move at work, jbus<br/>retire at work" as r1s80
-      state "the entry proposed or<br/>planned, the fix counted<br/>in s, jbus retire at work" as r1s81
-      state "the entry proposed or<br/>planned, the fix counted<br/>in s, not where its home<br/>reads it" as r1s82
-      state "the entry proposed or<br/>planned, the fix counted<br/>in s, not where its home<br/>reads it, jbus retire at<br/>work" as r1s83
-      state "the entry proposed or<br/>planned, the fix counted<br/>in s, not where its home<br/>reads it, the move at work" as r1s84
-      state "the entry proposed or<br/>planned, the fix counted<br/>in s, not where its home<br/>reads it, the move at<br/>work, jbus retire at work" as r1s85
-      state "the entry proposed or<br/>planned, the fix counted<br/>in the catch-all" as r1s86
-      state "the entry proposed or<br/>planned, the fix counted<br/>in the catch-all, jbus<br/>retire at work" as r1s87
-      state "the entry proposed or<br/>planned, the fix counted<br/>in the catch-all, the move<br/>at work" as r1s88
-      state "the entry proposed or<br/>planned, the fix counted<br/>in the catch-all, the move<br/>at work, jbus retire at<br/>work" as r1s89
-      state "the entry's row out (in<br/>plan-archived.md), jbus<br/>retire at work" as r1s90
-      state "the entry's row out (in<br/>plan-archived.md), no fix" as r1s91
-      state "the entry's row out (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all" as r1s92
-      state "the entry's row out (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all, jbus retire at<br/>work" as r1s93
-      state "the entry's row out (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all, the move at<br/>work" as r1s94
-      state "the entry's row out (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all, the move at<br/>work, jbus retire at work" as r1s95
-      state "the entry's row out (in<br/>plan-archived.md), the fix<br/>counted in the catch-all" as r1s96
-      state "the entry's row out (in<br/>plan-archived.md), the fix<br/>counted in the catch-all,<br/>jbus retire at work" as r1s97
-      state "the entry's row out (in<br/>plan-archived.md), the fix<br/>counted in the catch-all,<br/>the move at work" as r1s98
-      state "the entry's row out (in<br/>plan-archived.md), the fix<br/>counted in the catch-all,<br/>the move at work, jbus<br/>retire at work" as r1s99
-      state "the entry's row out, jbus<br/>retire at work" as r1s100
-      state "the entry's row out, no<br/>fix" as r1s101
-      state "the entry's row out, the<br/>fix counted in s" as r1s102
-      state "the entry's row out, the<br/>fix counted in s and the<br/>catch-all" as r1s103
-      state "the entry's row out, the<br/>fix counted in s and the<br/>catch-all, jbus retire at<br/>work" as r1s104
-      state "the entry's row out, the<br/>fix counted in s and the<br/>catch-all, the move at<br/>work" as r1s105
-      state "the entry's row out, the<br/>fix counted in s and the<br/>catch-all, the move at<br/>work, jbus retire at work" as r1s106
-      state "the entry's row out, the<br/>fix counted in s, jbus<br/>retire at work" as r1s107
-      state "the entry's row out, the<br/>fix counted in s, not<br/>where its home reads it" as r1s108
-      state "the entry's row out, the<br/>fix counted in s, not<br/>where its home reads it,<br/>jbus retire at work" as r1s109
-      state "the entry's row out, the<br/>fix counted in s, not<br/>where its home reads it,<br/>the move at work" as r1s110
-      state "the entry's row out, the<br/>fix counted in s, not<br/>where its home reads it,<br/>the move at work, jbus<br/>retire at work" as r1s111
-      state "the entry's row out, the<br/>fix counted in the<br/>catch-all" as r1s112
-      state "the entry's row out, the<br/>fix counted in the<br/>catch-all, jbus retire at<br/>work" as r1s113
-      state "the entry's row out, the<br/>fix counted in the<br/>catch-all, the move at<br/>work" as r1s114
-      state "the entry's row out, the<br/>fix counted in the<br/>catch-all, the move at<br/>work, jbus retire at work" as r1s115
-      state "the entry's rows over (in<br/>plan-archived.md), jbus<br/>retire at work" as r1s116
-      state "the entry's rows over (in<br/>plan-archived.md), no fix" as r1s117
-      state "the entry's rows over (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all" as r1s118
-      state "the entry's rows over (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all, jbus retire at<br/>work" as r1s119
-      state "the entry's rows over (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all, the move at<br/>work" as r1s120
-      state "the entry's rows over (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all, the move at<br/>work, jbus retire at work" as r1s121
-      state "the entry's rows over (in<br/>plan-archived.md), the fix<br/>counted in the catch-all" as r1s122
-      state "the entry's rows over (in<br/>plan-archived.md), the fix<br/>counted in the catch-all,<br/>jbus retire at work" as r1s123
-      state "the entry's rows over (in<br/>plan-archived.md), the fix<br/>counted in the catch-all,<br/>the move at work" as r1s124
-      state "the entry's rows over (in<br/>plan-archived.md), the fix<br/>counted in the catch-all,<br/>the move at work, jbus<br/>retire at work" as r1s125
-      state "the entry's rows over,<br/>jbus retire at work" as r1s126
-      state "the entry's rows over, no<br/>fix" as r1s127
-      state "the entry's rows over, the<br/>fix counted in s" as r1s128
-      state "the entry's rows over, the<br/>fix counted in s and the<br/>catch-all" as r1s129
-      state "the entry's rows over, the<br/>fix counted in s and the<br/>catch-all, jbus retire at<br/>work" as r1s130
-      state "the entry's rows over, the<br/>fix counted in s and the<br/>catch-all, the move at<br/>work" as r1s131
-      state "the entry's rows over, the<br/>fix counted in s and the<br/>catch-all, the move at<br/>work, jbus retire at work" as r1s132
-      state "the entry's rows over, the<br/>fix counted in s, jbus<br/>retire at work" as r1s133
-      state "the entry's rows over, the<br/>fix counted in s, not<br/>where its home reads it" as r1s134
-      state "the entry's rows over, the<br/>fix counted in s, not<br/>where its home reads it,<br/>jbus retire at work" as r1s135
-      state "the entry's rows over, the<br/>fix counted in s, not<br/>where its home reads it,<br/>the move at work" as r1s136
-      state "the entry's rows over, the<br/>fix counted in s, not<br/>where its home reads it,<br/>the move at work, jbus<br/>retire at work" as r1s137
-      state "the entry's rows over, the<br/>fix counted in the<br/>catch-all" as r1s138
-      state "the entry's rows over, the<br/>fix counted in the<br/>catch-all, jbus retire at<br/>work" as r1s139
-      state "the entry's rows over, the<br/>fix counted in the<br/>catch-all, the move at<br/>work" as r1s140
-      state "the entry's rows over, the<br/>fix counted in the<br/>catch-all, the move at<br/>work, jbus retire at work" as r1s141
-      r1s0 --> r1s1 : jbus retire dies
-      r1s1 --> r1s0 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/ or<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s3, r0s9
-      r1s1 --> r1s2 : the home queues the fix, and<br/>jbus counts it [unless Scope s<br/>archived, its note not yet<br/>cleared or Scope s handed to<br/>the catch-all or Scope s<br/>retired or Scope s's plan<br/>archived, its home-id still<br/>there]
-      %% when not r0s0, r0s6, r0s7, r0s9
-      r1s1 --> r1s12 : the home queues the fix, and<br/>jbus counts it [when Scope s<br/>archived, its note not yet<br/>cleared or Scope s handed to<br/>the catch-all or Scope s<br/>retired or Scope s's plan<br/>archived, its home-id still<br/>there]
-      %% when r0s0, r0s6, r0s7, r0s9
-      r1s2 --> r1s7 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s2 --> r1s10 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s3 --> r1s4 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/ or<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s3, r0s9
-      r1s4 --> r1s6 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s5 --> r1s3 : the move dies
-      r1s5 --> r1s12 : the move writes s's ledger,<br/>and unlocks
-      r1s6 --> r1s5 : jbus retire dies
-      r1s7 --> r1s4 : jbus retire counts s's fixes<br/>in the catch-all's ledger
-      r1s7 --> r1s11 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s8 --> r1s9 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s9 --> r1s4 : jbus retire counts s's fixes<br/>in the catch-all's ledger
-      r1s10 --> r1s8 : the move dies
-      r1s10 --> r1s5 : the move writes the<br/>catch-all's ledger
-      r1s11 --> r1s9 : the move dies
-      r1s12 --> r1s13 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/ or<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s3, r0s9
-      r1s12 --> r1s14 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s13 --> r1s15 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s14 --> r1s15 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/ or<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s3, r0s9
-      r1s15 --> r1s14 : jbus retire dies
-      r1s16 --> r1s17 : jbus retire dies
-      r1s17 --> r1s16 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/ or<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s3, r0s9
-      r1s17 --> r1s49 : the home closes it again: plan<br/>close appends it a second time<br/>[unless Scope s archived, its<br/>note not yet cleared or Scope<br/>s handed to the catch-all or<br/>Scope s retired or Scope s's<br/>plan archived, its home-id<br/>still there]
-      %% when not r0s0, r0s6, r0s7, r0s9
-      r1s17 --> r1s18 : the home queues the fix, and<br/>jbus counts it [unless Scope s<br/>archived, its note not yet<br/>cleared or Scope s handed to<br/>the catch-all or Scope s<br/>retired or Scope s's plan<br/>archived, its home-id still<br/>there]
-      %% when not r0s0, r0s6, r0s7, r0s9
-      r1s17 --> r1s28 : the home queues the fix, and<br/>jbus counts it [when Scope s<br/>archived, its note not yet<br/>cleared or Scope s handed to<br/>the catch-all or Scope s<br/>retired or Scope s's plan<br/>archived, its home-id still<br/>there]
-      %% when r0s0, r0s6, r0s7, r0s9
-      r1s18 --> r1s23 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s18 --> r1s26 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s19 --> r1s20 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/ or<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s3, r0s9
-      r1s20 --> r1s22 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s21 --> r1s19 : the move dies
-      r1s21 --> r1s28 : the move writes s's ledger,<br/>and unlocks
-      r1s22 --> r1s21 : jbus retire dies
-      r1s23 --> r1s20 : jbus retire counts s's fixes<br/>in the catch-all's ledger
-      r1s23 --> r1s27 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s24 --> r1s25 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s25 --> r1s20 : jbus retire counts s's fixes<br/>in the catch-all's ledger
-      r1s26 --> r1s24 : the move dies
-      r1s26 --> r1s21 : the move writes the<br/>catch-all's ledger
-      r1s27 --> r1s25 : the move dies
-      r1s28 --> r1s29 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/ or<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s3, r0s9
-      r1s28 --> r1s30 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s29 --> r1s31 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s30 --> r1s31 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/ or<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s3, r0s9
-      r1s31 --> r1s30 : jbus retire dies
-      r1s32 --> r1s33 : jbus retire dies
-      r1s33 --> r1s17 : the close dies between its two<br/>writes
-      r1s33 --> r1s1 : the close takes it out of the<br/>plan
-      r1s33 --> r1s34 : the home queues the fix, and<br/>jbus counts it [unless Scope<br/>s's plan archived, its home-id<br/>still there]
-      %% when not r0s9
-      r1s34 --> r1s42 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s35 --> r1s19 : the close dies between its two<br/>writes
-      r1s36 --> r1s38 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s37 --> r1s35 : the move dies
-      r1s37 --> r1s44 : the move writes s's ledger,<br/>and unlocks
-      r1s38 --> r1s37 : jbus retire dies
-      r1s39 --> r1s36 : jbus retire counts s's fixes<br/>in the catch-all's ledger
-      r1s39 --> r1s43 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s40 --> r1s24 : the close dies between its two<br/>writes
-      r1s41 --> r1s36 : jbus retire counts s's fixes<br/>in the catch-all's ledger
-      r1s42 --> r1s40 : the move dies
-      r1s42 --> r1s37 : the move writes the<br/>catch-all's ledger
-      r1s43 --> r1s41 : the move dies
-      r1s44 --> r1s46 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s45 --> r1s47 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s46 --> r1s30 : the close dies between its two<br/>writes
-      r1s47 --> r1s46 : jbus retire dies
-      r1s48 --> r1s49 : jbus retire dies
-      r1s49 --> r1s48 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/ or<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s3, r0s9
-      r1s49 --> r1s50 : the home queues the fix, and<br/>jbus counts it [unless Scope s<br/>archived, its note not yet<br/>cleared or Scope s handed to<br/>the catch-all or Scope s<br/>retired or Scope s's plan<br/>archived, its home-id still<br/>there]
-      %% when not r0s0, r0s6, r0s7, r0s9
-      r1s49 --> r1s60 : the home queues the fix, and<br/>jbus counts it [when Scope s<br/>archived, its note not yet<br/>cleared or Scope s handed to<br/>the catch-all or Scope s<br/>retired or Scope s's plan<br/>archived, its home-id still<br/>there]
-      %% when r0s0, r0s6, r0s7, r0s9
-      r1s50 --> r1s55 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s50 --> r1s58 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s51 --> r1s52 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/ or<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s3, r0s9
-      r1s52 --> r1s51 : jbus retire dies
-      r1s53 --> r1s51 : the move dies
-      r1s53 --> r1s60 : the move writes s's ledger,<br/>and unlocks
-      r1s54 --> r1s53 : jbus retire dies
-      r1s55 --> r1s52 : jbus retire counts s's fixes<br/>in the catch-all's ledger
-      r1s56 --> r1s57 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s57 --> r1s52 : jbus retire counts s's fixes<br/>in the catch-all's ledger
-      r1s58 --> r1s59 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s58 --> r1s56 : the move dies
-      r1s58 --> r1s53 : the move writes the<br/>catch-all's ledger
-      r1s59 --> r1s54 : jbus retire counts s's fixes<br/>in the catch-all's ledger
-      r1s60 --> r1s61 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/ or<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s3, r0s9
-      r1s60 --> r1s62 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s61 --> r1s60 : jbus retire dies
-      r1s62 --> r1s63 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/ or<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s3, r0s9
-      r1s63 --> r1s62 : jbus retire dies
-      r1s64 --> r1s65 : jbus retire dies
-      r1s64 --> r1s65 : jbus retire empties s's<br/>ledger, and unlocks
-      r1s65 --> r1s70 : the home queues the fix, and<br/>jbus counts it
-      r1s66 --> r1s68 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s67 --> r1s66 : jbus retire dies
-      r1s67 --> r1s69 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s68 --> r1s69 : the archive runs jbus retire,<br/>which locks both ledgers
-      r1s69 --> r1s68 : jbus retire dies
-      r1s70 --> r1s71 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s9
-      r1s70 --> r1s72 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s71 --> r1s73 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s72 --> r1s73 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s9
-      r1s73 --> r1s72 : jbus retire dies
-      r1s74 --> r1s75 : jbus retire dies
-      r1s74 --> r1s64 : jbus retire moves plan.md to<br/>plan-archived.md
-      r1s74 --> r1s32 : the home closes the entry:<br/>plan close appends it to<br/>plan-done.md
-      r1s75 --> r1s74 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s75 --> r1s101 : the home briefs the entry and<br/>queues its row
-      r1s75 --> r1s33 : the home closes the entry:<br/>plan close appends it to<br/>plan-done.md
-      r1s75 --> r1s76 : the home queues the fix, and<br/>jbus counts it
-      r1s76 --> r1s81 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s76 --> r1s84 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s77 --> r1s78 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s78 --> r1s67 : jbus retire moves plan.md to<br/>plan-archived.md
-      r1s78 --> r1s80 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s79 --> r1s77 : the move dies
-      r1s79 --> r1s86 : the move writes s's ledger,<br/>and unlocks
-      r1s80 --> r1s69 : jbus retire moves plan.md to<br/>plan-archived.md
-      r1s81 --> r1s78 : jbus retire counts s's fixes<br/>in the catch-all's ledger
-      r1s81 --> r1s39 : the home closes the entry:<br/>plan close appends it to<br/>plan-done.md
-      r1s81 --> r1s85 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s82 --> r1s83 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s83 --> r1s78 : jbus retire counts s's fixes<br/>in the catch-all's ledger
-      r1s84 --> r1s82 : the move dies
-      r1s84 --> r1s79 : the move writes the<br/>catch-all's ledger
-      r1s85 --> r1s83 : the move dies
-      r1s86 --> r1s87 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s86 --> r1s88 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s87 --> r1s71 : jbus retire moves plan.md to<br/>plan-archived.md
-      r1s87 --> r1s45 : the home closes the entry:<br/>plan close appends it to<br/>plan-done.md
-      r1s87 --> r1s89 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s88 --> r1s86 : the move finds nothing left to<br/>carry
-      r1s89 --> r1s73 : jbus retire moves plan.md to<br/>plan-archived.md
-      r1s90 --> r1s91 : jbus retire dies
-      r1s91 --> r1s117 : the entry's rows end
-      r1s91 --> r1s96 : the home queues the fix, and<br/>jbus counts it
-      r1s92 --> r1s94 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s93 --> r1s92 : jbus retire dies
-      r1s93 --> r1s95 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s94 --> r1s95 : the archive runs jbus retire,<br/>which locks both ledgers
-      r1s95 --> r1s94 : jbus retire dies
-      r1s96 --> r1s97 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s9
-      r1s96 --> r1s98 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s97 --> r1s99 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s98 --> r1s99 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s9
-      r1s99 --> r1s98 : jbus retire dies
-      r1s100 --> r1s90 : jbus retire moves plan.md to<br/>plan-archived.md
-      r1s101 --> r1s100 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s101 --> r1s127 : the entry's rows end
-      r1s101 --> r1s102 : the home queues the fix, and<br/>jbus counts it
-      r1s102 --> r1s107 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s102 --> r1s110 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s103 --> r1s104 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s104 --> r1s93 : jbus retire moves plan.md to<br/>plan-archived.md
-      r1s104 --> r1s106 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s105 --> r1s103 : the move dies
-      r1s105 --> r1s112 : the move writes s's ledger,<br/>and unlocks
-      r1s106 --> r1s95 : jbus retire moves plan.md to<br/>plan-archived.md
-      r1s107 --> r1s104 : jbus retire counts s's fixes<br/>in the catch-all's ledger
-      r1s107 --> r1s111 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s108 --> r1s109 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s109 --> r1s104 : jbus retire counts s's fixes<br/>in the catch-all's ledger
-      r1s110 --> r1s108 : the move dies
-      r1s110 --> r1s105 : the move writes the<br/>catch-all's ledger
-      r1s111 --> r1s109 : the move dies
-      r1s112 --> r1s113 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s112 --> r1s114 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s113 --> r1s97 : jbus retire moves plan.md to<br/>plan-archived.md
-      r1s113 --> r1s115 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s114 --> r1s115 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s115 --> r1s99 : jbus retire moves plan.md to<br/>plan-archived.md
-      r1s116 --> r1s117 : jbus retire dies
-      r1s117 --> r1s122 : the home queues the fix, and<br/>jbus counts it
-      r1s118 --> r1s120 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s119 --> r1s118 : jbus retire dies
-      r1s119 --> r1s121 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s120 --> r1s121 : the archive runs jbus retire,<br/>which locks both ledgers
-      r1s121 --> r1s120 : jbus retire dies
-      r1s122 --> r1s123 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s9
-      r1s122 --> r1s124 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s123 --> r1s125 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s124 --> r1s125 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s's plan archived, its<br/>home-id still there]
-      %% when r0s9
-      r1s125 --> r1s124 : jbus retire dies
-      r1s126 --> r1s116 : jbus retire moves plan.md to<br/>plan-archived.md
-      r1s127 --> r1s126 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s127 --> r1s128 : the home queues the fix, and<br/>jbus counts it
-      r1s128 --> r1s133 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s128 --> r1s136 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s129 --> r1s130 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s130 --> r1s119 : jbus retire moves plan.md to<br/>plan-archived.md
-      r1s130 --> r1s132 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s131 --> r1s129 : the move dies
-      r1s131 --> r1s138 : the move writes s's ledger,<br/>and unlocks
-      r1s132 --> r1s121 : jbus retire moves plan.md to<br/>plan-archived.md
-      r1s133 --> r1s130 : jbus retire counts s's fixes<br/>in the catch-all's ledger
-      r1s133 --> r1s137 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s134 --> r1s135 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s135 --> r1s130 : jbus retire counts s's fixes<br/>in the catch-all's ledger
-      r1s136 --> r1s134 : the move dies
-      r1s136 --> r1s131 : the move writes the<br/>catch-all's ledger
-      r1s137 --> r1s135 : the move dies
-      r1s138 --> r1s139 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s138 --> r1s140 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s139 --> r1s123 : jbus retire moves plan.md to<br/>plan-archived.md
-      r1s139 --> r1s141 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
-      r1s140 --> r1s141 : the archive runs jbus retire,<br/>which locks both ledgers [when<br/>Scope s archiving, its note<br/>and the older one in log/]
-      %% when r0s3
-      r1s141 --> r1s125 : jbus retire moves plan.md to<br/>plan-archived.md
+      [*] --> r1s37
+      state "the entry closed, no fix" as r1s0
+      state "the entry closed, the fix<br/>counted in s" as r1s1
+      state "the entry closed, the fix<br/>counted in s and the<br/>catch-all" as r1s2
+      state "the entry closed, the fix<br/>counted in s and the<br/>catch-all, the move at<br/>work" as r1s3
+      state "the entry closed, the fix<br/>counted in s, not where<br/>its home reads it" as r1s4
+      state "the entry closed, the fix<br/>counted in s, not where<br/>its home reads it, the<br/>move at work" as r1s5
+      state "the entry closed, the fix<br/>counted in the catch-all" as r1s6
+      state "the entry closed, the fix<br/>counted in the catch-all,<br/>the move at work" as r1s7
+      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, no fix" as r1s8
+      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in s" as r1s9
+      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in s and the catch-all" as r1s10
+      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in s and the catch-all,<br/>the move at work" as r1s11
+      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in s, not where its home<br/>reads it" as r1s12
+      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in s, not where its home<br/>reads it, the move at work" as r1s13
+      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in the catch-all" as r1s14
+      state "the entry in its plan and<br/>in plan-done.md, its close<br/>cut short, the fix counted<br/>in the catch-all, the move<br/>at work" as r1s15
+      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, no fix" as r1s16
+      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in s" as r1s17
+      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in s and the catch-all" as r1s18
+      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in s and the catch-all,<br/>the move at work" as r1s19
+      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in s, not where its home<br/>reads it" as r1s20
+      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in s, not where its home<br/>reads it, the move at work" as r1s21
+      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in the catch-all" as r1s22
+      state "the entry in its plan and<br/>in plan-done.md, the close<br/>at work, the fix counted<br/>in the catch-all, the move<br/>at work" as r1s23
+      state "the entry in plan-done.md<br/>twice, no fix" as r1s24
+      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>s" as r1s25
+      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>s and the catch-all" as r1s26
+      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>s and the catch-all, the<br/>move at work" as r1s27
+      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>s, not where its home<br/>reads it" as r1s28
+      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>s, not where its home<br/>reads it, the move at work" as r1s29
+      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>the catch-all" as r1s30
+      state "the entry in plan-done.md<br/>twice, the fix counted in<br/>the catch-all, the move at<br/>work" as r1s31
+      state "the entry proposed or<br/>planned (in<br/>plan-archived.md), no fix" as r1s32
+      state "the entry proposed or<br/>planned (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all" as r1s33
+      state "the entry proposed or<br/>planned (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all, the move at<br/>work" as r1s34
+      state "the entry proposed or<br/>planned (in<br/>plan-archived.md), the fix<br/>counted in the catch-all" as r1s35
+      state "the entry proposed or<br/>planned (in<br/>plan-archived.md), the fix<br/>counted in the catch-all,<br/>the move at work" as r1s36
+      state "the entry proposed or<br/>planned, no fix" as r1s37
+      state "the entry proposed or<br/>planned, the fix counted<br/>in s" as r1s38
+      state "the entry proposed or<br/>planned, the fix counted<br/>in s and the catch-all" as r1s39
+      state "the entry proposed or<br/>planned, the fix counted<br/>in s and the catch-all,<br/>the move at work" as r1s40
+      state "the entry proposed or<br/>planned, the fix counted<br/>in s, not where its home<br/>reads it" as r1s41
+      state "the entry proposed or<br/>planned, the fix counted<br/>in s, not where its home<br/>reads it, the move at work" as r1s42
+      state "the entry proposed or<br/>planned, the fix counted<br/>in the catch-all" as r1s43
+      state "the entry proposed or<br/>planned, the fix counted<br/>in the catch-all, the move<br/>at work" as r1s44
+      state "the entry's row out (in<br/>plan-archived.md), no fix" as r1s45
+      state "the entry's row out (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all" as r1s46
+      state "the entry's row out (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all, the move at<br/>work" as r1s47
+      state "the entry's row out (in<br/>plan-archived.md), the fix<br/>counted in the catch-all" as r1s48
+      state "the entry's row out (in<br/>plan-archived.md), the fix<br/>counted in the catch-all,<br/>the move at work" as r1s49
+      state "the entry's row out, no<br/>fix" as r1s50
+      state "the entry's row out, the<br/>fix counted in s" as r1s51
+      state "the entry's row out, the<br/>fix counted in s and the<br/>catch-all" as r1s52
+      state "the entry's row out, the<br/>fix counted in s and the<br/>catch-all, the move at<br/>work" as r1s53
+      state "the entry's row out, the<br/>fix counted in s, not<br/>where its home reads it" as r1s54
+      state "the entry's row out, the<br/>fix counted in s, not<br/>where its home reads it,<br/>the move at work" as r1s55
+      state "the entry's row out, the<br/>fix counted in the<br/>catch-all" as r1s56
+      state "the entry's row out, the<br/>fix counted in the<br/>catch-all, the move at<br/>work" as r1s57
+      state "the entry's rows over (in<br/>plan-archived.md), no fix" as r1s58
+      state "the entry's rows over (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all" as r1s59
+      state "the entry's rows over (in<br/>plan-archived.md), the fix<br/>counted in s and the<br/>catch-all, the move at<br/>work" as r1s60
+      state "the entry's rows over (in<br/>plan-archived.md), the fix<br/>counted in the catch-all" as r1s61
+      state "the entry's rows over (in<br/>plan-archived.md), the fix<br/>counted in the catch-all,<br/>the move at work" as r1s62
+      state "the entry's rows over, no<br/>fix" as r1s63
+      state "the entry's rows over, the<br/>fix counted in s" as r1s64
+      state "the entry's rows over, the<br/>fix counted in s and the<br/>catch-all" as r1s65
+      state "the entry's rows over, the<br/>fix counted in s and the<br/>catch-all, the move at<br/>work" as r1s66
+      state "the entry's rows over, the<br/>fix counted in s, not<br/>where its home reads it" as r1s67
+      state "the entry's rows over, the<br/>fix counted in s, not<br/>where its home reads it,<br/>the move at work" as r1s68
+      state "the entry's rows over, the<br/>fix counted in the<br/>catch-all" as r1s69
+      state "the entry's rows over, the<br/>fix counted in the<br/>catch-all, the move at<br/>work" as r1s70
+      r1s0 --> r1s1 : the home queues the fix, and<br/>jbus counts it [when Scope s<br/>archiving, its gate asked of<br/>the catch-all, gates.md still<br/>there or Scope s archiving,<br/>its gates asked of the<br/>catch-all, gates.md moved<br/>aside or Scope s archiving,<br/>its note and the older one in<br/>log/ or Scope s archiving, its<br/>note kept in log/ or Scope s<br/>archiving, its note written or<br/>Scope s working]
+      %% when r0s1, r0s2, r0s3, r0s5, r0s6, r0s9
+      r1s0 --> r1s6 : the home queues the fix, and<br/>jbus counts it [when Scope s<br/>archived, its note not yet<br/>cleared or Scope s handed to<br/>the catch-all or Scope s<br/>retired or Scope s's plan<br/>archived, its home-id still<br/>there]
+      %% when r0s0, r0s7, r0s8, r0s10
+      r1s1 --> r1s5 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s2 --> r1s6 : jbus retire empties s's<br/>ledger, and unlocks [when<br/>Scope s's plan archived, its<br/>home-id still there, jbus<br/>retire at work]
+      %% when r0s11
+      r1s3 --> r1s7 : jbus retire empties s's<br/>ledger, and unlocks [when<br/>Scope s's plan archived, its<br/>home-id still there, jbus<br/>retire at work]
+      %% when r0s11
+      r1s3 --> r1s2 : the move dies
+      r1s3 --> r1s6 : the move writes s's ledger,<br/>and unlocks [unless Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work or Scope s's plan<br/>archived, its home-id still<br/>there, jbus retire at work]
+      %% when not r0s4, r0s11
+      r1s4 --> r1s2 : jbus retire counts s's fixes<br/>in the catch-all's ledger<br/>[when Scope s archiving, its<br/>note and the older one in<br/>log/, jbus retire at work]
+      %% when r0s4
+      r1s5 --> r1s4 : the move dies
+      r1s5 --> r1s3 : the move writes the<br/>catch-all's ledger [unless<br/>Scope s archiving, its note<br/>and the older one in log/,<br/>jbus retire at work]
+      %% when not r0s4
+      r1s6 --> r1s7 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s7 --> r1s6 : the move dies
+      r1s8 --> r1s24 : the home closes it again: plan<br/>close appends it a second time<br/>[unless Scope s archived, its<br/>note not yet cleared or Scope<br/>s handed to the catch-all or<br/>Scope s retired or Scope s's<br/>plan archived, its home-id<br/>still there or Scope s's plan<br/>archived, its home-id still<br/>there, jbus retire at work]
+      %% when not r0s0, r0s7, r0s8, r0s10, r0s11
+      r1s8 --> r1s9 : the home queues the fix, and<br/>jbus counts it [when Scope s<br/>archiving, its gate asked of<br/>the catch-all, gates.md still<br/>there or Scope s archiving,<br/>its gates asked of the<br/>catch-all, gates.md moved<br/>aside or Scope s archiving,<br/>its note and the older one in<br/>log/ or Scope s archiving, its<br/>note kept in log/ or Scope s<br/>archiving, its note written or<br/>Scope s working]
+      %% when r0s1, r0s2, r0s3, r0s5, r0s6, r0s9
+      r1s8 --> r1s14 : the home queues the fix, and<br/>jbus counts it [when Scope s<br/>archived, its note not yet<br/>cleared or Scope s handed to<br/>the catch-all or Scope s<br/>retired or Scope s's plan<br/>archived, its home-id still<br/>there]
+      %% when r0s0, r0s7, r0s8, r0s10
+      r1s9 --> r1s13 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s10 --> r1s14 : jbus retire empties s's<br/>ledger, and unlocks [when<br/>Scope s's plan archived, its<br/>home-id still there, jbus<br/>retire at work]
+      %% when r0s11
+      r1s11 --> r1s15 : jbus retire empties s's<br/>ledger, and unlocks [when<br/>Scope s's plan archived, its<br/>home-id still there, jbus<br/>retire at work]
+      %% when r0s11
+      r1s11 --> r1s10 : the move dies
+      r1s11 --> r1s14 : the move writes s's ledger,<br/>and unlocks [unless Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work or Scope s's plan<br/>archived, its home-id still<br/>there, jbus retire at work]
+      %% when not r0s4, r0s11
+      r1s12 --> r1s10 : jbus retire counts s's fixes<br/>in the catch-all's ledger<br/>[when Scope s archiving, its<br/>note and the older one in<br/>log/, jbus retire at work]
+      %% when r0s4
+      r1s13 --> r1s12 : the move dies
+      r1s13 --> r1s11 : the move writes the<br/>catch-all's ledger [unless<br/>Scope s archiving, its note<br/>and the older one in log/,<br/>jbus retire at work]
+      %% when not r0s4
+      r1s14 --> r1s15 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s15 --> r1s31 : the home closes it again: plan<br/>close appends it a second time<br/>[unless Scope s archived, its<br/>note not yet cleared or Scope<br/>s handed to the catch-all or<br/>Scope s's plan archived, its<br/>home-id still there or Scope<br/>s's plan archived, its home-id<br/>still there, jbus retire at<br/>work]
+      %% when not r0s0, r0s7, r0s10, r0s11
+      r1s16 --> r1s8 : the close dies between its two<br/>writes
+      r1s16 --> r1s0 : the close takes it out of the<br/>plan
+      r1s16 --> r1s17 : the home queues the fix, and<br/>jbus counts it [unless Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work or Scope s's plan<br/>archived, its home-id still<br/>there or Scope s's plan<br/>archived, its home-id still<br/>there, jbus retire at work]
+      %% when not r0s4, r0s10, r0s11
+      r1s17 --> r1s21 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s18 --> r1s10 : the close dies between its two<br/>writes
+      r1s19 --> r1s18 : the move dies
+      r1s19 --> r1s22 : the move writes s's ledger,<br/>and unlocks [unless Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work or Scope s's plan<br/>archived, its home-id still<br/>there, jbus retire at work]
+      %% when not r0s4, r0s11
+      r1s20 --> r1s18 : jbus retire counts s's fixes<br/>in the catch-all's ledger<br/>[when Scope s archiving, its<br/>note and the older one in<br/>log/, jbus retire at work]
+      %% when r0s4
+      r1s21 --> r1s20 : the move dies
+      r1s21 --> r1s19 : the move writes the<br/>catch-all's ledger [unless<br/>Scope s archiving, its note<br/>and the older one in log/,<br/>jbus retire at work]
+      %% when not r0s4
+      r1s22 --> r1s23 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s23 --> r1s15 : the close dies between its two<br/>writes
+      r1s24 --> r1s25 : the home queues the fix, and<br/>jbus counts it [when Scope s<br/>archiving, its gate asked of<br/>the catch-all, gates.md still<br/>there or Scope s archiving,<br/>its gates asked of the<br/>catch-all, gates.md moved<br/>aside or Scope s archiving,<br/>its note and the older one in<br/>log/ or Scope s archiving, its<br/>note kept in log/ or Scope s<br/>archiving, its note written or<br/>Scope s working]
+      %% when r0s1, r0s2, r0s3, r0s5, r0s6, r0s9
+      r1s24 --> r1s30 : the home queues the fix, and<br/>jbus counts it [when Scope s<br/>archived, its note not yet<br/>cleared or Scope s handed to<br/>the catch-all or Scope s<br/>retired or Scope s's plan<br/>archived, its home-id still<br/>there]
+      %% when r0s0, r0s7, r0s8, r0s10
+      r1s25 --> r1s29 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s26 --> r1s30 : jbus retire empties s's<br/>ledger, and unlocks [when<br/>Scope s's plan archived, its<br/>home-id still there, jbus<br/>retire at work]
+      %% when r0s11
+      r1s27 --> r1s31 : jbus retire empties s's<br/>ledger, and unlocks [when<br/>Scope s's plan archived, its<br/>home-id still there, jbus<br/>retire at work]
+      %% when r0s11
+      r1s27 --> r1s26 : the move dies
+      r1s27 --> r1s30 : the move writes s's ledger,<br/>and unlocks [unless Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work or Scope s's plan<br/>archived, its home-id still<br/>there, jbus retire at work]
+      %% when not r0s4, r0s11
+      r1s28 --> r1s26 : jbus retire counts s's fixes<br/>in the catch-all's ledger<br/>[when Scope s archiving, its<br/>note and the older one in<br/>log/, jbus retire at work]
+      %% when r0s4
+      r1s29 --> r1s28 : the move dies
+      r1s29 --> r1s27 : the move writes the<br/>catch-all's ledger [unless<br/>Scope s archiving, its note<br/>and the older one in log/,<br/>jbus retire at work]
+      %% when not r0s4
+      r1s30 --> r1s31 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s31 --> r1s30 : the move dies
+      r1s32 --> r1s35 : the home queues the fix, and<br/>jbus counts it [unless Scope<br/>s's plan archived, its home-id<br/>still there, jbus retire at<br/>work]
+      %% when not r0s11
+      r1s33 --> r1s35 : jbus retire empties s's<br/>ledger, and unlocks [when<br/>Scope s's plan archived, its<br/>home-id still there, jbus<br/>retire at work]
+      %% when r0s11
+      r1s33 --> r1s34 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s34 --> r1s36 : jbus retire empties s's<br/>ledger, and unlocks [when<br/>Scope s's plan archived, its<br/>home-id still there, jbus<br/>retire at work]
+      %% when r0s11
+      r1s35 --> r1s36 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s36 --> r1s35 : the move dies
+      r1s37 --> r1s32 : jbus retire moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when r0s4
+      r1s37 --> r1s50 : the home briefs the entry and<br/>queues its row
+      r1s37 --> r1s16 : the home closes the entry:<br/>plan close appends it to<br/>plan-done.md
+      r1s37 --> r1s38 : the home queues the fix, and<br/>jbus counts it [unless Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when not r0s4
+      r1s38 --> r1s39 : jbus retire counts s's fixes<br/>in the catch-all's ledger<br/>[when Scope s archiving, its<br/>note and the older one in<br/>log/, jbus retire at work]
+      %% when r0s4
+      r1s38 --> r1s42 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s39 --> r1s33 : jbus retire moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when r0s4
+      r1s40 --> r1s34 : jbus retire moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when r0s4
+      r1s40 --> r1s39 : the move dies
+      r1s40 --> r1s43 : the move writes s's ledger,<br/>and unlocks [unless Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when not r0s4
+      r1s41 --> r1s39 : jbus retire counts s's fixes<br/>in the catch-all's ledger<br/>[when Scope s archiving, its<br/>note and the older one in<br/>log/, jbus retire at work]
+      %% when r0s4
+      r1s42 --> r1s41 : the move dies
+      r1s42 --> r1s40 : the move writes the<br/>catch-all's ledger [unless<br/>Scope s archiving, its note<br/>and the older one in log/,<br/>jbus retire at work]
+      %% when not r0s4
+      r1s43 --> r1s35 : jbus retire moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when r0s4
+      r1s43 --> r1s44 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s44 --> r1s36 : jbus retire moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when r0s4
+      r1s44 --> r1s43 : the move finds nothing left to<br/>carry
+      r1s45 --> r1s58 : the entry's rows end
+      r1s45 --> r1s48 : the home queues the fix, and<br/>jbus counts it [unless Scope<br/>s's plan archived, its home-id<br/>still there, jbus retire at<br/>work]
+      %% when not r0s11
+      r1s46 --> r1s48 : jbus retire empties s's<br/>ledger, and unlocks [when<br/>Scope s's plan archived, its<br/>home-id still there, jbus<br/>retire at work]
+      %% when r0s11
+      r1s47 --> r1s49 : jbus retire empties s's<br/>ledger, and unlocks [when<br/>Scope s's plan archived, its<br/>home-id still there, jbus<br/>retire at work]
+      %% when r0s11
+      r1s48 --> r1s49 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s49 --> r1s62 : the entry's rows end
+      r1s50 --> r1s45 : jbus retire moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when r0s4
+      r1s50 --> r1s63 : the entry's rows end
+      r1s50 --> r1s51 : the home queues the fix, and<br/>jbus counts it [unless Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when not r0s4
+      r1s51 --> r1s55 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s52 --> r1s46 : jbus retire moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when r0s4
+      r1s53 --> r1s47 : jbus retire moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when r0s4
+      r1s53 --> r1s52 : the move dies
+      r1s53 --> r1s56 : the move writes s's ledger,<br/>and unlocks [unless Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when not r0s4
+      r1s54 --> r1s52 : jbus retire counts s's fixes<br/>in the catch-all's ledger<br/>[when Scope s archiving, its<br/>note and the older one in<br/>log/, jbus retire at work]
+      %% when r0s4
+      r1s55 --> r1s54 : the move dies
+      r1s55 --> r1s53 : the move writes the<br/>catch-all's ledger [unless<br/>Scope s archiving, its note<br/>and the older one in log/,<br/>jbus retire at work]
+      %% when not r0s4
+      r1s56 --> r1s48 : jbus retire moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when r0s4
+      r1s56 --> r1s57 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s57 --> r1s49 : jbus retire moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when r0s4
+      r1s58 --> r1s61 : the home queues the fix, and<br/>jbus counts it [unless Scope<br/>s's plan archived, its home-id<br/>still there, jbus retire at<br/>work]
+      %% when not r0s11
+      r1s59 --> r1s61 : jbus retire empties s's<br/>ledger, and unlocks [when<br/>Scope s's plan archived, its<br/>home-id still there, jbus<br/>retire at work]
+      %% when r0s11
+      r1s60 --> r1s62 : jbus retire empties s's<br/>ledger, and unlocks [when<br/>Scope s's plan archived, its<br/>home-id still there, jbus<br/>retire at work]
+      %% when r0s11
+      r1s61 --> r1s62 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s62 --> r1s61 : the move dies
+      r1s63 --> r1s58 : jbus retire moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when r0s4
+      r1s63 --> r1s64 : the home queues the fix, and<br/>jbus counts it [unless Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when not r0s4
+      r1s64 --> r1s68 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s65 --> r1s59 : jbus retire moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when r0s4
+      r1s66 --> r1s60 : jbus retire moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when r0s4
+      r1s66 --> r1s65 : the move dies
+      r1s66 --> r1s69 : the move writes s's ledger,<br/>and unlocks [unless Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when not r0s4
+      r1s67 --> r1s65 : jbus retire counts s's fixes<br/>in the catch-all's ledger<br/>[when Scope s archiving, its<br/>note and the older one in<br/>log/, jbus retire at work]
+      %% when r0s4
+      r1s68 --> r1s67 : the move dies
+      r1s68 --> r1s66 : the move writes the<br/>catch-all's ledger [unless<br/>Scope s archiving, its note<br/>and the older one in log/,<br/>jbus retire at work]
+      %% when not r0s4
+      r1s69 --> r1s61 : jbus retire moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when r0s4
+      r1s69 --> r1s70 : the home moves the fix to the<br/>catch-all: queue move rewrites<br/>its Home: line
+      r1s70 --> r1s62 : jbus retire moves plan.md to<br/>plan-archived.md [when Scope s<br/>archiving, its note and the<br/>older one in log/, jbus retire<br/>at work]
+      %% when r0s4
     }
   }
   class r0s0 group2
@@ -474,23 +325,25 @@ stateDiagram-v2
   class r0s3 group1
   class r0s4 group1
   class r0s5 group1
-  class r0s6 group4
-  class r0s7 group3
-  class r0s8 group0
-  class r0s9 group2
+  class r0s6 group1
+  class r0s7 group4
+  class r0s8 group3
+  class r0s9 group0
+  class r0s10 group2
+  class r0s11 group2
   class r1s0 plain
   class r1s1 plain
   class r1s2 plain
   class r1s3 plain
-  class r1s4 plain
+  class r1s4 plainWrong
   class r1s5 plain
   class r1s6 plain
-  class r1s7 group1
-  class r1s8 plainWrong
-  class r1s9 group1Wrong
+  class r1s7 plain
+  class r1s8 plain
+  class r1s9 plain
   class r1s10 plain
-  class r1s11 group1
-  class r1s12 plain
+  class r1s11 plain
+  class r1s12 plainWrong
   class r1s13 plain
   class r1s14 plain
   class r1s15 plain
@@ -498,125 +351,54 @@ stateDiagram-v2
   class r1s17 plain
   class r1s18 plain
   class r1s19 plain
-  class r1s20 plain
+  class r1s20 plainWrong
   class r1s21 plain
   class r1s22 plain
-  class r1s23 group1
+  class r1s23 plain
   class r1s24 plainWrong
-  class r1s25 group1Wrong
-  class r1s26 plain
-  class r1s27 group1
-  class r1s28 plain
-  class r1s29 plain
-  class r1s30 plain
-  class r1s31 plain
+  class r1s25 plainWrong
+  class r1s26 plainWrong
+  class r1s27 plainWrong
+  class r1s28 plainWrong
+  class r1s29 plainWrong
+  class r1s30 plainWrong
+  class r1s31 plainWrong
   class r1s32 plain
-  class r1s33 plain
-  class r1s34 plain
+  class r1s33 group2
+  class r1s34 group2
   class r1s35 plain
   class r1s36 plain
   class r1s37 plain
   class r1s38 plain
-  class r1s39 group1
-  class r1s40 plainWrong
-  class r1s41 group1Wrong
+  class r1s39 plain
+  class r1s40 plain
+  class r1s41 plainWrong
   class r1s42 plain
-  class r1s43 group1
+  class r1s43 plain
   class r1s44 plain
   class r1s45 plain
-  class r1s46 plain
-  class r1s47 plain
-  class r1s48 plainWrong
-  class r1s49 plainWrong
-  class r1s50 plainWrong
-  class r1s51 plainWrong
-  class r1s52 plainWrong
-  class r1s53 plainWrong
+  class r1s46 group2
+  class r1s47 group2
+  class r1s48 plain
+  class r1s49 plain
+  class r1s50 plain
+  class r1s51 plain
+  class r1s52 plain
+  class r1s53 plain
   class r1s54 plainWrong
-  class r1s55 group1Wrong
-  class r1s56 plainWrong
-  class r1s57 group1Wrong
-  class r1s58 plainWrong
-  class r1s59 group1Wrong
-  class r1s60 plainWrong
-  class r1s61 plainWrong
-  class r1s62 plainWrong
-  class r1s63 plainWrong
-  class r1s64 group2
+  class r1s55 plain
+  class r1s56 plain
+  class r1s57 plain
+  class r1s58 plain
+  class r1s59 group2
+  class r1s60 group2
+  class r1s61 plain
+  class r1s62 plain
+  class r1s63 plain
+  class r1s64 plain
   class r1s65 plain
-  class r1s66 group2
-  class r1s67 group2
-  class r1s68 group2
-  class r1s69 group2
+  class r1s66 plain
+  class r1s67 plainWrong
+  class r1s68 plain
+  class r1s69 plain
   class r1s70 plain
-  class r1s71 group2
-  class r1s72 plain
-  class r1s73 group2
-  class r1s74 group1
-  class r1s75 plain
-  class r1s76 plain
-  class r1s77 plain
-  class r1s78 group1
-  class r1s79 plain
-  class r1s80 group1
-  class r1s81 group1
-  class r1s82 plainWrong
-  class r1s83 group1Wrong
-  class r1s84 plain
-  class r1s85 group1
-  class r1s86 plain
-  class r1s87 group1
-  class r1s88 plain
-  class r1s89 group1
-  class r1s90 group2
-  class r1s91 plain
-  class r1s92 group2
-  class r1s93 group2
-  class r1s94 group2
-  class r1s95 group2
-  class r1s96 plain
-  class r1s97 group2
-  class r1s98 plain
-  class r1s99 group2
-  class r1s100 group1
-  class r1s101 plain
-  class r1s102 plain
-  class r1s103 plain
-  class r1s104 group1
-  class r1s105 plain
-  class r1s106 group1
-  class r1s107 group1
-  class r1s108 plainWrong
-  class r1s109 group1Wrong
-  class r1s110 plain
-  class r1s111 group1
-  class r1s112 plain
-  class r1s113 group1
-  class r1s114 plain
-  class r1s115 group1
-  class r1s116 group2
-  class r1s117 plain
-  class r1s118 group2
-  class r1s119 group2
-  class r1s120 group2
-  class r1s121 group2
-  class r1s122 plain
-  class r1s123 group2
-  class r1s124 plain
-  class r1s125 group2
-  class r1s126 group1
-  class r1s127 plain
-  class r1s128 plain
-  class r1s129 plain
-  class r1s130 group1
-  class r1s131 plain
-  class r1s132 group1
-  class r1s133 group1
-  class r1s134 plainWrong
-  class r1s135 group1Wrong
-  class r1s136 plain
-  class r1s137 group1
-  class r1s138 plain
-  class r1s139 group1
-  class r1s140 plain
-  class r1s141 group1

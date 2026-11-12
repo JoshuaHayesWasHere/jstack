@@ -2,14 +2,14 @@
   "view": "customer",
   "modelStates": 2508,
   "modelTransitions": 8960,
-  "chartStates": 152,
-  "chartTransitions": 219,
-  "allTransitions": 512,
+  "chartStates": 83,
+  "chartTransitions": 125,
+  "allTransitions": 230,
   "final": [],
   "chartStatus": {
-    "works": 124,
+    "works": 69,
     "fixed": 0,
-    "wrong": 28
+    "wrong": 14
   },
   "chartGroups": [
     {
@@ -20,12 +20,12 @@
     {
       "name": "Archiving",
       "color": "#fdebd0",
-      "states": 41
+      "states": 6
     },
     {
       "name": "Archived, still clearing",
       "color": "#fadbd8",
-      "states": 23
+      "states": 9
     },
     {
       "name": "Retired",
@@ -42,11 +42,11 @@
   "regions": {
     "drawn": true,
     "states": [
-      10,
-      142
+      12,
+      71
     ],
-    "transitions": 219,
-    "all": 512,
+    "transitions": 125,
+    "all": 230,
     "flat": {
       "states": 501,
       "transitions": 1623
@@ -81,9 +81,9 @@
     "command": "statechart from-spec PlanScope.tla --config PlanScope.chart.cfg --title 'A plan entry and a scope'\"'\"'s retire: is any work lost?' --expect-broken EntryOnce,FixCountedWhereRead --png",
     "inputs": {
       "PlanScope.chart.cfg": "5819da9ca6bc600a4ddc648e577fc8b9496a32ac3d25bdfa732d92d8ed1f6d74",
-      "PlanScope.map.py": "34a5a9c3e0edb63fe590f1bb6d0d69213d389e394c3cf3157c652eecd816896a",
+      "PlanScope.map.py": "e1b0234640dd992774d7372f534b8f03920f4e3f6751ef8f655049a1d90e9ad1",
       "PlanScope.tla": "fb8cb686b178534163b3870e7437fb5544f66715e455c4ff3bab5f585ff06469"
     },
-    "chart": "da628b86e9a88755a0484a5f8908baa8ac0552df4b98e092ba7f789a4fb9b391"
+    "chart": "fd495497074c78c59cca414a065f6e40a76445a31759356632bc961d54de61a7"
   }
 }
