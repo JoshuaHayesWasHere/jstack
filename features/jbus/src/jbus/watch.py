@@ -111,7 +111,8 @@ the head before the one that holds the row, whose message tells the crew of them
 JUDGING = "judging"
 """The key in a row's `fails.json` of a failed head after its one counted head that
 `jbus.stall.twice` could not judge yet, its job's log not given or main's check pending: the
-crew is told of it once judged (`judging`)."""
+crew is told of it once judged (`judging`), or with the plain message once `stall.JUDGE_FOR` has
+passed with it still unjudged."""
 RERUN_WAIT = timedelta(minutes=30)
 """How long `_check` waits for GitHub to show the rerun it took before the run is failed."""
 NIGHTLY_RED = ("failure", "timed_out")

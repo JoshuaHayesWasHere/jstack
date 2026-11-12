@@ -72,7 +72,8 @@ second counted failed head whose logs name failed tests (`watch.named_last`, kep
 failed head holds the row and pages the user. A failed head after a row's one counted failed head
 that `twice` could not judge yet, its job's log not given or main's check pending, is told nothing
 until judged (`watch.judging`): told first, it would have the plain message under its key, and the
-one naming the tests would never go.
+one naming the tests would never go. Once `stall.JUDGE_FOR` has passed with it still unjudged, it
+is told the plain message, so a log GitHub never gives does not keep its red from the crew.
 When the crew already got the rebase message for a head, `github` sends no message for the head's
 failed check, since a rebase is the fix that the failed check needs.
 
