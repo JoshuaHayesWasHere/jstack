@@ -22,7 +22,7 @@ The rules, each with its harm:
 ## The record
 
 Model: `features/jbus/spec/ThreadLife.tla`
-Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
+Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
 Covers:
 - `features/jbus/src/jbus/dispatch.py`: `Turns.take`, `settle_lost`, `scratch`
 - `features/jbus/src/jbus/crewthread.py`: `move`, `repair`, `crew`, `_answer`
@@ -76,3 +76,5 @@ When every step is backed, it is a bug: tell it as the thread's story in the cod
   The break: `carry <= CarryOns` in place of `carry < CarryOns` fails at once (`TypeOK`, a third carry-on).
 
 The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `dispatch.py` changed in #1726, in `turns` and `Turns.rest`, and `watch.py` in #1724, in `left`; neither touches `Turns.take`, `settle_lost`, `scratch` or `ENDED`, so the sync commit moved there.
+
+st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: no covered file changed, so the sync commit moved there.

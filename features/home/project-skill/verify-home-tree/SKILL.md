@@ -29,7 +29,7 @@ The rules, each with its harm:
 The rules stand for the code that keeps them; that code is `HomeTreeToday.tla`'s, and a rule whose code is gone is a rule nothing keeps.
 
 Model: `features/home/spec/HomeTree.tla`
-Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
+Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
 Covers:
 - `features/home/skills/handoff/SKILL.md`: `home-id`, `plan-archived.md`
 - `features/jbus/src/jbus/children.py`: `watch`, `keep_alive`, `launch`, `PATIENCE`
@@ -72,3 +72,5 @@ A rule that holds with its canary's guard out tests nothing: fix the rule or the
 The one fix was to today's code's model, `RaiseCall`, in `verify-home-tree-today`.
 
 The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: no covered file changed, so the sync commit moved there.
+
+st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: no covered file changed, so the sync commit moved there.

@@ -24,7 +24,7 @@ The rules, each with its harm:
 ## The record
 
 Model: `features/jmerge/spec/FlowToday.tla`
-Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
+Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
 Covers:
 - `features/jmerge/src/jmerge/cli.py`: `Repo.judge`, `Repo.judged`, `Repo.again`, `Repo.in_turn`, `Repo.over_main`, `Repo.waits`, `Repo.accept`, `Repo.merge_holding`, `Repo.start_batch`, `Repo.batched`, `Repo.after_batch`, `Repo.build_batch`, `Repo.guards_batch`, `Repo.merge_members`, `in_line`, `IN_LINE`
 - `features/jmerge/src/jmerge/batch.py`: `Record`, `Batching`, `narrow`, `kind_of`, `LEAST`, `GUARDS_LEAST`, `GUARDS_MOST`
@@ -91,3 +91,5 @@ When every step is backed, it is a bug: tell it as the rows' story (launch, chec
 `uv run pytest features/jmerge/tests/test_flow_spec.py -q` printed `6 passed`: every rule holds over 7,024,508 states, the two controls break their three rules, and the design and its canaries say what they should.
 
 The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `ready.py` changed in #1715, #1721 and #1727, `dispatch.py` in #1726 and `watch.py` in #1724, none of it in a name this model covers, so the sync commit moved there; the chart was drawn again from the spec as it is now.
+
+st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: `select_tests.py` changed in #1742, so a pull request's check selects by main's rule; `cross_cutting`, `unowned` and `owns` are unchanged, and a check may still miss a test main's run selects over several merges (`MergeRedsMainOnlyOnAMissedTest`), so the sync commit moved there.

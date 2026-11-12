@@ -22,8 +22,8 @@ The rule is `FinalStays`: a row that is over stays over, so the queue, `watch.fi
 A `done` row may only become `merged` or be removed for good, a `merged` one stays so, and a removed one stays removed.
 The facts can still leave a final row: a pull request opens after a `done`, or a question opens on a `merged` row.
 The rule holds because `queue.derive` keeps the status (`work.kept`), and so checks the code's derive and not only the table.
-The second rule is `MovesKnown`: each move of the status is in `Moves`, so the table is the one `work.status` makes, and a pass marks `"legal": false` only on a fault the model leaves out (a pull request read in neither of GitHub's lists, a row with no launch record, a `Branch:` line that loses the address of a closed pull request), each of which `test_jbus_queue_moves.py` names.
-`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where both rules hold over STATES distinct states, on a canary that takes `work.kept` out (`Fault = "no-latch"`), where `FinalStays` breaks, and on one that gives a settled thread's row `queued` again (`Fault = "settled-queued"`), where `MovesKnown` breaks.
+The second rule is `MovesKnown`: each move of the status but a removal, the `remove` verb's, which `derive` never judges, is in `Moves`, so the table is the one `work.status` makes, and a pass marks `"legal": false` only on a fault the model leaves out (a pull request read in neither of GitHub's lists, a row with no launch record, a `Branch:` line that loses the address of a closed pull request), each of which `test_jbus_queue_moves.py` names.
+`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where both rules hold over 2502 distinct states, on a canary that takes `work.kept` out (`Fault = "no-latch"`), where `FinalStays` breaks, and on one that gives a settled thread's row `queued` again (`Fault = "settled-queued"`), where `MovesKnown` breaks.
 Its TLC runs skip where no Java runs TLC.
 By hand, in a copy of this folder:
 

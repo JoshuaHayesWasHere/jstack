@@ -21,7 +21,7 @@ The rules are `FlowsWhenGreen`, `NoMergeTurnsMainRed`, `MachineNotLeftFull` and 
 FlowDesign models no line of code: each guard stands for the code that is that guard today, and a change there can make the guard not the one the design proves.
 
 Model: `features/jmerge/spec/FlowDesign.tla`
-Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
+Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
 Covers:
 - `scripts/select_tests.py`: `cross_cutting`, `unowned`, `owns`, `declared`
 - `features/jmerge/src/jmerge/cli.py`: `Repo.judge`, `Repo.again`, `Repo.in_turn`
@@ -71,3 +71,5 @@ A canary that no longer breaks its rule means the rule holds without that guard,
 - `MainFixWaitsOnlyOnYou` keeps its words, "waits only on your approval", while the approval is jbus's by rule: a rule's words change only on the user's word, so this is for them.
 
 The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `ready.py` changed in #1715, #1721 and #1727, and `dispatch.py` in #1726, none of it in `red_only` or `room`, so the sync commit moved there.
+
+st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: `select_tests.py` changed in #1742, so a pull request's check selects by main's rule; `cross_cutting`, `unowned`, `owns` and `declared` are unchanged, and a check may still miss a test main's run selects over several merges, so the sync commit moved there.

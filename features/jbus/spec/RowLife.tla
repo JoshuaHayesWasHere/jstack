@@ -337,7 +337,9 @@ FinalStays ==
       /\ (status = "removed" => status' = "removed") ]_vars
 
 \* Each move of the status is one of the table's, so a pass marks `"legal": false` only a fault:
-\* the table is the code's own status function's, move for move.
+\* the table is the code's own status function's, move for move. A removal is the `remove` verb's,
+\* which `derive` never judges (queue.py "`derive` never judges a move to `removed`"), so it is
+\* none of them.
 MovesKnown ==
-  [][status' # status => <<status, status'>> \in Moves]_vars
+  [][status' \notin {status, "removed"} => <<status, status'>> \in Moves]_vars
 ====

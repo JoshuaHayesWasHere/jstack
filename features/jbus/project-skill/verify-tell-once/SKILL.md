@@ -24,7 +24,7 @@ The other six acts (held, items, expedite, cancelled, closed, revert) hold both.
 ## The record
 
 Model: `features/jbus/spec/TellOnce.tla`
-Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
+Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
 Covers:
 - `features/jbus/src/jbus/wake.py`: `Box.send`, `Box.mark`, `Box.flush_blocking`, `_post_blocking`
 - `features/jbus/src/jbus/clock.py`: `tick`, `_send`, `_act`, `_home`, `held`, `HELD_FILE`
@@ -91,3 +91,5 @@ A new break on an act that held is a bug: tell it as the act, the write the pass
   That is the clock's stall's cause, `Box.send`'s key-first write, which st-fix-tell-once (#1725) fixes in `wake.py`; once it merges, `heldlift` should hold and leave `TODAY`.
 
 The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `queue.py` changed in #1726, in `order` and the new `lifted`, not in `hold`, so the sync commit moved there.
+
+st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: `clock.py` changed in #1736: a thread at work on a code no crew clears (`aged.BOUNDS`) no longer keeps a hold from waking its home, which decides when `held` wakes and not how it tells; this model has no thread at work on a hold, so the sync commit moved there.

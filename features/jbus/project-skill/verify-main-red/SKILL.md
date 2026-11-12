@@ -35,7 +35,7 @@ Its docstring says what each step is, the code line that backs it, what is stubb
 Two checks share this record, and one sha confirms both: `main_red_model.py` walks the real `tell` and `mainjson.read`, and `features/jbus/spec/MainRed.tla` models the wider red, from the rerun through the revert or the fix row to the close.
 
 Model: `features/jbus/spec/MainRed.tla`
-Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
+Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
 Covers:
 - `features/jbus/src/jbus/mainmoved.py`: `tell`, `main_check`, `failed_at`, `failed_steps`, `red_line`, `REDS`, `landed`, `close`, `closing_line`, `spell`
 - `features/jmerge/src/jmerge/mainjson.py`: `record`, `read`, `fix_of`, `FIX`
@@ -91,6 +91,8 @@ It prints `6 passed` in seconds, and skips where no Java runs TLC; TLC's verdict
 - **Stale prose:** the spec and README no longer name main 21112eba8.
 
 The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `watch.py` changed in #1724, in `left`, and `jmerge.md` in #1715 and #1721, in the desk check's words and a conflict's line, none of them in what this model covers, so the sync commit moved there.
+
+st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: no covered file changed, so the sync commit moved there.
 
 ## Does a change touch it
 

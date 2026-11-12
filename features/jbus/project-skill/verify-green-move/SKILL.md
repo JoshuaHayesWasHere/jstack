@@ -25,7 +25,7 @@ The rules, each with its harm:
 ## The record
 
 Model: `features/jbus/spec/GreenMove.tla`
-Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
+Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
 Covers:
 - `features/jbus/src/jbus/green.py`: `move`, `_resume`, `_advance`, `_settle`, `_back`, `_point`, `_reinstall`, `_grow`, `_live`, `reload`, `owner`, `in_flight`, `imports`, `FILE`, `MOVE`, `OWED`
 - `features/jinstall/src/jinstall/green.py`: `relink`, `live`
@@ -72,3 +72,5 @@ When every step is backed, it is a bug: tell it as the move's writes, where the 
 In sync; nothing changed.
 
 The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: no covered file changed, so the sync commit moved there.
+
+st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: no covered file changed, so the sync commit moved there.

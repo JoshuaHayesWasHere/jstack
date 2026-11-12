@@ -20,7 +20,7 @@ The rules, each with its harm:
 ## The record
 
 Model: `features/jbus/spec/MainFix.tla`
-Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
+Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
 Covers:
 - `features/jbus/src/jbus/reverts.py`: `revert`, `opened`, `FIELDS`, `brief`, `_keep`, `macos`, `_mac_red`, `_mac_file`, `culprit`, `Keep`, `tested`
 - `features/jbus/src/jbus/culprits.py`: `judge`, `kept_why`
@@ -77,3 +77,5 @@ A new break, past `FINDINGS`, is a bug: tell it as the writes, the crash, and th
 - **The shots row is any nightly's:** every nightly's run may be its shots alone (`drawn_apart` runs on each), the Mac's only after a run that passed, and a nightly's day is taken only when both its row and the shots row are.
 
 The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `watch.py` changed in #1724, in `left` and the words it keeps, which no step here stands for, so the sync commit moved there.
+
+st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: no covered file changed, so the sync commit moved there.

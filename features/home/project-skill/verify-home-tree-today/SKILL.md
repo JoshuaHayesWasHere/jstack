@@ -16,7 +16,7 @@ This skill is for what the code does: when a step here stops being the code's, t
 ## The record
 
 Model: `features/home/spec/HomeTreeToday.tla`
-Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
+Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
 Covers:
 - `features/jbus/src/jbus/children.py`: `watch`, `_act`, `_stall`, `keep_alive`, `launch`, `_going`, `_failed`, `_waits`, `_stage`, `started`, `live`, `whose`, `watched`, `_rhythm`, `STAGES`, `FAILURE`, `PATIENCE`, `USERS`, `LAUNCHES`
 - `features/jbus/src/jbus/wakes.py`: `need_items`, `pick`, `kept`, `_send`
@@ -81,3 +81,5 @@ When every step is backed, it is a bug: tell it as the homes' story (a call, a n
 - The spec's header no longer names main 21112eba8, and the README and `canaries.py` give `uv run python`.
 
 The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: no covered file changed, so the sync commit moved there; the chart's record was made to match its drawing again after the rebase.
+
+st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: no covered file changed, so the sync commit moved there.

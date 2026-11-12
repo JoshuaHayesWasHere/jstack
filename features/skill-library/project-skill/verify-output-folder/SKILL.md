@@ -23,7 +23,7 @@ The rules, each with its harm:
 ## The record
 
 Model: `features/skill-library/skills/statechart/scripts/model/OutputFolder.tla`
-Sync: `8f4c21b6f59fc1bfbccace831d3a916bae72fb5d`
+Sync: `2fb4e2587489ad3fbebf71561ac648801edb710f`
 Covers:
 - `features/skill-library/skills/statechart/scripts/statechart/cli.py`: `from_spec`, `snapshot`, `read_input`, `out_dir`, `refuse_foreign`, `foreign`, `OWN`, `run_tlc`, `publish`, `moved`, `put_back`, `unchanged`, `finish`, `in_work_folder`, `run_in_own_group`, `stop_group`
 
@@ -46,7 +46,7 @@ It selects eight tests: `test_the_output_folder_model_keeps_every_rule_and_break
 
 - **Bounds:** two runs, run 2 starts only after run 1; two versions of the spec; one note; the cfg has no constants; 11,477 distinct states.
 - **The mutants:** `read'` set for every run, or `Swap` without `spec = snap[r]`, breaks `ChartsOneSpec`; `Checked` without `~aside[r].notes` breaks `KeepsYourFiles`; `RenameFails` without the restore, or `Supersede` without `~out.notes`, breaks `NeverLosesChart`.
-- **Assumptions:** renames are atomic, with no copy fallback; whether `--png` runs is not modeled, only a chart it cannot render; the snapshot is one step at `Start`.
+- **Assumptions:** renames are atomic, with no copy fallback; whether `--png` runs is not modeled, only a chart it cannot render; the snapshot is one step at `Start`; TLC failing, as a test slot that dies before TLC prints (#1743), exits 2 before publishing and touches no folder, as `Refuse` does, and has no step of its own.
   The missing map file, written before any work folder, is a `Refuse` that leaves the output folder alone.
 
 ## A real bug or a modeling error
@@ -72,3 +72,5 @@ When every step is the command's, it is a bug: tell it as the two runs' steps an
 Every rule holds over 11,477 states, and `uv run pytest features/skill-library/tests/test_statechart_runs.py -q -k "output_folder or worked_example or overlap"` printed `8 passed`.
 
 The row was then rebased onto st-model-sync, whose merge of main brought main to `8f4c21b6f`, and the upkeep diffed the covered code again from `228c1436c` to it: `cli.py` changed in #1698 and #1702, in its help, `from_chart` and `site_main`, none of the names this model covers, so the sync commit moved there.
+
+st-model-sync then merged main again, to `2fb4e2587`, and the row was rebased onto it; the upkeep diffed the covered code from `8f4c21b6f`: `run_tlc` changed in #1743: a test slot that dies before TLC prints raises `CannotFinish`, so the run exits 2 before it publishes, as a TLC run that fails always did; the model has no step for TLC failing, which touches no folder as `Refuse` does, and the assumptions now say so. The sync commit moved there.
