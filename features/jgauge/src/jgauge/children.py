@@ -24,6 +24,7 @@ import sys
 from pathlib import Path
 
 DONE = b"done\n"
+PROC = Path("/proc")
 
 
 class Watch:
@@ -63,9 +64,8 @@ class Watch:
 def _parents() -> dict[int, int]:
     """Each live process's parent."""
     found: dict[int, int] = {}
-    proc = Path("/proc")
-    if proc.is_dir():
-        for stat in proc.glob("[0-9]*/stat"):
+    if PROC.is_dir():
+        for stat in PROC.glob("[0-9]*/stat"):
             with contextlib.suppress(OSError, IndexError, ValueError):
                 found[int(stat.parent.name)] = int(stat.read_text().rsplit(")", 1)[1].split()[1])
         return found
