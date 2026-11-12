@@ -206,7 +206,8 @@ def ceilings(run: Pass, client: Client) -> None:
     try:
         listed = t3.listed(client, run.project.project_id)
     except T3Error as error:
-        run.say(f"wait {run.project.name}: T3 Code did not list its crew and scout threads ({error})")
+        name = run.project.name
+        run.say(f"wait {name}: T3 Code did not list its crew and scout threads ({error})")
         listed = None
     for role in CEILINGS:
         if role == "home" or listed is not None:
