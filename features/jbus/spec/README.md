@@ -311,7 +311,7 @@ It writes `TellOnce-statechart/`, labelled by `TellOnce.map.py`, with one `bug-N
 
 ## Main's fix and revert, filed step by step, as a TLA+ spec
 
-`MainFix.tla` takes the steps MainRed.tla folds into one, `reverts` and `fixes`, and gives each write its own step, as the code of main aa5469d97 (2026-11-11) makes them.
+`MainFix.tla` takes the steps MainRed.tla folds into one, `reverts` and `fixes`, and gives each write its own step, as the code makes them, last read against it at 228c1436c (2026-11-11).
 A pass can die between any two writes, and the disk and GitHub keep what was written.
 It has one variable for each carrier of the st-state-ledger's MainFix rows, and each variable's comment quotes the code that writes it:
 
@@ -320,8 +320,9 @@ It has one variable for each carrier of the st-state-ledger's MainFix rows, and 
 - B-029, the Mac's fix row `macos-red-<sha>` (`macFix`): the same (`jbus/reverts.py` `_mac_file`).
 - B-030, B-031 and B-032, the runs each nightly has seen, `browser-runs.json`, `macos-nightly-runs.json` and `scheduled-<stem>-runs.json` (`browserSeen`, `macosSeen`, `scheduledSeen`): the day's row, then the run kept as seen (`jbus/watch.py` `_nightly_red`).
 
-A pass judges the Mac, then main, then reads each nightly, as steps 9, 12 and 40 run.
-`World` names the faults of the world the model lets in past a pass that dies: GitHub refuses or does not answer (`"refuses"`), a hand turns a red green (`"hand"`), or a nightly's red run is more than three days old when a pass first reads it (`"late"`).
+A pass reads each nightly (`watch.watch`, step 40 of the `tellers` slot), then judges the Mac and main (steps 9 and 12 of `after-expedite`), as `poll.first_half` runs its slots.
+The shot tests of any nightly's red file the day's shots row (`drawn_apart`), the Mac's after a run that passed.
+`World` names the faults of the world the model lets in past a pass that dies: GitHub refuses or does not answer (`"refuses"`), a hand turns a red green (`"hand"`), a nightly's red run is more than three days old when a pass first reads it (`"late"`), or a pass has no world (`"blind"`: no T3 Code token, T3 Code or GitHub silent, or the API budget under its floor), so it skips the nightlies and the Mac and judges main alone.
 `Watched` names the nightlies the model runs.
 Each condition the code checks quotes it.
 `features/jbus/tests/test_main_fix_spec.py` finds each backticked quote of the spec once, in the file named last before it, and checks that each carrier has its variable.
@@ -335,12 +336,14 @@ java -cp ~/.cache/jstack/tla2tools/1.7.4/tla2tools.jar tlc2.TLC -config MainFix.
 ```
 
 Run it in a copy of this folder, since TLC writes `states/` where it runs.
-`MainFix.cfg` is today's code with a pass that dies and no other fault, watching all three nightlies, and every rule holds over 1244712 distinct states:
+`MainFix.cfg` is today's code with a pass that dies and no other fault, watching all three nightlies, and every rule holds over 2165827 distinct states:
 
-- `FiledWhole`: after any crash, a red tip has a fix row and its brief, or neither, by the next pass: main's red tip, its Mac's, and each red nightly run.
+- `FiledWhole`: after any crash, a red tip has a fix row and its brief, or neither, by the next pass that runs every step: main's red tip, its Mac's, and each red nightly run.
+  A blind pass is no such pass: it launches nothing, and the next pass with a world queues the brief.
+  With `World = {"blind"}` it holds over 5759075 distinct states.
 - `RevertKnown`: an open revert on GitHub has its `reverts.json` record by the next pass, since jmerge merges and `reverts.close` closes only a revert on record.
 - `RefinesMainRed`: each step is MainRed's `reverts` or `fixes` step, or leaves both as they are, where MainRed's `reverts` is the record and its `fixes` are the red tips whose main fix row the queue holds.
-  It also holds with `World = {"refuses"}`, over 12557140 distinct states, which takes about a minute.
+  It also holds with `World = {"refuses"}`, over 16229809 distinct states, which takes about a minute and a half, and with `World = {"blind"}`.
 
 The canary, `Fault = "no-reopen-check"`, is `opened` not asking GitHub for the revert's branch, and `RevertKnown` breaks: a pass opens the revert and dies, and the next pass files a fix row in its place.
 The comment in `MainFix.cfg` keeps the breaks TLC finds past that config, each with its trace, and the test's `FINDINGS` checks that each still breaks:

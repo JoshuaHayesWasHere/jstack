@@ -24,12 +24,10 @@ Sync: `228c1436cc6fe94de479d333c7aab7b007460462`
 Covers:
 - `features/jbus/src/jbus/reverts.py`: `revert`, `opened`, `FIELDS`, `brief`, `_keep`, `macos`, `_mac_red`, `_mac_file`, `culprit`, `Keep`, `tested`
 - `features/jbus/src/jbus/culprits.py`: `judge`, `kept_why`
-- `features/jbus/src/jbus/watch.py`: `_file`, `watch`, `NIGHTLIES`, `_nightly_red`, `_filed`, `drawn_apart`, `NIGHTLY_WINDOW`, `NIGHTLY_RED`
+- `features/jbus/src/jbus/watch.py`: `_file`, `watch`, `look`, `NIGHTLIES`, `_nightly_red`, `_filed`, `drawn_apart`, `NIGHTLY_WINDOW`, `NIGHTLY_RED`
 - `features/jbus/src/jbus/poll.py`: `steps`, `first_half`, `second_half`
 
-At the sync commit the model was read against these: `revert`'s write order (`opened`, `gh pr revert`, a missing branch, the brief, `_keep`, the event line), a refused revert going to `_file` or `_mac_file`, `_file` and `_mac_file` writing the brief and then `queue.add` behind `queue.fresh`, and `_nightly_red`'s `seen` branches, its stale skip, `_filed`, then the run kept as seen.
-The only change to these files since the model's main (aa5469d97) was 23f42940f, which moved imports.
-Two places the model differs are below.
+At the sync commit the model was read against these: `revert`'s write order (`opened`, `gh pr revert`, a missing branch, the brief, `_keep`, the event line), a refused revert going to `_file` or `_mac_file`, `_file` and `_mac_file` writing the brief and then `queue.add` behind `queue.fresh`, `_nightly_red`'s `seen` branches, its stale skip, `drawn_apart` on every nightly, `_filed`, then the run kept as seen, and the pass's slots: `tellers` (`watch.watch`) before `after-expedite` (`reverts.macos`, `culprits.judge`), each step skipped where `poll.steps` finds a need unmet.
 `features/repo-guards/tests/test_model_sync.py` fails when a file or name above is gone.
 Move `Sync:` forward only after you read every change to these files since it against the model, as `/maintain-formal-verification-skill` says, and never because the check passes.
 
@@ -48,7 +46,7 @@ uv run pytest features/jbus/tests/test_main_fix_spec.py -q
 It prints `9 passed` in about half a minute, and skips where no Java runs TLC.
 The bare TLC command is in `features/jbus/spec/README.md`, "Check the rules of main's fix"; run it in a copy of the folder.
 
-- **Bounds:** `MainFix.cfg` is a pass that dies and no other fault (`World = {}`), `MaxTip = 3`, all three nightlies watched, 1244712 distinct states; with `World = {"refuses"}` `RefinesMainRed` holds over 12557140 states in about a minute.
+- **Bounds:** `MainFix.cfg` is a pass that dies and no other fault (`World = {}`), `MaxTip = 3`, all three nightlies watched, 2165827 distinct states; with `World = {"refuses"}` `RefinesMainRed` holds over 16229809 states in about a minute and a half, and with `World = {"blind"}` every rule but `RevertSaid` holds over 5759075.
 - **The canary:** `Fault = "no-reopen-check"` is `opened` not asking GitHub for the revert's branch, and `RevertKnown` breaks.
 - **The findings** the test's `FINDINGS` keeps breaking: `RevertSaid` on a crash alone (a pass dying between `reverts.json` and `events.jsonl`), `RevertKnown` with `"hand"` and with `"refuses"`, `FiledWhole` with `"refuses"` and with `"late"`.
   `MainFix.cfg`'s comment keeps each trace.
@@ -68,10 +66,12 @@ A new break, past `FINDINGS`, is a bug: tell it as the writes, the crash, and th
 - A new carrier: give it a variable whose comment quotes its writer, and steps in the code's order.
 - Show a changed rule failing on a scratch break first (swap two writes in your own worktree, uncommitted, see the trace, `git restore` the file).
 
-## Drift at the sync commit
+## The last upkeep
 
-Neither breaks a rule as modeled, since the variables they touch do not overlap; `/maintain-formal-verification-skill` fixes them.
+`/maintain-formal-verification-skill` ran at the sync commit (st-model-upkeep-run) and fixed two drifts in the model; neither broke a rule, and no new finding came of them:
 
-- **The pass order:** the model and the README say a pass judges the Mac (step 9), then main (12), then reads each nightly (40).
-  In `poll.py`, `watch.watch` (rank 40) is in the `tellers` slot, which runs before `after-expedite`, so the nightlies are read first; and step 40 needs a client, so a pass with no T3 Code sign-in reads no nightly at all.
-- **The shots row is not the browser's alone:** `drawn_apart` runs on every nightly, and a `shots-<day>` row is free to any of them; the model lets "shots" happen only on the browser run.
+- **The pass order:** a pass now reads the nightlies (phases 1 to N), then judges the Mac and main, as `poll.first_half` runs `tellers` before `after-expedite`.
+  The World fault `"blind"` is a pass with no world (no token, T3 Code or GitHub silent, the budget under its floor): it skips `watch.watch` and `reverts.macos`, which need one, and runs `culprits.judge` alone.
+  `FiledWhole` now reads "by the next pass that runs every step": a blind pass launches nothing, and the next pass with a world queues the brief.
+  The break: counting a blind pass as whole makes `FiledWhole` fail under `"blind"`.
+- **The shots row is any nightly's:** every nightly's run may be its shots alone (`drawn_apart` runs on each), the Mac's only after a run that passed, and a nightly's day is taken only when both its row and the shots row are.
