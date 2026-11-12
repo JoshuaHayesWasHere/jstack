@@ -6,7 +6,9 @@ and its name with no parameters, or a module or class whose `pytestmark` sets it
 tests. The list changes no limit: the limits are where the tests set them.
 
 The test asks pytest itself, as the check's parts do: a pytest that collects the whole suite with
-a small plugin that writes, for each test, its closest `timeout` mark and the node that set it."""
+a small plugin that writes, for each test, its closest `timeout` mark and the node that set it.
+It reads every file of the tests so, and its `READ_SET` says which: a change to one runs it, at the
+desk (`select_tests.py --part names`) and in CI. A change to no test leaves its 16 s out."""
 
 import json
 import os
@@ -16,6 +18,7 @@ import sys
 from testing.paths import REPO
 
 LONG_LIMIT = 300
+READ_SET = ("features/*/tests/", "testing/tests/")
 
 PLUGIN = """
 import json

@@ -110,6 +110,8 @@ No recipe drives these yet: `jgauge session` and `jgauge test-slot`, `jbriefs`, 
 A test file that reads the whole tree, and not the paths of one feature (it globs the repo, or every skill and every page at once), is cross-cutting: every diff runs it, and no `Tests:` line needs to name it.
 A test file reads the tree when it globs, walks or lists with `git ls-files` a folder of the checkout, the root, a `src/`, a folder of tests or any other.
 `testing/tests/test_cross_cutting.py` fails when such a test file is not on this list, and names the read it found.
+A test that reads only the files of the tests, as one does that collects the whole suite with pytest, is not on the list: its `READ_SET` names the folders of tests, so a change to a test runs it at the desk (`--part names`) and in CI, and a change to no test pays none of its seconds.
+`testing/tests/test_test_limits.py`, about 16 s, reads so every test's own limit: #1794, #1798 and #1799 each added a test of 600 s that its list lacked, and each went red first in CI while it held no read set.
 
 Cross-cutting:
 - `testing/tests/test_check_command.py`
