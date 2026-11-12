@@ -92,7 +92,7 @@ The other fault, and the three the code has closed, break their rules in the can
   jbus's loop makes T3 Code calls for the other holders between its read and its `running` check, which widens it.
 - `orphan-command`, `OneCommandPerSlot`: `jgauge test-slot` is killed with SIGKILL, and its command runs on with the slot free.
   The next call starts a second command in the same slot, and its `_temporary` empties the directory the first command still uses.
-  Today's code holds `OneCommandPerSlot` over all TODAYCOUNT distinct states of its mode, and the test checks it in the short lane's room alone.
+  Today's code holds `OneCommandPerSlot` over all 932,880 distinct states of its mode, and the test checks it in the short lane's room alone.
 - `pid-alone`, `NoLostHolder`: a short call with `--thread` takes its slot, starts its command and records the run in the holders file.
   The command dies, and another process takes its pid before the end is on record.
   A reader that asks only whether some process has the pid counts the run as running, so jbus never forgets it and never tells its thread the run ended.
@@ -118,7 +118,7 @@ W=$(mktemp -d) && cp features/jgauge/spec/TestSlot.tla features/jgauge/spec/Test
 
 Run it from the repo root.
 Then copy the files of `$W/TestSlot-statechart` into `TestSlot-statechart/`, all except `tlc/`.
-`TestSlot.cfg` has 672,971 states in the mode that passes and TODAYCOUNT in today's mode, more than the chart's state graph can hold.
+`TestSlot.cfg` has 672,971 states in the mode that passes and 932,880 in today's mode, more than the chart's state graph can hold.
 So the chart is drawn from `TestSlot.chart.cfg`: today's code, where only the short lane's crew can be killed, and the full room keeps no holders file (`Chart = TRUE`), which the short room draws.
 That is 101,086 model states, and it draws one numbered path for each of the two bugs.
 `TestSlot.map.py` labels each state by what the machine's files say, and names each join of values in its header.
