@@ -633,6 +633,10 @@ def test_a_step_that_passed_over_work_the_head_lacks_is_not_kept_and_writes_no_c
     assert re.search(r"^tests/test_a.py: exit 0 in \d+ s, short lane$", "\n".join(said), re.M), said
     assert "passed lint" in steps
     assert "passed tests/test_a.py" not in steps
+    head = git(repo, "rev-parse", "HEAD")
+    moved = f"tests/test_a.py: passed over work that {head} does not have, so it is not kept"
+    assert said[-1] == moved, said
+    assert not [one for one in said if one.startswith("running:")], said
     assert code == 76, said
     assert "Checked:" not in brief.read_text()
 
