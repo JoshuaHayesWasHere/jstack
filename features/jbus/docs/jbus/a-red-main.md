@@ -99,23 +99,27 @@ jbus reads a slug that starts `main-red-` as the fix of a red main, so do not gi
 
 The verdict is written once for each red tip, when the pass first reads its failed tests: one line with the tip, the green tip it came `after`, the pull requests landed since, the step that failed, the tests that failed and the verdict, `change`, `flake` or `infra`.
 A red at the lint, or one whose tests pytest could not collect, is `change`; a red at another step, or at the tests with none named, is `infra`; a red whose every failed test `jbus ci` counts as a flake (`reverts.flaky`) is `flake`; any other is `change`.
-A later tip of the same spell, one with the same green tip under it, that fails only tests the spell's first line names takes that line's verdict and is not judged again.
-It is the same break with merges on top: by then the pull requests checked over the red main have failed its tests on their own branches, which `jbus ci` counts as a flake until main's own red run is in its ledger, so a second judgment reads `flake` for the break the first one read as `change`.
+A later tip of the same spell, one with the same green tip under it, that fails only tests the spell's lines name is part of that spell: it takes the first line's verdict and is not judged again.
+It is the same break with merges on top: by then the pull requests checked over the red main have failed its tests on their own branches, which `jbus ci` counts as a flake until main's own red run is in its ledger, so a second judgment reads `flake` for the break the first one read as `change`, as 8b6c51f76 and 54d9f0055 did before the ledger kept `after`.
 A tip that fails another test is judged on its own.
-Two readers read the verdict: the flake row below, and the store's `main_spells.cause` for a spell that has not ended yet.
+Its reader is the store's `main_spells.cause`, for a spell that has not ended yet.
 
 The cause is written once for each spell, when main goes green: one line at the spell's first red tip, with the `green` tip that ended it, the pull requests merged in between and `cause`.
 `cause` is `fix: #<n>` where one of them fixed the red, the last such, and `no fix` where none did, as when a rerun passed on the red tip itself.
-A pull request fixed the red where it is a fix row (`main-red-*`), a revert (`revert-*`), or any other pull request that changed the file of a test the spell failed at any of its red tips, as #1591, a crew row, changed `test_jbus_telemetry_spells.py` and ended spell 41.
+A pull request fixed the red where it is a fix row (`main-red-*`), a revert (`revert-*`), or any other pull request that changed a file a test the spell failed at any of its red tips runs (`mainmoved.runs`): the test's own file, or a file of its feature, the directory that holds its `tests` directory, that is no other `test_*` file.
+So #1591, a crew row, changed `test_jbus_telemetry_spells.py` and ended spell 41, and #1628 changed `features/verify-jstack/project-skill/scripts/fake-gh`, which the failed `features/verify-jstack/tests` drive, and ended spell 43.
+Spell 45 went green on #1649, which added another test file to `features/repo-guards/tests` beside the one that failed: no fix.
 The pass asks GitHub for the files of each merge in the spell that is neither a fix row nor a revert, one call a merge (`repos/{owner}/{repo}/commits/<sha>`), once for the spell, as it writes the line.
 One run cannot tell a load flake from a break, since both fail a test once; only the end of the spell can, so the cause is written then.
-Its reader is the store: `main_spells.cause` reads `no fix` as `flake`, a fix as `change` where the verdict was `flake`, and otherwise the verdict, so the change failure rate counts only the spells a change caused.
+Its readers are the flake row below, and the store: `main_spells.cause` reads `no fix` as `flake`, a fix as `change` where the verdict was `flake`, and otherwise the verdict, so the change failure rate counts only the spells a change caused.
 A line written before the ledger kept `after` belongs to no spell: no later tip takes its verdict, and no closing line is written for it.
 
 ## A test that flakes twice
 
-Where one test failed under the verdict `flake` in two spells no more than seven days apart, each at its first line of that verdict, the later of them in the last seven days, the pass writes `tasks/flake-<name>.md`, where `<name>` is the test function's name, and queues it with no go as jbus's own row (`features/jbus/src/jbus/flakerow.py`).
+Where one test failed in two spells whose cause is `no fix`, their first red tips no more than seven days apart, the later of them in the last seven days, the pass writes `tasks/flake-<name>.md`, where `<name>` is the test function's name, and queues it with no go as jbus's own row (`features/jbus/src/jbus/flakerow.py`).
 Its `Task:` names the test and both commits with when the pass judged them, and it asks for a fix of the test, `Size: S` and `Review: review`, in the shape of the fix's brief above, so a pass approves it by the follow-up rule.
+A red tip's verdict counts for nothing here: it read `flake` for the second reds of two real faults, and `change` for spells 44 and 45, which went green with no fix.
+A spell still red counts for nothing yet.
 One flake files nothing: one timing miss in a week is noise.
 A test gets one row, ever: `flake-rows.json` beside the queue keeps each test filed, so a third flake, a pass run again, or a flake after its row merged files no other, and a removed row is not filed again.
 

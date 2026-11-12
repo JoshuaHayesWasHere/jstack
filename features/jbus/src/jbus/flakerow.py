@@ -1,13 +1,16 @@
 """File one row for a test that main's ledger of reds calls a flake twice in seven days.
 
 `mainmoved.tell` writes a line to `main-reds.jsonl` for each red tip of main, with the tests that
-failed there and its verdict (`mainmoved.red_line`). This step reads that verdict and works out
-no flake rule of its own. Where one test is under `failed` in lines of the verdict `flake` of two
-spells of a red main, each at its first such line, no more than `WINDOW` apart, and the later of
-them within `WINDOW` of the pass, it writes `tasks/flake-<name>.md` and queues it with no go, as
-jbus's pass. The next pass approves it by the follow-up rule, since jbus filed it (`queue.filed`).
-One flake is noise: two timing flakes of one week were two different tests (the scout
-po-worse-change-failure's Report).
+failed there (`mainmoved.red_line`), and one more when the spell ends, with its cause
+(`mainmoved.closing_line`). A flake is a spell that went green with no fix (`mainmoved.NO_FIX`):
+one run cannot tell a load flake from a break, and the verdict a red tip got when it was judged
+called real faults flakes (jstack's 8b6c51f76 and 54d9f0055) and flakes faults (spells 44 and
+45). This step reads that cause and works out no flake rule of its own. Where one test failed in
+two spells that went green with no fix, their first red tips no more than `WINDOW` apart, and the
+later of them within `WINDOW` of the pass, it writes `tasks/flake-<name>.md` and queues it with no
+go, as jbus's pass. The next pass approves it by the follow-up rule, since jbus filed it
+(`queue.filed`). One flake is noise: two timing flakes of one week were two different tests (the
+scout po-worse-change-failure's Report).
 
 A test gets one row, ever. `flake-rows.json` in the project's state keeps each test it filed, with
 the row's slug, so a third flake, a pass run again, or a flake after the row merged files no
@@ -52,20 +55,23 @@ def slug(test: str) -> str:
 
 
 def flakes(lines: list[dict[str, Any]]) -> dict[str, list[Seen]]:
-    """Return each test that failed under the verdict `flake`, with each red it failed at, the
-    oldest first and one a spell: the later tips of a spell take its first line's verdict
-    (`mainmoved.red_line`), so a spell is one flake however many tips it has. A line from before
-    the ledger kept the green tip a red came `after` is a spell of its own."""
-    seen: dict[str, dict[str, Seen]] = {}
-    for line in lines:
-        if line.get("verdict") != str(mainmoved.Verdict.FLAKE):
+    """Return each test that failed in a spell that went green with no fix, with the first red tip
+    of each such spell, the oldest first: a spell is one flake however many tips it has. A spell
+    still red, or one from before the ledger kept the green tip a red came `after`, has no closing
+    line, and counts for nothing."""
+    unfixed = {line.get("sha") for line in lines if line.get("cause") == mainmoved.NO_FIX}
+    seen: dict[str, list[Seen]] = {}
+    for first in lines:
+        if "verdict" not in first or "after" not in first or first.get("sha") not in unfixed:
             continue
-        at = datetime.fromisoformat(str(line["at"]))
-        sha = str(line.get("sha") or "")
-        spell = f"after {line['after']}" if "after" in line else sha
-        for failed in line.get("failed") or []:
-            seen.setdefault(test_of(str(failed)), {}).setdefault(spell, (at, sha))
-    return {test: sorted(spells.values()) for test, spells in seen.items()}
+        opened = mainmoved.spell(lines, str(first["after"]))
+        if opened[0] is not first:
+            continue
+        red = (datetime.fromisoformat(str(first["at"])), str(first["sha"]))
+        tests = {test_of(str(failed)) for one in opened for failed in one.get("failed") or []}
+        for test in tests:
+            seen.setdefault(test, []).append(red)
+    return {test: sorted(reds) for test, reds in seen.items()}
 
 
 def twice(seen: list[Seen], now: datetime) -> tuple[Seen, Seen] | None:

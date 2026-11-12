@@ -1,10 +1,11 @@
 """A test that main's ledger of reds calls a flake twice in seven days gets one row.
 
 `mainmoved.tell` writes a line to `main-reds.jsonl` for each red tip, with the tests that failed
-there and its verdict. Where one test fails under the verdict `flake` at two commits no more than
-seven days apart, the pass writes `tasks/flake-<name>.md` and queues it as jbus's own row, which
-the follow-up rule approves. A test gets one row, ever: a third flake, a pass run again and a row
-that was removed file no other. The real pass runs against the kitchen's fakes."""
+there, and one when the spell ends, with its cause. Where one test failed in two spells that went
+green with no fix, no more than seven days apart, the pass writes `tasks/flake-<name>.md` and
+queues it as jbus's own row, which the follow-up rule approves. A test gets one row, ever: a third
+flake, a pass run again and a row that was removed file no other. The real pass runs against the
+kitchen's fakes."""
 
 import json
 from datetime import timedelta
@@ -31,21 +32,36 @@ def kitchen(tmp_path, monkeypatch):
     made.close()
 
 
-def red(kitchen, sha, ago, failed, verdict="flake", after=None):
-    """Add the line `mainmoved.tell` writes for a red tip `sha`, judged `ago` before NOW, of the
-    spell since the green tip `after`, where one is given."""
-    line = {
-        **({"after": after * 40} if after else {}),
-        "at": (NOW - ago).isoformat(),
-        "sha": sha * 40,
-        "prs": [],
-        "step": "check / make check: test",
-        "failed": failed,
-        "verdict": verdict,
-    }
+def write(kitchen, line):
     kitchen.state.mkdir(parents=True, exist_ok=True)
     with open(kitchen.state / mainmoved.REDS, "a") as handle:
         handle.write(json.dumps(line) + "\n")
+
+
+def red(kitchen, sha, ago, failed, cause=mainmoved.NO_FIX, after=None, verdict="change"):
+    """Add the line `mainmoved.tell` writes for a red tip `sha`, judged `ago` before NOW, of the
+    spell since the green tip `after` (one of its own where none is given), and with a `cause`,
+    the line that closed the spell at `sha` an hour later."""
+    write(
+        kitchen,
+        {
+            "at": (NOW - ago).isoformat(),
+            "sha": sha * 40,
+            "after": (after or f"g{sha}") * 40,
+            "prs": [],
+            "step": "check / make check: test",
+            "failed": failed,
+            "verdict": verdict,
+        },
+    )
+    if cause:
+        closed(kitchen, sha, ago - timedelta(hours=1), cause)
+
+
+def closed(kitchen, sha, ago, cause=mainmoved.NO_FIX):
+    """Add the line that closes the spell whose first red tip is `sha`, `ago` before NOW."""
+    at = (NOW - ago).isoformat()
+    write(kitchen, {"at": at, "sha": sha * 40, "green": "f" * 40, "prs": [], "cause": cause})
 
 
 def filed(kitchen):
@@ -56,7 +72,7 @@ def filed(kitchen):
 
 def test_a_test_that_flaked_twice_in_seven_days_gets_one_row(kitchen):
     red(kitchen, "1", 6 * DAY, [TEST, OTHER])
-    red(kitchen, "2", 3 * DAY, [OTHER], verdict="change")
+    red(kitchen, "2", 3 * DAY, [OTHER], cause="fix: #9", verdict="flake")
     red(kitchen, "3", DAY, [TEST])
     kitchen.poll()
     assert filed(kitchen) == [SLUG]
@@ -75,13 +91,17 @@ def test_a_test_that_flaked_twice_in_seven_days_gets_one_row(kitchen):
 
 
 def test_two_flaked_tips_of_one_spell_are_one_flake(kitchen):
-    """The later tips of a spell take its first line's verdict (`mainmoved.red_line`): two of
-    them are one red main, not two."""
-    red(kitchen, "1", 3 * DAY, [TEST], after="0")
-    red(kitchen, "2", 3 * DAY - timedelta(minutes=15), [TEST], after="0")
+    """The tips of a spell are one red main, not two, and a spell is a flake only once it went
+    green with no fix: one still red counts for nothing."""
+    red(kitchen, "1", 3 * DAY, [TEST], cause=None, after="0")
+    red(kitchen, "2", 3 * DAY - timedelta(minutes=15), [TEST], cause=None, after="0")
+    closed(kitchen, "1", 3 * DAY - timedelta(minutes=30))
     kitchen.poll()
     assert filed(kitchen) == []
-    red(kitchen, "4", DAY, [TEST], after="3")
+    red(kitchen, "4", DAY, [TEST], cause=None, after="3")
+    kitchen.poll()
+    assert filed(kitchen) == []
+    closed(kitchen, "4", DAY - timedelta(minutes=30))
     kitchen.poll()
     assert filed(kitchen) == [SLUG]
 

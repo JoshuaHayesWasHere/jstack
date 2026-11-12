@@ -18,15 +18,16 @@ red.
 `tell` writes why main went red once for each tip it judges `failed`, as one line of
 `main-reds.jsonl` in the project's state: the tip, the green tip it came `after`, the pull requests
 landed since, the step each failed part of the run failed at, the tests the run failed, and a
-`Verdict`, `change`, `flake` or `infra`. A later tip of the spell that fails only tests its first
-line names takes that line's verdict (`red_line`). When main goes green, `tell` writes one more
-line for the spell, at its first red tip: the green tip and the spell's `cause`, `fix: #<n>` or
-`no fix` (`closing_line`), since only the end of a spell tells a break from a flake. A fix is a fix
-row, a revert, or a pull request that changed the file of a test the spell failed. `tell` is the
-one owner of main's red, so its readers take the cause from the ledger and keep no rule of their
-own: the store reads it for `main_spells.cause`, and `change-failure` counts only the spells a
-change caused. A tip whose logs could not be read gets its line on a later pass that judges it,
-and a tip with a line gets no second one.
+`Verdict`, `change`, `flake` or `infra`. A later tip of the spell that fails only tests its lines
+name is part of that spell and takes its first line's verdict (`red_line`). When main goes green,
+`tell` writes one more line for the spell, at its first red tip: the green tip and the spell's
+`cause`, `fix: #<n>` or `no fix` (`closing_line`), since only the end of a spell tells a break from
+a flake. A fix is a fix row, a revert, or a pull request that changed a file a failed test runs
+(`runs`). `tell` is the one owner of main's red, so its readers take the cause from the ledger and
+keep no rule of their own: the store reads it for `main_spells.cause`, `change-failure` counts
+only the spells a change caused, and `flakerow` counts as flakes only the spells with `no fix`. A
+tip whose logs could not be read gets its line on a later pass that judges it, and a tip with a
+line gets no second one.
 
 `landed` lists each tip main went through since the last pass, and `tell` looks at them in
 order. A tip still counts when it failed or passed before any pass looked at it, even with a
@@ -104,8 +105,8 @@ names a step: GitHub's name, with the make target that failed where the log name
 REVERT = "revert-"
 """How the branch of a revert starts, GitHub's `revert-<number>-<branch>` (`reverts.close`)."""
 NO_FIX = "no fix"
-"""The cause of a spell that went green with no fix row, no revert and no change to the file of a
-test it failed merged in it."""
+"""The cause of a spell that went green with no fix row, no revert and no change to a file a test
+it failed runs (`runs`) merged in it: a flake."""
 PULL = re.compile(r"\(#(\d+)\)$")
 """A squash merge's subject ends in its pull request's number."""
 UNCOLLECTED = re.compile(r"\bERROR collecting \S|\b\d+ errors? during collection\b")
@@ -286,18 +287,23 @@ def spell(lines: list[dict], green: str) -> list[dict]:
     return [one for one in lines if "verdict" in one and "after" in one and one["after"] == green]
 
 
-def red_line(run: Pass, tip: str, green: str, failed: list[str], first: dict | None = None) -> dict:
+def red_line(
+    run: Pass, tip: str, green: str, failed: list[str], opened: Sequence[dict] = ()
+) -> dict:
     """The line of `REDS` for a tip judged `failed`, with `green` the last green tip before it,
-    `failed` the tests that failed there and `first` the open spell's first line, if any.
+    `failed` the tests that failed there and `opened` the open spell's lines, the first first.
 
-    A tip that fails only tests the first line names is the same break, or the same flake, with
-    merges on top of it, and takes that line's verdict: `reverts.flaky` would name its tests a
-    flake by then, since the pull requests checked over the red main fail them on their own
-    branches before `jbus ci` holds main's own red run, which makes their failure main's."""
+    A tip that fails only tests the spell's lines name is part of that spell, the same break or
+    the same flake with merges on top of it, and takes its first line's verdict: `reverts.flaky`
+    would name its tests a flake by then, since the pull requests checked over the red main fail
+    them on their own branches before `jbus ci` holds main's own red run, which makes their
+    failure main's. So it judged jstack's 8b6c51f76 and 54d9f0055, second reds of two real
+    faults."""
     landed_ = pulls(run, landed(run, green, tip) if green else [tip])
     steps = failed_steps(run, tip)
-    if first and failed and set(failed) <= set(first.get("failed") or []):
-        judged = str(first["verdict"])
+    named = {test for one in opened for test in one.get("failed") or []}
+    if opened and failed and set(failed) <= named:
+        judged = str(opened[0]["verdict"])
     else:
         flakes = reverts.flaky(run, landed_[0][1]) if landed_ and failed else frozenset[str]()
         judged = str(verdict(steps, failed, flakes, uncollected(run, tip)))
@@ -320,20 +326,35 @@ def changed(run: Pass, tip: str) -> set[str]:
     return {str(one.get("filename")) for one in files or [] if isinstance(one, dict)}
 
 
+def runs(test: str, path: str) -> bool:
+    """Return whether a change to the file `path` can change how the failed test `test` runs: it
+    is the test's own file, or a file of the test's feature, the directory that holds its `tests`
+    directory, that is no other test file (`test_*`). So #1628's `fake-gh`, the script
+    `features/verify-jstack/tests` drive, fixed jstack's spell 43, while #1649's new test file in
+    `features/repo-guards/tests` did not end spell 45, a flake of another test there."""
+    own = test.split("::")[0]
+    if path == own:
+        return True
+    parts = own.split("/")
+    root = "/".join(parts[: parts.index("tests")]) if "tests" in parts[:-1] else ""
+    inside = not root or path.startswith(f"{root}/")
+    return inside and not path.rsplit("/", 1)[-1].startswith("test_")
+
+
 def closing_line(run: Pass, first: str, green: str, failed: Collection[str] = ()) -> dict:
     """The line of `REDS` that closes the spell whose first red tip is `first` at `green`, the
     tip whose check passed, with `failed` the tests the spell's red tips failed: the pull requests
     merged after `first` up to `green`, and its `cause`. That is `fix: #<n>` where one of them is
-    a fix row (`mainjson.FIX`), a revert (`REVERT`), or a pull request that changed the file of a
-    test in `failed`, as an ordinary row that fixed the break does, the last such; `NO_FIX` where
-    none is. Only a merge that is neither a fix row nor a revert is asked for its files, one call
-    each, once a spell. A rerun that passed at `first` merged nothing: `NO_FIX`."""
+    a fix row (`mainjson.FIX`), a revert (`REVERT`), or a pull request that changed a file a test
+    in `failed` runs (`runs`), as an ordinary row that fixed the break does, the last such;
+    `NO_FIX` where none is. Only a merge that is neither a fix row nor a revert is asked for its
+    files, one call each, once a spell. A rerun that passed at `first` merged nothing: `NO_FIX`."""
     merged = pulls(run, landed(run, first, green)) if green != first else []
-    files = {test.split("::")[0] for test in failed}
     fixes = [
         number
         for number, branch, tip in merged
-        if branch.startswith((mainjson.FIX, REVERT)) or (files and files & changed(run, tip))
+        if branch.startswith((mainjson.FIX, REVERT))
+        or (failed and any(runs(test, path) for path in changed(run, tip) for test in failed))
     ]
     return {
         "at": run.now.isoformat(),
@@ -437,7 +458,7 @@ def tell(run: Pass) -> None:
             if tip not in judged and (read := failed_at(run, tip)) is not None:
                 tests[tip] = read
                 opened = spell(ledger(run.state / REDS), under)
-                line = red_line(run, tip, under, read, opened[0] if opened else None)
+                line = red_line(run, tip, under, read, opened)
                 with open(run.state / REDS, "a") as handle:
                     handle.write(json.dumps(line) + "\n")
         elif check == "pending":
