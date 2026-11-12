@@ -27,8 +27,9 @@ PATH = {
     "dir": "a folder it made",
     "seed": "a seeded config",
     "hook": "a repo's hook",
+    "stage": "a half-made state folder",
 }
-ORDER = ["above", "state", "dir", "seed", "hook"]
+ORDER = ["above", "state", "dir", "seed", "hook", "stage"]
 
 
 def covered(v, path):
@@ -37,6 +38,7 @@ def covered(v, path):
         or (path == "state" and len(v["created"]) > 0)
         or (path == "seed" and v["seeded"])
         or (path == "hook" and v["repos"])
+        or path == "stage"
     )
 
 
