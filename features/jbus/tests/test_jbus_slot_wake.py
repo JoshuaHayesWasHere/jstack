@@ -362,9 +362,9 @@ def test_an_ended_run_whose_wake_was_lost_is_sent_again_with_the_same_key(kitche
 
 def test_slot_wakes_run_once_a_pass(kitchen, slots):
     """The waiters and holders files belong to the machine, so a pass over three projects reads
-    each waiter's thread and each thread with ended runs once, not once for each project and run (pass-slotwait-once,
-    2026-11-12: five project halves read them one after another, up to 12 s a pass), and still
-    wakes each one as a pass over one project does."""
+    each waiter's thread and each thread with ended runs once, not once for each project and run
+    (pass-slotwait-once, 2026-11-12: five project halves read them one after another, up to 12 s a
+    pass), and still wakes each one as a pass over one project does."""
     kitchen.second("b")
     kitchen.second("c")
     slots.hold("full")

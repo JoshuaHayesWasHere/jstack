@@ -28,9 +28,9 @@ its exit code, keyed by the thread and the run's start, so one run wakes once. I
 thread whose turn that started the run was still going when the run ended, which got the end
 itself (`_got_end`), and none yet to a thread at work. A pass reads a thread once for all its
 ended runs, and again only after it sent the thread a message. A run that ended with no wake
-owed, or whose command and `jgauge test-slot` are both gone with no end recorded, leaves the file. A run
-whose command is gone while its `jgauge test-slot` lives stays: that process has yet to record
-the end (`holders.running`).
+owed, or whose command and `jgauge test-slot` are both gone with no end recorded, leaves the
+file. A run whose command is gone while its `jgauge test-slot` lives stays: that process has yet
+to record the end (`holders.running`).
 
 `test-slot-waiters.json`, `test-slot-holders.json` and `pool-waiters.json` belong to the machine,
 not to a project, so the three wakes are steps a pass runs once, in its first project's half

@@ -12,7 +12,8 @@ order. All first halves end before the launches, the chores run alone, and `halv
 of the config. What a project writes is under its own state directory, what the machine shares is
 kept under a lock file (`jsettings.store.locked`), and a step marked `shared` decides from what
 the machine shares, so it runs in one project at a time. A step marked `once` does the same work
-for every project, so it runs in the first project's half alone. Each client's session ends with the pass.
+for every project, so it runs in the first project's half alone. Each client's session ends with
+the pass.
 
 The pass times each of its parts, each step of each half and each project's whole half, into the
 record's `Steps` (`jbus.record`), which `passes.jsonl` keeps. Timing a step changes nothing it does.
