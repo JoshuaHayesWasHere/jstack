@@ -26,8 +26,10 @@ Start with `statechart --help`, which gives the commands and how to read a chart
 TLC's `tla2tools.jar` is pinned in `scripts/statechart/tools.py` and is downloaded to `~/.cache/jstack/tla2tools/` on the first run, checked against its sha256; set `TLA2TOOLS` to use another copy.
 `--png` renders with Mermaid's `@mermaid-js/mermaid-cli` through `npx`, at the version pinned in the same file, so it needs Node.
 In jstack a chart folder commits only `chart.mmd`, any `bug-N.mmd`, `stories.md` and `summary.json`: git cannot merge a drawing, and every chart change rewrites one.
-`make charts` runs `statechart site`, which draws from those, with no TLC run, the charts page and a PNG and Excalidraw scenes of each chart and its overview beside it, in a folder git ignores, and prints the page's path.
+`make charts` runs `statechart site --lanes`, which draws from those the charts page and a PNG and Excalidraw scenes of each chart and its overview beside it, in a folder git ignores, and prints the page's path.
 Run it when you want to look at them; no hook or check runs it.
+A mapping that names `lanes` draws its chart as reference lanes instead: one row of boxes per thing that moves on its own, every step of TLC's graph on one arrow, table cell or row, no two lines crossing and no words on a line; `scripts/statechart/lanes.py` says what such a mapping holds, and `features/jbus/spec/MainRed.map.py` has a worked one.
+For those charts it runs TLC and prints the coverage and layout counts, and `statechart lanes-check` then measures the layout in a headless browser; every count should be 0.
 The mapping that labels a model is a Python file, `SPEC.map.py`, and `scripts/model/` has a worked one: `OutputFolder.tla` models the command's own output folder, and `OutputFolder.map.py` labels it.
 The project skill in `features/skill-library/project-skill/verify-output-folder/` names the code that model covers, how to check it, and the commit it was last read against.
 Work in a scratch folder outside the repo.

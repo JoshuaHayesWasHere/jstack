@@ -13,6 +13,7 @@ import html
 import json
 import os
 import re
+import shlex
 import subprocess
 import tomllib
 from dataclasses import dataclass, field
@@ -91,6 +92,7 @@ class Chart:
     stories: str
     summary: dict
     coverage: "Coverage | None" = None
+    lanes: object = None
 
 
 @dataclass
@@ -1187,6 +1189,24 @@ def page(charts, out_dir, flow):
         covers = coverage_html(chart.coverage) if chart.coverage else ""
         model = None if chart.coverage else chart.summary.get("modelStates")
         model_note = f" TLC walked {model} model states to draw it." if model else ""
+        if chart.lanes:
+            totals = chart.lanes.projection.totals
+            walked = "; ".join(
+                f"{cfg}: {n:,} states, {s:,} steps" for cfg, (n, s) in totals.items()
+            )
+            panels.append(
+                f'<section class="chart-panel" data-chart="{esc(chart.name)}" data-kind="lanes"'
+                ' hidden><header class="chart-head">'
+                f'<p class="feature">{esc(chart.feature)} &middot; {esc(chart.name)}</p>'
+                f"<h2>{esc(chart.question)}</h2>"
+                f'<p class="sub">Every step of TLC\'s graphs ({esc(walked)}) is on one arrow, table'
+                " cell or row; each lane moves on its own, and a bold box is where it starts."
+                f' Spec: <a href="{esc(spec)}">README</a> &middot;'
+                f' <a href="{esc(chart.name)}.png">PNG</a> &middot;'
+                f' <a href="{esc(chart.name)}.excalidraw">Excalidraw</a></p></header>'
+                f'<div class="lane-panel">{chart.lanes.html}</div></section>'
+            )
+            continue
         panels.append(
             f'<section class="chart-panel" data-chart="{esc(chart.name)}" hidden>'
             '<header class="chart-head">'
@@ -1251,17 +1271,72 @@ def read_all(root, flow):
     return root, charts
 
 
-def build(root, out, flow=None):
-    """Writes the page for every chart under `root` to `out`: the charts it drew."""
+def spec_of(chart):
+    """The spec and the mapping a chart was drawn from, as its summary's command names them."""
+    command = (chart.summary.get("drawnFrom") or {}).get("command", "")
+    words = shlex.split(command) if command else []
+    spec = words[2] if len(words) > 2 and words[1] == "from-spec" else f"{chart.name}.tla"
+    given = words[words.index("--map") + 1] if "--map" in words[:-1] else None
+    spec = chart.folder.parent / spec
+    return spec, chart.folder.parent / given if given else spec.with_name(f"{spec.stem}.map.py")
+
+
+@dataclass
+class LaneChart:
+    lanes: object
+    projection: object
+    html: str
+    drawings: list
+    faults: dict = field(default_factory=dict)
+    coverage: dict = field(default_factory=dict)
+
+
+def draw_lanes(chart, tools):
+    """The chart as reference lanes, where its mapping names `lanes`: TLC's graph of each config
+    the mapping names, projected, with the counts the mapping's `seen()` reads."""
+    from statechart import lanes as lanes_mod
+    from statechart.mapping import load_mapping
+
+    spec, map_file = spec_of(chart)
+    if not map_file.exists():
+        return None
+    mapping = load_mapping(map_file)
+    if not hasattr(mapping, "lanes"):
+        return None
+    lanes = lanes_mod.Lanes.of(mapping, spec)
+    graphs = [(cfg, lanes_mod.graph(spec, spec.parent / cfg, tools)) for cfg in lanes.configs]
+    projection = lanes_mod.project(lanes, graphs)
+    seen = lanes.seen() if lanes.seen else {}
+    body, drawings = lanes_mod.panel(chart.name, lanes, projection, seen)
+    return LaneChart(
+        lanes, projection, body, drawings, {d.name: lanes_mod.faults(d) for d in drawings}
+    )
+
+
+def build(root, out, flow=None, tools=None):
+    """Writes the page for every chart under `root` to `out`: the charts it drew. With `tools`,
+    TLC's, each chart whose mapping names lanes is drawn as lanes, and checked."""
+    from statechart import lanes as lanes_mod
+
     flow = load_flow(flow)
     root, charts = read_all(root, flow)
     check_uncharted(root, charts, flow)
+    if tools:
+        for chart in charts:
+            try:
+                chart.lanes = draw_lanes(chart, tools)
+            except ChartError as e:
+                raise ChartError(f"{chart.name} lanes: {e}") from e
     out = Path(out).resolve()
     out.parent.mkdir(parents=True, exist_ok=True)
     text = page(charts, out.parent, flow)
     scratch = out.with_name(f".{out.name}.part")
     scratch.write_text(text, encoding="utf-8")
     os.replace(scratch, out)
+    written = out.read_text(encoding="utf-8")
+    for chart in charts:
+        if chart.lanes:
+            chart.lanes.coverage = lanes_mod.coverage(written, chart.name, chart.lanes.projection)
     return charts
 
 

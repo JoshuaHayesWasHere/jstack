@@ -1400,10 +1400,10 @@ def from_chart(given, flags):
     return in_work_folder(body, flags.get("keep-work"))
 
 
-SITE = """Usage: statechart site --out FILE [--root DIR] [--flow MAP.toml]
+SITE = """Usage: statechart site --out FILE [--root DIR] [--flow MAP.toml] [--lanes]
 
 Draws every features/*/spec/*-statechart/chart.mmd under DIR, from the chart.mmd, stories.md and
-summary.json committed there, and runs no TLC. It writes, in FILE's folder:
+summary.json committed there, and runs no TLC unless --lanes asks. It writes, in FILE's folder:
   FILE          One self-contained HTML page that explores every chart. It opens on an Overview
                 tab, and each chart's tab shows the chart's overview (statechart overview --help)
                 above the chart itself: a tap on an overview's box moves the chart to that group's
@@ -1426,10 +1426,18 @@ summary.json committed there, and runs no TLC. It writes, in FILE's folder:
                stops when a hand-off names a chart or a group that is not there. Default: the
                flow.toml beside FILE, where there is one. Without one, the tab draws the charts
                in the order of their paths, with no hand-offs.
+  --lanes      Draw each chart whose mapping names `lanes` as reference lanes instead: one row of
+               boxes per lane, every step of TLC's graph on one arrow, table cell or row, and no
+               two lines crossing. It runs TLC on the spec beside the chart, with each config
+               the mapping's `lane_configs` names, and the mapping's `seen()` puts real counts on
+               the arrows its logs record. It then prints, for each such chart, the steps with
+               no single place on the page and the places with no step, and the crossings and
+               labels on lines, labels or boxes of each drawing, with label sizes estimated;
+               `statechart lanes-check FILE` measures those in a browser.
 
-Exit codes: 0 all written, 2 a chart or map it cannot read, a hand-off to a group that is not
-there, a PNG it cannot draw, or a wrong argument. A PNG it cannot draw leaves the page and the
-other files written."""
+Exit codes: 0 all written, 1 a lanes count above 0, 2 a chart or map it cannot read, a
+hand-off to a group that is not there, a PNG it cannot draw, or a wrong argument. A PNG it
+cannot draw leaves the page and the other files written."""
 
 
 def site_main(argv):
@@ -1447,6 +1455,8 @@ def site_main(argv):
                 raise CannotFinish(f"{a} needs a value. Run statechart site --help for the flags.")
             i += 1
             flags[a[2:]] = argv[i]
+        elif a == "--lanes":
+            flags["lanes"] = True
         else:
             raise CannotFinish(f"unknown argument {a}. Run statechart site --help for the flags.")
         i += 1
@@ -1457,7 +1467,8 @@ def site_main(argv):
     if "flow" not in flags and os.path.isfile(beside):
         flags["flow"] = beside
     try:
-        charts = site.build(root, flags["out"], flags.get("flow"))
+        tools = find_tools() if flags.get("lanes") else None
+        charts = site.build(root, flags["out"], flags.get("flow"), tools)
         folder = Path(flags["out"]).resolve().parent
         for chart in charts:
             text = (chart.folder / "chart.mmd").read_text(encoding="utf-8")
@@ -1468,6 +1479,7 @@ def site_main(argv):
         raise CannotFinish(str(e)) from e
     states = sum(len(r.states) for c in charts for r in c.regions)
     print(f"wrote {flags['out']}: {len(charts)} charts, {states} states")
+    off = sum(lanes_report(c) for c in charts if c.lanes)
     pictures = [
         (mmd, folder / f"{chart.name}{'' if mmd.stem == 'chart' else '-' + mmd.stem}.png")
         for chart in charts
@@ -1481,7 +1493,33 @@ def site_main(argv):
         else:
             print(f"could not draw {png.name}: {said.strip()}", file=sys.stderr)
     print(f"wrote {drawn} PNGs and {2 * len(charts)} Excalidraw scenes beside it")
-    return 0 if drawn == len(pictures) else 2
+    return 2 if drawn != len(pictures) else 1 if off else 0
+
+
+def lanes_report(chart):
+    """Prints what the lanes check found on one chart drawn as lanes, and returns how many
+    faults it found."""
+    lanes = chart.lanes
+    totals = ", ".join(
+        f"{cfg}: {n:,} states, {s:,} steps" for cfg, (n, s) in lanes.projection.totals.items()
+    )
+    cov = lanes.coverage
+    print(f"{chart.name} lanes, from {totals}")
+    print(
+        f"  coverage: {cov['steps']:,} steps, {cov['steps_without_place']} with no single place on"
+        f" the page, {len(cov['places_without_step'])} arcs, cells or rows with no step"
+    )
+    off = cov["steps_without_place"] + len(cov["places_without_step"])
+    for name, found in lanes.faults.items():
+        counts = ", ".join(f"{len(v)} {k.replace('_', ' ')}" for k, v in found.items())
+        print(f"  layout, {name}, label sizes estimated: {counts}")
+        off += sum(len(v) for v in found.values())
+    for line in [
+        *cov["examples"],
+        *(x for f in lanes.faults.values() for v in f.values() for x in v),
+    ][:8]:
+        print(f"    {line}")
+    return off
 
 
 OVERVIEW = """Usage: statechart overview CHART.mmd [--out FILE.excalidraw]
@@ -1563,6 +1601,10 @@ def main(argv=None):
             return site_main(argv[1:])
         if argv and argv[0] == "overview":
             return overview_main(argv[1:])
+        if argv and argv[0] == "lanes-check":
+            from statechart import lanes_check
+
+            return lanes_check.main(argv[1:])
         parsed = parse_args(argv)
         if "help" in parsed:
             print(parsed["help"])

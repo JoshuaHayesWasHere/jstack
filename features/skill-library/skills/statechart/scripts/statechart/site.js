@@ -296,9 +296,16 @@
     body.innerHTML = name === OVERVIEW
       ? '<p class="quiet">Tap a chart on the map to open it, or a group in the list of hand-offs to open its chart at that group.</p>'
       : '<p class="quiet">Tap a box of the overview to move the chart to its group, or a state or an arrow to read it in full: the code line it cites, the steps into it and the steps out of it.</p>';
+    // A chart drawn as lanes is a page to read down, with no camera and no detail to open.
+    const lanes = !!document.querySelector(`.chart-panel[data-chart="${CSS.escape(name)}"][data-kind="lanes"]`);
+    document.querySelector("main").classList.toggle("lanes", lanes);
     detail.classList.remove("open");
     if (name === OVERVIEW) {
       history.replaceState(null, "", location.pathname + location.search);
+      return;
+    }
+    if (lanes) {
+      history.replaceState(null, "", `#${encodeURIComponent(name)}`);
       return;
     }
     fit(view(name));
@@ -377,6 +384,7 @@
   function find() {
     if (!current) return null;
     const q = search.value.trim().toLowerCase();
+    if (document.querySelector("main").classList.contains("lanes")) return null;
     const v = view(current);
     let first = null;
     v.svg.querySelectorAll(".st").forEach((el) => {
