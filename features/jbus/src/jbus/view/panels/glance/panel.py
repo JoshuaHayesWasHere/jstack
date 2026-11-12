@@ -53,7 +53,7 @@ VERDICT = {
 SHAPE = {"glance": {"calm": None, "verdict": VERDICT, "items": [ITEM]}}
 WINDOW = verdicts.WINDOW
 """The hours over which the verdict counts merges an hour: the last three, across midnight too."""
-RANK = ("jbus", "main", "ci", "stall", "thread", "idle", "bus", "source", "unasked")
+RANK = ("jbus", "main", "ci", "stall", "aged", "thread", "idle", "bus", "source", "unasked")
 """The kinds of `wrong` by how much each holds the work back, most first: the verdict names the
 first, and of two of one kind the older."""
 VERB = {
@@ -66,6 +66,7 @@ VERB = {
     "thread": "Open thread",
     "stall": "Open task",
     "idle": "Open task",
+    "aged": "Open task",
 }
 """The verb of an item of each kind of `wrong`: each opens the drawer that has it."""
 APPROVE = "approve"

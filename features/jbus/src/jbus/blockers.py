@@ -2,11 +2,13 @@
 
 A blocker is one thing that holds a home's work up, named by a key: an open question (`question
 <n>`), a pull request whose check failed (`check:<slug>`), a row that was refused or is stuck
-(`row:<slug>`), and a row whose Result left something (`left:<slug>`). A check that was only
+(`row:<slug>`), a row whose Result left something (`left:<slug>`), and a row whose wait has not
+changed past its code's bound (`wait:<slug>`, `clock.aged`), whoever owns the code: the backstop
+for a wait no step has a remedy for, as a run GitHub keeps queued. A check that was only
 cancelled, which jbus runs again and has not yet told the home of (`cancelled.owns`), is no blocker.
 `jbus clear` is what a home runs each time it wakes. It reads only what jbus keeps
-(`questions.json`, `queue.json`, `cancelled.json`), asks no service, and prints one line for each
-blocker of that home:
+(`questions.json`, `queue.json`, `waits.jsonl`, `cancelled.json`), asks no service, and prints one
+line for each blocker of that home:
 
 - `decision question <n>`: a question the user has to decide (`needs`). The pass raises it.
 - `fix <key>`: a blocker the home fixes. It writes a brief whose head has `Fix of: <key>` and a
@@ -87,6 +89,7 @@ from jbus import (
     Refused,
     alert,
     cancelled,
+    clock,
     dispatch,
     locked,
     party,
@@ -117,6 +120,7 @@ OWN_WORDS = "reply in your own words to {what} or say what to do instead"
 DEFAULT_WIDTH = 60
 """How much of a gate's default the hint shows, cut short at a word."""
 FIXED = {"check": "its check failed", "row": "it was refused or is stuck", "left": "it left work"}
+"""What each kind of blocker says it is. A `wait` says its wait (`clock.Aged.said`)."""
 STUCK = ("gate", "failed", "stale")
 _STAMP = re.compile(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}")
 
@@ -535,11 +539,30 @@ def _gates(run: Pass, home: Directory) -> list[str]:
     return said
 
 
+def waits(state: Path) -> list[dict[str, Any]]:
+    """The lines of `waits.jsonl`, each change of a row's `why` with its time, or none where the
+    file is not there. A line that does not parse is skipped."""
+    try:
+        text = queue.waits_path(state).read_text()
+    except OSError:
+        return []
+    found = []
+    for line in text.splitlines():
+        try:
+            one = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(one, dict):
+            found.append(one)
+    return found
+
+
 def _rows(run: Pass, home: Directory) -> list[str]:
     """Say what to do with each row of the home that blocks: brief a fix, wait for the one at
     work, or raise it once it had its cap of fixes."""
     rows = queue.load(run.state)
     texts = {row["slug"]: queue.brief(run.state, row["slug"]) or "" for row in rows}
+    old = clock.aged(rows, waits(run.state), run.now)
     mine = [
         row
         for row in rows
@@ -562,6 +585,8 @@ def _rows(run: Pass, home: Directory) -> list[str]:
             kind = "row"
         elif status == "left":
             kind = "left"
+        elif slug in old:
+            kind = "wait"
         else:
             continue
         key = head(texts[slug], FIX_OF) or f"{kind}:{slug}"
@@ -580,8 +605,9 @@ def _rows(run: Pass, home: Directory) -> list[str]:
             decide(run, slug, f"blocker:{key}", what, reply)
             said.append(f"decision {key}: {what}, raised, it waits on {run.user.user}")
         else:
+            what = old[slug].said if kind == "wait" else FIXED[kind]
             said.append(
-                f'fix {key}: {FIXED[kind]}, brief a fix whose head has "Fix of: {key}" and '
+                f'fix {key}: {what}, brief a fix whose head has "Fix of: {key}" and '
                 f'"When green: <the exact check that ends it>", try {len(had) + 1} of {cap}'
             )
     return said
@@ -590,7 +616,7 @@ def _rows(run: Pass, home: Directory) -> list[str]:
 def _clear(args: argparse.Namespace, config: Config) -> int:
     """`jbus clear`: clear this home's blockers, and say what is left to do with each."""
     project = verbs.here(config, args.project)
-    run = Pass(config, project, datetime.now(UTC))
+    run = Pass(config, project, verbs.clock())
     root = config.home(project)
     path = root / args.scope if args.scope else root
     if args.scope and not (path / "plan.md").exists():

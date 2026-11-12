@@ -60,25 +60,45 @@ holds any fix message (`outbox.FIXES`) and any line to a capped instance.
 `held` watches the waits no clock above takes, by their reason. Rows whose pull requests `jmerge`
 holds on one reason, with no thread at work on the cause, wake the home that owns them once the
 hold is older than `HOLD_MINUTES`, once for the hold, with the reason, the rows and how long they
-have been held. A thread is at work on the cause when it is a held row's crew or reviewer, or when
-the reason names its slug. A wait on the merge runner (`RUNNER`), a wait on a row ahead (`AHEAD`)
-whose pull request is open, since that row's own wait is what holds it, a hold that is the user's
-(a `wait` or `hold` on step `hold`, such as a queue row held for `check failed twice`, which
-`waiting.holds` lists from its first pass) and a wait with its own clock above are no such hold.
+have been held. A thread is at work on the cause when the reason's code is a crew's (`BOUNDS`) and
+the thread is a held row's crew or reviewer, or the reason names its slug. A thread at work on a
+code a crew cannot clear, as a run GitHub keeps queued (`ready.NO_RUN`), is at work on something
+else, so it keeps no hold from waking the home. A wait on the merge runner (`RUNNER`), a wait
+on a row ahead (`AHEAD`) whose pull request is open, since that row's own wait is what holds it, a
+hold that is the user's (a `wait` or `hold` on step `hold`, such as a queue row held for `check
+failed twice`, which `waiting.holds` lists from its first pass) and a wait with its own clock
+above are no such hold.
 A required check with no run at the head (`ready.NO_RUN`) is no wait on the merge runner: no
 runner is at work on it, so it is a hold. One whose workflow GitHub runs there (`ready.LIVE_RUN`)
 is such a wait.
 A row ahead with no open pull request, closed with no merge or not opened yet, holds its rows
-with nothing watching it, so that wait is a hold. `held.json`
-keeps each hold, from the first pass that saw it with nobody at work: a pass with a thread at work
-on it, or in which no row waits on it, drops it, and the next one starts afresh. From the wake
-on, `waiting.keep` lists the hold on what waits on the user (`waiting.held`).
+with nothing watching it, so that wait is a hold. `held.json` keeps each hold, from the first pass
+that saw it with nobody at work on its cause: a pass with a thread at work on its cause, or in
+which no row waits on it, drops it, and the next one starts afresh. From the wake on,
+`waiting.keep` lists the hold on what waits on the user (`waiting.held`).
 
 Each hold in `held.json` names who owns it, `who`. It is `crew` where `expedite.tell` owns the wait
 of every row it holds: a row of `expedite.TABLE` that `tell` counts at the row's head and has not
 given to the user (`_tells_left`). It is `user` for the rest. A `crew` hold wakes the home
 only once `tell` has sent each row every message it owes at that head, two for a `proved-` or
 `checked-` wait, and the hold is older than `HOLD_MINUTES` with nobody at work on it after that.
+
+Each code of `jmerge`'s reasons (`ready.Reason`) has one row of `BOUNDS`: its owner, the one who
+clears it, and its bound, the minutes a row may wait on it with its `why` unchanged. The owner is
+a jbus act (`ACT`: jbus, `jmerge` or GitHub are at work on it, as on a run in CI or a run GitHub
+kept queued), the row's crew or reviewer (`CREW`, or the crew of the row ahead the reason names),
+the row's home (`HOME`: nothing at work moves it), or the user (`USER`: a code on the `hold` step,
+which `waiting.holds` lists for the user from its first pass, so it has no bound here). `held`
+reads the owner: a thread at work drops a hold only where its code is a crew's, since a busy crew
+starts no run GitHub keeps queued.
+
+`aged` is the backstop over every remedy: a row whose `why`, a `wait` of `jmerge`'s, is unchanged
+past its code's bound, read with its `since` from `waits.jsonl`, is aged, whoever owns the code
+and whatever step was meant to clear it. It is a guard by design, for a state no step has a remedy
+for: each remedy stays the act of its own module (`cancelled`, `rebase`, `expedite`, the clocks
+above), and `aged` only escalates what none of them moved. `jbus clear` prints an aged row as its
+home's `fix wait:<slug>`, and as a decision once the home's fixes of it reach `retry_cap`
+(`jbus.blockers`), and the view lists it as an `aged` wrong (`jbus.view.state.wrongs`).
 
 A `user` hold that a word of the user's lifts (`judgement.accepted`: `jmerge --accept`) names that
 word as its `lift`. Its crew had its turns and gave it to the user (`expedite.tell`), or no crew of
@@ -93,6 +113,7 @@ from __future__ import annotations
 import hashlib
 import re
 import string
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -114,6 +135,7 @@ from jbus import (
     threads,
     verbs,
     watch,
+    work,
     write_json,
 )
 from jbus.passes import Pass
@@ -197,6 +219,209 @@ HELD_HOME = (
     "until it clears or a thread takes it up."
 )
 _SEAT = re.compile(r"#(\d+)$")
+ACT, CREW, HOME, USER = "jbus act", "crew", "home", "user"
+OWNERS = (ACT, CREW, HOME, USER)
+"""Who clears a wait: see the module."""
+
+
+@dataclass(frozen=True)
+class Bound:
+    """Who clears a wait on one code, and the minutes it may stand unchanged before it is aged,
+    or None for a code the user's list carries from its first pass."""
+
+    owner: str
+    minutes: int | None
+
+
+ACT_MINUTES = 60
+"""Two of `jmerge`'s `QUEUED_MINUTES`: time for a run to start, and for one restart of it."""
+CREW_MINUTES = 120
+"""Time for the clocks above to ask the thread twice and give its stall to the home."""
+AHEAD_MINUTES = 240
+"""A wait on a row ahead: that row's own wait ages first, and these rows only if it does not."""
+_CODES: tuple[tuple[str, int | None, tuple[str, ...]], ...] = (
+    (
+        ACT,
+        ACT_MINUTES,
+        tuple(
+            one.code
+            for one in (
+                ready.MAIN_MOVED,
+                ready.MERGE_FAILED,
+                ready.NO_MESSAGES,
+                ready.NOT_PASSED,
+                ready.NO_RUN,
+                ready.CANCELLED_UNRUN,
+                ready.LIVE_RUN,
+                ready.UNDECIDED,
+                ready.MAIN_CHANGED,
+                ready.CARRIES_UNKNOWN,
+                ready.MIGRATION_MERGING,
+                ready.BASE_MERGE_ASKED,
+                ready.BASE_MERGE_DUE,
+                ready.BASE_MOVED_ASKED,
+                ready.BASE_MOVED_DUE,
+                ready.QUEUED_RESTARTED,
+                ready.QUEUED_UNOPENED,
+                ready.QUEUED_UNCLOSED,
+                ready.MERGED_TREE_UNENDED,
+                ready.MERGED_TREE_UNBUILT,
+                ready.MERGED_TREE_NO_TIME,
+                ready.MERGED_TREE_NO_SLOT,
+                ready.MERGING,
+                ready.IN_BATCH,
+                ready.BATCH_FIRST,
+                ready.BATCH_STOPPED,
+                ready.MAIN_BROWSER_RED,
+            )
+        )
+        + tuple(code for code, _, _ in ready.ELSEWHERE),
+    ),
+    (
+        CREW,
+        CREW_MINUTES,
+        tuple(
+            one.code
+            for one in (
+                ready.NO_BRIEF,
+                ready.HAND_DRAFT,
+                ready.FRESH_CONFLICT,
+                ready.NO_HEAD,
+                ready.BASE,
+                ready.NO_REVIEW,
+                ready.SKILLS_UNRUN,
+                ready.PROVED_MISSING,
+                ready.PROVED_UNREAD,
+                ready.PROVED_NOT_EXEMPT,
+                ready.PROVED_NOT_KIND,
+                ready.PROVED_UNNAMED,
+                ready.PROVED_BASE_PASSED,
+                ready.PROVED_HEAD_FAILED,
+                ready.PROVED_STALE,
+                ready.CHECKED_MISSING,
+                ready.CHECKED_STALE,
+                ready.CHECKED_CUT,
+                ready.CHECKED_FAILED,
+                ready.CHECKED_PART,
+                ready.NO_VERDICT,
+                ready.NO_FIXED,
+                ready.NOT_PUSHED,
+                ready.FIX_UNREVIEWED,
+                ready.DECLINES_OVERRULED,
+                ready.MEETS_NO,
+                ready.MEETS_UNREAD,
+                ready.MEETS_MISCOUNTED,
+                ready.UNENDED,
+                ready.UNANSWERED,
+                ready.UNPROVEN,
+                ready.UNCITED,
+                ready.REPEATED,
+                ready.RISK_UNASKED,
+                ready.CANNOT_CHECK,
+                ready.DROPPED,
+                ready.SCOPED_UNRULED,
+                ready.CONTENT_CHANGED,
+                ready.CHECK_FAILED,
+                ready.CONFLICTS,
+                ready.STACKED_UNMOVED,
+                ready.MIGRATION_TAKEN,
+                ready.UNMERGED,
+                ready.MERGED_TREE_FAILS,
+                ready.BROWSER_RED,
+            )
+        ),
+    ),
+    (CREW, AHEAD_MINUTES, tuple(one.code for one, _ in AHEAD)),
+    (
+        HOME,
+        HOLD_MINUTES,
+        (
+            *(
+                one.code
+                for one in (
+                    ready.OTHER_HOME,
+                    ready.CANCELLED_TWICE,
+                    ready.BASE_MERGE_REFUSED,
+                    ready.QUEUE_UNREADABLE,
+                    ready.QUEUED_GAVE_UP,
+                    ready.QUEUED_UNRESTARTED,
+                    ready.QUEUED_UNREOPENED,
+                )
+            ),
+            ready.UNKNOWN,
+        ),
+    ),
+    (USER, None, tuple(one.code for one in ready.reasons().values() if one.step == "hold")),
+)
+
+
+def _bounds() -> dict[str, Bound]:
+    """`_CODES` by code. A code on two rows is a slip, and stops the import."""
+    found: dict[str, Bound] = {}
+    for owner, minutes, codes in _CODES:
+        for code in codes:
+            if code in found:
+                raise ValueError(f"{code} has two rows of clock.BOUNDS")
+            found[code] = Bound(owner, minutes)
+    return found
+
+
+BOUNDS = _bounds()
+"""Each code of `jmerge`'s reasons, its owner and its bound: see the module. A code `jmerge`
+gains with no row here fails `test_jbus_held_aged`."""
+
+
+def bound(reason: str) -> Bound:
+    """The row of `BOUNDS` of a reason `jmerge` gives, by its code (`ready.code_of`)."""
+    return BOUNDS.get(ready.code_of(reason)) or BOUNDS[ready.UNKNOWN]
+
+
+@dataclass(frozen=True)
+class Aged:
+    """A row whose wait is unchanged past its code's bound: its reason, the row of `BOUNDS`, and
+    since when it has waited on it, from `waits.jsonl`."""
+
+    slug: str
+    reason: str
+    bound: Bound
+    since: datetime
+    minutes: int
+
+    @property
+    def said(self) -> str:
+        """The wait as a blocker says it."""
+        return (
+            f"it has waited {self.minutes} minutes on {self.reason}, past its bound of "
+            f"{self.bound.minutes}, and the {self.bound.owner} that clears it has not"
+        )
+
+
+def aged(rows: list[queue.Row], waits: list[dict[str, Any]], now: datetime) -> dict[str, Aged]:
+    """By slug, each open row whose `why` is a `wait` of `jmerge`'s that has not changed past its
+    code's bound. Its `since` is the `at` of the row's last line of `waits.jsonl` (`waits`), which
+    the pass writes before the table: a row whose last line is not its `why` has no known `since`,
+    and is not aged. A code of the user's (`USER`) is never aged here. It reads only what it is
+    given, so `jbus clear` and the view read the same rows the same way."""
+    last: dict[str, dict[str, Any]] = {}
+    for one in waits:
+        if isinstance(one, dict) and isinstance(one.get("slug"), str):
+            last[one["slug"]] = one
+    found = {}
+    for row in rows:
+        why, slug = str(row.get("why") or ""), row["slug"]
+        word, _, reason = why.partition(": ")
+        line = last.get(slug) or {}
+        if work.over(row) or word != "wait" or not reason or line.get("why") != why:
+            continue
+        rule = bound(reason)
+        try:
+            since = datetime.fromisoformat(str(line.get("at")))
+        except ValueError:
+            continue
+        minutes = int((now - since).total_seconds() // 60)
+        if rule.minutes is not None and minutes >= rule.minutes:
+            found[slug] = Aged(slug, reason, rule, since, minutes)
+    return found
 
 
 def _id(said: str) -> str:
@@ -605,7 +830,8 @@ def held(
     busy = [one["slug"] for one in out if one.get("live") in AT_WORK and one.get("slug")]
     kept: dict[str, Any] = {}
     for key, group in groups.items():
-        if any(_on(slug, group["reason"], group["rows"]) for slug in busy):
+        crews = bound(group["reason"]).owner == CREW
+        if crews and any(_on(slug, group["reason"], group["rows"]) for slug in busy):
             continue
         hold = {"since": run.now.isoformat(), "woke": False} | was.get(key, {}) | group
         minutes = int((run.now - datetime.fromisoformat(hold["since"])).total_seconds() // 60)

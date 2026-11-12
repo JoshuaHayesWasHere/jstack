@@ -112,6 +112,7 @@ from jbriefs import parse as briefs
 from jbriefs.home import thread_of
 from jbus import (
     BATCH,
+    clock,
     expedite,
     item,
     leftover,
@@ -1754,6 +1755,7 @@ OWNERS: dict[str, Callable[[Read, dict[str, Any]], tuple[str, str]]] = {
     "thread": _of_row,
     "stall": _of_row,
     "idle": _of_row,
+    "aged": _of_row,
 }
 """Who fixes each kind of `wrongs`: `crew` with the row whose crew it is, `home` with the row
 whose home it is, the catch-all's home with no row, the user, or `STATUS`: no agent is told,
@@ -1901,7 +1903,10 @@ def wrongs(read: Read) -> list[dict[str, Any]]:
     cannot be read, or is stale; `unasked`, a source the last pass could not ask; `thread`, a thread
     that is `hung` or `quiet`; `stall`, a row jbus logged a stall of that still stands (`_stalls`);
     and `idle`, a pull request whose crew jbus told what it is short of and found nobody at work
-    after (`jbus.expedite`), while no stall of it stands and the hold is not the user's. A `since`
+    after (`jbus.expedite`), while no stall of it stands and the hold is not the user's; and `aged`,
+    a row whose wait of `jmerge`'s has not changed past its code's bound (`jbus.clock.aged`), since
+    the time `waits.jsonl` keeps, while no stall of it stands: the home's `fix wait:<slug>` of
+    `jbus clear`. A `since`
     is None where nothing kept says. Each reads its source as it is now, so an entry goes once its
     source works again.
 
@@ -1965,6 +1970,12 @@ def wrongs(read: Read) -> list[dict[str, Any]]:
         route = f"task/{quote(slug, safe='')}"
         home = tasks[slug]["home"]
         found.append(_wrong(read, "idle", slug, cause, told.get(slug), route, home, slug))
+    waits = read.records(queue.waits_path(read.state).name) or []
+    for slug, one in clock.aged(read.rows, waits, read.now).items():
+        if slug not in tasks or slug in stalls:
+            continue
+        route, home, since = f"task/{quote(slug, safe='')}", tasks[slug]["home"], iso(one.since)
+        found.append(_wrong(read, "aged", slug, one.said, since, route, home, slug))
     return _owned(read, found)
 
 
