@@ -196,10 +196,12 @@ STATUSES = (
 )
 _QUESTION_CLOSED = "the question on the row closes, and the row's"
 _ASKED = "jbus opens a question on the row"
-_UNLISTED = "T3 Code lists the thread no more, or it starts a new turn"
+_NEW_TURN = "the thread starts a new turn"
 _PULL_OPENS = "a pull request opens, or opens again"
 _PULL_MERGES = "the pull request opens and merges between two passes, or merges"
-_ENDS_UNWRITTEN = "the turn hangs, or the thread ends or is settled with nothing written"
+_ENDS_UNWRITTEN = (
+    "the turn hangs, or the thread ends, is settled or leaves T3 Code's list with nothing written"
+)
 MOVES: dict[tuple[str, str], str] = {
     ("queued", "launched"): "a launch record names a thread for the row",
     ("queued", "gate"): _ASKED,
@@ -212,7 +214,8 @@ MOVES: dict[tuple[str, str], str] = {
     ("gate", "running"): f"{_QUESTION_CLOSED} thread is at work",
     ("gate", "waiting"): f"{_QUESTION_CLOSED} thread asks for an answer",
     ("gate", "failed"): f"{_QUESTION_CLOSED} thread failed with nothing written",
-    ("gate", "stale"): f"{_QUESTION_CLOSED} turn hung, or its thread ended with nothing written",
+    ("gate", "stale"): f"{_QUESTION_CLOSED} turn hung, or its thread ended or left T3 Code's list "
+    "with nothing written",
     ("gate", "left"): f"{_QUESTION_CLOSED} Result leaves work, or its pull request closed",
     ("launched", "running"): "T3 Code lists the thread at work",
     ("launched", "failed"): "the thread fails before a pass sees it at work",
@@ -226,7 +229,7 @@ MOVES: dict[tuple[str, str], str] = {
     ("failed", "running"): "the failed thread works again",
     ("failed", "left"): "the failed thread leaves its work to its home",
     ("failed", "done"): "a Result says done after the thread failed",
-    ("failed", "launched"): _UNLISTED,
+    ("failed", "launched"): _NEW_TURN,
     ("failed", "waiting"): "the thread asks for an answer",
     ("failed", "stale"): _ENDS_UNWRITTEN,
     ("failed", "pr"): _PULL_OPENS,
@@ -239,14 +242,14 @@ MOVES: dict[tuple[str, str], str] = {
     ("running", "stale"): _ENDS_UNWRITTEN,
     ("running", "failed"): "the thread fails",
     ("running", "merged"): "the pull request opens and merges between two passes",
-    ("running", "launched"): _UNLISTED,
+    ("running", "launched"): _NEW_TURN,
     ("running", "gate"): _ASKED,
     ("waiting", "running"): "the request is answered and the thread works again",
     ("waiting", "left"): "the thread ends after its request with work left",
     ("waiting", "failed"): "the thread fails while it waits",
     ("waiting", "done"): "the thread ends with a clean Result after its request",
     ("waiting", "stale"): f"{_ENDS_UNWRITTEN}, after its request",
-    ("waiting", "launched"): _UNLISTED,
+    ("waiting", "launched"): _NEW_TURN,
     ("waiting", "pr"): _PULL_OPENS,
     ("waiting", "merged"): _PULL_MERGES,
     ("waiting", "gate"): _ASKED,
@@ -256,7 +259,7 @@ MOVES: dict[tuple[str, str], str] = {
     ("stale", "done"): "the thread ends with a clean Result",
     ("stale", "failed"): "the thread fails",
     ("stale", "waiting"): "the thread asks for an answer",
-    ("stale", "launched"): _UNLISTED,
+    ("stale", "launched"): _NEW_TURN,
     ("stale", "pr"): _PULL_OPENS,
     ("stale", "merged"): _PULL_MERGES,
     ("stale", "gate"): _ASKED,

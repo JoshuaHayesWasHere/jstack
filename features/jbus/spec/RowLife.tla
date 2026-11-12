@@ -155,11 +155,12 @@ ValueOf(g, t, w, p, q, l) ==
   ELSE IF Unstarted(t, p, l) /\ g = "approved" THEN "ready"
   ELSE "unknown"
 
-\* `_THREAD`, the status of a thread where the value gives none (work.py `_THREAD = {`); a missing
-\* thread is in no row of it (work.py `return _THREAD.get(facts.thread, "queued")`). A settled
-\* thread makes a launched row `stale`; the model settles no thread of a row with no launch.
+\* `_THREAD`, the status of a thread where the value gives none (work.py `_THREAD = {`), for a
+\* launched row (work.py `return _THREAD[facts.thread]`). A thread that is gone, missing or
+\* settled makes a launched row `stale`, as an ended one does, so `watch.unwritten` sends it home;
+\* the model settles no thread of a row with no launch.
 ThreadStatus(t) ==
-  CASE t \in {"none", "missing"} -> "queued"
+  CASE t \in {"none", "missing"} -> "stale"
     [] t = "settled" -> IF Fault = "settled-queued" THEN "queued" ELSE "stale"
     [] t = "starting" -> "launched"
     [] t = "atwork" -> "running"
@@ -176,8 +177,7 @@ StatusOf(v, t, w, p, q, l) ==
   ELSE IF v = "asking" THEN "gate"                    \* work.py `if value == "asking":`
   ELSE IF v = "opening" THEN "running"                \* work.py `if value == "opening":`
   ELSE IF v \in {"leftover", "closed"} THEN "left"    \* work.py `if value in ("leftover", "closed"):`
-  ELSE IF t \in {"none", "missing"} /\ l THEN "launched" \* work.py `if facts.thread in (Thread.NONE, Thread.MISSING) and facts.launch == Launch.LAUNCHED:`
-  ELSE IF t = "settled" /\ ~l THEN "queued"         \* work.py `if facts.thread == Thread.SETTLED and facts.launch == Launch.NONE:`
+  ELSE IF ~l /\ t \in {"none", "settled", "missing"} THEN "queued" \* work.py `if facts.launch == Launch.NONE and facts.thread in NO_THREAD:`
   ELSE ThreadStatus(t)
 
 \* The status derive writes over `was` (work.py `def kept(was: str, now: str) -> str:`).
@@ -209,11 +209,12 @@ Init ==
 
 \* A launch record names a thread for the row: jbus launches only an approved row, and a held
 \* row has no `approved`. A row behind one it depends on launches only stacked on that row's open
-\* pull request.
+\* pull request. Its thread is starting until T3 Code lists it: a pass reads which launched
+\* threads are gone before it launches (`watch.gone`), so a thread it just launched is not.
 Launch ==
   /\ ~launched /\ status = "queued"
   /\ go \in {"approved", "behind"}  \* dispatch.py `if not row.get("approved"):`, dispatch.py `if unmerged and on is None:`
-  /\ Derive(thread, written, pull, question, TRUE)
+  /\ Derive("starting", written, pull, question, TRUE)  \* watch.py `elif slug not in seen.gone:`
   /\ UNCHANGED go
 
 \* T3 Code says something new of the row's thread.

@@ -44,10 +44,10 @@
       12
     ],
     "transitions": 64,
-    "all": 112,
+    "all": 111,
     "flat": {
       "states": 60,
-      "transitions": 649
+      "transitions": 644
     }
   },
   "classes": [],
@@ -56,9 +56,9 @@
     "command": "statechart from-spec RowLife.tla --title 'A row'\"'\"'s life' --png",
     "inputs": {
       "RowLife.cfg": "743c72ead2628ff6ad3cf55a93b94864864c2004656a9ca5dd7a7d8c1f080c49",
-      "RowLife.map.py": "7642ab18f438f45dc89df5d249831c33d8cb4872bc9f63efed6beab79834b0e0",
-      "RowLife.tla": "6d711ede731327d5fae483bbdb04ee11f972933d65c65207b9a9a446d020f50e"
+      "RowLife.map.py": "1bb170f5165691ff37dd67647301ce75f625b119d1b853143d50bfefe9a86d50",
+      "RowLife.tla": "eaff12050d7e0f99fa4cded49d045c2977fcc13d2eab5edfc01657abdeee38a9"
     },
-    "chart": "575c2e08c62ff7a18c4ff89d64d759c92d967d538df64ab39d288b439e6b1c64"
+    "chart": "372f657f34ca867038f6b4505b61953bc71c0d6a7c7bf98afea5c8786002e57d"
   }
 }
