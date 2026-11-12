@@ -61,12 +61,11 @@ A canary that no longer breaks its rule means the rule holds without that guard,
 - A new guard: add it as a step, add a canary under `canary/` that takes it out, and add both runs to `flow_canaries.py`.
 - Change a rule's words here and in `FlowToday.tla` together, and say why in the README.
 
-## Drift at the sync commit
+## The last upkeep
 
-The design differs from the code on purpose; these are comments of the spec that no longer say what is so, for `/maintain-formal-verification-skill`.
+`/maintain-formal-verification-skill` ran at the sync commit (st-model-upkeep-run): the covered code is unchanged from it to the row's base, and the stale comments were fixed.
 
-- The header cites "FlowToday.tla's `named`", which no longer exists.
-- `CrewFix` calls a crew reading a failure over the red as its own "a step the code lacks"; #946 added it.
-- `proved` is written and no guard or rule reads it, so "merges past the red once its own check proves the fix" describes nothing.
-- `ApproveMainFix` keeps your approval of main's fix row, where jbus approves it by rule since #547.
-- `Rejudge`'s `~told` ("once a head and tip") is now the `base-merges.json` record and main's line.
+- `proved` and `told` are gone: nothing read `proved`, and `told` was never set, so `Rejudge`'s `~told` and `CrewFix`'s `told[p]` were constants.
+  The design holds over the same 425 states, and `NoGuard`, `NoRejudge` and `NoSweep` (rebuilt from it) still break their rules.
+- The header no longer cites FlowToday.tla's `named`, which fl-no-draft took out; `CrewFix` says the code has the step since #946, and wider; `Rejudge` says the code's once a head and tip and main's line are FlowToday.tla's; `ApproveMainFix` says jbus approves the row by rule since #547.
+- `MainFixWaitsOnlyOnYou` keeps its words, "waits only on your approval", while the approval is jbus's by rule: a rule's words change only on the user's word, so this is for them.
