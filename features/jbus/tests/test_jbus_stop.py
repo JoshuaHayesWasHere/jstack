@@ -402,3 +402,13 @@ def test_a_stops_file_kept_before_tells_still_parses(kitchen):
     stop.path(kitchen.state).write_text(json.dumps({"stops": [], "answers": []}))
     assert stop.load(kitchen.state) == stop.Kept()
     assert tells(kitchen, "go")[0] == 0
+
+
+def test_a_tell_to_every_scope_of_a_project_with_none_is_refused(kitchen):
+    for scope in (SCOPE, OTHER):
+        (kitchen.home / scope / "plan.md").unlink()
+        (kitchen.home / scope / "home-id").unlink()
+        (kitchen.home / scope).rmdir()
+    code, said = tells(kitchen, "go", to="every")
+    assert (code, said) == (1, "refused: demo has no scoped home for every\n")
+    assert stop.load(kitchen.state) == stop.Kept()
