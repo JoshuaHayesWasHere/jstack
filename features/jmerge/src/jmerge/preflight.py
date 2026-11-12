@@ -117,12 +117,12 @@ class Preflight:
         if not self.command or not rules:
             return "", ""
         was = self.known().get(str(one.number))
-        fresh = {"head": one.head, "rules": list(rules), "on": {}}
         same = isinstance(was, dict) and (was.get("head"), was.get("rules")) == (
             one.head,
             list(rules),
         )
-        record = was if same else fresh
+        record: dict = was if same and isinstance(was, dict) else {}
+        record |= {"head": one.head, "rules": list(rules)}
         shown = " ".join(rules)
         rows = [other for other in others if self.apart(one, other)]
         if not rows:
@@ -137,7 +137,9 @@ class Preflight:
             self.keep(one.number, record)
         if record["alone"] != PASSES:
             return "", ""
-        on: dict = record.setdefault("on", {})
+        on = record.get("on")
+        if not isinstance(on, dict):
+            on = record["on"] = {}
         for other in sorted(rows, key=lambda row: row.number):
             seen = on.get(str(other.number))
             if isinstance(seen, dict) and seen.get("head") == other.head:
