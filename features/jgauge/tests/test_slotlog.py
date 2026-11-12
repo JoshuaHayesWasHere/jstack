@@ -252,13 +252,39 @@ def test_with_no_cgroup_a_release_counts_a_detached_child_that_carries_the_take(
     assert release["cpu_user"] + release["cpu_system"] >= 0.25 - 2 / os.sysconf("SC_CLK_TCK")
 
 
+def a_cgroup_tree(tmp_path, monkeypatch):
+    """A stand-in for `/sys/fs/cgroup` that has the holder's own cgroup, so a take makes its
+    cgroup there whatever the machine's cgroups allow; returns the holder's cgroup."""
+    (line,) = (slotlog.PROCS / "self" / "cgroup").read_text().splitlines()
+    home = tmp_path / "cgroups" / line.removeprefix("0::/").strip("/")
+    home.mkdir(parents=True)
+    monkeypatch.setattr(slotlog, "CGROUPS", tmp_path / "cgroups")
+    return home
+
+
+def test_a_release_records_the_cgroup_s_cpu_and_the_processes_left(tmp_path, monkeypatch):
+    """The release's CPU is the take's cgroup's `cpu.stat`, `left` counts the processes still in
+    it after the drain, and a take clears the cgroup an earlier take left behind."""
+    home = a_cgroup_tree(tmp_path, monkeypatch)
+    (home / f"{slotlog.PREFIX}stale").mkdir()
+    monkeypatch.setattr(slotlog, "DRAIN_SECONDS", 0.1)
+    log = slotlog.path(tmp_path / "locks")
+
+    taken = slotlog.take(log, "short", 1, 3, "", ["sh"], 0)
+    (own,) = home.glob(f"{slotlog.PREFIX}*")
+    (own / "cgroup.procs").write_text(f"{os.getpid()}\n1\n")
+    (own / "cpu.stat").write_text("usage_usec 2000000\nuser_usec 1500000\nsystem_usec 500000\n")
+    slotlog.release(taken, 0)
+
+    _take, release = rows(log)
+    assert (release["cpu_user"], release["cpu_system"], release["left"]) == (1.5, 0.5, 1)
+    assert own.name != f"{slotlog.PREFIX}stale"
+
+
 def test_a_release_whose_cgroup_cannot_be_read_writes_its_row_with_no_cpu(tmp_path, monkeypatch):
     """A take's cgroup gone under it (here, one with no `cpu.stat`) costs the row its CPU, and
     the release still writes the row and returns, so the run keeps its exit code."""
-    cgroups = tmp_path / "cgroups"
-    (line,) = (slotlog.PROCS / "self" / "cgroup").read_text().splitlines()
-    (cgroups / line.removeprefix("0::/").strip("/")).mkdir(parents=True)
-    monkeypatch.setattr(slotlog, "CGROUPS", cgroups)
+    a_cgroup_tree(tmp_path, monkeypatch)
     log = slotlog.path(tmp_path / "locks")
 
     slotlog.release(slotlog.take(log, "short", 1, 3, "", ["sh"], 0), 3)
