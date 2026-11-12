@@ -6,7 +6,7 @@
 # A crew's proof, review round and rebase of features/crew/spec/CrewProof.tla. Variables: finding,
 # declines, scoped, proved, checked, dropped, crewCheck, proofFiles, outcome, before, preRef,
 # failed, steps, sides, head, dirty, origin, rebased, lost, conflict, result, repo, kind, pc, bg,
-# call, sections, saw, meets, reviewer, out, kept, twice, runs.
+# call, sections, saw, meets, reviewer, out, kept, twice, mark, runs.
 #
 # Each state reads "<the proof on the brief at the head>: <where the round stands>", so the
 # overview may draw two regions. The labels keep apart what a reader of the brief and the git
@@ -78,6 +78,8 @@ def round_(v):
         return "the pull request is in conflict"
     if v["out"] == "first":
         return "the review runs"
+    if v["pc"] == "marked":
+        return "the scoped launch is marked, no reviewer launched yet"
     if v["out"] == "scoped" or v["pc"] == "launching":
         twice = ", a second reviewer for the same round" if v["twice"] else ""
         return "the scoped review runs" + twice
@@ -174,6 +176,7 @@ STEPS = {
     "ReviewerStops": "the head moved: the scoped reviewer stops",
     "Answer": "the crew answers the finding",
     "SecondPass": "the crew runs the second pass",
+    "Launch": "the crew launches the scoped reviewer",
     "ReviewerLine": "the crew writes the Scoped reviewer line",
     "Conflict": "GitHub says the pull request is in conflict",
     "RebaseKeep": "the head is kept under pre-rebase",
@@ -193,7 +196,11 @@ def step(action, before, after):
             return "the second pass writes that none is"
         if after["reviewer"]["line"] == "none":
             return "no launch tool: the home is told"
-        return "the crew launches the scoped reviewer"
+        if after["reviewer"] != before["reviewer"]:
+            return "the mark names this head: the crew finds its reviewer and writes its line"
+        if after["mark"] == before["mark"]:
+            return "the mark names this head: the crew finds no reviewer for it"
+        return "the crew marks the scoped launch in the git dir"
     if action == "ReviewerWrites" and after["declines"] != before["declines"]:
         return f"the scoped review writes its review, the decline {after['declines']}"
     if action == "CheckEnd" and after["checked"] != before["checked"]:

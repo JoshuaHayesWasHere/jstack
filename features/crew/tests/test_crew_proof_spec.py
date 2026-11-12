@@ -135,7 +135,7 @@ def test_tlc_breaks_the_rebase_record_on_todays_code_with_the_trace_the_cfg_keep
 
 
 @JAVA
-@pytest.mark.parametrize("rule", ["RecordGoes", "OneScopedReviewer"])
+@pytest.mark.parametrize("rule", ["RecordGoes"])
 def test_each_rule_the_code_breaks_breaks_with_the_trace_the_cfg_keeps(rule):
     ran = tlc(alone([rule]))
     assert f"Invariant {rule} is violated" in ran.stdout, ran.stdout[-4000:]
@@ -159,11 +159,15 @@ def test_a_check_step_kept_only_at_its_clean_head_holds_checked_at_head_in_the_b
 
 
 @JAVA
-def test_the_review_and_the_rebase_record_hold_over_every_state():
-    ran = tlc(alone(["ReviewHeld", "RecordKept"]))
+def test_the_review_one_scoped_reviewer_and_the_rebase_record_hold_over_every_state():
+    """The crew marks a scoped launch in the git dir before it launches, so a block killed
+    between the launch and its `Scoped reviewer:` line launches no second reviewer."""
+    ran = tlc(alone(["ReviewHeld", "OneScopedReviewer", "RecordKept"]))
     assert ran.returncode == 0, ran.stdout[-4000:]
     assert "No error has been found" in ran.stdout
-    assert f"{states(ran.stdout)} distinct states" == kept("holds ReviewHeld RecordKept:")
+    assert f"{states(ran.stdout)} distinct states" == kept(
+        "holds ReviewHeld OneScopedReviewer RecordKept:"
+    )
 
 
 @JAVA
