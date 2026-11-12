@@ -39,9 +39,9 @@ name = "HomeTreeToday"
 thing = "A tree of homes"
 question = "When a child home stalls or retires, does what it had out still reach you?"
 
-# jbus acts once on each step above (a message, a body, a rerun, a line), so these three charts
-# have no hand-off of their own: TellOnce draws the acts that tell a thread, TellOnceOther the
-# others, and TellOnceOwed the ask owed after a limit.
+# jbus acts once on each step above (a message, a body, a rerun, a line): TellOnce draws the acts
+# that tell a thread, TellOnceOther the others, and TellOnceOwed the ask owed after a limit, each
+# entered by a hand-off from the step that starts its acts.
 [[chart]]
 name = "TellOnce"
 thing = "A thing jbus does once"
@@ -181,6 +181,21 @@ says = "With GitHub's budget at its floor, the pass asks GitHub nothing more: it
 from = "HomeTreeToday: No pull request yet"
 to = "OneList: Open in gates.md"
 says = "A home acts on its default at a gate and writes it in its gates.md, and the gate reaches your list."
+
+[[handoff]]
+from = "ThreadLife: Out"
+to = "TellOnce: Not told: nothing marked"
+says = "jbus tells the crew's thread what waits on it, once, through the outbox."
+
+[[handoff]]
+from = "PrVerdict: Waits on jmerge, GitHub or a check"
+to = "TellOnceOther: Not told: nothing marked"
+says = "While the pull request waits, jbus posts a body, runs a check again or appends a line, once."
+
+[[handoff]]
+from = "ThreadLife: Out"
+to = "TellOnceOwed: Not told: the ask owed or not yet due"
+says = "The crew's turn stops on a usage limit, and jbus owes it an ask to carry on."
 
 [[uncharted]]
 model = "home/spec/HomeTree.tla"
