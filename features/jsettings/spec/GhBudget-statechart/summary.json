@@ -3,7 +3,11 @@
   "modelStates": 283263,
   "modelTransitions": 686838,
   "chartStates": 24,
-  "chartTransitions": 29,
+  "chartTransitions": 38,
+  "allTransitions": 66,
+  "final": [
+    "The API budget spent"
+  ],
   "chartStatus": {
     "works": 18,
     "fixed": 0,
@@ -38,7 +42,7 @@
       3,
       21
     ],
-    "transitions": 29,
+    "transitions": 38,
     "all": 66,
     "flat": {
       "states": 30,
@@ -77,6 +81,6 @@
       "GhBudget.map.py": "4abe3c0ee1570f4d42c3e022423877ee18b56db2acd755663c8255d27ed012e8",
       "GhBudget.tla": "b3deb91d803c94d1d2c0ab121309c8654284bb7fd0f2a639c145e3f957643da7"
     },
-    "chart": "f4a780bb49985790d9a29b80b3b33cb670b3e07c0faca33c6479d59ea2dcbfee"
+    "chart": "6afe2cebfbbc597498b1492e1b79d2af6ef9429c88482ea88916e95837c4ff73"
   }
 }

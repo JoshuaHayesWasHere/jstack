@@ -89,9 +89,20 @@ stateDiagram-v2
     r1s9 --> r1s15 : a pass reads the budget above<br/>the floor and goes on
     r1s9 --> r1s15 : another pass's answer is<br/>there, and the pass takes it
     r1s9 --> r1s15 : the pass asks the API what is<br/>left and keeps the answer
+    r1s10 --> r1s16 : a pass reads the budget above<br/>the floor and goes on
+    r1s11 --> r1s17 : a pass reads the budget above<br/>the floor and goes on
+    r1s12 --> r1s18 : a pass reads the budget above<br/>the floor and goes on [when<br/>The API budget at the floor]
+    %% when r0s1
+    r1s13 --> r1s19 : a pass reads the budget above<br/>the floor and goes on
+    r1s14 --> r1s20 : a pass reads the budget above<br/>the floor and goes on
     r1s15 --> r1s4 : a pass starts a gh call in a<br/>free slot
     r1s15 --> r1s9 : the pass reads the budget at<br/>the floor, or the API gives no<br/>answer, and it holds
+    r1s16 --> r1s10 : a pass reads the budget at the<br/>floor and holds
+    r1s17 --> r1s6 : a pass starts a gh call in a<br/>free slot
     r1s18 --> r1s12 : a pass reads the budget at the<br/>floor and holds
+    r1s19 --> r1s13 : a pass reads the budget at the<br/>floor and holds [when The API<br/>budget at the floor]
+    %% when r0s1
+    r1s20 --> r1s14 : a pass reads the budget at the<br/>floor and holds
   }
   class r0s0 group0
   class r0s1 plain
