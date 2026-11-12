@@ -1,0 +1,2 @@
+{"at": "2026-11-12T00:00:05+00:00", "capped": {}, "instances": ["claudeAgent", "claudeAgent_claude_prime"], "reader": "pass"}
+{"at": "2026-11-12T04:49:11+00:00", "capped": {"claudeAgent": "2026-11-15T20:00:00+00:00"}, "instances": ["claudeAgent", "claudeAgent_claude_prime"], "reader": "pass"}
