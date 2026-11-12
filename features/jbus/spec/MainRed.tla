@@ -35,7 +35,10 @@ Makers == {"start", "outside", "revert", "fix"} \cup Rows
 \*   one rerun runs, then "failed" or "green".
 \* rec: main.json as mainmoved.tell writes it: the red tip `broken` (0 for none), the last green
 \*   one and the tests that failed at the red tip.
-\* reds: main-reds.jsonl (mainmoved.REDS), one line for each red tip, in the order tell wrote them.
+\* reds: main-reds.jsonl (mainmoved.REDS), its verdict lines: one for each red tip, in the order tell
+\*   wrote them, each with the green tip it came after (`after`), whose spell it opens or joins.
+\* closing: the same file's closing lines, in order, each by the first red tip of the spell a
+\*   green tip ended (mainmoved.close).
 \* merged: the rows and the outside push that have merged.
 \* reverts: reverts.json, the revert jbus opened for each red commit: the row it reverts, its pull
 \*   request's state, "open", "stuck" (open, but its check failed or it conflicts), "closed" or
@@ -47,14 +50,18 @@ Makers == {"start", "outside", "revert", "fix"} \cup Rows
 \* mac[i]: main's macOS run at commit i, its one rerun folded in: "pending", then "failed" or
 \*   "green". The Mac sees breaks main's check does not, so either may end it at any commit.
 \* log: each commit jbus opened a revert of, in the order it opened them, main's or the Mac's.
-VARIABLES by, broken, check, rec, reds, merged, reverts, fixes, fresh, mac, log
-vars == <<by, broken, check, rec, reds, merged, reverts, fixes, fresh, mac, log>>
+VARIABLES by, broken, check, rec, reds, closing, merged, reverts, fixes, fresh, mac, log
+vars == <<by, broken, check, rec, reds, closing, merged, reverts, fixes, fresh, mac, log>>
 
 Checks == {"main", "mac"}
 
 Tip == Len(by)
 Max(s) == CHOOSE x \in s : \A y \in s : y <= x
 Range(q) == {q[i] : i \in DOMAIN q}
+\* The tips main-reds.jsonl's verdict lines name, and the lines of the spell since green tip g, the
+\* first first (jbus/mainmoved.py `return [one for one in lines if "verdict" in one and "after" in one and one["after"] == green]`).
+Judged(q) == {q[i].tip : i \in DOMAIN q}
+Spell(q, g) == SelectSeq(q, LAMBDA l : l.after = g)
 
 \* The tests that fail at commit i: one for each break there, and a flake's where there is none.
 Tests(i) == IF broken[i] = {} THEN {"flake"} ELSE broken[i]
@@ -67,7 +74,8 @@ TypeOK ==
     /\ \A i \in 1..Tip : by[i] \in Makers /\ broken[i] \subseteq Breaks
     /\ \A i \in 1..Tip : check[i] \in {"pending", "failed1", "rerun", "failed", "green"}
     /\ rec.broken \in 0..Tip /\ rec.green \in 1..Tip
-    /\ Range(reds) \subseteq 1..Tip
+    /\ \A i \in DOMAIN reds : reds[i].tip \in 1..Tip /\ reds[i].after \in 1..Tip
+    /\ Range(closing) \subseteq 1..Tip
     /\ merged \subseteq Breaks
     /\ \A k \in DOMAIN reverts : reverts[k].st \in {"open", "stuck", "closed", "merged"}
     /\ \A k \in DOMAIN reverts : reverts[k].holders \subseteq Checks /\ reverts[k].holders # {}
@@ -82,6 +90,7 @@ Init ==
     /\ check = <<"green">>
     /\ rec = [broken |-> 0, green |-> 1, failed |-> {}]
     /\ reds = <<>>
+    /\ closing = <<>>
     /\ merged = {}
     /\ reverts = [k \in {} |-> {}]
     /\ fixes = [f \in {} |-> {}]
@@ -106,14 +115,14 @@ Merge(r) ==
     /\ \E breaks \in BOOLEAN :
         Lands(r, IF breaks THEN broken[Tip] \cup {r} ELSE broken[Tip])
     /\ merged' = merged \cup {r}
-    /\ UNCHANGED <<rec, reds, reverts, fixes, log>>
+    /\ UNCHANGED <<rec, reds, closing, reverts, fixes, log>>
 
 \* Something no brief owns lands and breaks main: a merge by hand, or a push.
 Outside ==
     /\ "outside" \notin merged
     /\ Lands("outside", broken[Tip] \cup {"outside"})
     /\ merged' = merged \cup {"outside"}
-    /\ UNCHANGED <<rec, reds, reverts, fixes, log>>
+    /\ UNCHANGED <<rec, reds, closing, reverts, fixes, log>>
 
 \* How a run at commit i may end: failed where the code there is broken, and failed by a flake or
 \* green where it is not.
@@ -126,7 +135,7 @@ CheckEnds(i) ==
     /\ check[i] = "pending"
     /\ check' \in {[check EXCEPT ![i] = ends] : ends \in Ends(i, "failed1")}
     /\ fresh' = FALSE
-    /\ UNCHANGED <<by, broken, rec, reds, merged, reverts, fixes, mac, log>>
+    /\ UNCHANGED <<by, broken, rec, reds, closing, merged, reverts, fixes, mac, log>>
 
 \* jbus's one rerun of a failed run ends: jbus/watch.py `A run at a later attempt, rerun by jbus or by
 \* hand, is never rerun again: its failure is the commit's.` It fails again where the code is
@@ -136,7 +145,7 @@ RerunEnds(i) ==
     /\ check[i] = "rerun"
     /\ check' \in {[check EXCEPT ![i] = ends] : ends \in Ends(i, "failed")}
     /\ fresh' = FALSE
-    /\ UNCHANGED <<by, broken, rec, reds, merged, reverts, fixes, mac, log>>
+    /\ UNCHANGED <<by, broken, rec, reds, closing, merged, reverts, fixes, mac, log>>
 
 \* Someone reruns the red tip's failed run by hand, and it passes, as only a run that failed twice
 \* by chance can. tell asks the red tip again (jbus/mainmoved.py `check = main_check(run, tip,
@@ -148,7 +157,7 @@ HandRerun ==
     /\ broken[rec.broken] = {}                      \* jbus/mainmoved.py `if again and known.get(sha) in ("failed", NO_JOB):`
     /\ check' = [check EXCEPT ![rec.broken] = "green"]
     /\ fresh' = FALSE
-    /\ UNCHANGED <<by, broken, rec, reds, merged, reverts, fixes, mac, log>>
+    /\ UNCHANGED <<by, broken, rec, reds, closing, merged, reverts, fixes, mac, log>>
 
 \* main's macOS run at a commit ends, its one rerun with it (jbus/watch.py `if first and
 \* _rerun_failed(run, first, ask=True):`): at a row's merge it fails or passes, whatever main's
@@ -159,7 +168,7 @@ MacEnds(i) ==
     /\ mac[i] = "pending"                           \* jbus/watch.py `if runs is None or any(r.get("status") != "completed" for r in runs):`
     /\ \E ends \in IF by[i] \in Rows THEN {"failed", "green"} ELSE {"green"} : mac' = [mac EXCEPT ![i] = ends]
     /\ fresh' = FALSE
-    /\ UNCHANGED <<by, broken, check, rec, reds, merged, reverts, fixes, log>>
+    /\ UNCHANGED <<by, broken, check, rec, reds, closing, merged, reverts, fixes, log>>
 
 \* `chk`, red over the commits `ks` that hold jbus's reverts, reads the newest of them as its own
 \* and becomes one of its holders, unless it holds one of them already (jbus/reverts.py `if
@@ -298,8 +307,17 @@ Pass ==
     IN
     /\ check' = seen
     /\ rec' = [broken |-> red, green |-> green, failed |-> IF red = 0 THEN {} ELSE Tests(red)]
-    \* jbus/mainmoved.py `if tip not in judged and (read := failed_at(run, tip)) is not None:`
-    /\ reds' = IF red # 0 /\ red \notin Range(reds) THEN Append(reds, red) ELSE reds
+    \* jbus/mainmoved.py `if tip not in judged and (read := failed_at(run, tip)) is not None:`,
+    \* where judged is every line's sha, a closing line's too
+    /\ reds' = IF red # 0 /\ red \notin Judged(reds) \cup Range(closing)
+               THEN Append(reds, [tip |-> red, after |-> green]) ELSE reds
+    \* A green tip past the last green closes the spell since that one, once: jbus/mainmoved.py
+    \* `if check == "green" and tip != under:` and
+    \* `if not opened or any("cause" in one and one.get("sha") == opened[0]["sha"] for one in lines):`
+    /\ closing' =
+        LET opened == Spell(reds, rec.green) IN
+        IF green # rec.green /\ opened # <<>> /\ opened[1].tip \notin Range(closing)
+        THEN Append(closing, opened[1].tip) ELSE closing
     \* close comes after judge, which acts only on a red tip, and closes each revert still open
     \* once each of its holders passed at its red or later: main's check at a green at or above
     \* it, even while a newer tip is red, and the Mac at a later green (jbus/reverts.py `if not
@@ -324,7 +342,7 @@ Pass ==
     /\ fresh' = TRUE
     /\ UNCHANGED <<by, broken, merged, mac>>
     \* A pass that finds nothing new changes nothing, and is no step.
-    /\ ~fresh \/ <<check', rec', reds', reverts', fixes'>> # <<check, rec, reds, reverts, fixes>>
+    /\ ~fresh \/ <<check', rec', reds', closing', reverts', fixes'>> # <<check, rec, reds, closing, reverts, fixes>>
 
 \* jbus's pass approves main's fix row by rule and launches its crew.
 FixLaunches(f) ==
@@ -332,7 +350,7 @@ FixLaunches(f) ==
     /\ fixes[f].st = "queued"
     /\ fixes' = [fixes EXCEPT ![f].st = "launched"]
     /\ fresh' = FALSE
-    /\ UNCHANGED <<by, broken, check, rec, reds, merged, reverts, mac, log>>
+    /\ UNCHANGED <<by, broken, check, rec, reds, closing, merged, reverts, mac, log>>
 
 \* The fix row's crew puts the fix in a pull request (jbus/watch.py `- the fix is in a pull request of
 \* its own, or in another open pull request only where that`).
@@ -341,7 +359,7 @@ FixOpens(f) ==
     /\ fixes[f].st = "launched"
     /\ fixes' = [fixes EXCEPT ![f].st = "pr"]
     /\ fresh' = FALSE
-    /\ UNCHANGED <<by, broken, check, rec, reds, merged, reverts, mac, log>>
+    /\ UNCHANGED <<by, broken, check, rec, reds, closing, merged, reverts, mac, log>>
 
 \* The fix merges, and takes out the breaks behind the tests its row names.
 FixMerges(f) ==
@@ -349,7 +367,7 @@ FixMerges(f) ==
     /\ fixes[f].st = "pr"
     /\ Lands("fix", broken[Tip] \ fixes[f].tests)
     /\ fixes' = [fixes EXCEPT ![f].st = "merged"]
-    /\ UNCHANGED <<rec, reds, merged, reverts, log>>
+    /\ UNCHANGED <<rec, reds, closing, merged, reverts, log>>
 
 \* jmerge merges jbus's revert by the normal path, with no review, and it takes its culprit's
 \* break out of main.
@@ -358,7 +376,7 @@ RevertMerges(k) ==
     /\ reverts[k].st = "open"
     /\ Lands("revert", broken[Tip] \ {reverts[k].row})
     /\ reverts' = [reverts EXCEPT ![k].st = "merged"]
-    /\ UNCHANGED <<rec, reds, merged, fixes, log>>
+    /\ UNCHANGED <<rec, reds, closing, merged, fixes, log>>
 
 \* The revert stops on its way: its check fails or it conflicts with main ("stuck"), or someone
 \* closes it unmerged ("closed").
@@ -367,7 +385,7 @@ RevertStalls(k) ==
     /\ reverts[k].st = "open"
     /\ \E st \in {"stuck", "closed"} : reverts' = [reverts EXCEPT ![k].st = st]
     /\ fresh' = FALSE
-    /\ UNCHANGED <<by, broken, check, rec, reds, merged, fixes, mac, log>>
+    /\ UNCHANGED <<by, broken, check, rec, reds, closing, merged, fixes, mac, log>>
 
 \* Each step ranges over a constant set, so TLC names it after its action and not after Next.
 Next ==
@@ -424,8 +442,10 @@ NoStuckRed ==
 \* S3, the red tip's own tests: the tests main.json keeps beside the red tip failed there.
 RedTipsOwnTests == rec.broken # 0 => rec.failed = Tests(rec.broken)
 
-\* S4, each red judged once: main-reds.jsonl names no tip twice, and names the red tip.
+\* S4, each red judged once: main-reds.jsonl's verdict lines name no tip twice and name the red
+\* tip, and its closing lines close no spell twice, each one of a tip a verdict line names.
 EachRedJudgedOnce ==
-    /\ Len(reds) = Cardinality(Range(reds))
-    /\ fresh /\ rec.broken # 0 => rec.broken \in Range(reds)
+    /\ Len(reds) = Cardinality(Judged(reds))
+    /\ Len(closing) = Cardinality(Range(closing)) /\ Range(closing) \subseteq Judged(reds)
+    /\ fresh /\ rec.broken # 0 => rec.broken \in Judged(reds)
 ====
