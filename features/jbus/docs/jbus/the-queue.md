@@ -324,6 +324,7 @@ The row's `approval` field records the approval:
 The view's row says the same line.
 A row approved by rule prints `the follow-up rule, follow-up of <parent>; run <ran_at> by <who>; you did not speak of this row`, and the view's row says the same and carries a `by rule` mark.
 A row approved on a standing word prints `your standing word <id> for follow-ups, <said_at>, in <said_in>, follow-up of <parent>; run <ran_at> by <who>; you did not speak of this row`, and its mark is `by rule standing word <id>`.
+A row approved on the root's go of its entry prints `the root's go for the plan entry <entry>, on your standing word <id> for goes, <said_at>, in <said_in>; run <ran_at> by <who>`, and its record keeps `standing word <id>` as `ground` and your message of the word as `message` ([The plan](the-plan.md#the-roots-go-of-an-entry)).
 `jbus queue hold <parent>` takes back the parent's go and the go of each of its queued follow-ups.
 It prints their slugs on a line above the table, `held <parent>, and <slugs> with it: a follow-up approved by rule has no go without its parent's`.
 `jbus queue remove` of a parent that did not merge does the same.

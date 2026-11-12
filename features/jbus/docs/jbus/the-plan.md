@@ -7,6 +7,7 @@ jbus plan
 jbus plan --scope <scope>
 jbus plan close <entry>
 jbus plan go <entry> --message <thread>/<message>
+jbus plan go <entry> --standing --from <root id>
 jbus plan stop <entry>
 ```
 
@@ -52,4 +53,20 @@ The go stops holding when the entry's heading or `Done when:` lines change, when
 A row that has not launched then waits for your go, and one that launched goes on.
 The entry's line then ends `| go stopped <time> by <who>` or `| go void: <why>`.
 `jbus plan stop <entry>` is `refused: <entry> has no go to stop` for an entry with none.
+
+## The root's go of an entry
+
+Once you tell the root it may give the goes itself, the root makes that word stand for goes, `jbus standing --to <project> --word <id> --covers goes` ([A standing word for goes](your-word-to-a-home.md#a-standing-word-for-goes)).
+From then the root gives an entry its go with `jbus plan go <entry> --standing --from <root id>`, where it would otherwise ask you.
+The go is kept as yours is, bound to the entry's head, with the word's id as `word`, the root's thread as `given_by`, and your message of the word as its `ref`.
+It prints `went <entry>: the root's go for the plan entry <entry>, on your standing word <id> for goes, <time>, in <where>`, and each row it approves reads `the root's go for the plan entry <entry>, on your standing word <id> for goes, <time>, in <where>; run <time> by <who>`, which `jbus queue verify <row>` prints as its `approved`.
+
+It is refused:
+
+- from any thread but the root home's: `refused: --from <thread> is not the root home's thread, and only the root gives a go on a standing word`;
+- with no standing word for goes: `refused: the root holds no standing word for goes: the user's own message makes one, jbus standing --to <project> --word <id> --covers goes`;
+- for an entry with a row not yet over whose brief holds for a door: `refused: <entry> has a row whose brief holds for a door, <slug> (<case>): its go is the user's, jbus plan go <entry> --message <thread>/<message>`.
+
+A row queued later whose brief holds for a door waits for your own word under the root's go too.
+The root's go ends as yours does, and also when you withdraw the word: each of its rows that has not launched waits for you again, and the entry's line ends `| go void: the root's standing word <id> for goes was withdrawn`.
 
