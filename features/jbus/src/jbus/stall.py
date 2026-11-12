@@ -52,7 +52,9 @@ none goes out at a third head. The row's `why` says `check failed twice` while i
 pass that sees every required check passed at the head, `twice` lifts its own hold and puts back the
 go it took (`lifted`, `queue.lift`), where the row's brief is still the one that go was for; a row
 held again since, by anyone, or whose brief changed since, stays held until an approve. Either way
-the count starts again from none.
+the count starts again from none. A counted head, of a held row or not, whose every required check
+then passes at that same head, as on a rerun, leaves the count: its red was not the row's to keep
+(#1708, 2026-11-11).
 
 `hung` also keeps `stalls.jsonl`, how long each running row's thread was quiet or hung (`spells`):
 the stall minutes the telemetry store reads (`jbus.telemetry.views.weekly_stall`).
@@ -558,6 +560,11 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         moved, last = list(one.get("moved") or ()), dict(one.get("last") or {})
         kept[slug] = {**one, "heads": heads, "red": on_red, "shared": flakes, "infra": infras}
         kept[slug]["moved"] = moved
+        if head in heads and not ready.waiting(pull.get("statusCheckRollup") or [], required):
+            del heads[head]
+            kept[slug]["last"] = {"head": head, "failed": []}
+            run.say(f"uncounted {slug}: every required check passed at {head[:12]} on a rerun")
+            continue
         if row.get("held") or any(head in seen for seen in (heads, on_red, flakes, infras)):
             continue
         if head in moved:
