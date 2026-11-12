@@ -75,12 +75,12 @@
     "a pass that cannot ask GitHub"
   ],
   "drawnFrom": {
-    "command": "statechart from-spec OneList.tla --config OneList.chart.cfg --expect-broken AnsweredLeaves,ListIsTrue --png",
+    "command": "statechart from-spec OneList.tla --config OneList.chart.cfg --title 'Does a gate reach my list, and leave it once I answer?' --expect-broken AnsweredLeaves,ListIsTrue --png",
     "inputs": {
       "OneList.chart.cfg": "6298662483d005cc078ade9d2c441114b07b0808368ccb1b290802611455e8cb",
       "OneList.map.py": "dd8a4233af90a287899d3968869ce8b02089fc610f4db3fce2a03e202a8c2c79",
       "OneList.tla": "7e52bffa1443ab9c5dbbb2b26a85ecc6ec3bb4b6f328457bcaee1c248f796138"
     },
-    "chart": "ac7d962b780b69645074af46e88140100c4d6337e0733b1db883019a7237e3fb"
+    "chart": "089f02c6e43fd028410b732414e7ed21ce1ecc7c0934754036a27f0f94beeee2"
   }
 }
