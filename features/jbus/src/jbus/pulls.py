@@ -31,12 +31,14 @@ and one `git ls-remote`, and a pass pays them once: the pass keeps the `Open` a 
 silent GitHub, or a `jmerge` run still going). `jbus.merge` hands `jmerge` the kept answer's path
 and the pass's stamp (`Open.at`), and `jmerge` takes its list and default branch from it only
 where the stamp is this pass's.
+The heads' calls are asked at once, at most `proc.GH_CAP` at a time.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
+from concurrent import futures
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -44,6 +46,7 @@ from typing import TYPE_CHECKING, Any
 
 from jbus import conditional, read_json, write_json
 from jmerge.cli import LIST
+from jsettings import proc
 
 if TYPE_CHECKING:
     from jbus.passes import Pass
@@ -162,9 +165,11 @@ def probe(run: Pass) -> Probe:
         return Probe(None, *_tips(run, ()), [], {})
     opened = [[number, head, sha, base] for number, _, _, head, sha, base, _, _ in pulls]
     default, tips = _tips(run, sorted({pull[5] for pull in pulls}))
+    shas = sorted({pull[4] for pull in pulls})
+    answers = _gather(run, [path for head in shas for path in (RUNS % head, STATUS % head)])
     checks, said = {}, {}
-    for head in sorted({pull[4] for pull in pulls}):
-        runs, statuses = conditional.read(run, RUNS % head), conditional.read(run, STATUS % head)
+    for head in shas:
+        runs, statuses = answers[RUNS % head], answers[STATUS % head]
         try:
             checks[head] = [
                 sorted(
@@ -188,6 +193,17 @@ def probe(run: Pass) -> Probe:
         return Probe(None, default, tips, opened, said)
     digest = json.dumps([pulls, default, tips, checks], sort_keys=True, default=str)
     return Probe(hashlib.sha256(digest.encode()).hexdigest(), default, tips, opened, said)
+
+
+def _gather(run: Pass, paths: list[str]) -> dict[str, Any]:
+    """Each of `paths` as `conditional.read` answers it, asked at once, at most `proc.GH_CAP` at a
+    time: the reads wait on GitHub, so a probe over many heads waits a few reads, not two a
+    head. Each read writes its own path's file, so the reads keep apart."""
+    if not paths:
+        return {}
+    with futures.ThreadPoolExecutor(max_workers=min(proc.GH_CAP, len(paths))) as pool:
+        read = pool.map(lambda path: conditional.read(run, path), paths)
+        return dict(zip(paths, read, strict=True))
 
 
 def heads(pulls: list[dict[str, Any]]) -> list[list[Any]]:
