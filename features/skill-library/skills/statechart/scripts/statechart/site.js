@@ -380,6 +380,57 @@
     if (box && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); show(box.dataset.chart); }
   });
 
+  // The tables of every state and arrow: the filter keeps the rows that hold its words, and a tap
+  // on a row lights what it is drawn as, or, for an arrow the chart does not draw, its two states.
+  function lightRow(row) {
+    const v = view(current);
+    const ids = row.dataset.light.split(" ").filter(Boolean);
+    const arrows = row.dataset.edges.split(" ").filter(Boolean).map((a) => a.split(">"));
+    clear();
+    v.panel.querySelectorAll("tr.lit").forEach((r) => r.classList.remove("lit"));
+    row.classList.add("lit");
+    v.svg.classList.add("focus");
+    const els = ids.map(stateEl).filter(Boolean);
+    els.forEach((el) => el.classList.add("near"));
+    let drawn = 0;
+    v.svg.querySelectorAll(".edge").forEach((p) => {
+      if (arrows.some(([a, b]) => p.dataset.from === a && p.dataset.to === b)) { p.classList.add("near"); drawn += 1; }
+    });
+    if (els.length) fitTo(v, els);
+    const cells = [...row.cells].map((c) => c.textContent);
+    const isArrow = row.closest("table").classList.contains("map-arrows");
+    body.innerHTML = isArrow
+      ? `<p class="kicker">an arrow of the model${drawn ? "" : ", not drawn"}</p><h3>${esc(cells[0])} &rarr; ${esc(cells[1])}</h3>` +
+        `<p>${esc(cells[2])}</p><p class="quiet">Action <code>${esc(cells[3])}</code>. ${drawn ? "Lit in the chart." : "The chart does not draw this arrow: its two states are lit."}</p>`
+      : `<p class="kicker">a state of the model${els.length ? "" : ", not drawn"}</p><h3>${esc(cells[0])}</h3>` +
+        (els.length ? `<ul><li><button class="step" data-go="${esc(ids[0])}"><span class="to">Read it in the chart</span></button></li></ul>` : '<p class="quiet">Only the other bounds reach it, so the chart does not draw it.</p>');
+    detail.classList.add("open");
+    v.panel.querySelector(".stage").scrollIntoView({ block: "nearest" });
+  }
+  document.querySelectorAll(".chart-panel .tables").forEach((box) => {
+    const rows = [...box.querySelectorAll("tbody tr")];
+    const count = box.querySelector(".table-count");
+    const filter = box.querySelector(".table-filter");
+    filter.addEventListener("input", () => {
+      const q = filter.value.trim().toLowerCase();
+      let shown = 0;
+      for (const r of rows) {
+        const hit = !q || r.textContent.toLowerCase().includes(q);
+        r.hidden = !hit;
+        if (hit) shown += 1;
+      }
+      count.textContent = q ? `${shown} of ${rows.length} rows hold "${filter.value.trim()}"` : "";
+    });
+    box.addEventListener("click", (e) => {
+      const row = e.target.closest("tbody tr");
+      if (row) lightRow(row);
+    });
+    box.addEventListener("keydown", (e) => {
+      const row = e.target.closest && e.target.closest("tbody tr");
+      if (row && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); lightRow(row); }
+    });
+  });
+
   // Finding a state by its words.
   function find() {
     if (!current) return null;

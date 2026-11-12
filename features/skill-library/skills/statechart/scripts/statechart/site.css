@@ -130,6 +130,20 @@ svg.focus .edge.near.in { stroke: var(--hot); }
 svg .st.picked rect { stroke: var(--accent); stroke-width: 3.2; }
 svg .st.found rect { stroke: var(--hot); stroke-width: 3.2; }
 
+.tables { margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 10px 14px; }
+.tables summary { cursor: pointer; font-weight: 650; }
+.tables h3 { margin: 14px 0 6px; font-size: 0.95rem; }
+.tables .table-filter { font: inherit; padding: 6px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); width: 22rem; max-width: 100%; }
+.tables .table-count { margin: 4px 0 0; font-size: 0.84rem; min-height: 1em; }
+.table-wrap { max-height: 60vh; overflow: auto; border: 1px solid var(--line); border-radius: 8px; }
+table.map { border-collapse: collapse; width: 100%; font-size: 0.82rem; }
+table.map th { position: sticky; top: 0; background: var(--panel); text-align: left; font-weight: 650; padding: 5px 8px; border-bottom: 1px solid var(--line); }
+table.map td { padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.map td.n { text-align: right; font-variant-numeric: tabular-nums; }
+table.map tbody tr { cursor: pointer; outline: none; }
+table.map tbody tr:hover, table.map tbody tr:focus-visible { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+table.map tbody tr.lit { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+
 .stories { margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel); padding: 10px 14px; }
 .stories summary { cursor: pointer; font-weight: 650; }
 .stories pre { overflow-x: auto; background: var(--bg); padding: 8px; border-radius: 8px; }

@@ -37,7 +37,8 @@ from statechart.tools import MERMAID_CLI, TLA2TOOLS_URL, NoTlc, find_tlc, in_tes
 USAGE = {
     "from-spec": (
         "statechart from-spec SPEC.tla [--config FILE] [--fixed FIXED.tla [--fixed-config FILE]"
-        " | --against AGREED.tla [--against-config FILE]] [--label TEXT] [--map FILE]"
+        " | --against AGREED.tla [--against-config FILE]] [--also-config FILE] [--label TEXT]"
+        " [--map FILE]"
         " [--expect-broken RULE]... [--title TEXT] [--out DIR] [--png] [--keep-work]"
     ),
     "from-chart": (
@@ -81,6 +82,12 @@ FROM_SPEC = """from-spec SPEC.tla
                      The config for AGREED.tla, when it is not AGREED.cfg. Give the config that the
                      spec's authors say the unchanged spec passes. A rule that this config does not
                      check is "not checked" in the stories.
+  --also-config FILE A config of SPEC.tla that TLC checks at other bounds than --config, where
+                     drawing it costs too much: two configs of which neither holds the other.
+                     The command dumps its state graph too, labels it with the same mapping, and
+                     states.tsv and arrows.tsv count what it reaches beside what the chart's
+                     config does. summary.json's also counts the chart states and the arrows only
+                     it reaches. The chart draws none of them.
   --label TEXT       The name of the --fixed or --against model in the charts and the stories.
                      Default: "the fix", or "the spec".
   --map FILE         The labels for each model state and step, a Python file. Default:
@@ -155,7 +162,13 @@ Output
                      configs that list it. From from-spec, drawnFrom has the command that draws
                      the chart again, run in the folder that holds the output folder, the sha256
                      of each spec, config and mapping that the run read, by its path from that
-                     folder, and the sha256 of chart.mmd.
+                     folder, and the sha256 of chart.mmd and of the two tables.
+  states.tsv         Every chart state of the model, with its group, its status, whether it is a
+                     start, the ids it is drawn as, and, per config TLC ran, its model states and
+                     the model steps that stay in it. tlc-to-chart --help says each column.
+  arrows.tsv         Every arrow between two chart states, one row per label and TLA+ action,
+                     with the arrows the chart draws it as and, per config, its model steps. So
+                     each state and step TLC reached is in a table, drawn or not.
   tlc/               The config and the TLC output of each run. When the overview has regions,
                      from-spec also writes tlc/regions-all.mmd, the regions with every arrow, and
                      tlc/regions-proof.mmd, every state and step of TLC's graph in one region.
@@ -279,6 +292,7 @@ FLAGS = {
         "--fixed-config",
         "--against",
         "--against-config",
+        "--also-config",
         "--label",
         "--expect-broken",
         "--title",
@@ -651,7 +665,28 @@ def check(tools, model, work, out, expected):
     seconds = f"{time.monotonic() - started:.1f}"
     print(f"  TLC ran {runs} {'time' if runs == 1 else 'times'} in {seconds} s.")
     broken = any(t["broken"] for t in [*traces, *temporal])
-    return {"spec": spec, "dot": dot, "traces": traces, "properties": temporal, "broken": broken}
+    return {
+        "spec": spec,
+        "cfgFile": cfg_file,
+        "dot": dot,
+        "traces": traces,
+        "properties": temporal,
+        "broken": broken,
+    }
+
+
+def dump_also(tools, model, work):
+    """TLC's state graph of `model` at the bounds of its --also-config, with no rule checked:
+    its config's own tests check those."""
+    name = re.sub(r"\.cfg$", "", os.path.basename(model["cfgFile"]))
+    base = os.path.join(work, "tlc", f"also-{name}")
+    started = time.monotonic()
+    run_tlc(tools, model["spec"], model["cfgWithoutRules"], base, dump=f"{base}.dot")
+    print(
+        f"TLC dumped {os.path.basename(model['spec'])} with {rel(model['cfgFile'])} for the"
+        f" tables in {time.monotonic() - started:.1f} s."
+    )
+    return {"dot": f"{base}.dot", "cfgFile": model["cfgFile"]}
 
 
 def rules_as_expected(now, other, expected):
@@ -759,7 +794,7 @@ def published(work, out):
     return lambda file: rel(os.path.join(out, os.path.relpath(file, work)))
 
 
-def draw(now, map_file, work, out, title, other=None, uncited=None, comparing=False):
+def draw(now, map_file, work, out, title, other=None, uncited=None, comparing=False, also=None):
     shown = published(work, out)
     mapping = load_mapping(map_file)
     source = ["--dot", now["dot"], "--map", map_file, "--spec", now["spec"]]
@@ -787,7 +822,14 @@ def draw(now, map_file, work, out, title, other=None, uncited=None, comparing=Fa
         "overview": os.path.join(work, "chart.mmd"),
         "stories": os.path.join(work, "stories.md"),
         "summary": os.path.join(work, "summary.json"),
+        "states": os.path.join(work, "states.tsv"),
+        "arrows": os.path.join(work, "arrows.tsv"),
     }
+    tables = ["--tables", work, "--cfg", os.path.basename(now["cfgFile"])]
+    if other:
+        tables += ["--second-cfg", os.path.basename(other["cfgFile"])]
+    if also:
+        tables += ["--also-dot", also["dot"], "--also-cfg", os.path.basename(also["cfgFile"])]
     proof = os.path.join(work, "tlc", "regions-proof.mmd")
     every_arrow = os.path.join(work, "tlc", "regions-all.mmd")
     script(
@@ -795,6 +837,7 @@ def draw(now, map_file, work, out, title, other=None, uncited=None, comparing=Fa
         [
             *source,
             *([] if comparing else ["--regions", "--proof", proof, "--regions-all", every_arrow]),
+            *tables,
             *titled(""),
             "--highlight",
             "0",
@@ -950,7 +993,12 @@ def finish(work, out, inputs, drawn, ok, png):
     publish(work, out, inputs)
     written = ", ".join(
         os.path.basename(f)
-        for f in [*drawn["charts"], *pngs, drawn["files"]["stories"], drawn["files"]["summary"]]
+        for f in [
+            *drawn["charts"],
+            *pngs,
+            *(drawn["files"][k] for k in ("stories", "summary", "states", "arrows")),
+        ]
+        if os.path.exists(f)
     )
     print(f"\nWrote {written} in {rel(out)}.")
     if png and len(pngs) < len(drawn["charts"]):
@@ -959,7 +1007,8 @@ def finish(work, out, inputs, drawn, ok, png):
 
 
 OWN = re.compile(
-    r"^((chart|bug-\d+(-developer|-layered)?)\.(mmd|png)|stories\.md|summary\.json|tlc|\.DS_Store)$"
+    r"^((chart|bug-\d+(-developer|-layered)?)\.(mmd|png)|stories\.md|summary\.json|states\.tsv"
+    r"|arrows\.tsv|tlc|\.DS_Store)$"
 )
 
 
@@ -1285,7 +1334,15 @@ def drawn_from(given, flags, expected, out, inputs, files):
         return os.path.relpath(os.path.abspath(f), base)
 
     command = ["statechart", "from-spec", path(given)]
-    for name in ("config", "fixed", "fixed-config", "against", "against-config", "map"):
+    for name in (
+        "config",
+        "fixed",
+        "fixed-config",
+        "against",
+        "against-config",
+        "also-config",
+        "map",
+    ):
         if flags.get(name):
             command += [f"--{name}", path(flags[name])]
     for name in ("label", "title"):
@@ -1299,6 +1356,11 @@ def drawn_from(given, flags, expected, out, inputs, files):
         "command": shlex.join(command),
         "inputs": {path(f): sha256(f) for f in sorted(inputs, key=path)},
         "chart": sha256(files["overview"]),
+        "tables": {
+            os.path.basename(files[t]): sha256(files[t])
+            for t in ("states", "arrows")
+            if os.path.exists(files[t])
+        },
     }
 
 
@@ -1317,9 +1379,13 @@ def from_spec(given, flags):
     map_file = flags.get("map") or os.path.join(os.path.dirname(given), f"{name}.map.py")
     cfg = flags.get("config") or cfg_of(given)
     other_cfg = second_cfg(cfg, flags)
-    inputs = snapshot([given, cfg, map_file, flags.get("fixed") or flags.get("against"), other_cfg])
+    also_cfg = flags.get("also-config")
+    inputs = snapshot(
+        [given, cfg, map_file, flags.get("fixed") or flags.get("against"), other_cfg, also_cfg]
+    )
     second = second_model(given, other_cfg, flags)
     model = read_input(given, cfg, expected)
+    also_model = read_model(given, also_cfg, "--also-config") if also_cfg else None
     out = out_dir(flags.get("out"), given, name)
     snapshot(local_modules(given), inputs)
     if second:
@@ -1354,7 +1420,10 @@ def from_spec(given, flags):
             if second["role"] == "against":
                 warn_unlisted(now, other)
             uncited = warn_uncited([now, other] if second["role"] == "fixed" else [now])
-        drawn = draw(now, map_file, work, out, flags.get("title"), other=other, uncited=uncited)
+        also = dump_also(tools, also_model, work) if also_model else None
+        drawn = draw(
+            now, map_file, work, out, flags.get("title"), other=other, uncited=uncited, also=also
+        )
         stamp(drawn["files"], drawn_from(given, flags, expected, out, inputs, drawn["files"]))
         return finish(
             work, out, inputs, drawn, rules_as_expected(now, other, expected), flags.get("png")
@@ -1409,7 +1478,10 @@ summary.json committed there, and runs no TLC unless --lanes asks. It writes, in
                 tab, and each chart's tab shows the chart's overview (statechart overview --help)
                 above the chart itself: a tap on an overview's box moves the chart to that group's
                 states. Pan and zoom the chart, and tap a state for its whole label, the code line
-                it cites and its steps in and out. The page fetches nothing when it is viewed.
+                it cites and its steps in and out. Under the chart, the states.tsv and arrows.tsv
+                beside it are two tables, with a filter: every state of the model's map and every
+                arrow, drawn or not, and a tap on a row lights it in the chart. The page fetches
+                nothing when it is viewed.
   NAME.png, NAME-bug-N.png
                 Each chart and each bug-N.mmd beside it as a PNG, drawn with npx
                 {MERMAID_CLI}, so it needs Node.

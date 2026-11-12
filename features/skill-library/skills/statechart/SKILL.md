@@ -102,7 +102,10 @@ With `--against`, also say whether the spec already lists it: in the configs tha
 Do not report that a rule holds while the command lists conditions with no file and quote or line.
 Take every count you quote from `summary.json`.
 Say what the chart covers: the bounds of the cfg it was drawn with, the model's counts beside the chart's, and that a chart state joins the model states the user cannot tell apart, so the chart is not every path of the code.
-`statechart site` writes these lines on each chart's tab, and with `--flow` it lists the models with no chart and the state no model has, from the flow file's `[[uncharted]]` and `[[unmodeled]]`.
+A chart joins states and draws only some arrows, so `from-spec` writes `states.tsv` and `arrows.tsv` beside it: every chart state of the model and every arrow between two, with its TLA+ action and its count of model steps.
+Their counts add up to TLC's, so a review or a migration checked against them misses no state.
+Draw a chart from the cfg TLC checks; where that cfg costs too much to draw and a smaller one draws, pass the checked one as `--also-config`, and the tables count what it reaches too.
+`statechart site` writes these lines on each chart's tab, with the tables under the chart, and with `--flow` it lists the models with no chart and the state no model has, from the flow file's `[[uncharted]]` and `[[unmodeled]]`.
 It stops on a model under a feature's `spec/` that has neither a chart nor an `[[uncharted]]` line.
 Attach `stories.md` and the command that regenerates everything.
 Say what the model leaves out.

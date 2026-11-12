@@ -93,6 +93,19 @@ class Chart:
     summary: dict
     coverage: "Coverage | None" = None
     lanes: object = None
+    landing: dict = field(default_factory=dict)
+    tables: "Tables | None" = None
+
+
+@dataclass
+class Tables:
+    """states.tsv and arrows.tsv beside a chart: every chart state of its model and every arrow
+    between two, each a dict by the table's header, and the configs whose counts they hold, the
+    chart's own first."""
+
+    states: list
+    arrows: list
+    runs: list
 
 
 @dataclass
@@ -109,6 +122,7 @@ class Coverage:
     regions: list
     steps: tuple
     covered: bool
+    also: dict | None = None
 
 
 @dataclass
@@ -439,6 +453,24 @@ def _sentence_above(spec_text, name):
     return ""
 
 
+def _bounds(text, spec_text):
+    """A cfg's bounds: each constant it sets, its canary switch at "none" left out, and each
+    CONSTRAINT with the spec's first sentence on it."""
+    bounds = [(f"{k} = {v}", "") for k, v in _SETS.findall(text) if v != '"none"']
+    bounds.extend(
+        (cut, _sentence_above(spec_text, cut))
+        for cut in re.findall(r"^CONSTRAINT\s+(\w+)", text, re.M)
+    )
+    return bounds
+
+
+def _said_bounds(bounds):
+    return "; ".join(
+        f"<code>{esc(code)}</code>{', ' + esc(said.rstrip('.')) if said else ''}"
+        for code, said in bounds
+    )
+
+
 def coverage_of(folder, name, summary):
     """What the chart in `folder` covers, read from the files its summary says drew it, or
     None for a chart with no drawnFrom."""
@@ -461,11 +493,14 @@ def coverage_of(folder, name, summary):
         said = line[2:].strip()
         if not re.match(r"(module|expect):", said):
             scene.append(said)
-    bounds = [(f"{k} = {v}", "") for k, v in _SETS.findall(text) if v != '"none"']
-    bounds.extend(
-        (cut, _sentence_above(spec_text, cut))
-        for cut in re.findall(r"^CONSTRAINT\s+(\w+)", text, re.M)
-    )
+    bounds = _bounds(text, spec_text)
+    also = summary.get("also")
+    if also:
+        try:
+            also_text = (spec / also["cfg"]).read_text(encoding="utf-8")
+        except OSError as e:
+            raise ChartError(f"cannot read {e.filename}: {e.strerror}") from e
+        also = {**also, "bounds": _bounds(also_text, spec_text)}
     mapped = spec / _drawn_with(drawn["command"], model, "--map", ".map.py")
     if not mapped.is_file():
         raise ChartError(f"cannot read {mapped}: no such file")
@@ -483,18 +518,16 @@ def coverage_of(folder, name, summary):
         regions=regions.get("states", []) if regions.get("drawn") else [],
         steps=(summary["chartTransitions"], regions.get("all") if regions.get("drawn") else None),
         covered=bool(getattr(load_mapping(mapped), "reader_actions", None)),
+        also=also,
     )
 
 
-def coverage_html(cov):
+def coverage_html(cov, tables=None):
     """The lines a chart's header gives on what its model covers and what the chart draws."""
     states, steps = cov.model
     flat_states, flat_steps = cov.flat
     each = max(1, round(states / flat_states))
-    bounds = "; ".join(
-        f"<code>{esc(code)}</code>{', ' + esc(said.rstrip('.')) if said else ''}"
-        for code, said in cov.bounds
-    )
+    bounds = _said_bounds(cov.bounds)
     joins = (
         "The chart joins the model states a user cannot tell apart into one chart state, about"
         f" {each:,} to a chart state: it shows what a user can tell apart within these bounds,"
@@ -519,11 +552,27 @@ def coverage_html(cov):
     elif not cov.regions:
         drawn += " It draws every step between two of its states."
     scene = esc(" ".join(cov.scene)) or "the cfg says nothing of its scene."
+    if tables:
+        drawn += (
+            f" The tables under the chart list all {len(tables.states):,} states of the model's"
+            f" map and all {len(tables.arrows):,} arrows between them, drawn or not, each with"
+            " its action and its count of model steps."
+        )
+    larger = ""
+    if cov.also:
+        a = cov.also
+        larger = (
+            f"<p><strong>At other bounds:</strong> TLC also checks <code>{esc(a['cfg'])}</code>"
+            f" ({_said_bounds(a['bounds']) or 'no bounds in the cfg'}), {a['modelStates']:,}"
+            f" states and {a['modelTransitions']:,} steps, which cost too much to draw. It"
+            f" reaches {a['states']:,} states and {a['arrows']:,} arrows this cfg does not; the"
+            f" tables list them, with their counts under <code>{esc(a['cfg'])}</code>.</p>"
+        )
     return (
         '<div class="coverage">'
         f"<p><strong>Model:</strong> {states:,} states and {steps:,} steps, which TLC walked"
         f" within <code>{esc(cov.cfg)}</code>: {scene} Bounds: {bounds or 'none in the cfg'}.</p>"
-        f"<p><strong>Chart:</strong> {drawn}</p></div>"
+        f"<p><strong>Chart:</strong> {drawn}</p>{larger}</div>"
     )
 
 
@@ -589,6 +638,7 @@ def read_text(text, name, cite=lambda text: [], question=None):
         fills=fills,
         stories="",
         summary={},
+        landing={k: _first_leaf(c) for k, c in composites.items()},
     )
 
 
@@ -609,7 +659,28 @@ def read_chart(path, root, index, flow):
     chart.stories = stories.read_text(encoding="utf-8") if stories.exists() else ""
     chart.summary = json.loads(summary.read_text(encoding="utf-8")) if summary.exists() else {}
     chart.coverage = coverage_of(folder, name, chart.summary)
+    chart.tables = read_tables(folder, chart.summary)
     return chart
+
+
+def _tsv(path):
+    head, *lines = path.read_text(encoding="utf-8").rstrip("\n").split("\n")
+    names = head.split("\t")
+    rows = [line.split("\t") for line in lines]
+    if any(len(r) != len(names) for r in rows):
+        raise ChartError(f"{path.name}: a row has not the {len(names)} fields of its header")
+    return [dict(zip(names, r, strict=True)) for r in rows]
+
+
+def read_tables(folder, summary):
+    """The chart's states.tsv and arrows.tsv, or None for a chart drawn before them."""
+    states, arrows = folder / "states.tsv", folder / "arrows.tsv"
+    if not states.exists() or not arrows.exists():
+        return None
+    runs = summary.get("map", {}).get("runs")
+    if not runs:
+        raise ChartError("summary.json has tables but no map.runs: draw the chart again")
+    return Tables(_tsv(states), _tsv(arrows), runs)
 
 
 # Layout
@@ -1099,6 +1170,92 @@ def chart_data(chart, out_dir):
     return {"states": states, "steps": steps}
 
 
+def tables_html(chart):
+    """The chart's states.tsv and arrows.tsv as two tables under it, with a filter: each row
+    carries the ids it is drawn as, so a tap on it lights them in the chart."""
+    t = chart.tables
+    if not t:
+        return ""
+    ids_of = {row["state"]: row["chart"] for row in t.states}
+
+    def edges(row):
+        out = []
+        for arrow in row["chart"].split():
+            a, b = arrow.split(">", 1)
+            out.append(f"{chart.landing.get(a, a)}>{b}")
+        return " ".join(out)
+
+    def cell(text, cls=""):
+        attr = f' class="{cls}"' if cls else ""
+        return f"<td{attr}>{esc(text)}</td>"
+
+    def on_chart(drawn):
+        return cell("drawn" if drawn else "not drawn", "" if drawn else "quiet")
+
+    def count(text):
+        return cell(f"{int(text):,}" if text else "", "n")
+
+    status = any(row["status"] not in ("works", "") for row in t.states)
+    runs = t.runs
+    many = len(runs) > 1
+
+    def head(word, run):
+        return f"<th>{esc(word)}{f' in <code>{esc(run)}</code>' if many else ''}</th>"
+
+    state_head = (
+        "<th>State</th><th>Group</th>"
+        + ("<th>Status</th>" if status else "")
+        + "<th>Start</th>"
+        + "".join(head("Model states", r) + head("Steps within", r) for r in runs)
+        + "<th>Chart</th>"
+    )
+    state_rows = "".join(
+        f'<tr tabindex="0" data-light="{esc(row["chart"])}" data-edges="">'
+        + cell(row["state"])
+        + cell(row["group"])
+        + (cell(row["status"]) if status else "")
+        + cell("start" if row["start"] else "")
+        + "".join(count(row[f"states in {r}"]) + count(row[f"within in {r}"]) for r in runs)
+        + on_chart(row["chart"])
+        + "</tr>\n"
+        for row in t.states
+    )
+    arrow_head = (
+        "<th>From</th><th>To</th><th>Label</th><th>Action</th>"
+        + "".join(head("Model steps", r) for r in runs)
+        + "<th>Chart</th>"
+    )
+    arrow_rows = "".join(
+        f'<tr tabindex="0" data-light="{esc(ids_of[row["from"]])} {esc(ids_of[row["to"]])}"'
+        f' data-edges="{esc(edges(row))}">'
+        + cell(row["from"])
+        + cell(row["to"])
+        + cell(row["label"] or "(no label)", "" if row["label"] else "quiet")
+        + f"<td><code>{esc(row['action'])}</code></td>"
+        + "".join(count(row[f"steps in {r}"]) for r in runs)
+        + on_chart(row["chart"])
+        + "</tr>\n"
+        for row in t.arrows
+    )
+    drawn = sum(1 for row in t.arrows if row["chart"])
+    return (
+        '<details class="tables"><summary>Every state and arrow of the model:'
+        f" {len(t.states):,} states and {len(t.arrows):,} arrows, {drawn:,} of them drawn"
+        "</summary>"
+        '<p class="quiet">The same rows are in <code>states.tsv</code> and'
+        " <code>arrows.tsv</code> beside the chart. A row is one chart state, or one step"
+        " between two by its label and the TLA+ action that takes it; the counts are of TLC's"
+        " model states and steps. Tap a row to light it in the chart.</p>"
+        '<input class="table-filter" type="search" placeholder="Filter the rows"'
+        ' aria-label="filter the states and arrows">'
+        '<p class="table-count quiet" aria-live="polite"></p>'
+        f'<h3>States</h3><div class="table-wrap"><table class="map map-states"><thead><tr>'
+        f"{state_head}</tr></thead><tbody>\n{state_rows}</tbody></table></div>"
+        f'<h3>Arrows</h3><div class="table-wrap"><table class="map map-arrows"><thead><tr>'
+        f"{arrow_head}</tr></thead><tbody>\n{arrow_rows}</tbody></table></div></details>"
+    )
+
+
 def stories_html(text):
     """stories.md as HTML: headings, list items, fenced code and paragraphs, all escaped."""
     if not text.strip():
@@ -1188,7 +1345,7 @@ def page(charts, out_dir, flow):
             if every and drawn < every
             else f"{count} states, {steps} steps."
         )
-        covers = coverage_html(chart.coverage) if chart.coverage else ""
+        covers = coverage_html(chart.coverage, chart.tables) if chart.coverage else ""
         model = None if chart.coverage else chart.summary.get("modelStates")
         model_note = f" TLC walked {model} model states to draw it." if model else ""
         if chart.lanes:
@@ -1225,6 +1382,7 @@ def page(charts, out_dir, flow):
             '<div class="zoom"><button data-zoom="in" aria-label="zoom in">+</button>'
             '<button data-zoom="out" aria-label="zoom out">&minus;</button>'
             '<button data-zoom="fit" aria-label="fit the chart">fit</button></div></div>'
+            f"{tables_html(chart)}"
             '<details class="stories"><summary>Bug paths (stories.md)</summary>'
             f"{stories_html(chart.stories)}</details></section>"
         )
