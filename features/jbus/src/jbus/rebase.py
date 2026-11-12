@@ -10,11 +10,11 @@ With the backup ref and the lease, a rebase never loses what was on the branch.
 
 The key of the message is `rebase|<slug>|<head 12>`. T3 Code uses the key to retry, and jbus writes
 the key in `sent.json` as a mark of the send. So a pass that got no answer tries again, and jbus
-never tells the same head twice. For main moving or for a failure, jbus tells a pull request to
-rebase only once. A crew may rebase and then find its pull request stale or failing again at a new
-head. jbus then parks a gate (`SECOND`) with the default that the pull request waits, and asks for
-no second rebase. jbus tells of a conflict with the base at every head, since nothing but a rebase
-resolves a conflict.
+tells a head once for each reason, save a conflict, which `retell` tells again at a new main. For
+main moving or for a failure, jbus tells a pull request to rebase only once. A crew may rebase and
+then find its pull request stale or failing again at a new head. jbus then parks a gate (`SECOND`)
+with the default that the pull request waits, and asks for no second rebase. jbus tells of a
+conflict with the base at every head, since nothing but a rebase resolves a conflict.
 
 `tell` also reads a second kind of `wait` line, `content-changed`, about a new head that changed
 what the reviewed patch says. `jmerge` keeps the review over a rebase, whatever its range-diff
@@ -77,6 +77,14 @@ has written the review, `github` sends the rebase message instead, whatever `jme
 `github` does not wait for `jmerge` here, because a red check hides the conflict from the line
 that `jmerge` prints.
 
+A head still in conflict after its message is told again once for each tip of main it was not told
+at, under `rebase|<slug>|<head 12>|<main 12>`, or `conflict|...` before its review (`retell`): a
+crew that refused the message while its review ran, or held on its home's word, keeps its head,
+and the merge it waited for may be what lets its rebase through (#1710, 2026-11-11). The first
+message writes the key of its kind at the tip it went at, so the next one waits for main to move.
+A conflict told before the review stays out of `rebase|<slug>|`, so it is not the one rebase that
+a stale main at a later head would otherwise be refused after.
+
 No message comes when every check passed: the review came before the pull request opened
 (`jbus.prereview`), so a green pull request owes its crew no line."""
 
@@ -88,7 +96,7 @@ from dataclasses import dataclass, replace
 from urllib.parse import urlsplit
 
 import jroles
-from jbriefs import below
+from jbriefs import below, reviewers
 from jbriefs import stacked as stacks
 from jbus import (
     END_TURN,
@@ -354,13 +362,35 @@ def github(run: Pass, client: Client, world: World) -> None:
             elif deliver(run, client, world, number, red.reason, ask):
                 run.box.mark(told)
         told = rebased or mark("conflict", slug, head) in sent
+        if review.reviewed(brief):
+            ask = Ask("rebase", "told the crew", "told to rebase", MESSAGE, head[:12], True)
+        else:
+            ask = _asked("conflict", CONFLICTED, head)
         if pull.get("mergeable") == "CONFLICTING" and not told and not stacks.unmoved(brief):
-            reason = "it conflicts with its base"
-            if review.reviewed(brief):
-                ask = Ask("rebase", "told the crew", "told to rebase", MESSAGE, head[:12], True)
-            else:
-                ask = _asked("conflict", CONFLICTED, head)
-            deliver(run, client, world, number, reason, ask)
+            deliver(run, client, world, number, ready.CONFLICTS, ask)
+        elif pull.get("mergeable") == "CONFLICTING" and not stacks.unmoved(brief):
+            retell(run, client, world, (slug, head, number), brief, ask)
+
+
+def retell(
+    run: Pass, client: Client, world: World, pull: tuple[str, str, int], brief: str, ask: Ask
+) -> None:
+    """Tell the crew of a pull request still in conflict at a head it was told of once more, at a
+    tip of main it was not told at, under the key of its kind and that tip: `rebase|<slug>|<head
+    12>|<main 12>` after its review, `conflict|<slug>|<head 12>|<main 12>` before it, since only a
+    `rebase|<slug>|` key counts as the one rebase that `post` allows a stale main. The tip the
+    first message went at (`deliver`) is told under either kind no more. A crew whose reviewer has
+    not written (`reviewers.running`) is not told: it is not to rebase from under its review. The
+    outbox holds the message while the crew is at work, and a pass after its turn sends it."""
+    slug, head, number = pull
+    tip = run.tip()
+    if not tip or reviewers.running(brief):
+        return
+    sent = run.box.sent()
+    if any(mark(kind, slug, head, tip[:12]) in sent for kind in ("rebase", "conflict")):
+        return
+    again = replace(ask, did=f"told the crew again, main at {tip[:12]}", event=True)
+    post(run, client, world, number, ready.CONFLICTS, again, window=tip[:12])
 
 
 def worktree(client: Client, thread: str) -> str | None:
@@ -484,8 +514,13 @@ def ran_and_failed(run: Pass, world: World, pull: dict) -> Red:
 
 def deliver(run: Pass, client: Client, world: World, number: int, reason: str, ask: Ask) -> bool:
     """Send the crew of a pull request one message, once per head, and write an event of the ask's
-    kind that says so. Say whether the message went."""
-    return bool(post(run, client, world, number, reason, replace(ask, event=True)))
+    kind that says so. Say whether the message went. A rebase or conflict message that went also
+    writes the key of its kind at main's tip (`retell`), so the crew is told again only once main
+    moves."""
+    went = post(run, client, world, number, reason, replace(ask, event=True))
+    if went and ask.kind in ("rebase", "conflict") and (tip := run.tip()):
+        run.box.mark(mark(ask.kind, went[0], went[1], tip[:12]))
+    return bool(went)
 
 
 def mark(kind: str, slug: str, head: str, window: str = "") -> str:
@@ -584,7 +619,7 @@ def post(
     if "{worktree}" in message:
         message = message.replace("{worktree}", where(client, thread))
     line = f"{ask.kind} {slug}: {ask.did} (#{number}, {head[:12]})"
-    told = (line, head[:12]) if ask.event else None
+    told = (line, key.removeprefix(f"{ask.kind}|{slug}|")) if ask.event else None
     if once(run, client, ask, key, thread, slug, message, at=head[:12], told=told) != SENT:
         return None
     return slug, head, message
