@@ -59,6 +59,8 @@ POOL = re.compile(
 )
 WORKTREE = re.compile(r"/worktrees/([^/\s]+)/")
 ITEM = re.compile(r"^item \S+: w\d+ (\w+): row (\S+) (?:(?:is|was) (\w+)|has a go: (.*))$")
+PROPOSED = re.compile(r"^item \S+: w\d+ proposed, (\S+): ")
+ENTRY = re.compile(r"\bgo for the plan entry (\S+),")
 MARKS = {"hold": "hold: needs the owner (the item waits)", "check": ""}
 """What an item's `waiting` or `resumed` line says of a row's pull request: a hold for the owner,
 or back to its checks, where the why `jmerge` gave last stands again."""
@@ -181,7 +183,13 @@ class Project:
     pool: list[tuple[datetime, int]] = field(default_factory=list)
     pages: list[tuple[datetime, str]] = field(default_factory=list)
     approvals: dict[str, datetime] = field(default_factory=dict)
+    entries: dict[str, str] = field(default_factory=dict)
+    noted: dict[str, datetime] = field(default_factory=dict)
     first: datetime | None = None
+
+    def note(self, slug: str, at: datetime) -> None:
+        """Keep the first time a record names the row: when it was queued, near enough."""
+        self.noted[slug] = min(self.noted.get(slug, at), at)
 
 
 @dataclass(frozen=True)
@@ -283,7 +291,11 @@ def _event(project: Project, at: datetime, record: dict[str, Any]) -> None:
                 source,
             )
             project.sightings.setdefault(row["slug"], []).append(seen)
+            project.note(row["slug"], at)
+    elif kind.startswith("item.") and (found := PROPOSED.match(line)):
+        project.note(found[1], at)
     elif kind.startswith("item.") and (found := ITEM.match(line)):
+        project.note(found[2], at)
         _item(project, at, found[2], found[3], found[4], source)
     elif kind == "jmerge" and (said := lines.one(line)):
         project.said.append(Said(at, str(said.number), said.word, said.reason, source))
@@ -317,6 +329,9 @@ def _item(
         stamp = stamped(go)
         if stamp is not None and slug not in project.approvals:
             project.approvals[slug] = stamp
+        entry = ENTRY.search(go)
+        if entry:
+            project.entries.setdefault(slug, entry[1])
     elif value in MARKS:
         project.marks.append(Mark(at, slug, MARKS[value], source))
     elif value in ITEM_STATES:

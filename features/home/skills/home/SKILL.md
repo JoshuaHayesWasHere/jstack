@@ -184,9 +184,9 @@ When the shape of the work is not settled (more than one task, or a design choic
 - Queue each brief of an entry with `jbus queue add --entry <entry>`, in a repo `jbus plan` answers for and in no other, where the brief's slug is not the entry's own: an entry is often several briefs, and the column is how a row is counted for its entry.
   `jbus queue add --from` refuses a new row that names no open entry of its home's plan, unless its brief has a `Follows:` line, and queues nothing: write the entry, or give the right `--entry`, and add it again.
   The root home queues by "Queueing a row in a child" (`scoped-homes.md`), which adds `--for <child>` and the user's message.
-- The user gives the go once per entry, never per row, and to an entry that has a row.
-  When this home files the first rows of an entry, it queues them, a scout's first if the entry needs design, and then asks the user for the entry's go once, in one message that names the entry and its rows.
-  It records the user's answer with `jbus plan go <entry> --message <thread>/last`, which refuses an entry with no row.
+- The user gives the go once per entry, never per row.
+  The home asks for it once, in one message that names the entry and the rows it plans, and records the user's answer at once with `jbus plan go <entry> --message <thread>/last`, before the entry has a row.
+  Then it briefs the entry and queues its first row, a scout's first if the entry needs design: until a row is queued, each jbus pass wakes the home with the entry and the time since the go (`owed <entry>`).
   Each later row of the entry is approved by that go as it is queued, and the user is asked nothing for it.
   Under `go = "silence"` park each pick as a gate instead ("The user's word, carried by jbus" says how).
 

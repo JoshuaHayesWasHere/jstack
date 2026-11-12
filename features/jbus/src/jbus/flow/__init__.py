@@ -21,6 +21,8 @@ jobs and merged pull requests of each configured project's repo, and prints for 
   of a pull request's `check` (`runs.ci`); past `RUNNERS_BACK_P90_MIN` minutes, the
   text ends with a line that raises the parked row `RUNNERS_BACK`;
 - how many events paged the owner (`measure.pages`);
+- for each plan entry the user gave a go in the window, the minutes from the go to its first
+  queued row, and their median (`measure.go_to_queued`);
 - the share of the rows' time the records leave unexplained, and apart from it the share before
   any record of the row (`no record`), with when each source's records begin, since a window
   that starts before them is time no record covers.
@@ -114,6 +116,7 @@ def build(
         "ci": runs.ci(found_runs),
         "ci_ledger": runs.ledger_jobs(jobs or {}, since, until),
         "pages": measure.pages(projects, since, until),
+        "go_to_queued": measure.go_to_queued(projects, since, until),
     }
 
 
@@ -319,6 +322,15 @@ def text(said: dict[str, Any]) -> str:
                     f" (median {each['queue_median_s']} s, 90th {each['queue_p90_s']} s), "
                     f"{each['cancelled_waiting']} cancelled while waiting"
                 )
+    went = said["go_to_queued"]
+    median = "-" if went["median_minutes"] is None else f"{went['median_minutes']} min"
+    out += [
+        "",
+        f"go to queued: {len(went['entries'])} entries, median {median} (the user's go on a plan "
+        "entry to its first queued row, longest first):",
+    ]
+    for one in sorted(went["entries"], key=lambda one: -one["minutes"])[:25]:
+        out.append(f"  {one['project']}/{one['entry']}: {one['minutes']} min, go {one['go']}")
     paged = said["pages"]
     kinds = ", ".join(f"{kind} {n}" for kind, n in paged["by_kind"].items()) or "none"
     out += ["", f"paged the owner: {paged['total']} ({kinds})"]

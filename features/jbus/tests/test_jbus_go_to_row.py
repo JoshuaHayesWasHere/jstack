@@ -14,12 +14,21 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from jbus import flow
+from jbus import flow, questions
 from jbus.flow import records
-from test_jbus_entry_go import HOME, JVIEW_PLAN, MESSAGE, kitchen, plan_go, queued  # noqa: F401
-from test_jbus_kitchen import NOW
+from test_jbus_entry_go import HOME, JVIEW_PLAN, MESSAGE, PLAN, Frozen, plan_go, queued
+from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_leftover import home
-from test_jbus_queue import brief
+
+
+@pytest.fixture
+def kitchen(tmp_path, monkeypatch, jstack_config):
+    made = Kitchen(tmp_path, monkeypatch)
+    (made.home / "plan.md").write_text(PLAN)
+    monkeypatch.setattr(questions, "datetime", Frozen)
+    made.settings = jstack_config
+    yield made
+    made.close()
 
 
 def wakes_of(kitchen, thread, key):
@@ -88,15 +97,15 @@ def test_flow_reports_the_time_from_each_entrys_go_to_its_first_queued_row():
         '"line": "item demo: w1 proposed, slow-1: jbus queue add slow-1"}',
         '{"at": "2026-10-13T10:49:10+00:00", "event": "item.approved", "line": "item demo: w1 '
         "approved: row slow-1 has a go: your go for the plan entry slow, 2026-10-12 22:12 EDT, "
-        'in home: demo; run 2026-10-13 06:49 EDT by jbus\'s pass"}',
+        "in home: demo; run 2026-10-13 06:49 EDT by jbus's pass\"}",
         '{"at": "2026-10-13T14:06:00+00:00", "event": "item.proposed", '
         '"line": "item demo: w2 proposed, fast-1: jbus queue add fast-1"}',
         '{"at": "2026-10-13T14:06:05+00:00", "event": "item.approved", "line": "item demo: w2 '
         "approved: row fast-1 has a go: your go for the plan entry fast, 2026-10-13 10:00 EDT, "
-        'in home: demo; run 2026-10-13 10:06 EDT by jbus\'s pass"}',
+        "in home: demo; run 2026-10-13 10:06 EDT by jbus's pass\"}",
         '{"at": "2026-10-13T15:06:05+00:00", "event": "item.approved", "line": "item demo: w3 '
         "approved: row fast-2 has a go: your go for the plan entry fast, 2026-10-13 10:00 EDT, "
-        'in home: demo; run 2026-10-13 11:06 EDT by jbus\'s pass"}',
+        "in home: demo; run 2026-10-13 11:06 EDT by jbus's pass\"}",
     ]
     project = records.events("demo", lines)
     since = datetime(2026, 10, 12, tzinfo=UTC)

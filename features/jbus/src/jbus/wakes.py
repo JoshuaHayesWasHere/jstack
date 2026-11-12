@@ -88,6 +88,12 @@ OWED = (
     "scout's if it needs design, `--depends` for what it waits on), or close it with `jbus plan "
     "close {entry}{scope}` once nothing is left to do."
 )
+UNROWED = (
+    "The entry {entry} of {plan} has {user}'s go, given {said_at}, and no row yet: brief it and "
+    "queue its first row now (`jbus queue add <slug> --entry {entry}`, a scout's if it needs "
+    "design, `--depends` for what it waits on). jbus wakes this home on each pass until a row of "
+    "the entry is queued."
+)
 BRIEF = (
     "The entry {entry} of {plan} builds on {merged}, which merged, and has no row. Brief it and "
     "queue its first row (`jbus queue add <slug> --entry {entry}`, a scout's if it needs design, "
@@ -407,14 +413,25 @@ def _plan_home(run: Pass, scope: str) -> str:
 
 def owed_items(run: Pass, rows: list[queue.Row]) -> list[Item]:
     """The entries whose go holds with no live row (`plan.owed`), each the item of its home's
-    thread (`_plan_home`)."""
+    thread (`_plan_home`). An entry with no row yet says the minutes since its go, so its line
+    is new on each pass and wakes its home again, until its first row is queued."""
     items = []
     for made in plan.owed(run.state, run.home, rows):
         key = plan.owed_key(made)
-        line = f"{key}: go holds, no live row"
         where = f"the {made.scope} home's plan" if made.scope else "the root home's plan"
-        flag = f" --scope {made.scope}" if made.scope else ""
-        text = OWED.format(entry=made.entry, plan=where, user=run.user.user, scope=flag)
+        if plan.rows_of(made.entry, rows):
+            line = f"{key}: go holds, no live row"
+            flag = f" --scope {made.scope}" if made.scope else ""
+            text = OWED.format(entry=made.entry, plan=where, user=run.user.user, scope=flag)
+        else:
+            given = plan.said_when(run.user, made)
+            ago = (
+                f"{max(0, int((run.now - given).total_seconds() // 60))} min ago, " if given else ""
+            )
+            line = f"{key}: go {made.said_at}, {ago}no row yet"
+            text = UNROWED.format(
+                entry=made.entry, plan=where, user=run.user.user, said_at=made.said_at
+            )
         items.append(Item(key, _plan_home(run, made.scope), line, made.entry, text=text))
     return items
 
