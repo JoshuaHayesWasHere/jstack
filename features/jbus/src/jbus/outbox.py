@@ -346,15 +346,23 @@ def send(
     text: str,
     template: str,
     needs: Needs,
+    pin: Callable[[], None] | None = None,
 ) -> bool:
     """Queue one message to a thread under its retry key, and return whether it went. Return
     False where the outbox holds it (`hold`): nothing is sent, and the caller leaves the key
     unmarked so a later pass sends what is due then. Raise what `Client.call` raises where T3 Code
-    refused the message or gave no answer."""
+    refused the message or gave no answer.
+
+    `pin` runs once no rule holds the message, right before T3 Code is asked: a sender whose key
+    names what can change before a later pass (the home's thread, the merges still owed) keeps
+    there the key it tried, and tries it again after a pass that died, so T3 Code takes the
+    repeat as the message it has (`jbus.word`, `jbus.reload`)."""
     if needs not in NEEDS:
         raise ValueError(f"a message needs act or decide of its receiver, not {needs!r}")
     if hold(run, client, thread=thread, row=row, key=key, template=template, needs=needs):
         return False
+    if pin is not None:
+        pin()
     client.recipients = client.recipients | {thread}
     mode = "auto" if template in STEERS else "queue"
     asked = {"threadId": thread, "message": text, "mode": mode, "clientRequestId": key}

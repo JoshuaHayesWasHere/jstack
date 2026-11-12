@@ -6,21 +6,12 @@ config:
     useMaxWidth: false
 ---
 stateDiagram-v2
-  classDef plainWrong fill:#f4f6f7,stroke:#c0392b,stroke-width:4px,color:#7b241c
   classDef group0 fill:#fdebd0,stroke:#7f7668,color:#1b2631
   classDef group1 fill:#fad7a0,stroke:#7d6c50,color:#1b2631
   classDef group2 fill:#e8f8f5,stroke:#747c7b,color:#1b2631
   classDef group3 fill:#d1f2eb,stroke:#697976,color:#1b2631
   classDef group4 fill:#a3e4d7,stroke:#52726c,color:#1b2631
   classDef group5 fill:#a9dfbf,stroke:#557060,color:#1b2631
-  classDef group6 fill:#fdedec,stroke:#7f7776,color:#1b2631
-  classDef group6Wrong fill:#fdedec,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef group7 fill:#fadbd8,stroke:#7d6e6c,color:#1b2631
-  classDef group7Wrong fill:#fadbd8,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef group8 fill:#f5b7b1,stroke:#7b5c59,color:#1b2631
-  classDef group8Wrong fill:#f5b7b1,stroke:#c0392b,stroke-width:4px,color:#7b241c
-  classDef group9 fill:#f1c6c0,stroke:#796360,color:#1b2631
-  classDef group9Wrong fill:#f1c6c0,stroke:#c0392b,stroke-width:4px,color:#7b241c
   state "Legend" as legend {
     state "Not told: the ask owed or not yet due" as legendGroup0
     state "Not told: the ask closed" as legendGroup1
@@ -28,11 +19,6 @@ stateDiagram-v2
     state "Told once: the ask owed, a second try" as legendGroup3
     state "Told once: the ask closed" as legendGroup4
     state "Told once: the ask closed, a second try" as legendGroup5
-    state "Told twice: the ask owed" as legendGroup6
-    state "Told twice: the ask owed, a second try" as legendGroup7
-    state "Told twice: the ask closed" as legendGroup8
-    state "Told twice: the ask closed, a second try" as legendGroup9
-    state "Breaks a rule" as legendWrong
   }
   class legendGroup0 group0
   class legendGroup1 group1
@@ -40,34 +26,29 @@ stateDiagram-v2
   class legendGroup3 group3
   class legendGroup4 group4
   class legendGroup5 group5
-  class legendGroup6 group6
-  class legendGroup7 group7
-  class legendGroup8 group8
-  class legendGroup9 group9
-  class legendWrong plainWrong
   state "An ask owed after a limit" as g0 {
     state "not told, owed.json says<br/>owed" as s0
     state "not told, owed.json says<br/>owed, a pass is in its<br/>step" as s1
     state "not told, owed.json says<br/>owed, a second try" as s2
     state "not told, owed.json says<br/>owed, a second try, a pass<br/>is in its step" as s3
-    state "not told, owed.json says<br/>owed, sent.json has<br/>failover's key, a second<br/>try" as s4
-    state "not told, owed.json says<br/>owed, sent.json has<br/>failover's key, a second<br/>try, a pass is in its step" as s5
-    state "not told, owed.json says<br/>owed, sent.json has<br/>failover's key, the outbox<br/>held it, a second try" as s6
-    state "not told, owed.json says<br/>owed, sent.json has<br/>failover's key, the outbox<br/>held it, a second try, a<br/>pass is in its step" as s7
+    state "not told, owed.json says<br/>owed, owed.json keeps<br/>failover's key on the ask" as s4
+    state "not told, owed.json says<br/>owed, owed.json keeps<br/>failover's key on the ask,<br/>a pass is in its step" as s5
+    state "not told, owed.json says<br/>owed, owed.json keeps<br/>failover's key on the ask,<br/>a second try" as s6
+    state "not told, owed.json says<br/>owed, owed.json keeps<br/>failover's key on the ask,<br/>a second try, a pass is in<br/>its step" as s7
     state "not told, owed.json says<br/>owed, the outbox held it" as s8
     state "not told, owed.json says<br/>owed, the outbox held it,<br/>a pass is in its step" as s9
     state "not told, owed.json says<br/>owed, the outbox held it,<br/>a second try" as s10
     state "not told, owed.json says<br/>owed, the outbox held it,<br/>a second try, a pass is in<br/>its step" as s11
     state "not told, owed.json says<br/>the thread ended" as s12
     state "not told, owed.json says<br/>the thread ended, a second<br/>try" as s13
-    state "not told, owed.json says<br/>the thread ended,<br/>sent.json has failover's<br/>key, a second try" as s14
-    state "not told, owed.json says<br/>the thread ended,<br/>sent.json has failover's<br/>key, the outbox held it, a<br/>second try" as s15
+    state "not told, owed.json says<br/>the thread ended,<br/>owed.json keeps failover's<br/>key on the ask" as s14
+    state "not told, owed.json says<br/>the thread ended,<br/>owed.json keeps failover's<br/>key on the ask, a second<br/>try" as s15
     state "not told, owed.json says<br/>the thread ended, the<br/>outbox held it" as s16
     state "not told, owed.json says<br/>the thread ended, the<br/>outbox held it, a second<br/>try" as s17
     state "not told, owed.json says<br/>the user asked again" as s18
     state "not told, owed.json says<br/>the user asked again, a<br/>second try" as s19
-    state "not told, owed.json says<br/>the user asked again,<br/>sent.json has failover's<br/>key, a second try" as s20
-    state "not told, owed.json says<br/>the user asked again,<br/>sent.json has failover's<br/>key, the outbox held it, a<br/>second try" as s21
+    state "not told, owed.json says<br/>the user asked again,<br/>owed.json keeps failover's<br/>key on the ask" as s20
+    state "not told, owed.json says<br/>the user asked again,<br/>owed.json keeps failover's<br/>key on the ask, a second<br/>try" as s21
     state "not told, owed.json says<br/>the user asked again, the<br/>outbox held it" as s22
     state "not told, owed.json says<br/>the user asked again, the<br/>outbox held it, a second<br/>try" as s23
     state "nothing owed yet" as s24
@@ -75,277 +56,157 @@ stateDiagram-v2
     state "told once, owed.json says<br/>owed, a pass is in its<br/>step" as s26
     state "told once, owed.json says<br/>owed, a second try" as s27
     state "told once, owed.json says<br/>owed, a second try, a pass<br/>is in its step" as s28
-    state "told once, owed.json says<br/>owed, sent.json has<br/>failover's key" as s29
-    state "told once, owed.json says<br/>owed, sent.json has<br/>failover's key, a pass is<br/>in its step" as s30
-    state "told once, owed.json says<br/>owed, sent.json has<br/>failover's key, a second<br/>try" as s31
-    state "told once, owed.json says<br/>owed, sent.json has<br/>failover's key, a second<br/>try, a pass is in its step" as s32
-    state "told once, owed.json says<br/>owed, sent.json has<br/>failover's key, the outbox<br/>held it" as s33
-    state "told once, owed.json says<br/>owed, sent.json has<br/>failover's key, the outbox<br/>held it, a pass is in its<br/>step" as s34
-    state "told once, owed.json says<br/>owed, sent.json has<br/>failover's key, the outbox<br/>held it, a second try" as s35
-    state "told once, owed.json says<br/>owed, sent.json has<br/>failover's key, the outbox<br/>held it, a second try, a<br/>pass is in its step" as s36
-    state "told once, owed.json says<br/>owed, sent.json has its<br/>key" as s37
-    state "told once, owed.json says<br/>owed, sent.json has its<br/>key, a pass is in its step" as s38
-    state "told once, owed.json says<br/>owed, sent.json has its<br/>key, a second try" as s39
-    state "told once, owed.json says<br/>owed, sent.json has its<br/>key, a second try, a pass<br/>is in its step" as s40
-    state "told once, owed.json says<br/>owed, sent.json has its<br/>key, sent.json has<br/>failover's key, a second<br/>try" as s41
-    state "told once, owed.json says<br/>owed, sent.json has its<br/>key, sent.json has<br/>failover's key, a second<br/>try, a pass is in its step" as s42
-    state "told once, owed.json says<br/>owed, the outbox held it" as s43
-    state "told once, owed.json says<br/>owed, the outbox held it,<br/>a pass is in its step" as s44
-    state "told once, owed.json says<br/>owed, the outbox held it,<br/>a second try" as s45
-    state "told once, owed.json says<br/>owed, the outbox held it,<br/>a second try, a pass is in<br/>its step" as s46
-    state "told once, owed.json says<br/>sent, sent.json has<br/>failover's key" as s47
-    state "told once, owed.json says<br/>sent, sent.json has<br/>failover's key, a second<br/>try" as s48
-    state "told once, owed.json says<br/>sent, sent.json has its<br/>key" as s49
-    state "told once, owed.json says<br/>sent, sent.json has its<br/>key, a second try" as s50
-    state "told once, owed.json says<br/>sent, sent.json has its<br/>key, sent.json has<br/>failover's key, a second<br/>try" as s51
-    state "told once, owed.json says<br/>the thread ended" as s52
-    state "told once, owed.json says<br/>the thread ended, a second<br/>try" as s53
-    state "told once, owed.json says<br/>the thread ended,<br/>sent.json has failover's<br/>key" as s54
-    state "told once, owed.json says<br/>the thread ended,<br/>sent.json has failover's<br/>key, a second try" as s55
-    state "told once, owed.json says<br/>the thread ended,<br/>sent.json has failover's<br/>key, the outbox held it" as s56
-    state "told once, owed.json says<br/>the thread ended,<br/>sent.json has failover's<br/>key, the outbox held it, a<br/>second try" as s57
-    state "told once, owed.json says<br/>the thread ended,<br/>sent.json has its key" as s58
-    state "told once, owed.json says<br/>the thread ended,<br/>sent.json has its key, a<br/>second try" as s59
-    state "told once, owed.json says<br/>the thread ended,<br/>sent.json has its key,<br/>sent.json has failover's<br/>key, a second try" as s60
-    state "told once, owed.json says<br/>the thread ended, the<br/>outbox held it" as s61
-    state "told once, owed.json says<br/>the thread ended, the<br/>outbox held it, a second<br/>try" as s62
-    state "told once, owed.json says<br/>the user asked again" as s63
-    state "told once, owed.json says<br/>the user asked again, a<br/>second try" as s64
-    state "told once, owed.json says<br/>the user asked again,<br/>sent.json has failover's<br/>key" as s65
-    state "told once, owed.json says<br/>the user asked again,<br/>sent.json has failover's<br/>key, a second try" as s66
-    state "told once, owed.json says<br/>the user asked again,<br/>sent.json has failover's<br/>key, the outbox held it" as s67
-    state "told once, owed.json says<br/>the user asked again,<br/>sent.json has failover's<br/>key, the outbox held it, a<br/>second try" as s68
-    state "told once, owed.json says<br/>the user asked again,<br/>sent.json has its key" as s69
-    state "told once, owed.json says<br/>the user asked again,<br/>sent.json has its key, a<br/>second try" as s70
-    state "told once, owed.json says<br/>the user asked again,<br/>sent.json has its key,<br/>sent.json has failover's<br/>key, a second try" as s71
-    state "told once, owed.json says<br/>the user asked again, the<br/>outbox held it" as s72
-    state "told once, owed.json says<br/>the user asked again, the<br/>outbox held it, a second<br/>try" as s73
-    state "told twice, owed.json says<br/>owed" as s74
-    state "told twice, owed.json says<br/>owed, a pass is in its<br/>step" as s75
-    state "told twice, owed.json says<br/>owed, a second try" as s76
-    state "told twice, owed.json says<br/>owed, a second try, a pass<br/>is in its step" as s77
-    state "told twice, owed.json says<br/>owed, sent.json has<br/>failover's key" as s78
-    state "told twice, owed.json says<br/>owed, sent.json has<br/>failover's key, a pass is<br/>in its step" as s79
-    state "told twice, owed.json says<br/>owed, sent.json has<br/>failover's key, a second<br/>try" as s80
-    state "told twice, owed.json says<br/>owed, sent.json has<br/>failover's key, a second<br/>try, a pass is in its step" as s81
-    state "told twice, owed.json says<br/>owed, sent.json has<br/>failover's key, the outbox<br/>held it" as s82
-    state "told twice, owed.json says<br/>owed, sent.json has<br/>failover's key, the outbox<br/>held it, a pass is in its<br/>step" as s83
-    state "told twice, owed.json says<br/>owed, sent.json has<br/>failover's key, the outbox<br/>held it, a second try" as s84
-    state "told twice, owed.json says<br/>owed, sent.json has<br/>failover's key, the outbox<br/>held it, a second try, a<br/>pass is in its step" as s85
-    state "told twice, owed.json says<br/>owed, sent.json has its<br/>key" as s86
-    state "told twice, owed.json says<br/>owed, sent.json has its<br/>key, a pass is in its step" as s87
-    state "told twice, owed.json says<br/>owed, sent.json has its<br/>key, a second try" as s88
-    state "told twice, owed.json says<br/>owed, sent.json has its<br/>key, a second try, a pass<br/>is in its step" as s89
-    state "told twice, owed.json says<br/>owed, sent.json has its<br/>key, sent.json has<br/>failover's key" as s90
-    state "told twice, owed.json says<br/>owed, sent.json has its<br/>key, sent.json has<br/>failover's key, a pass is<br/>in its step" as s91
-    state "told twice, owed.json says<br/>owed, sent.json has its<br/>key, sent.json has<br/>failover's key, a second<br/>try" as s92
-    state "told twice, owed.json says<br/>owed, sent.json has its<br/>key, sent.json has<br/>failover's key, a second<br/>try, a pass is in its step" as s93
-    state "told twice, owed.json says<br/>owed, the outbox held it" as s94
-    state "told twice, owed.json says<br/>owed, the outbox held it,<br/>a pass is in its step" as s95
-    state "told twice, owed.json says<br/>owed, the outbox held it,<br/>a second try" as s96
-    state "told twice, owed.json says<br/>owed, the outbox held it,<br/>a second try, a pass is in<br/>its step" as s97
-    state "told twice, owed.json says<br/>sent, sent.json has its<br/>key" as s98
-    state "told twice, owed.json says<br/>sent, sent.json has its<br/>key, a second try" as s99
-    state "told twice, owed.json says<br/>sent, sent.json has its<br/>key, sent.json has<br/>failover's key" as s100
-    state "told twice, owed.json says<br/>sent, sent.json has its<br/>key, sent.json has<br/>failover's key, a second<br/>try" as s101
-    state "told twice, owed.json says<br/>the thread ended" as s102
-    state "told twice, owed.json says<br/>the thread ended, a second<br/>try" as s103
-    state "told twice, owed.json says<br/>the thread ended,<br/>sent.json has failover's<br/>key" as s104
-    state "told twice, owed.json says<br/>the thread ended,<br/>sent.json has failover's<br/>key, a second try" as s105
-    state "told twice, owed.json says<br/>the thread ended,<br/>sent.json has failover's<br/>key, the outbox held it" as s106
-    state "told twice, owed.json says<br/>the thread ended,<br/>sent.json has failover's<br/>key, the outbox held it, a<br/>second try" as s107
-    state "told twice, owed.json says<br/>the thread ended,<br/>sent.json has its key" as s108
-    state "told twice, owed.json says<br/>the thread ended,<br/>sent.json has its key, a<br/>second try" as s109
-    state "told twice, owed.json says<br/>the thread ended,<br/>sent.json has its key,<br/>sent.json has failover's<br/>key" as s110
-    state "told twice, owed.json says<br/>the thread ended,<br/>sent.json has its key,<br/>sent.json has failover's<br/>key, a second try" as s111
-    state "told twice, owed.json says<br/>the thread ended, the<br/>outbox held it" as s112
-    state "told twice, owed.json says<br/>the thread ended, the<br/>outbox held it, a second<br/>try" as s113
-    state "told twice, owed.json says<br/>the user asked again" as s114
-    state "told twice, owed.json says<br/>the user asked again, a<br/>second try" as s115
-    state "told twice, owed.json says<br/>the user asked again,<br/>sent.json has failover's<br/>key" as s116
-    state "told twice, owed.json says<br/>the user asked again,<br/>sent.json has failover's<br/>key, a second try" as s117
-    state "told twice, owed.json says<br/>the user asked again,<br/>sent.json has failover's<br/>key, the outbox held it" as s118
-    state "told twice, owed.json says<br/>the user asked again,<br/>sent.json has failover's<br/>key, the outbox held it, a<br/>second try" as s119
-    state "told twice, owed.json says<br/>the user asked again,<br/>sent.json has its key" as s120
-    state "told twice, owed.json says<br/>the user asked again,<br/>sent.json has its key, a<br/>second try" as s121
-    state "told twice, owed.json says<br/>the user asked again,<br/>sent.json has its key,<br/>sent.json has failover's<br/>key" as s122
-    state "told twice, owed.json says<br/>the user asked again,<br/>sent.json has its key,<br/>sent.json has failover's<br/>key, a second try" as s123
-    state "told twice, owed.json says<br/>the user asked again, the<br/>outbox held it" as s124
-    state "told twice, owed.json says<br/>the user asked again, the<br/>outbox held it, a second<br/>try" as s125
+    state "told once, owed.json says<br/>owed, owed.json keeps<br/>failover's key on the ask" as s29
+    state "told once, owed.json says<br/>owed, owed.json keeps<br/>failover's key on the ask,<br/>a pass is in its step" as s30
+    state "told once, owed.json says<br/>owed, owed.json keeps<br/>failover's key on the ask,<br/>a second try" as s31
+    state "told once, owed.json says<br/>owed, owed.json keeps<br/>failover's key on the ask,<br/>a second try, a pass is in<br/>its step" as s32
+    state "told once, owed.json says<br/>owed, owed.json keeps<br/>failover's key on the ask,<br/>sent.json has failover's<br/>key" as s33
+    state "told once, owed.json says<br/>owed, owed.json keeps<br/>failover's key on the ask,<br/>sent.json has failover's<br/>key, a pass is in its step" as s34
+    state "told once, owed.json says<br/>owed, owed.json keeps<br/>failover's key on the ask,<br/>sent.json has failover's<br/>key, a second try" as s35
+    state "told once, owed.json says<br/>owed, owed.json keeps<br/>failover's key on the ask,<br/>sent.json has failover's<br/>key, a second try, a pass<br/>is in its step" as s36
+    state "told once, owed.json says<br/>owed, owed.json keeps<br/>failover's key on the ask,<br/>the outbox held it" as s37
+    state "told once, owed.json says<br/>owed, owed.json keeps<br/>failover's key on the ask,<br/>the outbox held it, a pass<br/>is in its step" as s38
+    state "told once, owed.json says<br/>owed, owed.json keeps<br/>failover's key on the ask,<br/>the outbox held it, a<br/>second try" as s39
+    state "told once, owed.json says<br/>owed, owed.json keeps<br/>failover's key on the ask,<br/>the outbox held it, a<br/>second try, a pass is in<br/>its step" as s40
+    state "told once, owed.json says<br/>owed, sent.json has its<br/>key" as s41
+    state "told once, owed.json says<br/>owed, sent.json has its<br/>key, a pass is in its step" as s42
+    state "told once, owed.json says<br/>owed, sent.json has its<br/>key, a second try" as s43
+    state "told once, owed.json says<br/>owed, sent.json has its<br/>key, a second try, a pass<br/>is in its step" as s44
+    state "told once, owed.json says<br/>owed, the outbox held it" as s45
+    state "told once, owed.json says<br/>owed, the outbox held it,<br/>a pass is in its step" as s46
+    state "told once, owed.json says<br/>owed, the outbox held it,<br/>a second try" as s47
+    state "told once, owed.json says<br/>owed, the outbox held it,<br/>a second try, a pass is in<br/>its step" as s48
+    state "told once, owed.json says<br/>sent, owed.json keeps<br/>failover's key on the ask,<br/>sent.json has failover's<br/>key" as s49
+    state "told once, owed.json says<br/>sent, owed.json keeps<br/>failover's key on the ask,<br/>sent.json has failover's<br/>key, a second try" as s50
+    state "told once, owed.json says<br/>sent, sent.json has its<br/>key" as s51
+    state "told once, owed.json says<br/>sent, sent.json has its<br/>key, a second try" as s52
+    state "told once, owed.json says<br/>the thread ended" as s53
+    state "told once, owed.json says<br/>the thread ended, a second<br/>try" as s54
+    state "told once, owed.json says<br/>the thread ended,<br/>owed.json keeps failover's<br/>key on the ask" as s55
+    state "told once, owed.json says<br/>the thread ended,<br/>owed.json keeps failover's<br/>key on the ask, a second<br/>try" as s56
+    state "told once, owed.json says<br/>the thread ended,<br/>owed.json keeps failover's<br/>key on the ask, sent.json<br/>has failover's key" as s57
+    state "told once, owed.json says<br/>the thread ended,<br/>owed.json keeps failover's<br/>key on the ask, sent.json<br/>has failover's key, a<br/>second try" as s58
+    state "told once, owed.json says<br/>the thread ended,<br/>owed.json keeps failover's<br/>key on the ask, the outbox<br/>held it" as s59
+    state "told once, owed.json says<br/>the thread ended,<br/>owed.json keeps failover's<br/>key on the ask, the outbox<br/>held it, a second try" as s60
+    state "told once, owed.json says<br/>the thread ended,<br/>sent.json has its key" as s61
+    state "told once, owed.json says<br/>the thread ended,<br/>sent.json has its key, a<br/>second try" as s62
+    state "told once, owed.json says<br/>the thread ended, the<br/>outbox held it" as s63
+    state "told once, owed.json says<br/>the thread ended, the<br/>outbox held it, a second<br/>try" as s64
+    state "told once, owed.json says<br/>the user asked again" as s65
+    state "told once, owed.json says<br/>the user asked again, a<br/>second try" as s66
+    state "told once, owed.json says<br/>the user asked again,<br/>owed.json keeps failover's<br/>key on the ask" as s67
+    state "told once, owed.json says<br/>the user asked again,<br/>owed.json keeps failover's<br/>key on the ask, a second<br/>try" as s68
+    state "told once, owed.json says<br/>the user asked again,<br/>owed.json keeps failover's<br/>key on the ask, sent.json<br/>has failover's key" as s69
+    state "told once, owed.json says<br/>the user asked again,<br/>owed.json keeps failover's<br/>key on the ask, sent.json<br/>has failover's key, a<br/>second try" as s70
+    state "told once, owed.json says<br/>the user asked again,<br/>owed.json keeps failover's<br/>key on the ask, the outbox<br/>held it" as s71
+    state "told once, owed.json says<br/>the user asked again,<br/>owed.json keeps failover's<br/>key on the ask, the outbox<br/>held it, a second try" as s72
+    state "told once, owed.json says<br/>the user asked again,<br/>sent.json has its key" as s73
+    state "told once, owed.json says<br/>the user asked again,<br/>sent.json has its key, a<br/>second try" as s74
+    state "told once, owed.json says<br/>the user asked again, the<br/>outbox held it" as s75
+    state "told once, owed.json says<br/>the user asked again, the<br/>outbox held it, a second<br/>try" as s76
   }
   [*] --> s24
   s24 --> s0 : what calls for it comes to<br/>hold
   s0 --> s1 : a pass reaches it and reads<br/>its marks
   s0 --> s18 : the user asked again, or the<br/>thread ended
   s0 --> s12 : the user asked again, or the<br/>thread ended
-  s0 --> s26 : failover carries the thread<br/>on, the ask quoted
+  s0 --> s5 : the ask's record names<br/>failover's key
   s1 --> s26 : the receiver takes it
   s1 --> s8 : the outbox holds the message
   s1 --> s0 : the pass dies
+  s5 --> s4 : the pass dies
+  s5 --> s30 : failover carries the thread<br/>on, the ask quoted
   s26 --> s25 : the pass dies
-  s26 --> s30 : failover's key goes in<br/>sent.json
   s8 --> s9 : a pass reaches it and reads<br/>its marks
   s8 --> s22 : the user asked again, or the<br/>thread ended
   s8 --> s16 : the user asked again, or the<br/>thread ended
-  s25 --> s26 : a pass reaches it and reads<br/>its marks
-  s25 --> s63 : the user asked again, or the<br/>thread ended
-  s25 --> s52 : the user asked again, or the<br/>thread ended
-  s30 --> s29 : the pass dies
-  s30 --> s47 : failover closes the ask
-  s26 --> s38 : its key goes in sent.json
-  s9 --> s44 : the receiver takes it
-  s9 --> s8 : the outbox holds the message<br/>or the pass dies
-  s26 --> s75 : the receiver takes it
-  s26 --> s43 : the outbox holds the message
-  s29 --> s30 : a pass reaches it and reads<br/>its marks
-  s29 --> s65 : the user asked again, or the<br/>thread ended
-  s29 --> s54 : the user asked again, or the<br/>thread ended
-  s47 --> s4 : the ask's turn stopped on the<br/>limit again
-  s38 --> s49 : its own file says done
-  s38 --> s37 : the pass dies
-  s44 --> s26 : the outbox logs it sent or the<br/>pass writes its next step
-  s44 --> s43 : the pass dies or the outbox<br/>holds the message
-  s75 --> s74 : the pass dies
-  s43 --> s44 : a pass reaches it and reads<br/>its marks
-  s43 --> s72 : the user asked again, or the<br/>thread ended
-  s43 --> s61 : the user asked again, or the<br/>thread ended
-  s30 --> s79 : the receiver takes it
-  s30 --> s33 : the outbox holds the message
-  s4 --> s5 : a pass reaches it and reads<br/>its marks
+  s4 --> s5 : the ask's record names<br/>failover's key
   s4 --> s20 : the user asked again, or the<br/>thread ended
   s4 --> s14 : the user asked again, or the<br/>thread ended
-  s4 --> s32 : failover carries the thread<br/>on, the ask quoted
-  s49 --> s2 : the ask's turn stopped on the<br/>limit again
-  s37 --> s38 : a pass reaches it and reads<br/>its marks
-  s37 --> s69 : the user asked again, or the<br/>thread ended
-  s37 --> s58 : the user asked again, or the<br/>thread ended
-  s75 --> s87 : its key goes in sent.json
-  s74 --> s75 : a pass reaches it and reads<br/>its marks
-  s74 --> s114 : the user asked again, or the<br/>thread ended
-  s74 --> s102 : the user asked again, or the<br/>thread ended
-  s44 --> s95 : the receiver takes it
-  s79 --> s78 : the pass dies
+  s30 --> s29 : the pass dies
+  s30 --> s34 : its key goes in sent.json or<br/>failover's key goes in<br/>sent.json
+  s26 --> s42 : its key goes in sent.json
+  s25 --> s26 : a pass reaches it and reads<br/>its marks
+  s25 --> s65 : the user asked again, or the<br/>thread ended
+  s25 --> s53 : the user asked again, or the<br/>thread ended
+  s9 --> s46 : the receiver takes it
+  s9 --> s8 : the outbox holds the message<br/>or the pass dies
+  s29 --> s30 : a pass reaches it and reads<br/>its marks
+  s29 --> s67 : the user asked again, or the<br/>thread ended
+  s29 --> s55 : the user asked again, or the<br/>thread ended
+  s34 --> s33 : the pass dies
+  s34 --> s49 : its own file says done or<br/>failover closes the ask
+  s42 --> s51 : its own file says done
+  s42 --> s41 : the pass dies
+  s26 --> s45 : the outbox holds the message
+  s46 --> s26 : the outbox logs it sent or the<br/>pass writes its next step
+  s46 --> s45 : the pass dies or the outbox<br/>holds the message
+  s30 --> s37 : the outbox holds the message
   s33 --> s34 : a pass reaches it and reads<br/>its marks
-  s33 --> s67 : the user asked again, or the<br/>thread ended
-  s33 --> s56 : the user asked again, or the<br/>thread ended
-  s5 --> s32 : the receiver takes it
-  s5 --> s6 : the outbox holds the message
-  s5 --> s4 : the pass dies
-  s32 --> s31 : the pass dies
+  s33 --> s69 : the user asked again, or the<br/>thread ended
+  s33 --> s57 : the user asked again, or the<br/>thread ended
+  s49 --> s2 : the ask's turn stopped on the<br/>limit again
+  s51 --> s2 : the ask's turn stopped on the<br/>limit again
+  s41 --> s42 : a pass reaches it and reads<br/>its marks
+  s41 --> s73 : the user asked again, or the<br/>thread ended
+  s41 --> s61 : the user asked again, or the<br/>thread ended
+  s45 --> s46 : a pass reaches it and reads<br/>its marks
+  s45 --> s75 : the user asked again, or the<br/>thread ended
+  s45 --> s63 : the user asked again, or the<br/>thread ended
+  s37 --> s38 : a pass reaches it and reads<br/>its marks
+  s37 --> s71 : the user asked again, or the<br/>thread ended
+  s37 --> s59 : the user asked again, or the<br/>thread ended
   s2 --> s3 : a pass reaches it and reads<br/>its marks
   s2 --> s19 : the user asked again, or the<br/>thread ended
   s2 --> s13 : the user asked again, or the<br/>thread ended
-  s2 --> s28 : failover carries the thread<br/>on, the ask quoted
-  s87 --> s98 : its own file says done
-  s87 --> s86 : the pass dies
-  s75 --> s94 : the outbox holds the message
-  s95 --> s75 : the outbox logs it sent or the<br/>pass writes its next step
-  s95 --> s94 : the pass dies or the outbox<br/>holds the message
-  s79 --> s91 : its key goes in sent.json
-  s78 --> s79 : a pass reaches it and reads<br/>its marks
-  s78 --> s116 : the user asked again, or the<br/>thread ended
-  s78 --> s104 : the user asked again, or the<br/>thread ended
-  s34 --> s83 : the receiver takes it
-  s34 --> s33 : the outbox holds the message<br/>or the pass dies
-  s6 --> s7 : a pass reaches it and reads<br/>its marks
-  s6 --> s21 : the user asked again, or the<br/>thread ended
-  s6 --> s15 : the user asked again, or the<br/>thread ended
-  s31 --> s32 : a pass reaches it and reads<br/>its marks
-  s31 --> s66 : the user asked again, or the<br/>thread ended
-  s31 --> s55 : the user asked again, or the<br/>thread ended
-  s32 --> s48 : failover closes the ask
+  s2 --> s7 : the ask's record names<br/>failover's key
+  s38 --> s37 : the pass dies or the outbox<br/>holds the message
   s3 --> s28 : the receiver takes it
   s3 --> s10 : the outbox holds the message
   s3 --> s2 : the pass dies
+  s7 --> s6 : the pass dies
+  s7 --> s32 : failover carries the thread<br/>on, the ask quoted
+  s38 --> s30 : the outbox logs it sent or the<br/>pass writes its next step
   s28 --> s27 : the pass dies
-  s28 --> s32 : failover's key goes in<br/>sent.json
-  s86 --> s87 : a pass reaches it and reads<br/>its marks
-  s86 --> s120 : the user asked again, or the<br/>thread ended
-  s86 --> s108 : the user asked again, or the<br/>thread ended
-  s94 --> s95 : a pass reaches it and reads<br/>its marks
-  s94 --> s124 : the user asked again, or the<br/>thread ended
-  s94 --> s112 : the user asked again, or the<br/>thread ended
-  s91 --> s100 : its own file says done
-  s91 --> s90 : the pass dies
-  s79 --> s82 : the outbox holds the message
-  s83 --> s79 : the outbox logs it sent or the<br/>pass writes its next step
-  s83 --> s82 : the pass dies or the outbox<br/>holds the message
-  s32 --> s42 : its key goes in sent.json
-  s7 --> s36 : the receiver takes it
-  s7 --> s6 : the outbox holds the message<br/>or the pass dies
-  s32 --> s81 : the receiver takes it
-  s32 --> s35 : the outbox holds the message
   s10 --> s11 : a pass reaches it and reads<br/>its marks
   s10 --> s23 : the user asked again, or the<br/>thread ended
   s10 --> s17 : the user asked again, or the<br/>thread ended
+  s6 --> s7 : the ask's record names<br/>failover's key
+  s6 --> s21 : the user asked again, or the<br/>thread ended
+  s6 --> s15 : the user asked again, or the<br/>thread ended
+  s32 --> s31 : the pass dies
+  s32 --> s36 : failover's key goes in<br/>sent.json or its key goes in<br/>sent.json
+  s28 --> s44 : its key goes in sent.json
   s27 --> s28 : a pass reaches it and reads<br/>its marks
-  s27 --> s64 : the user asked again, or the<br/>thread ended
-  s27 --> s53 : the user asked again, or the<br/>thread ended
-  s90 --> s91 : a pass reaches it and reads<br/>its marks
-  s90 --> s122 : the user asked again, or the<br/>thread ended
-  s90 --> s110 : the user asked again, or the<br/>thread ended
-  s82 --> s83 : a pass reaches it and reads<br/>its marks
-  s82 --> s118 : the user asked again, or the<br/>thread ended
-  s82 --> s106 : the user asked again, or the<br/>thread ended
-  s42 --> s51 : its own file says done
-  s42 --> s41 : the pass dies
-  s36 --> s32 : the outbox logs it sent or the<br/>pass writes its next step
-  s36 --> s35 : the pass dies or the outbox<br/>holds the message
-  s81 --> s80 : the pass dies
-  s35 --> s36 : a pass reaches it and reads<br/>its marks
-  s35 --> s68 : the user asked again, or the<br/>thread ended
-  s35 --> s57 : the user asked again, or the<br/>thread ended
-  s28 --> s40 : its key goes in sent.json
-  s11 --> s46 : the receiver takes it
+  s27 --> s66 : the user asked again, or the<br/>thread ended
+  s27 --> s54 : the user asked again, or the<br/>thread ended
+  s11 --> s48 : the receiver takes it
   s11 --> s10 : the outbox holds the message<br/>or the pass dies
-  s28 --> s77 : the receiver takes it
-  s28 --> s45 : the outbox holds the message
-  s41 --> s42 : a pass reaches it and reads<br/>its marks
-  s41 --> s71 : the user asked again, or the<br/>thread ended
-  s41 --> s60 : the user asked again, or the<br/>thread ended
-  s81 --> s93 : its key goes in sent.json
-  s80 --> s81 : a pass reaches it and reads<br/>its marks
-  s80 --> s117 : the user asked again, or the<br/>thread ended
-  s80 --> s105 : the user asked again, or the<br/>thread ended
-  s36 --> s85 : the receiver takes it
-  s40 --> s50 : its own file says done
-  s40 --> s39 : the pass dies
-  s46 --> s28 : the outbox logs it sent or the<br/>pass writes its next step
-  s46 --> s45 : the pass dies or the outbox<br/>holds the message
-  s77 --> s76 : the pass dies
-  s45 --> s46 : a pass reaches it and reads<br/>its marks
-  s45 --> s73 : the user asked again, or the<br/>thread ended
-  s45 --> s62 : the user asked again, or the<br/>thread ended
-  s93 --> s101 : its own file says done
-  s93 --> s92 : the pass dies
-  s81 --> s84 : the outbox holds the message
-  s85 --> s81 : the pass writes its next step
-  s85 --> s84 : the pass dies or the outbox<br/>holds the message
+  s31 --> s32 : a pass reaches it and reads<br/>its marks
+  s31 --> s68 : the user asked again, or the<br/>thread ended
+  s31 --> s56 : the user asked again, or the<br/>thread ended
+  s36 --> s35 : the pass dies
+  s36 --> s50 : failover closes the ask or its<br/>own file says done
+  s44 --> s52 : its own file says done
+  s44 --> s43 : the pass dies
+  s28 --> s47 : the outbox holds the message
+  s48 --> s28 : the outbox logs it sent or the<br/>pass writes its next step
+  s48 --> s47 : the pass dies or the outbox<br/>holds the message
+  s32 --> s39 : the outbox holds the message
+  s35 --> s36 : a pass reaches it and reads<br/>its marks
+  s35 --> s70 : the user asked again, or the<br/>thread ended
+  s35 --> s58 : the user asked again, or the<br/>thread ended
+  s43 --> s44 : a pass reaches it and reads<br/>its marks
+  s43 --> s74 : the user asked again, or the<br/>thread ended
+  s43 --> s62 : the user asked again, or the<br/>thread ended
+  s47 --> s48 : a pass reaches it and reads<br/>its marks
+  s47 --> s76 : the user asked again, or the<br/>thread ended
+  s47 --> s64 : the user asked again, or the<br/>thread ended
   s39 --> s40 : a pass reaches it and reads<br/>its marks
-  s39 --> s70 : the user asked again, or the<br/>thread ended
-  s39 --> s59 : the user asked again, or the<br/>thread ended
-  s77 --> s89 : its key goes in sent.json
-  s76 --> s77 : a pass reaches it and reads<br/>its marks
-  s76 --> s115 : the user asked again, or the<br/>thread ended
-  s76 --> s103 : the user asked again, or the<br/>thread ended
-  s46 --> s97 : the receiver takes it
-  s92 --> s93 : a pass reaches it and reads<br/>its marks
-  s92 --> s123 : the user asked again, or the<br/>thread ended
-  s92 --> s111 : the user asked again, or the<br/>thread ended
-  s84 --> s85 : a pass reaches it and reads<br/>its marks
-  s84 --> s119 : the user asked again, or the<br/>thread ended
-  s84 --> s107 : the user asked again, or the<br/>thread ended
-  s89 --> s99 : its own file says done
-  s89 --> s88 : the pass dies
-  s77 --> s96 : the outbox holds the message
-  s97 --> s77 : the pass writes its next step
-  s97 --> s96 : the pass dies or the outbox<br/>holds the message
-  s88 --> s89 : a pass reaches it and reads<br/>its marks
-  s88 --> s121 : the user asked again, or the<br/>thread ended
-  s88 --> s109 : the user asked again, or the<br/>thread ended
-  s96 --> s97 : a pass reaches it and reads<br/>its marks
-  s96 --> s125 : the user asked again, or the<br/>thread ended
-  s96 --> s113 : the user asked again, or the<br/>thread ended
+  s39 --> s72 : the user asked again, or the<br/>thread ended
+  s39 --> s60 : the user asked again, or the<br/>thread ended
+  s40 --> s39 : the pass dies or the outbox<br/>holds the message
+  s40 --> s32 : the pass writes its next step
   class s0 group0
   class s1 group0
   class s2 group0
@@ -387,25 +248,25 @@ stateDiagram-v2
   class s38 group2
   class s39 group3
   class s40 group3
-  class s41 group3
-  class s42 group3
-  class s43 group2
-  class s44 group2
-  class s45 group3
-  class s46 group3
-  class s47 group4
-  class s48 group5
+  class s41 group2
+  class s42 group2
+  class s43 group3
+  class s44 group3
+  class s45 group2
+  class s46 group2
+  class s47 group3
+  class s48 group3
   class s49 group4
   class s50 group5
-  class s51 group5
-  class s52 group4
-  class s53 group5
-  class s54 group4
-  class s55 group5
-  class s56 group4
-  class s57 group5
-  class s58 group4
-  class s59 group5
+  class s51 group4
+  class s52 group5
+  class s53 group4
+  class s54 group5
+  class s55 group4
+  class s56 group5
+  class s57 group4
+  class s58 group5
+  class s59 group4
   class s60 group5
   class s61 group4
   class s62 group5
@@ -417,58 +278,9 @@ stateDiagram-v2
   class s68 group5
   class s69 group4
   class s70 group5
-  class s71 group5
-  class s72 group4
-  class s73 group5
-  class s74 group6Wrong
-  class s75 group6Wrong
-  class s76 group7Wrong
-  class s77 group7Wrong
-  class s78 group6Wrong
-  class s79 group6Wrong
-  class s80 group7Wrong
-  class s81 group7Wrong
-  class s82 group6Wrong
-  class s83 group6Wrong
-  class s84 group7Wrong
-  class s85 group7Wrong
-  class s86 group6Wrong
-  class s87 group6Wrong
-  class s88 group7Wrong
-  class s89 group7Wrong
-  class s90 group6Wrong
-  class s91 group6Wrong
-  class s92 group7Wrong
-  class s93 group7Wrong
-  class s94 group6Wrong
-  class s95 group6Wrong
-  class s96 group7Wrong
-  class s97 group7Wrong
-  class s98 group8Wrong
-  class s99 group9Wrong
-  class s100 group8Wrong
-  class s101 group9Wrong
-  class s102 group8Wrong
-  class s103 group9Wrong
-  class s104 group8Wrong
-  class s105 group9Wrong
-  class s106 group8Wrong
-  class s107 group9Wrong
-  class s108 group8Wrong
-  class s109 group9Wrong
-  class s110 group8Wrong
-  class s111 group9Wrong
-  class s112 group8Wrong
-  class s113 group9Wrong
-  class s114 group8Wrong
-  class s115 group9Wrong
-  class s116 group8Wrong
-  class s117 group9Wrong
-  class s118 group8Wrong
-  class s119 group9Wrong
-  class s120 group8Wrong
-  class s121 group9Wrong
-  class s122 group8Wrong
-  class s123 group9Wrong
-  class s124 group8Wrong
-  class s125 group9Wrong
+  class s71 group4
+  class s72 group5
+  class s73 group4
+  class s74 group5
+  class s75 group4
+  class s76 group5

@@ -26,10 +26,12 @@ the exception: the sender keeps a body that got one of them in the spool and sen
 Once a route has sent a body under the body's own id, it never spools that id again. A route does
 not spool a hashed id again while it holds the id, or after it sent the id in the last
 `RELAY_DEDUP_SECONDS` (900). A repeat in that window means that jbus lost the relay's answer and
-posted the body again. jbus's bodies carry no time, so a hashed id depends only on the body's
-content, and the same alert sent again later is a new event. Because the window ends, the relay
-sends that later alert. When the relay stops after it took a POST that is not yet in `sent`, it
-sends that body once more after it starts again. So the relay sends each body at least once.
+posted the body again. jbus gives each body an id of its own when it queues it
+(`jbus.wake.Box.post`), so its retry is the same body and the same alert queued again later is a
+new one. A body with no id of its own has a hashed id, which depends only on its content, so the
+same alert sent again later has the same id, and because the window ends the relay sends it.
+When the relay stops after it took a POST that is not yet in `sent`, it sends that body once more
+after it starts again. So the relay sends each body at least once.
 
 The one route of `ROUTES`, `blocking`, sends what blocks (`blocking`) to the one target, Sous Chef
 (`RELAY_WEBHOOK_URL`, `RELAY_WEBHOOK_KEY`, or their older names `GROK_WEBHOOK_URL` and

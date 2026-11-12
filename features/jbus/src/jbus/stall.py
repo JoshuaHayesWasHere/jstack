@@ -28,43 +28,45 @@ everything else that waits on the user.
 `hung.jsonl`. A later pass adds a line that says what became of the turn: it wrote again by itself,
 someone interrupted it, or it ended. jbus interrupts nothing and sends the thread nothing.
 
-`twice` ends a row's loop of failed checks. It keeps, in `fails.json`, each head at which the row's
-pull request failed a required check (`rebase.ran_and_failed`, a check the home's `required-checks`
-names, or jmerge's default where it names none). A row that is held already is not counted. A pull
-request's check runs on GitHub's merge of its head into main, and a failed job's log names that main
-(`tested`). A head whose check ran on a main whose own check failed, a tip `main.json` called
-`broken` (`mainmoved.main_check`), is kept apart and counted for nothing: main failed there, not the
-row, whatever commit the head's branch was based on (#1177, 2026-11-06). A head whose failed tests
-each failed on two other branches in `jbus ci`'s window (`reverts.flaky`, `jbus ci`'s flake rule) is
-kept apart too and counted for nothing: the red is shared, not the row's (#1219 and #1220,
-2026-11-07). A head at which each failed job failed at a step whose log names no failed test and no
-make target and shows a download or network failure (`infra`, `FETCH`), such as a package's
-download, is kept apart too and counted for nothing: that step ran nothing of the row's
-(2026-11-09). A lint step, which also runs no test and no make target, shows no fetch failure and
-counts. Each sign is searched in the own part of the log of the step that failed the job, the
-last one to fail (`failed_step`), not the whole log. A head that is only a merge of main into the
-head seen before it (`merge_of_main`), as `git merge main` and GitHub's update-branch make one, is
-kept apart too, under `moved`, and counted for nothing, where it fails something that head did not
-(`failures`: a failed test's id, or a lint rule and its path): main moved under it, as when two
-diffs that each pass a size cap cross it together, and a held crew would get no fix message to
-mend it (#1720, 2026-11-11). Its crew is told to fix it as at any first failure. A counted head
-keeps the failed tests its failed jobs' logs name (`named`). At the second counted head, a push or
-a merge of main that failed nothing new, whose logs name failed tests, the red is one the crew can
-mend by name: `twice` holds nothing and pages nobody, and keeps the head as `told` in `fails.json`,
-from which `jbus.rebase.github` words the crew's one message of that head's failed check, naming
-the tests and both heads (#1691, 2026-11-11: both its failed heads failed on one test of the
-change's own, and the row waited 22 minutes for an approve that carried no decision). At the third
-counted head (`LIMIT`), or at the second where its logs name no failed test, `twice` holds the row
-(`jbus queue hold`), keeping the go the hold takes, and pages the Chef once, a gate `check failed
-twice` that names the row, the pull request, each counted head and the failed jobs at each. The
-outbox then sends the crew of a held row no rebase and no fix message (`outbox.FIXES`), so none
-goes out at a later head. The row's `why` says `check failed twice` while it is held. In the
-pass that sees every required check passed at the head, `twice` lifts its own hold and puts back the
-go it took (`lifted`, `queue.lift`), where the row's brief is still the one that go was for; a row
-held again since, by anyone, or whose brief changed since, stays held until an approve. Either way
-the count starts again from none. A counted head, of a held row or not, whose every required check
-then passes at that same head, as on a rerun, leaves the count: its red was not the row's to keep
-(#1708, 2026-11-11).
+`twice` ends a row's loop of failed checks, and `redhead` reads why a red is not the row's own. It
+keeps, in `fails.json`, each head at which the row's pull request failed a required check
+(`rebase.ran_and_failed`, a check the home's `required-checks` names, or jmerge's default where it
+names none). A row that is held already is not counted. A pull request's check runs on GitHub's
+merge of its head into main, and a failed job's log names that main (`tested`). A head whose check
+ran on a main whose own check failed, a tip `main.json` called `broken` (`mainmoved.main_check`), is
+kept apart and counted for nothing: main failed there, not the row, whatever commit the head's
+branch was based on (#1177, 2026-11-06). A head whose failed tests each failed on two other branches
+in `jbus ci`'s window (`reverts.flaky`, `jbus ci`'s flake rule) is kept apart too and counted for
+nothing: the red is shared, not the row's (#1219 and #1220, 2026-11-07). A head at which each failed
+job failed at a step whose log names no failed test and no make target and shows a download or
+network failure (`infra`, `FETCH`), such as a package's download, is kept apart too and counted for
+nothing: that step ran nothing of the row's (2026-11-09). A lint step, which also runs no test and
+no make target, shows no fetch failure and counts. Each sign is searched in the own part of the log
+of the step that failed the job, the last one to fail (`failed_step`), not the whole log. A head
+that is only a merge of main into the head seen before it (`merge_of_main`), as `git merge main` and
+GitHub's update-branch make one, is kept apart too, under `moved`, and counted for nothing, where it
+fails something that head did not (`failures`: a failed test's id, or a lint rule and its path):
+main moved under it, as when two diffs that each pass a size cap cross it together, and a held crew
+would get no fix message to mend it (#1720, 2026-11-11). Its crew is told to fix it as at any first
+failure. A counted head keeps the failed tests its failed jobs' logs name (`named`). At the second
+counted head, a push or a merge of main that failed nothing new, whose logs name failed tests, the
+red is one the crew can mend by name: `twice` holds nothing and pages nobody, and keeps the head as
+`told` in `fails.json`, from which `jbus.rebase.github` words the crew's one message of that head's
+failed check, naming the tests and both heads (#1691, 2026-11-11: both its failed heads failed on
+one test of the change's own, and the row waited 22 minutes for an approve that carried no
+decision). At the third counted head (`LIMIT`), or at the second where its logs name no failed test,
+`twice` holds the row (`jbus queue hold`), keeping the go the hold takes, and pages the Chef once, a
+gate `check failed twice` that names the row, the pull request, each counted head and the failed
+jobs at each. The page's key goes into `fails.json` (`paging`) before the hold, and `held_at` after
+the page, so a pass that dies between the hold and the page leaves the page owed: the next pass
+pages under the same key, which the log takes once (`_page`). The outbox then sends the crew of a
+held row no rebase and no fix message (`outbox.FIXES`), so none goes out at a later head. The row's
+`why` says `check failed twice` while it is held. In the pass that sees every required check passed
+at the head, `twice` lifts its own hold and puts back the go it took (`lifted`, `queue.lift`), where
+the row's brief is still the one that go was for; a row held again since, by anyone, or whose brief
+changed since, stays held until an approve. Either way the count starts again from none. A counted
+head, of a held row or not, whose every required check then passes at that same head, as on a rerun,
+leaves the count: its red was not the row's to keep (#1708, 2026-11-11).
 
 `hung` also keeps `stalls.jsonl`, how long each running row's thread was quiet or hung (`spells`):
 the stall minutes the telemetry store reads (`jbus.telemetry.views.weekly_stall`).
@@ -73,7 +75,6 @@ the stall minutes the telemetry store reads (`jbus.telemetry.views.weekly_stall`
 from __future__ import annotations
 
 import json
-import re
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
@@ -87,24 +88,21 @@ from jbus import (
     queue,
     read_json,
     rebase,
-    reverts,
+    redhead,
     verbs,
     waiting,
     watch,
     write_json,
 )
-from jbus.ci import collect
 from jbus.dispatch import launched
 from jbus.mainmoved import main_check
 from jbus.merge import parse
 from jbus.passes import Changed, Depends, Pass
 from jbus.record import PASSES as PASS_LOG
-from jbus.redlog import failed_step, failures, named
 from jbus.t3 import Client
 from jbus.wake import notify
-from jbus.watch import FAILS, TOLD, TWICE, World, _api, at_work, job_log, ran, task_brief
+from jbus.watch import FAILS, TOLD, TWICE, World, at_work, task_brief
 from jmerge import judgement, ready
-from jmerge.joblog import failed_in
 from jmerge.lines import READY
 from jsettings import store
 
@@ -437,91 +435,6 @@ def holds(heads: dict[str, dict[str, Any]]) -> bool:
     return len(counted) >= LIMIT or (len(counted) == 2 and not counted[-1].get("tests"))
 
 
-def tested(run: Pass, head: str, red: rebase.Red) -> str | None:
-    """Return the main that the head's failed check ran on: the commit that GitHub merged the head
-    into, as the first failed job's log that names the merge says, or nothing where no log names
-    one. None where a log GitHub did not give might have named it, so the head is judged again on
-    a later pass."""
-    named = re.compile(rf"Merge {re.escape(head)} into ([0-9a-f]{{40}})")
-    unread = False
-    for repo, job in red.jobs:
-        log = job_log(run, repo, job)
-        found = named.search(log) if log is not None else None
-        if found:
-            return found.group(1)
-        unread = unread or log is None
-    return None if unread else ""
-
-
-def shared(run: Pass, pull: dict[str, Any], red: rebase.Red) -> list[str]:
-    """Return the tests that failed at the pull request's head where each is a flake by `jbus ci`'s
-    rule, failed on two branches besides the pull request's own (`reverts.flaky`), or nothing where
-    one is not, or a failed job's log was not given, names no test, or counts a failure or an error
-    it names no test of, as a collection error is: that red is the row's own."""
-    tests: set[str] = set()
-    for repo, job in red.jobs:
-        log = job_log(run, repo, job)
-        failed = failed_in(log) if log is not None else None
-        if failed is None or not failed.tests or failed.count > len(failed.tests):
-            return []
-        tests.update(failed.tests)
-    if not tests or not tests <= reverts.flaky(run, str(pull.get("headRefName") or "")):
-        return []
-    return sorted(tests)
-
-
-FETCH = re.compile(
-    r"(?im)curl: \(\d+\)|Could not resolve host|Temporary failure in name resolution"
-    r"|\b(?:HTTP(?:/[\d.]+)?|returned error:|status(?: code)?:?) ?5\d\d\b"
-    r"|\b5\d\d (?:Service Unavailable|Bad Gateway|Gateway Time-?out|Internal Server Error)"
-    r"|(?-i:Connection (?:reset by peer|refused|timed out))|Operation timed out"
-    r"|ECONNRESET|ETIMEDOUT|EAI_AGAIN"
-    r"|(?:Failed|Unable) to download|artifact[^\n]{0,60}download[^\n]{0,40}fail"
-)
-"""The sign of a download or network failure in a job's log, beside `collect.SIGNS`: a `curl`
-error, an HTTP 5xx, a host that did not resolve, a connection reset or timed out, or an artifact
-download that failed. The connection's words are matched as the system prints them, so a lint
-line that quotes them in prose is no sign."""
-
-
-def infra(run: Pass, world: World, red: rebase.Red) -> list[str]:
-    """Return the step each failed job failed at, where every one failed at a step whose log names
-    no failed test (`failed_in`) and no make target (`collect.TARGET`), and shows a download or
-    network failure (`FETCH`): a step that failed to fetch what the check needs, such as a
-    package. Each sign is searched in the failed step's own part of the log (`failed_step`), so a
-    passed step's retried download is no sign. Return nothing where a failed check gives no job,
-    or a job's failed step or log is not given, or the step's part names a failed test or a make
-    target or shows no fetch failure, as a lint step's does: that red is the row's own. The step
-    comes from `watch.ran`, which keeps it with the job."""
-    if len(red.jobs) < len(red.names):
-        return []
-    steps: list[str] = []
-    for repo, job in red.jobs:
-        step = str(ran(run, world, repo, job).get("failed_step") or "")
-        log = job_log(run, repo, job)
-        own = failed_step(log) if log is not None else ""
-        if not step or log is None or failed_in(own).count or not FETCH.search(own):
-            return []
-        if any(collect.TARGET.match(line) for line in collect.evidence(own)):
-            return []
-        steps.append(step)
-    return steps
-
-
-def merge_of_main(run: Pass, head: str, before: str, main: str) -> bool:
-    """Say whether `head` is a merge of main into `before`, the head seen before it, as a crew's
-    `git merge main` and GitHub's update-branch make one: a merge commit whose first parent is
-    `before` and whose second is on `main`, the main its check ran on."""
-    said = _api(run, f"repos/{{owner}}/{{repo}}/commits/{head}")
-    given = said.get("parents") if isinstance(said, dict) else None
-    parents = [str(one.get("sha")) for one in given or [] if isinstance(one, dict)]
-    if len(parents) != 2 or not before or parents[0] != before:
-        return False
-    compared = _api(run, f"repos/{{owner}}/{{repo}}/compare/{parents[1]}...{main}")
-    status = compared.get("status") if isinstance(compared, dict) else None
-    return status in ("ahead", "identical")
-
-
 def lifted(
     run: Pass, slug: str, row: queue.Row, pull: dict[str, Any], required: tuple[str, ...]
 ) -> bool:
@@ -541,6 +454,11 @@ def lifted(
         return False
     run.say(f"lifted {slug}: every required check passed at {head}; {said}")
     return True
+
+
+PAGING = "paging"
+"""The key of `twice`'s page in `fails.json`, written before the hold, so that a pass that dies
+between the hold and the page leaves the page owed and not lost (`_page`)."""
 
 
 def _said(head: str, one: dict[str, Any]) -> str:
@@ -579,6 +497,9 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
         moved, last = list(one.get("moved") or ()), dict(one.get("last") or {})
         kept[slug] = {**one, "heads": heads, "red": on_red, "shared": flakes, "infra": infras}
         kept[slug]["moved"] = moved
+        if one.get(PAGING) and not one.get("held_at"):
+            _page(run, slug, row, pull, kept[slug])
+            continue
         if head in heads and not ready.waiting(pull.get("statusCheckRollup") or [], required):
             del heads[head]
             kept[slug]["last"] = {"head": head, "failed": []}
@@ -594,12 +515,12 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
             if not ready.waiting(pull.get("statusCheckRollup") or [], required):
                 kept[slug]["last"] = {"head": head, "failed": []}
             continue
-        main = tested(run, head, found)
+        main = redhead.tested(run, head, found)
         check = main_check(run, main) if main else ""
         if main is None or check == "pending":
             run.say(f"wait {slug}: not yet known which main {head[:12]} was checked on, or if red")
             continue
-        failed = failures(run, found)
+        failed = redhead.failures(run, found)
         kept[slug]["last"] = {"head": head, "failed": sorted(failed)}
         if check == "failed":
             on_red.append(head)
@@ -608,14 +529,14 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
                 f"{main[:12]}, not counted"
             )
             continue
-        if tests := shared(run, pull, found):
+        if tests := redhead.shared(run, pull, found):
             flakes.append(head)
             run.say(
                 f"failed {slug}: #{pull['number']} at {head[:12]} failed only tests that also "
                 f"failed on two other branches ({', '.join(tests)}), not counted"
             )
             continue
-        if steps := infra(run, world, found):
+        if steps := redhead.infra(run, world, found):
             infras.append(head)
             run.say(
                 f"failed {slug}: #{pull['number']} at {head[:12]} failed only at "
@@ -625,7 +546,7 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
             continue
         before = str(last.get("head") or "")
         new = sorted(failed - set(last.get("failed") or ()))
-        if main and new and merge_of_main(run, head, before, main):
+        if main and new and redhead.merge_of_main(run, head, before, main):
             moved.append(head)
             run.say(
                 f"failed {slug}: #{pull['number']} at {head[:12]}, a merge of main into "
@@ -633,7 +554,8 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
                 "under it, not counted"
             )
             continue
-        heads[head] = {"at": run.now.isoformat(), **_failure(found, names, named(run, found))}
+        tests = redhead.named(run, found)
+        heads[head] = {"at": run.now.isoformat(), **_failure(found, names, tests)}
         if not holds(heads):
             if len(heads) > 1:
                 kept[slug][TOLD] = head
@@ -642,23 +564,37 @@ def twice(run: Pass, world: World, rows: list[queue.Row]) -> None:
                     f"failed on {', '.join(heads[head]['tests'])}: crew told, a third holds"
                 )
             continue
+        kept[slug][PAGING] = f"{TWICE} {' '.join(failed[:12] for failed in heads)}"
+        write_json(path, {**was, **kept})
+        _page(run, slug, row, pull, kept[slug])
+    if kept != was:
+        write_json(path, kept)
+
+
+def _page(run: Pass, slug: str, row: queue.Row, pull: dict[str, Any], one: dict[str, Any]) -> None:
+    """Hold the row and page the Chef under the key `one[PAGING]`, which `fails.json` kept
+    before the hold, and mark the page done in `held_at`. A pass that died after the hold finds
+    the key and no `held_at`, and pages here again: `Box.send` takes a repeat of the key as the
+    page it logged, so the Chef is paged once, and never not at all."""
+    heads = one["heads"]
+    if row.get("held"):
+        said = f"held {slug}"
+    else:
         try:
             said = queue.hold(run.state, slug, keep=True)
         except Refused as error:
             run.say(f"wait {slug}: {TWICE}, and it could not be held ({error})")
-            continue
-        kept[slug]["held_at"] = run.now.isoformat()
-        number, url = pull["number"], pull.get("url", "")
-        at = "; ".join(_said(failed, heads[failed]) for failed in heads)
-        count = COUNTS.get(len(heads), len(heads))
-        text = (
-            f"#{number} {url} of {slug} failed a required check at {count} heads: {at}. "
-            f"jbus {said}, and sends its crew no rebase and no fix until every required check "
-            "passes at a head, which gives the row back its go, or the row is approved again."
-        )
-        run.gate(slug, TWICE, text, key=f"{TWICE} {' '.join(failed[:12] for failed in heads)}")
-    if kept != was:
-        write_json(path, kept)
+            return
+    number, url = pull["number"], pull.get("url", "")
+    count = COUNTS.get(len(heads), len(heads))
+    at = "; ".join(_said(failed, heads[failed]) for failed in heads)
+    text = (
+        f"#{number} {url} of {slug} failed a required check at {count} heads: {at}. jbus {said}, "
+        "and sends its crew no rebase and no fix until every required check passes at a head, "
+        "which gives the row back its go, or the row is approved again."
+    )
+    run.gate(slug, TWICE, text, key=one[PAGING])
+    one["held_at"] = run.now.isoformat()
 
 
 def _twice(half: Half) -> None:

@@ -8,7 +8,8 @@ does not give is judged again on a later pass.
 The hold keeps the go it takes (`jbus.queue.hold`), and the pass that sees every required check
 passed at the head puts that go back (`jbus.queue.lift`), unless the row was held again since or
 its brief changed. A head that failed only at an infra step is not counted either, nor a merge of
-main that failed something the head before it did not.
+main that failed something the head before it did not. `jbus.redhead` reads each of those
+signs in the failed jobs' logs, and these tests run it through the pass.
 
 Like `test_jbus_github.py`, the tests run the real pass against the fakes."""
 

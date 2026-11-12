@@ -1,4 +1,4 @@
-"""`jbus.redlog` reads what a red head's failed jobs' logs name: the failed step's own part of a
+"""`jbus.redhead` reads what a red head's failed jobs' logs name: the failed step's own part of a
 log, the failed tests in the order the logs name them, and each failed test and lint rule with its
 path, or the failed checks where the logs name neither."""
 
@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from jbus import redlog
+from jbus import redhead
 from jbus.rebase import Red
 
 TEST = "features/statechart/tests/test_statechart_overview.py::test_statechart_overview"
@@ -22,7 +22,7 @@ CAP = (
 def logs(monkeypatch):
     """The job logs GitHub gives, by job id: a job missing from it has no log."""
     given: dict[str, str] = {}
-    monkeypatch.setattr(redlog, "job_log", lambda run, repo, job: given.get(str(job)))
+    monkeypatch.setattr(redhead, "job_log", lambda run, repo, job: given.get(str(job)))
     return given
 
 
@@ -39,24 +39,24 @@ def test_failed_step_is_the_part_of_the_log_of_the_step_that_failed_the_job():
         "##[error]Process completed with exit code 1.\n"
         "##[group]Run cleanup\n"
     )
-    assert redlog.failed_step(log) == (
+    assert redhead.failed_step(log) == (
         "##[group]Run make test\nFAILED one\n##[error]Process completed with exit code 1."
     )
-    assert redlog.failed_step("no steps\n") == "no steps\n"
+    assert redhead.failed_step("no steps\n") == "no steps\n"
 
 
 def test_named_gives_each_failed_test_once_in_the_order_the_logs_name_them(logs):
     logs["1"] = FAILED.format(OTHER) + FAILED.format(TEST)
     logs["2"] = FAILED.format(TEST)
-    assert redlog.named(None, red("1", "2", "3")) == [OTHER, TEST]
-    assert redlog.named(None, red("3")) == []
+    assert redhead.named(None, red("1", "2", "3")) == [OTHER, TEST]
+    assert redhead.named(None, red("3")) == []
 
 
 def test_failures_names_tests_and_lint_rules_or_the_checks_where_the_logs_name_neither(logs):
     logs["1"] = FAILED.format(TEST) + CAP
     logs["2"] = "nothing named here\n"
-    assert redlog.failures(None, red("1")) == {
+    assert redhead.failures(None, red("1")) == {
         TEST,
         "a-cap-on-size-only-shrinks features/jbus/src/jbus/work.py",
     }
-    assert redlog.failures(None, red("2", "3")) == {"check check"}
+    assert redhead.failures(None, red("2", "3")) == {"check check"}

@@ -1,8 +1,7 @@
 """jbus's act-once steps as a TLA+ spec, `features/jbus/spec/TellOnce.tla`: each quote of the code
-it models stands once in its file, TLC finds today's code breaks NoTellTwice or NoTellLost on the
-seven acts `TellOnce.cfg` names and holds them on the other six, and each canary, a pass that
-writes its marks first or reads none, breaks its rule on every act. The TLC tests skip where no
-Java runs TLC."""
+it models stands once in its file, TLC finds the code breaks neither NoTellTwice nor NoTellLost on
+any act, as `TellOnce.cfg` says, and each canary, a pass that writes its marks first or reads
+none, breaks its rule on every act. The TLC tests skip where no Java runs TLC."""
 
 import importlib
 import re
@@ -35,16 +34,9 @@ ACTS = set(
     "clock held blocking items word owed expedite cancelled closed account revert twice"
     " reload".split()
 )
-TODAY = {
-    ("twice", "NoTellLost"),
-    ("clock", "NoTellLost"),
-    ("owed", "NoTellTwice"),
-    ("blocking", "NoTellTwice"),
-    ("word", "NoTellTwice"),
-    ("account", "NoTellTwice"),
-    ("reload", "NoTellTwice"),
-}
-"""What TLC finds in today's code, as the comment of TellOnce.cfg keeps it: the act, the rule."""
+TODAY: set[tuple[str, str]] = set()
+"""What TLC finds in today's code, as the comment of TellOnce.cfg keeps it: the act, the rule.
+st-fix-tell-once closed the seven it found before."""
 
 
 def flat() -> str:
@@ -131,12 +123,11 @@ def broken(out: str) -> set[tuple[str, str]]:
 
 
 @JAVA
-def test_today_s_code_breaks_the_rules_on_the_seven_acts_the_config_names():
-    """TLC's verdict on TellOnce.cfg: the seven acts its comment names break, each its one rule, and
-    the six others hold both."""
+def test_today_s_code_breaks_no_rule_on_any_act_as_the_config_says():
+    """TLC's verdict on TellOnce.cfg: no act breaks a rule, as its comment says."""
     assert broken(tlc("none")) == TODAY
     comment = (SPEC / "TellOnce.cfg").read_text()
-    assert all(re.search(rf"\\\*\s+{act}\s+{rule}", comment) for act, rule in TODAY)
+    assert "TLC breaks no rule on any act" in comment
 
 
 @JAVA
