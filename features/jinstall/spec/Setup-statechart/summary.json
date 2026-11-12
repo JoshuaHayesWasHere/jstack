@@ -3,7 +3,9 @@
   "modelStates": 189399,
   "modelTransitions": 779444,
   "chartStates": 58,
-  "chartTransitions": 65,
+  "chartTransitions": 92,
+  "allTransitions": 157,
+  "final": [],
   "chartStatus": {
     "works": 33,
     "fixed": 0,
@@ -23,7 +25,7 @@
       9,
       49
     ],
-    "transitions": 65,
+    "transitions": 92,
     "all": 157,
     "flat": {
       "states": 441,
@@ -84,6 +86,6 @@
       "Setup.map.py": "e41f764191b06c70043f9b7fbcc2c83df250a82c1ecabee921d094b6d1a9616a",
       "Setup.tla": "e49e965926089ead821164b59da3caf773903de04a1add2aeec077c244bc364b"
     },
-    "chart": "8f9e88b77fed617499c3cf8dd8246de62bec3a4199a2728d73f14576cb9bcdf4"
+    "chart": "44a571a1a92697a8a923eee8ba4fb2c561f49584a47204b727b531df74541c54"
   }
 }

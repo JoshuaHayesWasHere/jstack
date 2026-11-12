@@ -28,6 +28,9 @@ stateDiagram-v2
       state "Installing, uninstall<br/>leaves<br/>~/.local/state/jstack<br/>behind" as r0s6
       state "Installing, uninstall<br/>removes it all" as r0s7
       state "Nothing of jstack's on<br/>disk" as r0s8
+      r0s0 --> r0s4 : you run install.sh: --repo<br/>sets up a repo
+      r0s1 --> r0s5 : you run install.sh: --repo<br/>sets up a repo
+      r0s2 --> r0s6 : you run install.sh: --repo<br/>sets up a repo
       r0s3 --> r0s8 : you uninstall
       r0s4 --> r0s5 : it writes the record of what<br/>it made
       r0s4 --> r0s0 : the install is killed
@@ -116,11 +119,23 @@ stateDiagram-v2
       r1s7 --> r1s23 : the turn stops
       r1s8 --> r1s21 : it finds its own webhook kept
       r1s8 --> r1s22 : the turn stops
+      r1s9 --> r1s0 : you start the expert in thread<br/>1
+      r1s10 --> r1s1 : you start the expert in thread<br/>1
+      r1s11 --> r1s1 : you start the expert in thread<br/>1
       r1s12 --> r1s24 : you start the expert in thread<br/>2
       r1s13 --> r1s2 : you start the expert in thread<br/>1
       r1s13 --> r1s26 : you start the expert in thread<br/>2
+      r1s14 --> r1s3 : you start the expert in thread<br/>1
       r1s15 --> r1s3 : you start the expert in thread<br/>1
       r1s15 --> r1s27 : you start the expert in thread<br/>2
+      r1s16 --> r1s2 : you start the expert in thread<br/>1
+      r1s17 --> r1s5 : you start the expert in thread<br/>1
+      r1s18 --> r1s4 : you start the expert in thread<br/>1
+      r1s19 --> r1s6 : you start the expert in thread<br/>1
+      r1s20 --> r1s7 : you start the expert in thread<br/>1
+      r1s21 --> r1s8 : you start the expert in thread<br/>1
+      r1s22 --> r1s8 : you start the expert in thread<br/>1
+      r1s23 --> r1s7 : you start the expert in thread<br/>1
       r1s24 --> r1s33 : it finds its own webhook kept
       r1s24 --> r1s29 : it keeps the new webhook
       r1s24 --> r1s31 : T3 Code makes a webhook into<br/>this thread
@@ -140,10 +155,22 @@ stateDiagram-v2
       r1s31 --> r1s47 : the turn stops
       r1s32 --> r1s45 : it finds its own webhook kept
       r1s32 --> r1s46 : the turn stops
+      r1s33 --> r1s0 : you start the expert in thread<br/>1
+      r1s34 --> r1s1 : you start the expert in thread<br/>1
       r1s35 --> r1s1 : you start the expert in thread<br/>1
+      r1s36 --> r1s0 : you start the expert in thread<br/>1
+      r1s37 --> r1s3 : you start the expert in thread<br/>1
+      r1s38 --> r1s2 : you start the expert in thread<br/>1
       r1s39 --> r1s4 : you start the expert in thread<br/>1
       r1s39 --> r1s28 : you start the expert in thread<br/>2
+      r1s40 --> r1s5 : you start the expert in thread<br/>1
       r1s41 --> r1s5 : you start the expert in thread<br/>1
+      r1s42 --> r1s4 : you start the expert in thread<br/>1
+      r1s43 --> r1s6 : you start the expert in thread<br/>1
+      r1s44 --> r1s7 : you start the expert in thread<br/>1
+      r1s45 --> r1s8 : you start the expert in thread<br/>1
+      r1s46 --> r1s8 : you start the expert in thread<br/>1
+      r1s47 --> r1s7 : you start the expert in thread<br/>1
       r1s48 --> r1s6 : you start the expert in thread<br/>1
       r1s48 --> r1s30 : you start the expert in thread<br/>2
     }
