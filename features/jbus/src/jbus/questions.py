@@ -599,11 +599,7 @@ def ask(
     _shaped(lines)
     asked, default = mirror.question(lines), below.line(lines, "Default:")
     options = _proposed(lines)
-    holds, fail_safe = _held(lines)
-    if held[0]:
-        if holds:
-            raise Refused("not sent: the gate has a Holds: line, and jbus holds it for another")
-        holds, fail_safe = held
+    holds, fail_safe = held if held[0] else _held(lines)
     named = _THREAD.search(below.line(lines, "Asked by:"))
     with locked(state, LOCK):
         count, records = _kept(state)

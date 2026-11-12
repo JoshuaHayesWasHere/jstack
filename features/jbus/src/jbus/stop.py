@@ -375,11 +375,8 @@ def _door(holds: str) -> str:
 
 
 def _entry(run: Pass, scope: Path, entry: str) -> None:
-    """Refuse an entry that the scope's plan does not have."""
-    try:
-        text = plan.path(run.home, scope.name).read_text()
-    except (Refused, OSError):
-        text = ""
+    """Refuse an entry that the scope's plan does not have, and a scope with no plan."""
+    text = plan.path(run.home, scope.name).read_text()
     if not any(one.slug == entry for one in plan.entries(text)):
         raise Refused(f"refused: the {scope.name} home's plan has no entry {entry}")
 

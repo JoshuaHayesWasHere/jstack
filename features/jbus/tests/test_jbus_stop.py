@@ -13,7 +13,8 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from jbus import questions, queue, stop
+import jbus
+from jbus import questions, queue, stop, stopverbs
 from test_jbus_capped_sends import cap
 from test_jbus_kitchen import NOW, Kitchen, sends
 from test_jbus_word import thread
@@ -572,9 +573,13 @@ def test_only_the_root_passes_and_a_door_stop_is_never_passed(kitchen):
     assert held(kitchen) == []
 
 
-def test_an_entry_stop_closes_itself_once_the_entry_leaves_the_plan(planned):
+@pytest.mark.parametrize("left", ["closed", "archived"])
+def test_an_entry_stop_closes_itself_once_the_entry_leaves_the_plan(planned, left):
     assert asks(planned, "go", "--entry", ENTRY)[0] == 0
-    (planned.home / SCOPE / "plan.md").write_text("# a plan\n")
+    if left == "closed":
+        (planned.home / SCOPE / "plan.md").write_text("# a plan\n")
+    else:
+        (planned.home / SCOPE / "plan.md").unlink()
     planned.poll()
     (one,) = stop.load(planned.state).stops
     assert one.closed == "closed"
@@ -598,3 +603,55 @@ def test_the_users_answer_to_a_passed_decision_reaches_the_scope_once(kitchen):
     told = texts(kitchen)[-1]
     assert f"the user answered question {gate.number}, the flow home's decision on fl-mine" in told
     assert "take the bigger one" in told
+
+
+def test_the_gate_of_a_passed_stop_clears_once_its_row_merges(kitchen):
+    assert asks(kitchen, "decision", "fl-mine")[0] == 0
+    assert passes(kitchen)[0] == 0
+    (gate,) = held(kitchen)
+    status(kitchen, "fl-mine", "merged")
+    kitchen.poll()
+    assert held(kitchen) == []
+    cleared = questions.question(kitchen.state, gate.number).answer
+    assert (cleared.closed_by, cleared.words) == ("cleared", "the stop's row fl-mine is merged")
+    kitchen.poll()
+    assert sent(kitchen) == [(ROOT, "stop"), (FLOW, "stop-answer")]
+
+
+@pytest.mark.parametrize(
+    ("argv", "why"),
+    [
+        (("stop", "answer", SCOPE, "fl-mine", "--from", ROOT), "refused: an answer is jbus stop"),
+        (("stop", "pass", SCOPE, "--from", ROOT), "refused: an answer is jbus stop"),
+        (("stop", "pass", SCOPE, "fl-mine", "--kind", "go", "--from", ROOT), "refused: an answer"),
+        (("stop", "--kind", "decision", "--from", FLOW), "refused: a stop is on this home's own"),
+        (("stop", "answer", SCOPE, "fl-mine", " ", "--from", ROOT), "refused: an answer has the"),
+    ],
+)
+def test_a_reply_or_a_stop_the_verb_cannot_read_is_refused(kitchen, argv, why):
+    code, said = kitchen.main(*argv)
+    assert (code, said.startswith(why)) == (1, True), said
+    assert sent(kitchen) == []
+
+
+def test_a_stop_taken_with_no_sign_in_waits_for_a_pass_that_has_one(kitchen):
+    token = jbus.load().token_path
+    kept = token.read_text()
+    token.unlink()
+    code, said = asks(kitchen, "decision", "fl-mine")
+    assert (code, said) == (
+        0,
+        "stopped: stop|flow|fl-mine|a decision, sent to nobody yet, jbus is not signed in to "
+        "T3 Code\n",
+    )
+    token.write_text(kept)
+    token.chmod(0o600)
+    kitchen.poll()
+    assert sent(kitchen) == [(ROOT, "stop")]
+
+
+def test_a_stops_json_that_does_not_parse_raises_a_gate_and_the_pass_goes_on(kitchen):
+    stop.path(kitchen.state).write_text("not json")
+    kitchen.poll()
+    assert kitchen.lines("condition") == ["condition demo: stops.json does not parse"]
+    assert stopverbs.VERBS[0].name == "stop"
