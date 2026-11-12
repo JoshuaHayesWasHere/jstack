@@ -369,7 +369,9 @@ def _arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--json", action="store_true", help="print the measure as JSON")
     parser.add_argument(
-        "--rows", action="store_true", help="every merged row, each span with its record"
+        "--rows",
+        action="store_true",
+        help="every row, each span with its record, the rows not merged in the window too",
     )
     parser.add_argument(
         "--journal", type=Path, help="read jbus's journal lines from this file, not journalctl"
