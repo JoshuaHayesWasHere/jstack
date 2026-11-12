@@ -240,7 +240,7 @@ The chart has 19 states and 24 steps, and no state breaks the rule.
 
 `MergeRun.tla` follows one run of `jmerge` that jbus's pass starts, as the code of main aa5469d97 takes it, with a death at each step.
 The pass (`jbus.merge.merge`) writes a start stamp and starts a detached process (`keep`), which holds `going.lock`, runs `jmerge --if-free` and writes what it printed to `ran-<at>.json`.
-The next pass reads each record: it replaces `ran-<at>.json` with `read.json`, then sends its lines (`_judged`).
+The next pass reads each record: it sends its lines (`_judged`), counting the run on the jmerge streak once for the record's `at`, then replaces `ran-<at>.json` with `read.json`.
 Inside, `jmerge` holds the repo's run lock and goes in the order of `jmerge.cli`: `Repo.open_only` settles the restarts a run left owed, `Repo.start_batch` reads where the batch stands, the judge loop restarts a pull request whose run GitHub left queued (`Repo.unstuck`) or merges one and closes its wait spell, and `Repo.batched` merges a proven batch or builds the next.
 The merge tick runs `jmerge --if-free` too.
 Each carrier of the st-state-ledger ledger's MergeRun rows (B-059 to B-063, C-023, C-029, C-031, C-033, C-043, C-044) has its variable, whose comment quotes the code that writes it.
@@ -249,15 +249,15 @@ The batch's state is `batch.state_of`'s six values, with the three PrVerdict.bat
 
 The constant `Inside` names the parts of jmerge's run a config follows (restart, batch, waits).
 The parts share nothing but the run lock and a death, and all of them together with two pass runs is past 58M states, so each config follows the parts its rules read.
-`Fault = "replace-first"` is today's code; each other value changes one thing of it: `judge-first` sends the lines before the replace, `fresh-list` reads whether a pull request is open from GitHub in the run, `no-run-lock` is the canary of `OneRunAtATime`, and `unlink-first` is the start stamp as it was before the stamp named its run, the canary of `NoFalseNoRecord` and `DeathTold`.
+`Fault = "judge-first"` is today's code; each other value changes one thing of it: `replace-first` replaces the record before it sends the lines, `unkeyed` sends them first with no key on the streak, `fresh-list` reads whether a pull request is open from GitHub in the run, `no-run-lock` is the canary of `OneRunAtATime`, and `unlink-first` is the start stamp as it was before the stamp named its run, the canary of `NoFalseNoRecord` and `DeathTold`.
 `ReplyLost` is the world: GitHub took a close whose reply gh lost.
 
 ## The rules of the run, and today's verdicts
 
 | Rule | Config | Today | Notes |
 |---|---|---|---|
-| `RunHeard`: every run's lines are judged once | `MergeRun.cfg` | breaks | the pass replaces the record, then dies before `_judged`; `judge-first` holds it |
-| `StreakOnce`: the jmerge streak counts each run once | `MergeRun.cfg` | holds | `judge-first` breaks it: a pass that dies after `_judged` and before the replace counts the run twice, since `_sent` keys each line but nothing keys the streak |
+| `RunHeard`: every run's lines are judged once | `MergeRun.cfg` | holds | the lines are sent before the replace; `replace-first` breaks it: the pass replaces the record, then dies before `_judged` |
+| `StreakOnce`: the jmerge streak counts each run once | `MergeRun.cfg` | holds | the streak counts a run once for its record's `at`; `unkeyed` breaks it: a pass that dies after `_judged` and before the replace counts the run twice |
 | `NoFalseNoRecord`: "ended with no record" only of a run with none | `MergeRun.cfg` | holds | a record that names the stamp is no death, and a run slower than STARTING finds its stamp moved aside and runs nothing; `unlink-first` breaks it |
 | `DeathTold`: a run that died with no record is told | `MergeRun.cfg` | holds | the pass moves the stamp to `died` before it tells, and removes `died` after, and a run removes only its own stamp; `unlink-first` breaks it |
 | `OneRunAtATime`: no two runs hold the repo | `MergeRun.cfg` | holds | `no-run-lock` breaks it: `going.lock` alone lets a run outlive its process |
@@ -285,7 +285,7 @@ W=$(mktemp -d) && cp features/jmerge/spec/MergeRun.* "$W"
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `MergeRun-statechart/`.
-`MergeRun.chart.cfg` has one pass run and no tick (191 model states), labelled by `MergeRun.map.py`: 32 chart states and 50 of its 67 steps, and one bug path, for RunHeard; NoFalseNoRecord and DeathTold hold on it.
+`MergeRun.chart.cfg` has one pass run and no tick (191 model states), labelled by `MergeRun.map.py`: 21 chart states and 30 of its 41 steps, and no bug path: RunHeard, NoFalseNoRecord and DeathTold hold on it.
 The two-run stories are `MergeRun.cfg`'s, which the test checks.
 
 ## What MergeRun leaves out

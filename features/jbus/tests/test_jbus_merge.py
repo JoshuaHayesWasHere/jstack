@@ -258,10 +258,6 @@ def test_a_jmerge_that_held_the_lock_past_its_timeout_still_counts_and_alerts(lo
     assert alerted.startswith("alert: jmerge demo failed 3 times in a row since ")
 
 
-class Died(Exception):
-    """The pass's process ending where the test kills it."""
-
-
 class _Dying:
     """`os` as `jbus.merge` sees it, but for a `replace` that kills the pass."""
 
@@ -295,7 +291,7 @@ def killed_then_passes(kitchen, where):
     passes that read it."""
     with pytest.MonkeyPatch.context() as killing:
         dies(killing, where)
-        with pytest.raises(AssertionError):
+        with pytest.raises(Died):
             kitchen.poll(NOW)
     kitchen.set("jmerge.txt", "")
     (kitchen.stub / "jmerge-dies").unlink(missing_ok=True)
