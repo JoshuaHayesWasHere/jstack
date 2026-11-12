@@ -1,13 +1,15 @@
 """A pass hands a free slot to the row that waits with the best priority it inherits, and among
 rows of the same priority to the one that has waited longest (`queue.order`). A row inherits the
 priority of a paused row whose Result's `Waits on:` names it, and of a launched row whose
-`depends` names it."""
+`depends` names it. `jbus.dispatch.turns` reads each paused Result's `Waits on:` and sorts the
+rows it hands out by that order."""
 
 import json
 from datetime import timedelta
 
 import pytest
 
+from jbus import queue
 from test_jbus_kitchen import NOW, Kitchen
 from test_jbus_queue import add
 
@@ -101,3 +103,17 @@ def test_a_row_a_launched_row_depends_on_inherits_its_priority(kitchen):
     end(kitchen, "filler")
     kitchen.poll(AT)
     assert launched(kitchen)[2:] == ["zz-base"]
+
+
+def test_a_lift_runs_down_a_chain_of_waits_and_a_row_that_is_over_lifts_nothing():
+    rows = [
+        {"slug": "paused", "priority": 3, "status": "left"},
+        {"slug": "launched", "priority": 50, "status": "running", "depends": ["base"]},
+        {"slug": "base", "priority": 80, "status": "queued", "depends": ["root"]},
+        {"slug": "root", "priority": 90, "status": "queued"},
+        {"slug": "merged", "priority": 1, "status": "merged", "depends": ["root"]},
+    ]
+    lift = queue.lifted(rows, {"paused": ["launched"], "merged": ["root"]})
+    assert lift == {"paused": 3, "launched": 3, "base": 3, "root": 90, "merged": 1}
+    ordered = sorted(rows, key=lambda row: queue.order(row, lift))
+    assert [row["slug"] for row in ordered] == ["merged", "base", "launched", "paused", "root"]
