@@ -47,7 +47,7 @@ uv run pytest features/jbus/tests/test_main_fix_spec.py -q
 
 It prints `13 passed` in about two minutes, with each TLC test under 25 s on a desk, and skips the TLC runs where no Java runs TLC.
 `features/jbus/tests/test_main_fix_crashes.py` stops the real pass at each write the canaries' traces name and runs the next one.
-The bare TLC command is in `features/jbus/spec/README.md`, "Check the rules of main's fix"; run it in a copy of the folder.
+The bare TLC command is in `features/jbus/spec/MainFix.md`, "Check the rules of main's fix"; run it in a copy of the folder.
 
 - **Bounds:** `MainFix.cfg` is a pass that dies and no other fault (`World = {}`), `MaxTip = 3`, all three nightlies watched, 329948 distinct states, counted by its `VIEW View`, which tells each variable apart only by what a later step or a rule can still read of it.
   Every rule holds too with `World = {"hand"}` (669004), `{"refuses"}` (1339244), `{"late"}` (1006483) and `{"blind"}` (586960).

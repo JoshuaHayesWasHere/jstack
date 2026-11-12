@@ -45,7 +45,7 @@ uv run pytest features/jmerge/tests/test_flow_spec.py -q
 ```
 
 The test runs the design and its canaries in the same run as FlowToday, so it takes some minutes; the design's own runs take about a second each.
-`flow_canaries.py` prints one line a run; its command is in `features/jmerge/spec/README.md`, "Check the rules".
+`flow_canaries.py` prints one line a run; its command is in `features/jmerge/spec/FlowToday.md`, "Check the rules".
 
 - **Bounds:** 425 distinct states.
 - **The canaries:** `NoGuard` (a check that selects by chance) breaks `NoMergeTurnsMainRed`; `NoRejudge` breaks `FlowsWhenGreen`; `NoSweep` breaks `FlowsWhenGreen` and `MachineNotLeftFull`.

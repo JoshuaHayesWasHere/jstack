@@ -58,7 +58,7 @@ uv run pytest features/jmerge/tests/test_merge_run_spec.py -q
 ```
 
 It runs TLC on each cfg and each rule alone in under half a minute, and skips where no Java runs TLC.
-The bare TLC command and the table of rules, cfgs and verdicts are in `features/jmerge/spec/README.md`, "The rules of the run, and today's verdicts"; run TLC in a copy of the folder, since it writes `states/` where it runs.
+The bare TLC command and the table of rules, cfgs and verdicts are in `features/jmerge/spec/MergeRun.md`, "The rules of the run, and today's verdicts"; run TLC in a copy of the folder, since it writes `states/` where it runs.
 
 - **Bounds:** `MaxRuns = 2`, `MaxTicks = 2`, `ReplyLost = TRUE`; `MergeRun.cfg` follows no part (`Inside = {}`), its comment's 101,832 distinct states a count from before #1748, and `MergeRun.restart.cfg`, `.batch.cfg` and `.waits.cfg` each follow one part.
 - **The faults:** `judge-first` holds `RunHeard` and breaks `StreakOnce`; `unlink-first`, the stamp code before #1748, is the canary that breaks `NoFalseNoRecord` and `DeathTold`; `fresh-list` holds `RestartReopens`; `no-run-lock` is the canary that breaks `OneRunAtATime`; `log-on-sweep` breaks `WaitLoggedOnce`.

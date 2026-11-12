@@ -65,7 +65,7 @@ uv run pytest features/jgauge/tests/test_test_slot_spec.py -q
 ```
 
 It finds each quote of the spec once in its file, checks that each ledger row (D-048 to D-074) is a VARIABLE that cites its writer, and runs TLC on today's mode, the mode that passes and each canary, in under a minute; the TLC tests skip where no Java runs TLC.
-The bare TLC command, the table of faults and the trace are in `features/jgauge/spec/README.md`, "Check the rules"; run TLC in a copy of the folder, since it writes `states/` where it runs.
+The bare TLC command, the table of faults and the trace are in `features/jgauge/spec/TestSlot.md`, "Check the rules"; run TLC in a copy of the folder, since it writes `states/` where it runs.
 
 - **Bounds:** one full slot, one short slot, one crew thread waiting on the full lane; `TestSlot.cfg` (`Fault = "today"`, `PidReuse = TRUE`, every process `Mortal`) stops at `WokenGetsSlot` after 18,126 distinct states on one worker; `Fault = "none"` holds every rule over 672,971 distinct states; today's mode holds `OneCommandPerSlot`, `EndNotLost`, `NoLostHolder` and `LedgerNoLostUpdate` over 927,474.
 - **The faults:** `spare-outside-lock`, today's one, breaks `WokenGetsSlot`; `forget-unended`, which breaks `EndNotLost`, `orphan-command`, which breaks `OneCommandPerSlot`, `pid-alone`, which breaks `NoLostHolder`, and `no-ledger-lock`, which breaks `LedgerNoLostUpdate`, are faults the code has closed.

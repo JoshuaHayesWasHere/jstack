@@ -47,7 +47,7 @@ uv run pytest features/jbus/tests/test_rowlife_spec.py -q
 ```
 
 It runs TLC in a copy of the spec folder and prints `6 passed` in a few seconds; it skips where no Java runs TLC.
-The bare TLC command is in `features/jbus/spec/README.md`, "Check the rule"; run it in a copy of the folder, since TLC writes `states/` where it runs.
+The bare TLC command is in `features/jbus/spec/RowLife.md`, "Check the rule"; run it in a copy of the folder, since TLC writes `states/` where it runs.
 
 - **Bounds:** one row, `Fault = "none"`, 2502 distinct states, `TypeOK`, `FinalStays` and `MovesKnown`.
 - **The canaries:** `Fault = "no-latch"` takes `work.kept` out, and `FinalStays` breaks (`test_a_derive_that_writes_over_a_final_status_breaks_the_rule`); `Fault = "settled-queued"` gives a settled thread's row `queued` again, and `MovesKnown` breaks.
