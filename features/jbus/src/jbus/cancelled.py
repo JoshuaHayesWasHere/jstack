@@ -54,6 +54,8 @@ from jmerge import ready
 from jmerge.checks import check_state, latest_of_each
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from jbus.poll import Half
 
 EVENTS = {"cancelled": "quiet", "queued": "quiet"}
@@ -288,7 +290,7 @@ def unqueue(run: Pass, world: World, slugs: set[str]) -> None:
         listed = _api(run, _runs_of(head)) or {}
         runs = [one for one in listed.get("workflow_runs") or [] if one.get("id")]
         key = f"{QUEUED}|{slug}|{head[:12]}"
-        if key in run.box.sent():
+        if run.box.has(key):
             _again(run, slug, pull, mine or {}, _stuck(run, runs, names))
             continue
         if mine is None:
@@ -298,7 +300,12 @@ def unqueue(run: Pass, world: World, slugs: set[str]) -> None:
             mine = _asked(run, pull, stuck)
             kept[slug] = mine
             write_json(run.state / QUEUED_FILE, {**was, **kept})
-        kept[slug] = _restart(run, slug, pull, mine, {str(one["id"]): one for one in runs})
+
+        def keep(record: dict, slug: str = slug) -> None:
+            kept[slug] = record
+            write_json(run.state / QUEUED_FILE, {**was, **kept})
+
+        kept[slug] = _restart(run, slug, pull, mine, {str(one["id"]): one for one in runs}, keep)
     if kept != was:
         write_json(run.state / QUEUED_FILE, kept)
 
@@ -347,10 +354,19 @@ def _asked(run: Pass, pull: dict, stuck: tuple[ready.StuckRun, ...]) -> dict:
     }
 
 
-def _restart(run: Pass, slug: str, pull: dict, mine: dict, runs: dict[str, dict]) -> dict:
+def _restart(
+    run: Pass,
+    slug: str,
+    pull: dict,
+    mine: dict,
+    runs: dict[str, dict],
+    keep: Callable[[dict], None],
+) -> dict:
     """Ask GitHub for each rerun still owed, with a cancel first of a run that has not ended, and
     mark the head's restart done once none is owed, or given up `ready.RESTART_MINUTES` after its
-    first try. Return the record as it then stands."""
+    first try. Return the record as it then stands. Each rerun GitHub takes is kept at once with
+    `keep`, so a pass stopped before the next ask leaves the next pass only the runs still owed,
+    and never the new attempt of one it ran again."""
     head, it = pull["headRefOid"], "them" if len(mine["runs"]) > 1 else "it"
     key = head[:12]
     if (run.now - datetime.fromisoformat(mine["asked"])).total_seconds() >= (
@@ -363,15 +379,18 @@ def _restart(run: Pass, slug: str, pull: dict, mine: dict, runs: dict[str, dict]
         if run.find(slug, QUEUED, line, key=key):
             run.say(line)
         return {**mine, "owed": []}
-    owed = []
+    owed, left = [], list(mine["owed"])
     why = mine.get("why", "")
     for number in mine["owed"]:
         if (runs.get(number) or {}).get("status", "completed") != "completed":
             run.run("gh", "run", "cancel", number)
         asked = run.run("gh", "run", "rerun", number)
+        left.remove(number)
         if asked.returncode:
             owed.append(number)
             why = (asked.stderr.strip().splitlines() or ["no reason given"])[0]
+        else:
+            keep({**mine, "owed": owed + left})
     if owed:
         return {**mine, "owed": owed, "why": why}
     done = f"cancelled {it} and ran {it} again" if mine.get("cancels") else f"ran {it} again"

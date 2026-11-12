@@ -10,6 +10,9 @@ from datetime import UTC, datetime
 
 import pytest
 
+import jbus
+from jbus import poll
+from jbus.passes import Pass
 from test_jbus_kitchen import Kitchen
 from test_jbus_queue import add
 
@@ -216,3 +219,27 @@ def test_a_pull_request_of_no_row_is_left_alone(kitchen):
     kitchen.set("open.json", [made])
     passes(kitchen, "20:49:30")
     assert acts(kitchen) == [] and kitchen.lines("queued") == []
+
+
+def test_a_pass_cut_off_after_one_rerun_restarts_only_the_runs_still_owed(kitchen, monkeypatch):
+    """Each rerun GitHub took is kept as it is taken, so the next pass restarts no new attempt."""
+    asked = Pass.run
+
+    def cut(self, *args, **kwargs):
+        if args == ("gh", "run", "rerun", "102"):
+            raise TimeoutError("the pass was stopped")
+        return asked(self, *args, **kwargs)
+
+    no_jobs(kitchen)
+    monkeypatch.setattr(Pass, "run", cut)
+    kitchen.t3.write(at("20:49:30"))
+    said = []
+    assert poll.poll(jbus.load(), at("20:49:30"), said.append) == 1
+    assert "pass failed demo: TimeoutError: the pass was stopped" in said
+    monkeypatch.setattr(Pass, "run", asked)
+    assert acts(kitchen) == ["run cancel 101", "run rerun 101", "run cancel 102"]
+    again = [run(101, "check", STUCK, attempt=2, since="20:49:35"), run(102, "borders", STUCK)]
+    kitchen.set("push-runs.json", {STUCK: again})
+    passes(kitchen, "20:50:30", "20:53")
+    assert acts(kitchen)[3:] == ["run cancel 102", "run rerun 102"]
+    assert len(kitchen.lines("queued")) == 1
