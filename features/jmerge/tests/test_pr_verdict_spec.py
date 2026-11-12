@@ -105,8 +105,8 @@ def test_the_rule_reads_every_open_pull_request():
 
 
 def test_a_canary_drops_jbus_s_limit_on_failed_heads():
-    """A crew's fix may fail again up to jbus's hold at two failed heads, and the canary that
-    drops that limit is one TLC must see break the rule."""
+    """A crew's fix may fail again up to jbus's limit on failed heads, where it holds the row, and
+    the canary that drops that limit is one TLC must see break the rule."""
     assert "twice" in canaries.CANARIES
     assert ("canary twice", canaries.config("twice"), "breaks") in RUNS
 
