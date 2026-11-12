@@ -3,7 +3,14 @@
   "modelStates": 329,
   "modelTransitions": 622,
   "chartStates": 39,
-  "chartTransitions": 61,
+  "chartTransitions": 62,
+  "allTransitions": 93,
+  "final": [
+    "the revert merged",
+    "the revert merged, main's Mac: no fix row",
+    "the revert merged, main: no fix row",
+    "the revert merged, main: no fix row, main's Mac: no fix row"
+  ],
   "chartStatus": {
     "works": 39,
     "fixed": 0,
@@ -33,7 +40,7 @@
       15,
       24
     ],
-    "transitions": 61,
+    "transitions": 62,
     "all": 93,
     "flat": {
       "states": 65,
@@ -41,21 +48,7 @@
     }
   },
   "classes": [],
-  "codeLike": [
-    "Main and main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row",
-    "Main and main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row",
-    "Main and main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row",
-    "Main and main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row; main's Mac: no fix row",
-    "Main red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row",
-    "Main red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row",
-    "Main red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main: no fix row",
-    "Main red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main: no fix row",
-    "Main's Mac red, after a pass that died: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row",
-    "Main's Mac red, after a pass that died: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row",
-    "Main's Mac red, jbus in a pass: a revert open on GitHub, its brief written, named in reverts-opening.json, not on record; main's Mac: no fix row",
-    "Main's Mac red, jbus in a pass: a revert open on GitHub, named in reverts-opening.json, not on record; main's Mac: no fix row",
-    "jbus opens the revert on GitHub"
-  ],
+  "codeLike": [],
   "drawnFrom": {
     "command": "statechart from-spec MainFix.tla --config MainFix.chart.cfg --title 'Main went red: what has jbus filed when a pass dies?' --png",
     "inputs": {
@@ -63,6 +56,6 @@
       "MainFix.map.py": "371f57b39d0109fe43245af8b1f632d98dc44156dbc63c9f49607bdf48b9bfa2",
       "MainFix.tla": "7ca5758039c781906485ad801d9884274fb72f1c82c50428b88fadcf8ea9deaa"
     },
-    "chart": "f7b52a19829c0de8dddfac9074404016e272982202798faefc241db5ab74f651"
+    "chart": "b7af77bf8084d32d211b77a59bd142d48b31e5771b874920b3e9dd8f7021db87"
   }
 }
