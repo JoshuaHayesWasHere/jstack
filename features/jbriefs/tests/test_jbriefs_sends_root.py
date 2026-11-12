@@ -1,7 +1,7 @@
-"""A scoped home's own send to the root is refused, and the refusal names the one stop jbus takes:
-`jbus stop --holds <case>`, a one-way door from the gates table. Anything else the home tells the
-user directly from its own thread (settled with the user on 2026-11-08: only a one-way door goes
-up to the root). The refusal named a stop with no `--holds`, which `jbus stop` refuses.
+"""A scoped home's own send to the root is refused, and the refusal names each escalation `jbus
+stop` takes: a one-way door from the gates table by `--holds <case>`, a decision by `--kind
+decision`, and a go by `--kind go` (rh-escalate). Before it, the refusal sent every other choice
+past the root to the user, against the user's word of 2026-11-12 that children escalate to the root.
 
 The root's own send to a scope is refused too, and its refusal names `jbus tell`, which carries the
 root's own words to the scope signed as the root's (rh-root-tell): before it, only an answer to a
@@ -25,12 +25,13 @@ def state(tmp_path):
     return tmp_path
 
 
-def test_a_scoped_homes_send_to_the_root_names_a_stop_for_a_one_way_door_only(state):
+def test_a_scoped_homes_send_to_the_root_names_a_door_a_decision_and_a_go(state):
     said = sends.refusal(state, FLOW, ROOT)
     assert "--holds <case>" in said, said
     assert "features/home/templates/gates.md" in said, said
     assert "one-way door" in said, said
-    assert "tell the user directly from this home's own thread" in said, said
+    assert "--kind decision" in said and "--kind go" in said, said
+    assert "tell the user" not in said, said
 
 
 def test_the_roots_send_to_a_scope_names_jbus_tell_for_its_own_words(state):
