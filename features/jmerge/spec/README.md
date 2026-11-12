@@ -282,7 +282,7 @@ S=$PWD/features/skill-library/skills/statechart/scripts
 W=$(mktemp -d) && cp features/jmerge/spec/MergeRun.* "$W"
 (cd "$W" && UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --project "$S" \
     statechart from-spec MergeRun.tla --config MergeRun.chart.cfg \
-    --title "jbus's pass starts a run of jmerge: does what it said reach you?" --out out --png)
+    --title "jbus's pass starts a run of jmerge: does what it said reach you?" --out out)
 ```
 
 Run it from the repo root, and copy the files of `$W/out`, but its `tlc/`, into `MergeRun-statechart/`.
