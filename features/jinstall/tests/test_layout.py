@@ -85,6 +85,18 @@ def test_a_principle_skill_is_a_skill_with_a_stub_where_principles_are_read(copy
     assert "[principle-alpha](../skills/principle-alpha/SKILL.md)" in stub
 
 
+def test_a_features_spec_folder_is_the_repos_model_and_no_file_of_it_is_in_the_skill(copy):
+    spec = copy / "features" / "crew" / "spec"
+    spec.mkdir()
+    (spec / "README.md").write_text("# CrewProof\n\nThe model of a crew's proof.\n")
+    (spec / "CrewProof.tla").write_text("---- MODULE CrewProof ----\n====\n")
+    (spec / "chart.png").write_bytes(b"\x89PNG\r\n")
+    for harness in HARNESSES:
+        entries = layout.assemble(copy, harness).entries
+        assert "skills/crew/SKILL.md" in entries
+        assert [path for path in entries if path.startswith("skills/crew/spec")] == []
+
+
 @pytest.fixture
 def user(tmp_path):
     return User(tmp_path)
