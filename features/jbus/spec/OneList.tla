@@ -25,8 +25,10 @@
 \* names the home, which the handoff asks again as the catch-all's). OneList.cfg lets all three
 \* happen, as they do today.
 \* Fault = "none" is the code. Fault = "stale-streak" is the canary of a streak no raiser clears:
-\* the pass does not retire the stall alert left from before. Fault = "mark-count" is the canary
-\* of merge-seen as a count: it marks by the code's count whatever MarkBy says.
+\* the pass does not retire the stall alert left from before. Fault = "closed-listed" is the
+\* canary of the code before #1708's finding was fixed: the list keeps a closed project's alerts.
+\* Fault = "mark-count" is the canary of merge-seen as a count: it marks by the code's count
+\* whatever MarkBy says.
 \* MarkBy is how merge-seen marks: "count", the code's line count, or "line", the last line read,
 \* which no code writes: the reference that shows ReadOnce can hold where a hand cuts merge.log.
 EXTENDS Naturals, Sequences, FiniteSets
@@ -405,8 +407,10 @@ Spec == Init /\ [][Next]_vars /\ Fair
 \* ---- The rules ----
 
 \* What makes an item due, and whether the user's list has it. A closed project's list is read
-\* by none, so it neither owes nor shows a gate, a row or a hold; streaks.json is the machine's,
-\* and its open alerts reach the home of the infra project.
+\* by none, so it neither owes nor shows a gate, a row or a hold. Its alerts stay in
+\* streaks.json, which is the machine's, but the list leaves out each alert about a closed
+\* project, jbus/alert.py `and not any(_about(one, project.name) for project in config.closed)`,
+\* since no pass of it runs to end one; the canary "closed-listed" keeps them.
 Cause(i) ==
   CASE i = "gate" -> ~closed /\ owed
     [] i = "row" -> ~closed /\ waits
@@ -418,13 +422,12 @@ Cause(i) ==
 OnList(i) ==
   CASE i \in {"gate", "row"} -> ~closed /\ i \in listed
     [] i = "hold" -> ~closed /\ hold
+    [] i \in {"jmerge", "home-stall"} -> (Fault = "closed-listed" \/ ~closed) /\ i \in alerted
     [] OTHER -> i \in alerted
 
 \* "An item is listed exactly while its cause holds": once a cause stays, the list comes to
 \* show it and keeps it, and once it stays gone, the list comes to drop it. A cause that flips
-\* for ever asks nothing of the list. Cause is the model's word, not the code's: the code gives a
-\* closed project's alert to the infra home, and the model says a project that runs no jmerge
-\* owes no jmerge alert.
+\* for ever asks nothing of the list. A project that runs no jmerge owes no jmerge alert.
 ListIsTrue ==
   \A i \in Items :
     /\ <>[]Cause(i) => <>[]OnList(i)
