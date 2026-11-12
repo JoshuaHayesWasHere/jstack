@@ -79,11 +79,18 @@ def test_each_carrier_is_a_variable_that_cites_its_writer():
 
 
 def tlc(
-    fault: str, rules: list[str] | None = None, pid_reuse: bool = False, room: str = ""
+    fault: str,
+    rules: list[str] | None = None,
+    pid_reuse: bool = False,
+    room: str = "",
+    workers: str = "",
 ) -> tuple[int, str]:
     """TLC's output for TestSlot.cfg with `Fault` set to `fault`, in a copy of the spec's folder,
-    as the README runs it. With `rules`, TLC checks TypeOK and those rules alone, and with
-    `room`, that room alone."""
+    as the README runs it. With `rules`, TLC checks TypeOK and those rules alone, with `room`,
+    that room alone, and with `workers`, on that many workers. On more than one, the first
+    counterexample is whichever a worker finds first, so a test that reads its steps asks for
+    one. Each run has a java.io.tmpdir of its own, since TLC writes the standard modules there
+    under fixed names, and a run that shares it can read one while another rewrites it."""
     found = tools.find_tlc()
     cfg = (SPEC / "TestSlot.cfg").read_text()
     assert 'Fault = "today"' in cfg and "PidReuse = FALSE" in cfg
@@ -99,8 +106,10 @@ def tlc(
         work = Path(folder)
         shutil.copy(SPEC / "TestSlot.tla", work)
         (work / "TestSlot.cfg").write_text(cfg)
-        command = [found.java, "-XX:+UseParallelGC", "-Xmx2g", "-cp", found.jar, "tlc2.TLC"]
-        command += ["-workers", tools.workers(), "-metadir", str(work / "meta")]
+        (work / "tmp").mkdir()
+        command = [found.java, "-XX:+UseParallelGC", "-Xmx2g", f"-Djava.io.tmpdir={work / 'tmp'}"]
+        command += ["-cp", found.jar, "tlc2.TLC", "-workers", workers or tools.workers()]
+        command += ["-metadir", str(work / "meta")]
         ran = subprocess.run(
             tools.in_test_slot([*command, "-config", "TestSlot.cfg", "TestSlot.tla"]),
             cwd=work,
@@ -118,7 +127,7 @@ JAVA = pytest.mark.skipif(not tools.find_java(), reason="no Java to run TLC")
 def test_today_s_code_loses_a_ledger_write():
     """TestSlot.cfg is today's code, and TLC's first finding is the one its comment keeps: two
     writers read the ledger, and the second write drops the first one's record."""
-    code, out = tlc("today")
+    code, out = tlc("today", workers="1")
     assert code != 0
     assert "Invariant LedgerNoLostUpdate is violated" in out, out[-4000:]
     steps = re.findall(r"^State \d+: <(\w+)", out, re.M)
