@@ -919,8 +919,42 @@ def given_entry(row: Row) -> str:
     return row.get("entry") or row["slug"]
 
 
-def order(row: Row) -> tuple[int, str]:
-    return (row.get("priority", 0), row["slug"])
+def order(row: Row, lift: Mapping[str, int] | None = None) -> tuple[int, str, str]:
+    """Return the key the table sorts on, and a pass launches by: the best of the row's priority
+    and its lift (`lifted`), then how long it has waited, the oldest `since` first and a row with
+    no reason last, then its slug. A `since` is the user's local time to the minute, so its first
+    16 characters compare as times do."""
+    priority = row.get("priority", 0)
+    priority = min(priority, (lift or {}).get(row["slug"], priority))
+    since = str(row.get("since") or "")[:16] or "~"
+    return (priority, since, row["slug"])
+
+
+def lifted(rows: Iterable[Row], waits: Mapping[str, Iterable[str]]) -> dict[str, int]:
+    """Return the priority each row inherits from the rows that wait on it: the best (lowest) of
+    theirs, down any chain of waits, for `order`. A row waits on each row that its paused Result's
+    `Waits on:` line names (`waits`, which the caller reads from the last Result of each row whose
+    thread is not archived), and, once launched, on each row its `depends` names, since its crew
+    is out on that row's work. A row that is over waits on nothing. So a row that others are held
+    for launches at the best priority among them, and not behind rows they would wait behind."""
+    rows = list(rows)
+    best = {row["slug"]: row.get("priority", 0) for row in rows}
+    on: dict[str, set[str]] = {}
+    for row in rows:
+        if work.over(row):
+            continue
+        named = set(waits.get(row["slug"], ()))
+        if row.get("status", "queued") not in UNLAUNCHED:
+            named |= set(row.get("depends", []))
+        on[row["slug"]] = (named & best.keys()) - {row["slug"]}
+    moved = True
+    while moved:
+        moved = False
+        for waiter, others in on.items():
+            for other in others:
+                if best[waiter] < best[other]:
+                    best[other], moved = best[waiter], True
+    return best
 
 
 def _was(slug: str, gone: dict[str, dict[str, str]]) -> str:
