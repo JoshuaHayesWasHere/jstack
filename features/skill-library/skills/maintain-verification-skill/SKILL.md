@@ -56,7 +56,7 @@ else
         map="$dir/map.md"
         files=$(git show "$base:$map" 2> /dev/null | command grep -o '\]([^)]*\.md)' | command grep -v '://' | sed 's|^](||; s|)$||' |
             awk -v d="$dir" '{ n = split(d "/" $(0), p, "/"); k = 0; for (i = 1; i <= n; i++) if (p[i] == "..") k--; else if (p[i] != "." && p[i] != "") s[++k] = p[i]; out = s[1]; for (i = 2; i <= k; i++) out = out "/" s[i]; print out }' |
-            while read -r file; do case $file in "$dir"/*) ;; *) git cat-file -e "$base:$file" 2> /dev/null && echo "$file" ;; esac; done)
+            while read -r file; do [ "${file#"$dir"/}" = "$file" ] && git cat-file -e "$base:$file" 2> /dev/null && echo "$file"; done)
     fi
     features=$(printf '%s\n' "$files" | sed '/^$/d' | awk '{ n = split($(0), p, "/"); name = p[n]; sub(/\.md$/, "", name); if (name == "verify") name = p[n - 1]; print name, $(0) }' | sort -u -k 1,1)
     if [ -z "$features" ]; then
