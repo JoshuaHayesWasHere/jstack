@@ -1,0 +1,94 @@
+{
+  "view": "customer",
+  "modelStates": 155185,
+  "modelTransitions": 380972,
+  "chartStates": 77,
+  "chartTransitions": 200,
+  "chartStatus": {
+    "works": 75,
+    "wrong": 2,
+    "fixed": 0
+  },
+  "chartGroups": [
+    {
+      "name": "At work",
+      "color": "#ffffff",
+      "states": 8
+    },
+    {
+      "name": "Result written",
+      "color": "#eaf2f8",
+      "states": 8
+    },
+    {
+      "name": "In review",
+      "color": "#e8daef",
+      "states": 3
+    },
+    {
+      "name": "A finding to answer",
+      "color": "#fadbd8",
+      "states": 7
+    },
+    {
+      "name": "A scoped review owed",
+      "color": "#f5eef8",
+      "states": 9
+    },
+    {
+      "name": "Nothing owed",
+      "color": "#d1f2eb",
+      "states": 12
+    },
+    {
+      "name": "In conflict",
+      "color": "#fef9e7",
+      "states": 7
+    },
+    {
+      "name": "Rebasing",
+      "color": "#fdebd0",
+      "states": 8
+    },
+    {
+      "name": "A drop not written",
+      "color": "#f6ddcc",
+      "states": 6
+    },
+    {
+      "name": "The rebase record",
+      "color": "#e5e8e8",
+      "states": 9
+    }
+  ],
+  "mixedGroups": [],
+  "regions": {
+    "drawn": false,
+    "why": "\"Checked and proved at this head: a rebase record left behind\" is \"Breaks a rule\", and its two region states would show \"Works\""
+  },
+  "classes": [
+    {
+      "n": 1,
+      "end": "Checked at this head, not proved: a rebase record left behind",
+      "invariant": "RebaseRecorded",
+      "rule": null,
+      "cause": "a rebase record stays after its push",
+      "readerSteps": 14,
+      "modelSteps": 25,
+      "counterexamples": 5400,
+      "fix": null
+    }
+  ],
+  "codeLike": [
+    "GitHub says the pull request is in conflict"
+  ],
+  "drawnFrom": {
+    "command": "statechart from-spec CrewProof.tla --config CrewProof.chart.cfg --title 'Does the proof on the brief match the head, and does a rebase leave its record?' --expect-broken RebaseRecorded --png",
+    "inputs": {
+      "CrewProof.chart.cfg": "d5ead165c6c163545d1fe32b7bcf9b08685fdf27f9c37a75d18c16a756ca2b3c",
+      "CrewProof.map.py": "402110a1693ea15a978a0203fa1e8b9c5c2a0abc5afcae4a2897e95ddeb451ed",
+      "CrewProof.tla": "fa5028148ce540ec8ea072280ec34cbd0eba9167e191cc90ee4a6bfae1954e8e"
+    },
+    "chart": "3952b7ac66bbcde4264c37a93bcc905e398bdc85e1fd86d268328470aa2f4870"
+  }
+}
