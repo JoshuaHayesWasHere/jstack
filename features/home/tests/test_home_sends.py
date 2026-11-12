@@ -164,6 +164,14 @@ def test_a_send_between_homes_and_crews_is_refused_with_its_channel(home, sender
         assert one in said, said
 
 
+def test_a_scoped_homes_send_to_the_root_names_each_kind_of_escalation_and_not_the_user(home):
+    said = refused(home, FLOW, ROOT)
+    kinds = ["jbus stop <its open row> --holds <case>", "--kind decision", "--kind go", "--entry"]
+    for one in kinds:
+        assert one in said, said
+    assert "the user" not in said, said
+
+
 def test_a_scope_to_another_scope_is_a_queued_row(home):
     jview_live(home)
     said = refused(home, FLOW, JVIEW)
