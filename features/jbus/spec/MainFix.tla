@@ -4,9 +4,10 @@
 \* takes jbus.reverts.revert and watch._file as one step each; here each write is its own step,
 \* and a pass can die between any two of them (a timeout, a reboot, an OOM kill): the disk and
 \* GitHub keep what was written, and the next pass starts at the top.
-\* One pass, in the order of its steps: reverts.macos (9), culprits.judge (12), then
-\* watch.watch (40), which reads each nightly in the order watched gives, browser.yml,
-\* macos-nightly.yml, then each other scheduled workflow.
+\* One pass, in the order of its slots (poll.py `steps(half, "tellers")`, then
+\* `steps(half, "after-expedite")`): watch.watch (tellers, 40), which reads each nightly in the
+\* order watched gives, browser.yml, macos-nightly.yml, then each other scheduled workflow; then
+\* reverts.macos (after-expedite, 9) and culprits.judge (after-expedite, 12).
 \* One red: main's tip and its Mac go red at one merge, its culprit, and main stays red through
 \* later merges until a merge or a hand turns it green. A second red is MainRed.tla's.
 \* World names the faults of the world the model lets in, beyond the pass that dies:
@@ -14,7 +15,10 @@
 \*              gh pr view, the compare tested asks), so a pass may file a row for a red
 \*              whose culprit the next pass reverts;
 \*   "hand":    a hand turns main or its Mac green, by a rerun or a merge jmerge did not make;
-\*   "late":    a nightly's red run ends more than NIGHTLY_WINDOW (3 days) before a pass reads it.
+\*   "late":    a nightly's red run ends more than NIGHTLY_WINDOW (3 days) before a pass reads it;
+\*   "blind":   a pass has no world (no T3 Code token, T3 Code or GitHub silent, or the API
+\*              budget under its floor), so it runs neither watch.watch nor reverts.macos, which
+\*              need one, and culprits.judge alone (poll.py `if not all(has[need] for need in step.needs):`).
 \* Fault = "none" is the code; Fault = "no-reopen-check" is the canary: opened does not ask
 \* GitHub for the revert's branch, so a revert opened by a pass that died is never recorded.
 EXTENDS Naturals, Sequences
@@ -31,12 +35,19 @@ Seen == {"unseen", "blank", "row", "passed"}
 Tips == 1..MaxTip
 \* Two runs of the nightly with a branch, one that passes and one after it, and one of each other.
 Runs(n) == 1..(IF n = "macos" THEN 2 ELSE 1)
+\* Any nightly's red may be its shot tests alone, which file the day's shots row: jbus/watch.py
+\* `drawn, rest = drawn_apart(jobs, said)` runs on every nightly's run.
 Kinds(n) == CASE n = "browser" -> {"red", "shots", "pr"}
-              [] n = "macos" -> {"red", "passed", "pr"}
-              [] n = "scheduled" -> {"red", "pr"}
-Last == 2 + Len(Nightlies)
-Check(p) == IF p = 1 THEN "mac" ELSE "main"
-Night(p) == Nightlies[p - 2]
+              [] n = "macos" -> {"red", "shots", "passed", "pr"}
+              [] n = "scheduled" -> {"red", "shots", "pr"}
+\* The phases of a pass: 1 to N the nightlies, then the Mac, then main.
+N == Len(Nightlies)
+MacPhase == N + 1
+MainPhase == N + 2
+Last == MainPhase
+Judging == {MacPhase, MainPhase}
+Check(p) == IF p = MacPhase THEN "mac" ELSE "main"
+Night(p) == Nightlies[p]
 
 VARIABLES
   \* B-023, the revert's brief tasks/revert-<n>-<branch>.md: jbus/reverts.py
@@ -72,15 +83,16 @@ VARIABLES
   episode,  \* "before" the red, or "red" from its merge on
   runs,     \* each nightly's runs, in order, by kind, "none" where it has not run yet
   late,     \* the red runs that ended more than NIGHTLY_WINDOW before a pass read them
-  phase,    \* the step of the pass: 0 between passes, 1 the Mac, 2 main, 3 to Last the nightlies
+  phase,    \* the step of the pass: 0 between passes, 1 to N the nightlies, then MacPhase, MainPhase
   at,       \* where in that step the pass is
   k,        \* the nightly run the pass reads
-  whole,    \* the last pass ran to its end
-  before    \* a ghost: GitHub had the revert open when the pass started
+  whole,    \* the last pass ran every step to its end
+  before,   \* a ghost: GitHub had the revert open when the pass started
+  sight     \* the pass has a world, and runs the steps that need one
 vars == <<revertBrief, fix, macFix, browserSeen, macosSeen, scheduledSeen, rows, pull, record,
-          said, tip, red, clear, episode, runs, late, phase, at, k, whole, before>>
+          said, tip, red, clear, episode, runs, late, phase, at, k, whole, before, sight>>
 filed == <<revertBrief, fix, macFix, browserSeen, macosSeen, scheduledSeen, rows, pull, record, said>>
-world == <<tip, red, clear, episode, runs, late, before>>
+world == <<tip, red, clear, episode, runs, late, before, sight>>
 
 Fix(c) == IF c = "main" THEN fix ELSE macFix
 SeenOf(n) == CASE n = "browser" -> browserSeen [] n = "macos" -> macosSeen [] n = "scheduled" -> scheduledSeen
@@ -97,7 +109,7 @@ TypeOK ==
   /\ episode \in {"before", "red"}
   /\ \A i \in 1..Len(Nightlies) : runs[Nightlies[i]] \in [Runs(Nightlies[i]) -> Kinds(Nightlies[i]) \cup {"none"}]
   /\ phase \in 0..Last /\ at \in {"judge", "revert", "found", "opened", "briefed", "kept", "file", "filed", "queued"}
-  /\ k \in 1..3 /\ whole \in BOOLEAN /\ before \in BOOLEAN
+  /\ k \in 1..3 /\ whole \in BOOLEAN /\ before \in BOOLEAN /\ sight \in BOOLEAN
 
 Init ==
   /\ revertBrief = FALSE /\ record = FALSE /\ said = FALSE
@@ -107,7 +119,7 @@ Init ==
   /\ rows = [r \in Rows |-> "none"] /\ pull = "none"
   /\ tip = 1 /\ red = [c \in Checks |-> 0] /\ clear = FALSE /\ episode = "before"
   /\ runs = [n \in Range(Nightlies) |-> [r \in Runs(n) |-> "none"]] /\ late = {}
-  /\ phase = 0 /\ at = "judge" /\ k = 1 /\ whole = TRUE /\ before = FALSE
+  /\ phase = 0 /\ at = "judge" /\ k = 1 /\ whole = TRUE /\ before = FALSE /\ sight = TRUE
 
 SetFix(c, v) ==
   /\ fix' = IF c = "main" THEN [fix EXCEPT ![red[c]] = v] ELSE fix
@@ -124,7 +136,7 @@ Reverting == <<revertBrief, pull, record, said>>
 \* The pass goes on to its next step, or ends.
 Onward ==
   /\ phase' = IF phase = Last THEN 0 ELSE phase + 1
-  /\ whole' = (phase = Last)
+  /\ whole' = (phase = Last /\ sight)
   /\ at' = "judge" /\ k' = 1
 
 \* ---- The world, between two passes ----------------------------------------------------------
@@ -135,7 +147,7 @@ GoesRed ==
   /\ phase = 0 /\ episode = "before" /\ tip < MaxTip
   /\ tip' = tip + 1 /\ episode' = "red" /\ clear' \in BOOLEAN
   /\ \E s \in SUBSET Checks \ {{}} : red' = [c \in Checks |-> IF c \in s THEN tip + 1 ELSE 0]
-  /\ UNCHANGED <<runs, late, phase, at, k, whole, before>> /\ UNCHANGED filed
+  /\ UNCHANGED <<runs, late, phase, at, k, whole, before, sight>> /\ UNCHANGED filed
 
 \* A merge lands on a red main, and each red check is red at it or green. jmerge merges nothing
 \* while main is red but jbus's answer: the revert reverts.json keeps, or a fix row's pull
@@ -149,14 +161,14 @@ Merge ==
   /\ tip' = tip + 1
   /\ red' \in {r \in [Checks -> 0..MaxTip] : \A c \in Checks :
                  r[c] \in IF red[c] = 0 THEN {0} ELSE {0, tip + 1}}
-  /\ UNCHANGED <<clear, episode, runs, late, phase, at, k, whole, before>>
+  /\ UNCHANGED <<clear, episode, runs, late, phase, at, k, whole, before, sight>>
   /\ UNCHANGED <<revertBrief, fix, macFix, rows, record, said>> /\ UNCHANGED Seens
 
 \* A hand runs a red check again and it passes at the same commit.
 HandGreen ==
   /\ phase = 0 /\ "hand" \in World
   /\ \E c \in Checks : red[c] # 0 /\ red' = [red EXCEPT ![c] = 0]
-  /\ UNCHANGED <<tip, clear, episode, runs, late, phase, at, k, whole, before>> /\ UNCHANGED filed
+  /\ UNCHANGED <<tip, clear, episode, runs, late, phase, at, k, whole, before, sight>> /\ UNCHANGED filed
 
 \* A nightly runs: its next run ends, red, green or for a pull request.
 NightlyRuns ==
@@ -164,7 +176,7 @@ NightlyRuns ==
   /\ \E n \in Range(Nightlies) : \E r \in Runs(n) :
        /\ runs[n][r] = "none" /\ IF r = 1 THEN TRUE ELSE runs[n][r - 1] # "none"
        /\ \E kind \in Kinds(n) : runs' = [runs EXCEPT ![n][r] = kind]
-  /\ UNCHANGED <<tip, red, clear, episode, late, phase, at, k, whole, before>> /\ UNCHANGED filed
+  /\ UNCHANGED <<tip, red, clear, episode, late, phase, at, k, whole, before, sight>> /\ UNCHANGED filed
 
 \* A red run ages past NIGHTLY_WINDOW before a pass reads it.
 Ages ==
@@ -172,12 +184,15 @@ Ages ==
   /\ \E n \in Range(Nightlies) : \E r \in Runs(n) :
        /\ runs[n][r] \in {"red", "shots"} /\ <<n, r>> \notin late
        /\ late' = late \cup {<<n, r>>}
-  /\ UNCHANGED <<tip, red, clear, episode, runs, phase, at, k, whole, before>> /\ UNCHANGED filed
+  /\ UNCHANGED <<tip, red, clear, episode, runs, phase, at, k, whole, before, sight>> /\ UNCHANGED filed
 
 \* ---- A pass ---------------------------------------------------------------------------------
 
+\* A blind pass goes straight to main's judge.
 Start ==
-  /\ phase = 0 /\ phase' = 1 /\ at' = "judge" /\ k' = 1 /\ whole' = FALSE
+  /\ phase = 0 /\ at' = "judge" /\ k' = 1 /\ whole' = FALSE
+  /\ sight' \in IF "blind" \in World THEN BOOLEAN ELSE {TRUE}
+  /\ phase' = IF sight' THEN 1 ELSE MainPhase
   /\ before' = (pull = "open")
   /\ UNCHANGED <<tip, red, clear, episode, runs, late>> /\ UNCHANGED filed
 
@@ -186,12 +201,12 @@ Die ==
   /\ phase # 0 /\ phase' = 0 /\ at' = "judge" /\ k' = 1 /\ whole' = FALSE
   /\ UNCHANGED world /\ UNCHANGED filed
 
-\* reverts.macos for the Mac (phase 1), culprits.judge for main (phase 2): a check that is
+\* reverts.macos for the Mac (MacPhase), culprits.judge for main (MainPhase): a check that is
 \* green, or whose revert reverts.json keeps, gets nothing; a red with one clear culprit is
 \* reverted; any other red gets its fix row. With "refuses" in World, GitHub may not say whether
 \* the culprit's own check passed over the main it turned red, and the pass files the row.
 Judge ==
-  /\ phase \in {1, 2} /\ at = "judge"
+  /\ phase \in Judging /\ at = "judge"
   /\ LET c == Check(phase) IN
      \/ /\ \/ red[c] = 0
            \* jbus/reverts.py `if any(sha in made for sha, _ in red.since):` with `if found == Keep.OPENED:`,
@@ -219,7 +234,7 @@ Judge ==
 \* condition, jbus/reverts.py `run.condition(red.slug, f"its revert was not opened: {why}", key=f"revert {red.red}")`,
 \* and the red gets its fix row.
 Open ==
-  /\ phase \in {1, 2} /\ at = "revert"
+  /\ phase \in Judging /\ at = "revert"
   /\ \E found \in IF Fault # "no-reopen-check" /\ pull = "open"
                     THEN IF "refuses" \in World THEN {TRUE, FALSE} ELSE {TRUE}
                     ELSE {FALSE} :
@@ -235,20 +250,20 @@ Open ==
 \* and the next pass finds it by its branch:
 \* jbus/reverts.py `if not (said.get("headRefName") and said.get("headRefOid")):`
 BriefRevert ==
-  /\ phase \in {1, 2} /\ at \in {"found", "opened"}
+  /\ phase \in Judging /\ at \in {"found", "opened"}
   /\ \/ /\ revertBrief' = TRUE /\ at' = "briefed" /\ UNCHANGED <<phase, k, whole>>
      \/ /\ at = "opened" /\ "refuses" \in World /\ Onward /\ UNCHANGED revertBrief
   /\ UNCHANGED world
   /\ UNCHANGED <<fix, macFix, rows, pull, record, said>> /\ UNCHANGED Seens
 
 KeepRevert ==
-  /\ phase \in {1, 2} /\ at = "briefed"
+  /\ phase \in Judging /\ at = "briefed"
   /\ record' = TRUE /\ at' = "kept"
   /\ UNCHANGED <<phase, k, whole>> /\ UNCHANGED world
   /\ UNCHANGED <<revertBrief, fix, macFix, rows, pull, said>> /\ UNCHANGED Seens
 
 SayRevert ==
-  /\ phase \in {1, 2} /\ at = "kept"
+  /\ phase \in Judging /\ at = "kept"
   /\ said' = TRUE /\ Onward /\ UNCHANGED world
   /\ UNCHANGED <<revertBrief, fix, macFix, rows, pull, record>> /\ UNCHANGED Seens
 
@@ -257,7 +272,7 @@ SayRevert ==
 \* `if name in run.removed or queue.fresh(run.state, name) is not None:` does for the Mac; and
 \* otherwise write its brief, whether or not a brief is there.
 FileBrief ==
-  /\ phase \in {1, 2} /\ at = "file"
+  /\ phase \in Judging /\ at = "file"
   /\ LET c == Check(phase) IN
      \/ /\ Fix(c)[red[c]] = "row" /\ Onward /\ UNCHANGED <<fix, macFix>>
      \/ /\ Fix(c)[red[c]] # "row" /\ SetFix(c, "brief")
@@ -265,23 +280,23 @@ FileBrief ==
   /\ UNCHANGED world /\ UNCHANGED Reverting /\ UNCHANGED rows /\ UNCHANGED Seens
 
 QueueFix ==
-  /\ phase \in {1, 2} /\ at = "filed"
+  /\ phase \in Judging /\ at = "filed"
   /\ SetFix(Check(phase), "row") /\ Onward
   /\ UNCHANGED world /\ UNCHANGED Reverting /\ UNCHANGED rows /\ UNCHANGED Seens
 
-\* _nightly_red for one nightly (phases 3 to Last), one run at a time, oldest first: jbus/watch.py
+\* _nightly_red for one nightly (phases 1 to N), one run at a time, oldest first: jbus/watch.py
 \* `for one in sorted(runs, key=lambda r: r.get("created_at") or ""):`. What it keeps of a run
 \* that files nothing it writes at the loop's end; the model writes it at once, since the next
 \* pass reads the same runs and keeps the same.
 NightlyRead ==
-  /\ phase > 2 /\ at = "judge"
+  /\ phase \in 1..N /\ at = "judge"
   /\ LET n == Night(phase)
          kind == runs[n][k]
          seen == SeenOf(n)[k]
          \* jbus/watch.py `green = GREEN in seen.values()`
          green == "passed" \in Range(macosSeen)
          \* jbus/watch.py `n for n in (name, redrawn) if n not in run.removed and queue.fresh(run.state, n) is None`
-         taken == rows[n] = "row" /\ (n # "browser" \/ rows["shots"] = "row")
+         taken == rows[n] = "row" /\ rows["shots"] = "row"
      IN
      \/ /\ k > Len(runs[n]) /\ Onward /\ UNCHANGED Seens /\ UNCHANGED rows
      \/ /\ k <= Len(runs[n]) /\ at' = "judge" /\ k' = k + 1 /\ UNCHANGED <<phase, whole>>
@@ -297,7 +312,8 @@ NightlyRead ==
               /\ UNCHANGED Seens /\ UNCHANGED rows
            \* jbus/watch.py `if nightly.branch and not green:`, and its
            \* `run.find(nightly.file.removesuffix(".yml"), "retro", line, key=number, past=True) seen[number] = ""`
-           \/ /\ kind = "red" /\ seen = "unseen" /\ <<n, k>> \notin late /\ n = "macos" /\ ~green
+           \/ /\ kind \in {"red", "shots"} /\ seen = "unseen" /\ <<n, k>> \notin late /\ n = "macos"
+              /\ ~green
               /\ SetSeen(n, "blank") /\ UNCHANGED rows
            \* No row of the day is free: the run is kept as the day's row, `seen[number] = fixed`
            \/ /\ kind \in {"red", "shots"} /\ seen = "unseen" /\ <<n, k>> \notin late
@@ -310,7 +326,7 @@ NightlyRead ==
               /\ SetSeen(n, "row") /\ UNCHANGED rows
            \* Only shots failed and the shots row is there: no fix, so fixed is blank.
            \/ /\ kind = "shots" /\ seen = "unseen" /\ <<n, k>> \notin late /\ ~taken
-              /\ rows["shots"] = "row"
+              /\ (n # "macos" \/ green) /\ rows["shots"] = "row"
               /\ SetSeen(n, "blank") /\ UNCHANGED rows
      \* Its row is free: _filed writes its brief. jbus/watch.py `if fixed and name in free:`, and
      \* for the shots `if drawn and redrawn in free:`
@@ -324,7 +340,7 @@ NightlyRead ==
 
 \* _filed queues the brief, before anything is written to seen.
 QueueNightly ==
-  /\ phase > 2 /\ at = "filed"
+  /\ phase \in 1..N /\ at = "filed"
   /\ LET row == IF runs[Night(phase)][k] = "shots" THEN "shots" ELSE Night(phase) IN
      rows' = [rows EXCEPT ![row] = "row"]
   /\ at' = "queued" /\ UNCHANGED <<phase, k, whole>>
@@ -333,7 +349,7 @@ QueueNightly ==
 \* jbus/watch.py `seen[number] = fixed write_json(run.state / nightly.seen, seen)`: the run
 \* is kept as its row, or blank where only its shots failed.
 SeeNightly ==
-  /\ phase > 2 /\ at = "queued"
+  /\ phase \in 1..N /\ at = "queued"
   /\ SetSeen(Night(phase), IF runs[Night(phase)][k] = "shots" THEN "blank" ELSE "row")
   /\ at' = "judge" /\ k' = k + 1 /\ UNCHANGED <<phase, whole>>
   /\ UNCHANGED world /\ UNCHANGED Reverting /\ UNCHANGED <<fix, macFix, rows>>
@@ -380,9 +396,9 @@ MainRedFixes == {t \in Tips : fix[t] = "row"}
 \* back (MainRed's close and _withdraw are out of this model).
 RefinesMainRed ==
   [][ \/ UNCHANGED <<MainRedReverts, MainRedFixes>>
-      \/ /\ ~MainRedReverts /\ MainRedReverts' /\ pull = "open" /\ phase \in {1, 2}
+      \/ /\ ~MainRedReverts /\ MainRedReverts' /\ pull = "open" /\ phase \in Judging
          /\ UNCHANGED MainRedFixes
       \/ /\ MainRedFixes' = MainRedFixes \cup {red["main"]} /\ red["main"] \notin MainRedFixes
-         /\ red["main"] # 0 /\ phase = 2 /\ UNCHANGED MainRedReverts
+         /\ red["main"] # 0 /\ phase = MainPhase /\ UNCHANGED MainRedReverts
     ]_<<MainRedReverts, MainRedFixes>>
 ====
