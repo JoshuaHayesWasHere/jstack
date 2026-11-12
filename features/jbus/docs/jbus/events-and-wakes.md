@@ -134,6 +134,7 @@ It is in the log, which `jbus events` prints and the view shows.
 - `slot-end`
 - `slot-wake`
 - `snapshot`
+- `stack`
 - `stale`
 - `stall`
 - `sweep`
