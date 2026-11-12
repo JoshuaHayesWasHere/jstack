@@ -24,9 +24,13 @@ The kept answer is `FILE` in the project's state. It is not reused, and the next
   which add `EXPECTED` checks) is read within that time.
 
 A read takes two REST calls for each open head and one more, each a 304 while nothing changed,
-and one `git ls-remote`. `jbus.merge` hands `jmerge` the kept answer's path and the
-pass's stamp (`Open.at`), and `jmerge` takes its list and default branch from it only where the
-stamp is this pass's.
+and one `git ls-remote`, and a pass pays them once: the pass keeps the `Open` a read gives in
+`run.answers`, by the pass's stamp, and its next read gives that `Open` back. So the read that
+`jbus.merge` takes for the `jmerge` it starts is the one `watch.look` uses after it, and
+`watch.look` reads on its own only where `jbus.merge` took none (the budget under its floor, a
+silent GitHub, or a `jmerge` run still going). `jbus.merge` hands `jmerge` the kept answer's path
+and the pass's stamp (`Open.at`), and `jmerge` takes its list and default branch from it only
+where the stamp is this pass's.
 """
 
 from __future__ import annotations
@@ -83,12 +87,16 @@ class Probe:
 
 def read(run: Pass) -> Open:
     """Return the project's open pull requests, asked of GraphQL only where something they give
-    changed since the kept answer was asked. Raise `Silent` where GitHub gave no list."""
+    changed since the kept answer was asked. Raise `Silent` where GitHub gave no list. A second
+    read in the same pass gives the first one's `Open` and probes nothing, until the pass runs a
+    command that may change what GitHub answers (`Pass.run`, which clears `run.answers`)."""
+    now = run.now.isoformat()
+    if isinstance(given := run.answers.get(f"{FILE} {now}"), Open):
+        return given
     path = run.state / FILE
     kept = read_json(path, {})
     kept = kept if isinstance(kept, dict) else {}
     probed = probe(run)
-    now = run.now.isoformat()
     if _reusable(run, kept, probed.seen):
         pulls = kept["pulls"]
         kept = {**kept, "at": now}
@@ -111,7 +119,8 @@ def read(run: Pass) -> Open:
             "pulls": pulls,
         }
     write_json(path, kept, indent=None)
-    return Open(pulls, probed.default, path, now)
+    opened = run.answers[f"{FILE} {now}"] = Open(pulls, probed.default, path, now)
+    return opened
 
 
 def _reusable(run: Pass, kept: dict[str, Any], seen: str | None) -> bool:
