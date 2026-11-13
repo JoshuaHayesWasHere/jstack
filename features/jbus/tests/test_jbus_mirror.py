@@ -67,6 +67,40 @@ def test_a_result_that_changes_goes_again_and_one_that_does_not_goes_once(kitche
     assert again["text"].endswith("Fixed: none needed, a clean review")
 
 
+def test_a_review_goes_once_through_the_crews_lines_under_it_and_again_when_it_changes(kitchen):
+    """The crew appends its desk checks and wake lines under the Review when it is the brief's last
+    section. None is a review round: on 2026-11-12 one brief logged 34 `review` events for the 4
+    reviews written into it, one more for each such line. A new verdict, or a review rewritten at
+    a new head, still goes out."""
+    brief = kitchen.brief("alpha")
+    kitchen.quiet()
+    head, later = "0123456789abcdef0123456789abcdef01234567", "89abcdef" * 5
+    review = f"\n## Review\nVerdict: findings\nHead: {head}\nFindings:\n- high a.py:1 wrong\n"
+    brief.write_text(brief.read_text() + RESULT + review)
+    kitchen.poll()
+    for minutes, line in enumerate(
+        (
+            f"Checked: make check-fast PART=touched exit 0 at {head}",
+            f"Proved: a_test.py base exit 1 at {head}, head exit 0 at {head}",
+            f"Stale base: at {head}, check 4 of 8 hit pytest-timeout's 120 s",
+            f"Dropped on rebase: a.tsv, 0 of main's, 3 of its own, at {head[:12]}: drawn again",
+        ),
+        start=1,
+    ):
+        brief.write_text(brief.read_text() + line + "\n")
+        kitchen.poll(NOW + timedelta(minutes=3 * minutes))
+    assert [event["line"] for event in kitchen.events("review")] == ["review alpha: findings"]
+    brief.write_text(brief.read_text().replace("Verdict: findings", "Verdict: clean"))
+    kitchen.poll(NOW + timedelta(minutes=15))
+    brief.write_text(brief.read_text().replace(f"Head: {head}", f"Head: {later}"))
+    kitchen.poll(NOW + timedelta(minutes=18))
+    assert [event["line"] for event in kitchen.events("review")] == [
+        "review alpha: findings",
+        "review alpha: clean",
+        "review alpha: clean",
+    ]
+
+
 def test_the_same_result_piped_twice_is_one_event(kitchen):
     lines = "Status: done\nLeft: none\n"
     assert kitchen.main("done", "alpha", stdin=lines) == (0, "queued\n")
