@@ -68,6 +68,14 @@ of it is open, no thread of it is unsettled and its row, if the queue still has 
 slug that is over merges nothing more, so its record holds nothing, and `TWICE` no longer files a
 fix row for a later red that is due a revert.
 
+`reland` opens the culprit's row again once its revert merged, before `close` reads the slug as
+over: the row goes from `merged` to `left` (`queue.reland`), and its merge is no merge of the row's
+for any reader of the world (`watch.unlanded`). Its crew's redo is then reviewed before its pull
+request opens and merged by the normal path, as any row's: before, the row stayed `merged`, so jbus
+launched no review of the redo and jmerge held its pull request as a row that is over until the
+user accepted it, as #1872 was on 2026-11-13. A revert a person opened by hand has no record, and
+opens no row.
+
 `macos` judges main's Mac by the same rule. macos.yml's push runs share one group, as main's check
 does, so a run selects over every merge since the last Mac run that ran, and a commit whose run a
 newer push displaced ends `cancelled`, neither green nor red. That run is never main's check
@@ -100,7 +108,7 @@ from jbus.watch import World, brief_of, copy_brief, fix_brief, task_brief, tests
 from jmerge import mainjson
 from jmerge import reverts as kept
 
-EVENTS = {"revert": "quiet"}
+EVENTS = {"revert": "quiet", "reland": "quiet"}
 READ_WAIT = timedelta(hours=1)
 """How long after a red tip landed its failed tests may stay unread, a CI round and its rerun with
 room to spare, before they are taken as unreadable."""
@@ -556,6 +564,44 @@ def close(run: Pass, world: World, rows: list[dict[str, Any]] | None) -> None:
         run.say(line)
 
 
+def reland(run: Pass, world: World) -> bool:
+    """Open again each merged row whose merge a revert on record took back, once that revert
+    merged (`queue.reland`), and take the merge out of this pass's `world`, as `watch.look` does
+    on every later pass (`watch.unlanded`). The row's facts are then those of a row with work
+    left: its crew, told of the revert (`jbus.culprits`), goes on from its brief's last Result, and
+    its redo is reviewed before its pull request opens and merged as any row's, with no accept
+    (`jmerge.ready.ROW_OVER` holds only a row that is over). A merge is the row's that the revert
+    took back where its merge commit is the record's red tip, the commit the revert reverts, so
+    a redo that merged since is never taken back. A revert still open, or closed unmerged, takes
+    nothing back. Return whether a row moved."""
+    landed = {str(pull.get("url", "")).rstrip("/") for pull in world.merged.values()}
+    moved = False
+    for one in kept.read(run.state).values():
+        pull = world.merged.get(one.slug)
+        if one.pull.rstrip("/") not in landed or pull is None:
+            continue
+        if (pull.get("mergeCommit") or {}).get("oid") != one.red:
+            continue
+        merge = str(pull.get("url", ""))
+        if not queue.reland(run.state, one.slug, merge, one.pull):
+            continue
+        del world.merged[one.slug]
+        line = f"reland {one.slug}: its revert {one.pull} merged, so the row is open for its redo"
+        run.find(one.slug, "reland", line, key=f"reland {one.red}")
+        moved = True
+    return moved
+
+
+def _settle(half: Any) -> None:
+    """Open the rows whose revert merged (`reland`), then close or drop the reverts (`close`):
+    in that order, so `close` judges a culprit's slug over only once a merged revert has opened
+    its row again."""
+    run, world = half.run, half.seen.world
+    if reland(run, world) and half.rows is not None:
+        half.rows = queue.load(run.state)
+    close(run, world, half.rows)
+
+
 def cleared(run: Pass, red: str, green: str) -> bool:
     """Whether a check passed at `red` itself or at a later commit, `green`, as GitHub
     compares them. Where GitHub does not say, it did not, and the next pass asks again."""
@@ -745,11 +791,5 @@ STEPS = (
         lambda half: macos(half.run, half.seen.world),
         ("world", "budget"),
     ),
-    verbs.Step(
-        "after-expedite",
-        13,
-        "reverts.close",
-        lambda half: close(half.run, half.seen.world, half.rows),
-        ("world",),
-    ),
+    verbs.Step("after-expedite", 13, "reverts.reland and close", _settle, ("world",)),
 )

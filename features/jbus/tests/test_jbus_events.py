@@ -240,6 +240,7 @@ TABLE = {
     "pool-wake": "quiet",
     "retro": "quiet",
     "revert": "quiet",
+    "reland": "quiet",
     "cancelled": "quiet",
     "queued": "quiet",
     "snapshot": "quiet",

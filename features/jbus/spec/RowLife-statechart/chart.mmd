@@ -96,6 +96,7 @@ stateDiagram-v2
       r1s3 --> r1s1 : the thread fails before a pass<br/>sees it at work
       r1s3 --> r1s8 : you remove the row from<br/>launched
       r1s4 --> r1s0 : a follow-up Result says done,<br/>and names no closed pull<br/>request
+      r1s4 --> r1s2 : a pass writes the row's line<br/>again
       r1s4 --> r1s6 : a pull request opens for what<br/>was left
       r1s4 --> r1s1 : the Result no longer names the<br/>closed pull request, and the<br/>thread failed
       r1s4 --> r1s3 : the row is launched again for<br/>what was left
@@ -103,6 +104,7 @@ stateDiagram-v2
       r1s4 --> r1s9 : the thread works again on what<br/>was left
       r1s4 --> r1s10 : the turn hangs, or the Result<br/>no longer names the closed<br/>pull request
       r1s4 --> r1s8 : you remove the row from left
+      r1s5 --> r1s4 : the revert jbus opened of its<br/>merge merges, so its work is<br/>left to redo
       r1s6 --> r1s4 : the pull request closes<br/>unmerged
       r1s6 --> r1s11 : the pull request closes<br/>unmerged while the thread asks<br/>for an answer
       r1s6 --> r1s10 : the pull request closes<br/>unmerged while the turn hangs,<br/>or with no address of it in<br/>the Result after the thread<br/>ended

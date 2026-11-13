@@ -5,13 +5,15 @@ MEASURE = Measure(
     group="quality",
     says=(
         "status moves out of merged or done in the last 72 h, which should be none,"
-        " leaving out a scout's done row handed to its crewmate"
+        " leaving out a scout's done row handed to its crewmate and a merged row whose revert"
+        " merged"
     ),
     unit="moves",
     better="lower",
     source=Sql(
         "select count(*) as value, count(*) as n from transitions"
         " where project = :project and from_status in ('merged', 'done') and handed = 0"
+        " and reverted = 0"
         " and at >= :begins and at < :ends"
     ),
     window="72h",

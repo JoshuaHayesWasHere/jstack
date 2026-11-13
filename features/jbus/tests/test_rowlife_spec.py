@@ -26,11 +26,15 @@ replay = importlib.import_module("statechart.replay")
 
 
 def status_moves(graph) -> dict[str, set[tuple[str, str]]]:
-    """Each change of status one step of each action of the graph makes, by action."""
+    """Each change of status one step of each action of the graph makes, by action. It visits
+    only the set bits of each step's mask, since a test of every bit is quadratic in the states."""
     moves: dict[str, set[tuple[str, str]]] = {}
     for was, steps in enumerate(graph.step):
         for action, led in steps.items():
-            for now in (bit for bit in range(led.bit_length()) if led >> bit & 1):
+            while led:
+                low = led & -led
+                led ^= low
+                now = low.bit_length() - 1
                 if graph.vars[was]["status"] != graph.vars[now]["status"]:
                     pair = (graph.vars[was]["status"], graph.vars[now]["status"])
                     moves.setdefault(action, set()).add(pair)

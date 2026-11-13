@@ -144,6 +144,7 @@ MOVES = {
     ("pr", "launched"): f"{UNNAMED} T3 Code lists no thread",
     ("pr", "waiting"): "the pull request closes unmerged while the thread asks for an answer",
     ("done", "merged"): "the pull request of a done row merges on the user's accept",
+    ("merged", "left"): "the revert jbus opened of its merge merges, so its work is left to redo",
 }
 
 # What a pass sees change, by the fact that changed, where the status stays.
@@ -199,6 +200,8 @@ def step(action, before, after):
         return f"you remove the row from {before['status']}"
     if action == "HandOver":
         return "the crewmate's brief the scout delivered takes its done row over, with no go"
+    if action == "Reland":
+        return MOVES[("merged", "left")]
     if action == "Grant":
         if after["go"] == "behind":
             return "you approve the row, behind a row it depends on"

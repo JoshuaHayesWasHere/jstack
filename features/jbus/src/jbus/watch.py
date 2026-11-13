@@ -527,11 +527,24 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
             world.merged[slug] = kept[slug]
         _numbered(run, world, kept, numbers, missed, slug_of)
         missed.keep()
+        unlanded(world, rows)
     except Silent as silent:
         run.say(f"wait {run.project.name}: could not ask GitHub{silent}")
         said = str(silent).removeprefix(": ")
         return Look(out=out, spent=said if allowance.is_named(said) else spent, left=left)
     return Look(world, out, spent=spent, left=left)
+
+
+def unlanded(world: World, rows: list[dict[str, Any]]) -> None:
+    """Take out of `world.merged` each row's merge that a revert jbus opened took back
+    (`queue.reland`, the row's `reverted` column): the row has no merge then, so every reader of
+    the world (its facts, `final`, the review before its pull request) reads it as a row with work
+    left, and a redo's merge, another pull request, is its merge again."""
+    for row in rows:
+        merge = str(row.get(queue.REVERTED) or "").rstrip("/")
+        pull = world.merged.get(row["slug"])
+        if merge and pull is not None and str(pull.get("url", "")).rstrip("/") == merge:
+            del world.merged[row["slug"]]
 
 
 def _numbered(

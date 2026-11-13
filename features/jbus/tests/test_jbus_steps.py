@@ -114,7 +114,7 @@ ORDER = [
     "after-expedite 10 mainmoved.tell (budget)",
     "after-expedite 11 watch.retro (world)",
     "after-expedite 12 culprits.judge",
-    "after-expedite 13 reverts.close (world)",
+    "after-expedite 13 reverts.reland and close (world)",
     "after-expedite 14 culprits.tell (client)",
     "after-expedite 15 clock.tick (client, world)",
     "after-expedite 16 clock.held (client, world)",

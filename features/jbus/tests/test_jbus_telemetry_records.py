@@ -535,6 +535,37 @@ def test_transitions_carry_whether_the_move_hands_a_scouts_row_over(machine):
     ]
 
 
+def test_transitions_carry_whether_the_move_opens_a_reverted_row(machine):
+    """A line `jbus.queue.reland` marked with the revert's address under `reverted` reads 1 and any
+    other 0, and a store built before `jbus.telemetry.migrations.v024_transitions_reverted` gains
+    the column on its next build, with each line it already holds read as 0."""
+    log = "transitions.jsonl"
+    machine.append("alpha", log, {"slug": "one", "from": "pr", "to": "merged", "at": iso(NOW)})
+    machine.build()
+    with contextlib.closing(machine.store()) as store:
+        views = [
+            name for (name,) in store.execute("SELECT name FROM sqlite_master WHERE type = 'view'")
+        ]
+        store.executescript(
+            "".join(f"DROP VIEW {name};" for name in views)
+            + "ALTER TABLE transitions DROP COLUMN reverted;"
+            + "DELETE FROM migrations WHERE name = 'v024_transitions_reverted';"
+        )
+    revert = "https://example.test/pull/9"
+    relanded = {"slug": "two", "from": "merged", "to": "left", "at": iso(NOW), "reverted": revert}
+    machine.append("alpha", log, relanded)
+    machine.append("alpha", log, {"slug": "three", "from": "merged", "to": "left", "at": iso(NOW)})
+    machine.build()
+    query = "SELECT slug, from_status, to_status, reverted FROM transitions"
+    with contextlib.closing(machine.store()) as store:
+        rows = store.execute(query).fetchall()
+    assert sorted(rows) == [
+        ("one", "pr", "merged", 0),
+        ("three", "merged", "left", 0),
+        ("two", "merged", "left", 1),
+    ]
+
+
 def test_a_line_that_moves_a_rows_go_is_no_change_of_its_status(machine):
     """`jbus.queue._go` writes a row's go to `transitions.jsonl`, and the table keeps only the
     changes of status (`jbus.telemetry.records.transitions`): a go line between two of them would

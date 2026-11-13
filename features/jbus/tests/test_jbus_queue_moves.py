@@ -44,7 +44,7 @@ NO_LAUNCH = (
 NAMED = {
     **_pairs(
         FINAL,
-        merged="queued launched running waiting pr failed stale gate left",
+        merged="queued launched running waiting pr failed stale gate",
         done="queued launched running waiting pr failed stale gate left",
     ),
     **_pairs(SWAPPED, merged="done"),
