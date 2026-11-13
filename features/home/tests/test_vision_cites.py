@@ -1,7 +1,7 @@
 """Each `path:line` cite in the vision points at the code it names.
 
 Every scout re-derives the Vision from vision.md, so a cite one line off sends it to the wrong
-text. Each cited file has the text its cite's first and last line must hold; a cite whose range
+text. `QUOTED` names, by the path cited, the text its cite's first and last line must hold; a cite whose range
 has moved, or a new cite with no text named here, fails.
 """
 
@@ -12,7 +12,6 @@ from testing.paths import REPO
 VISION = REPO / "features" / "home" / "docs" / "vision.md"
 CITE = re.compile(r"`([\w./-]+\.\w+):(\d+)(?:-(\d+))?`")
 
-# The text a cite's first and its last line hold, by the path it cites.
 QUOTED = {
     ".github/workflows/borders.yml": ("lint-borders.py --hard", "lint-borders.py --hard"),
     "features/jbus/src/jbus/dispatch.py": ("`max_running` is one cap", "pass, in every project."),
