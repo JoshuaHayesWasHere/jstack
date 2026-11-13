@@ -1,16 +1,22 @@
 """The watchdog of `jgauge.children` ends a test slot's command once its holder lets go of the
 pipe with no word that the command ended, and leaves it be after that word."""
 
+import contextlib
 import io
 import os
 import signal
 import subprocess
 import sys
+import time
 
 import pytest
 
-from jgauge import children
-from test_slot import gone
+from jgauge import children, slot
+from test_slot import (
+    gone,
+    live,
+    slots,  # noqa: F401, the fixture the tests below ask for by name
+)
 
 LEAVES_A_CHILD = "sleep 60 & echo $!; wait"
 
@@ -101,3 +107,62 @@ def test_a_command_announces_its_own_pid_to_the_watchdog():
     os.close(watch.fd)
     assert os.read(read, 64) == f"{os.getpid()}\n".encode()
     os.close(read)
+
+
+SLEEPS_IN_A_SESSION = """\
+import os, time
+os.setsid()
+state = os.environ["D"]
+with open(os.path.join(state, "pid.new"), "w") as out:
+    out.write(str(os.getpid()))
+os.rename(os.path.join(state, "pid.new"), os.path.join(state, "pid"))
+time.sleep(60)
+"""
+"""A child in a session of its own, from Python since macOS has no `setsid` command."""
+
+SLEEPS_IN_THE_BACKGROUND = 'sleep 60 & echo $! > "$D/pid.new"; mv "$D/pid.new" "$D/pid"; wait'
+
+
+def told_sigterm(request, lane, command, **more):
+    """Run `command` under a holder of `lane`, with test_slot's `slots`, send the holder SIGTERM
+    once the command's child wrote its pid, and give back the holder's exit code and that pid."""
+    run = request.getfixturevalue("slots")
+    holder = run(*lane, command=["sh", "-c", command], **more)
+    pid = run.state / "pid"
+    assert run.waits(pid.exists)
+    holder.send_signal(signal.SIGTERM)
+    return holder.wait(timeout=10), int(pid.read_text())
+
+
+def test_a_short_holder_told_sigterm_ends_a_child_in_a_session_of_its_own_with_it(request):
+    """A crew's thread that ends, or a launcher's cancel, stops a short holder with SIGTERM. A
+    child in a session of its own, as Playwright starts its web server, is in no group the
+    command leads, so it is gone only if the holder reaches it under the command."""
+    code, left = told_sigterm(
+        request,
+        ["--short"],
+        '"$PY" -c "$SESSION" & wait',
+        PY=sys.executable,
+        SESSION=SLEEPS_IN_A_SESSION,
+    )
+    try:
+        assert code == 128 + signal.SIGTERM
+        deadline = time.monotonic() + slot.STOP_GRACE_SECONDS
+        while live(left) and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert not live(left), f"process {left}, in a session of its own, outlived the SIGTERM"
+    finally:
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(left, signal.SIGKILL)
+
+
+def test_a_default_lane_holder_passes_a_signal_to_its_command_only(request):
+    """In the default lane the command decides what its children do on a signal, as a shell's
+    command would, so the holder tells the command alone and a child of it lives on."""
+    code, left = told_sigterm(request, ["--slots", "1"], SLEEPS_IN_THE_BACKGROUND)
+    try:
+        assert code == 128 + signal.SIGTERM
+        assert live(left), f"process {left}, the command's child, was signalled too"
+    finally:
+        with contextlib.suppress(ProcessLookupError):
+            os.kill(left, signal.SIGKILL)
