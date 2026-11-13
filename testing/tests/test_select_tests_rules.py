@@ -895,14 +895,14 @@ def test_the_guards_on_a_merged_tree_keep_each_repo_guard_the_selection_names(
     names it. The row sets the list either way, so it holds before the guard leaves the list and
     after."""
     tests, _ = select.selection([changed])
-    named = on_list or reaches
+    held = on_list or reaches
     listed = set(select.cross_cutting()) - {MODULE_SIZE} | ({MODULE_SIZE} if on_list else set())
     monkeypatch.setattr(select, "cross_cutting", lambda: sorted(listed))
-    tests = sorted(set(tests) - {MODULE_SIZE} | ({MODULE_SIZE} if named else set()))
+    tests = sorted(set(tests) - {MODULE_SIZE} | ({MODULE_SIZE} if held else set()))
 
     guards = select.desk_part("guards", [changed], tests)
 
-    if named:
+    if held:
         assert MODULE_SIZE in guards
         assert MODULE_SIZE not in select.desk_part("rest", [changed], tests)
     else:
