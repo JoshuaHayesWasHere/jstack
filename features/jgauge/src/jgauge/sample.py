@@ -60,12 +60,11 @@ def proc() -> Path:
     return Path(os.environ.get("PROC") or "/proc")
 
 
-def available_cores() -> int | None:
-    """The cores this process may run on, or every core where the system cannot say, as on
-    macOS, which has no `sched_getaffinity`."""
-    if hasattr(os, "sched_getaffinity"):
-        return len(os.sched_getaffinity(0))
-    return os.cpu_count()
+def machine_cores() -> int | None:
+    """The machine's online cores, as room.sh counts them, and not the ones this process may
+    run on: under `jgauge cap-shell` or `taskset` those are fewer. Where `PROC` gives no
+    `stat`, every core `os.cpu_count` sees."""
+    return sizes.online_cores(proc()) or os.cpu_count()
 
 
 def tmpfs() -> Path:
@@ -119,7 +118,7 @@ def row(now: int) -> list[str]:
             sizes.sysctl_count("hw.ncpu"),
         )
     else:
-        load, cores = _read(proc() / "loadavg").split()[:3], available_cores()
+        load, cores = _read(proc() / "loadavg").split()[:3], machine_cores()
     fields = {
         "time": str(now),
         "cores": str(cores or ""),
