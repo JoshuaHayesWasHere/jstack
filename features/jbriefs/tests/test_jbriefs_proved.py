@@ -211,6 +211,24 @@ def test_proved_none_names_the_file_of_no_kind_and_exits_1(tmp_path, monkeypatch
     assert capsys.readouterr().out == "no kind: children.py\n"
 
 
+def test_proved_none_of_a_go_module_bump_prints_config(tmp_path, monkeypatch, capsys):
+    """FAFU's af-vuln-go bumped Go modules for govulncheck findings, `go.mod` and `go.sum` and
+    nothing else, and `--proved-none` said `no kind: frontdoor/go.mod` until `config` covered
+    them, as it covers a `package.json` or a `*.lock` bump."""
+    for path in ("frontdoor/go.mod", "frontdoor/go.sum", "go.work", "go.work.sum"):
+        (tmp_path / path).parent.mkdir(exist_ok=True)
+        (tmp_path / path).write_text("go 1.22\n")
+    _git(tmp_path, "init", "-q", "-b", "main")
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "base")
+    for path in ("frontdoor/go.mod", "frontdoor/go.sum", "go.work", "go.work.sum"):
+        (tmp_path / path).write_text("go 1.24\n")
+    _git(tmp_path, "commit", "-q", "-am", "bump")
+    monkeypatch.chdir(tmp_path)
+    assert cli.main(["--proved-none", "HEAD~1..HEAD"]) == 0
+    assert capsys.readouterr().out == "Proved: none, config\n"
+
+
 def test_proved_none_of_a_range_git_cannot_read_exits_1(tmp_path, monkeypatch, capsys):
     _changed(tmp_path, DOCS_ONLY)
     monkeypatch.chdir(tmp_path)
