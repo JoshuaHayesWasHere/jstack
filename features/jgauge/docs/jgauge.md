@@ -62,7 +62,8 @@ It waits for one of the machine-wide test slots, runs the command, and exits wit
 For a short targeted run, use the short lane, `jgauge test-slot --short -- <command>`.
 A short run never waits for a slot that a whole suite holds.
 The command runs with `JGAUGE_TEST_SLOT` set to its lane, `full` or `short`, so a TLC model check it starts takes no second slot.
-It runs with `PYTEST_XDIST_AUTO_NUM_WORKERS` set to the slot's workers, the cores its take is capped at, so `pytest -n auto` starts that many and not one for each core of the machine, which its affinity still is. A run that names its count, as `make test` does with `-n`, keeps it.
+It runs with `PYTEST_XDIST_AUTO_NUM_WORKERS` set to the slot's workers, the cores its take is capped at, so `pytest -n auto` starts that many and not one for each core of the machine, which its affinity still is.
+A run that names its count, as `make test` does with `-n`, keeps it.
 It runs with `TMPDIR` set to the slot's own temporary directory, `/var/tmp/jgauge-<uid>/<hash of the lock directory>/test-slot.<n>` (or `test-slot-short.<n>`), which is emptied before the command starts and removed once it ends.
 That directory is on disk under `/var/tmp`, not under `/tmp`, since a suite's basetemp runs to hundreds of MiB and `/tmp` may be a tmpfs whose per-user quota it fills.
 It is not beside the lock file, since a `TMPDIR` with a hidden directory in it, such as `~/.local`, makes asar unpack no native binaries.
