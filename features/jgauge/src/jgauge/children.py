@@ -77,46 +77,34 @@ def _parents() -> dict[int, int]:
     return found
 
 
-def stop(roots: set[int], group: int | None) -> set[int]:
-    """Stop each live one of `roots`, every process under them, and with `group` that process
-    group, until no new one turns up, so none starts another or leaves the tree while it is
-    looked at, and give back the processes stopped. A process stays under its parent while it is
-    stopped, also one in a session of its own, which no signal to the group reaches."""
+def end(pid: int, group: bool) -> None:
+    """Kill `pid` and every process under it, and with `group` its process group. Each one is
+    stopped first, until no new one turns up, so none starts another while they are killed."""
     seen: set[int] = set()
     while True:
         parents = _parents()
-        tree = roots & parents.keys()
+        tree = {pid} if pid in parents else set()
         grew = True
         while grew:
             under = {child for child, parent in parents.items() if parent in tree}
             grew = not under <= tree
             tree |= under
         new = tree - seen
-        if group is not None:
+        if group:
             with contextlib.suppress(OSError):
-                os.killpg(group, signal.SIGSTOP)
+                os.killpg(pid, signal.SIGSTOP)
         if not new:
-            return seen
+            break
         for one in new:
             with contextlib.suppress(OSError):
                 os.kill(one, signal.SIGSTOP)
         seen |= new
-
-
-def tell(stopped: set[int], group: int | None, number: int) -> None:
-    """Send signal `number` to each of `stopped` and with `group` to that process group."""
-    if group is not None:
+    if group:
         with contextlib.suppress(OSError):
-            os.killpg(group, number)
-    for one in stopped:
+            os.killpg(pid, signal.SIGKILL)
+    for one in seen:
         with contextlib.suppress(OSError):
-            os.kill(one, number)
-
-
-def end(pid: int, group: bool) -> None:
-    """Kill `pid` and every process under it, and with `group` its process group."""
-    leader = pid if group else None
-    tell(stop({pid}, leader), leader, signal.SIGKILL)
+            os.kill(one, signal.SIGKILL)
 
 
 def main() -> None:
