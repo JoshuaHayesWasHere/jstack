@@ -497,6 +497,60 @@ def test_a_scout_row_in_work_json_is_queued_then_scouting_then_report_in(kitchen
     assert rows(kitchen)["look"]["status"] == "done"
 
 
+def test_a_done_scout_row_whose_request_file_is_gone_and_thread_archived_stays_done(kitchen):
+    """Closing a home can take a done scout's `scouts/<slug>.md` with it. The queue has the row
+    at done, so `work.json` reads it done on every pass after, and never launching."""
+    add(kitchen, "look")
+    assert go(kitchen, "look")[0] == 0
+    kitchen.poll()
+    reported(kitchen, "look")
+    scout_thread(kitchen, "look")["settled"] = True
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert rows(kitchen)["look"]["status"] == "done"
+
+    (kitchen.home / "scouts" / "look.md").unlink()
+    scout_thread(kitchen, "look")["archived"] = True
+    for minutes in (6, 9):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+        line = judged(kitchen, "look")
+        assert (line["value"], line["who"]) == ("done", "ok"), line
+        assert rows(kitchen)["look"]["status"] == "done"
+
+
+@pytest.mark.parametrize("left", ["none", "scope", "root", "both"])
+def test_a_done_scout_row_of_a_closed_scope_reads_one_home_and_done_on_every_pass(kitchen, left):
+    """A scope's `/handoff` archives its plan, and its done scouts' request files may go with it,
+    or stay, in the root's `scouts/` or the scope's own. Every pass after reads the row in one home,
+    the catch-all that a closed scope's rows fall to, and at done."""
+    scope = kitchen.home / "promo"
+    scope.mkdir()
+    (scope / "plan.md").write_text(PLAN)
+    assert add(kitchen, "look", text=request("look", "Home: promo\n"))[0] == 0
+    assert go(kitchen, "look")[0] == 0
+    kitchen.poll()
+    reported(kitchen, "look")
+    scout_thread(kitchen, "look")["settled"] = True
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert rows(kitchen)["look"]["status"] == "done"
+    assert judged(kitchen, "look")["home"] == "promo"
+
+    (scope / "plan.md").rename(scope / "plan-archived.md")
+    written = (kitchen.home / "scouts" / "look.md").read_text()
+    (kitchen.home / "scouts" / "look.md").unlink()
+    if left in ("scope", "both"):
+        (scope / "scouts").mkdir()
+        (scope / "scouts" / "look.md").write_text(written)
+    if left in ("root", "both"):
+        (kitchen.home / "scouts" / "look.md").write_text(written)
+    scout_thread(kitchen, "look")["archived"] = True
+    seen = []
+    for minutes in (6, 9, 12):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+        line = judged(kitchen, "look")
+        seen.append((line["home"], line["value"], line["who"]))
+    assert seen == [("uncategorized", "done", "ok")] * 3
+
+
 def test_a_scout_row_whose_followup_report_says_done_is_done_and_report_in(kitchen):
     """A home closes a scout whose Report was blocked by appending `## Report, follow-up (…)`, as
     jbus's leftover message tells it to. That last Report is the one the row is judged by, as a
