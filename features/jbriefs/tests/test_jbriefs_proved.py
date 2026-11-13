@@ -229,6 +229,83 @@ def test_proved_none_of_a_go_module_bump_prints_config(tmp_path, monkeypatch, ca
     assert capsys.readouterr().out == "Proved: none, config\n"
 
 
+MAKEFILE = """\
+# The checks a pull request runs, the guards first.
+check-fast:
+\t# the lint, then the guards
+\tuv run pytest -q
+
+define HELP
+# the targets
+endef
+"""
+
+
+def _make_changed(tmp_path, path, head_text):
+    """A repo whose `origin/main` has the Makefile `path` and whose head changes it to
+    `head_text`, the pull request of that head, and the `prose` its merge-base gives."""
+    (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / path).write_text(MAKEFILE)
+    _git(tmp_path, "init", "-q", "-b", "main")
+    _git(tmp_path, "add", "-A")
+    _git(tmp_path, "commit", "-q", "-m", "base")
+    _git(tmp_path, "update-ref", "refs/remotes/origin/main", "HEAD")
+    (tmp_path / path).write_text(head_text)
+    _git(tmp_path, "commit", "-q", "-am", "head")
+    head = _git(tmp_path, "rev-parse", "HEAD")
+    pull = ready.PullRequest(
+        number=7,
+        url="https://github.com/o/r/pull/7",
+        title="",
+        branch="alpha",
+        head=head,
+        base="main",
+        mergeable="MERGEABLE",
+        waiting=(),
+        files=(path,),
+        renamed=False,
+        changed=1,
+    )
+    return pull, proved.prose_in(str(tmp_path), "origin/main", head)
+
+
+def test_a_makefile_comment_change_proves_with_none_docs(tmp_path, monkeypatch, capsys):
+    """sc-makefile-guards-comment-repo-guards changed only the comment above `check-fast`, and
+    `--proved-none` said `no kind: Makefile`, though no test fails over a comment."""
+    for path in ("Makefile", "make/rules.mk"):
+        root = tmp_path / path.replace("/", "-")
+        root.mkdir()
+        head_text = MAKEFILE.replace("the guards first.", "the guards first,\n# then the rest.")
+        pull, prose = _make_changed(root, path, head_text.replace("# the lint", "  # the lint"))
+        assert ready.short_on_proved(result("Proved: none, docs"), pull, prose=prose) == ""
+        monkeypatch.chdir(root)
+        assert cli.main(["--proved-none", f"origin/main..{pull.head}"]) == 0
+        assert capsys.readouterr().out == "Proved: none, docs\n"
+
+
+def test_a_makefile_that_changes_a_rule_or_a_define_beside_a_comment_is_no_kind(
+    tmp_path, monkeypatch, capsys
+):
+    """A changed recipe line is code, and so is a `#` line inside a `define`, which is the
+    variable's text, and a line a comment's trailing backslash swallows."""
+    commented = MAKEFILE.replace("the guards first.", "the guards first, then the rest.")
+    for at, head_text in enumerate(
+        (
+            commented.replace("pytest -q", "pytest -x"),
+            MAKEFILE.replace("# the targets", "# the targets, each"),
+            MAKEFILE.replace("the guards first.", "the guards first. \\"),
+        )
+    ):
+        root = tmp_path / str(at)
+        root.mkdir()
+        pull, prose = _make_changed(root, "Makefile", head_text)
+        said = ready.short_on_proved(result("Proved: none, docs"), pull, prose=prose)
+        assert said == ready.PROVED_NOT_KIND.format(kinds="docs", path="Makefile")
+        monkeypatch.chdir(root)
+        assert cli.main(["--proved-none", f"origin/main..{pull.head}"]) == 1
+        assert capsys.readouterr().out == "no kind: Makefile\n"
+
+
 def test_proved_none_of_a_range_git_cannot_read_exits_1(tmp_path, monkeypatch, capsys):
     _changed(tmp_path, DOCS_ONLY)
     monkeypatch.chdir(tmp_path)
