@@ -18,6 +18,15 @@ import pytest
 from testing.layouts import assembled
 from testing.paths import REPO, skills
 
+READ_SET = (
+    "features/*/*.md",
+    "features/*/skills/",
+    "features/*/hooks/",
+    "features/*/templates/",
+    "skills.json",
+    "plugin.json",
+)
+
 TEMPLATES = assembled() / "templates"
 ONE_WAY = [
     ("playbook", 'uv run --project "$T/../source" jbus playbook <role> "$B"', "/^Playbook:/"),

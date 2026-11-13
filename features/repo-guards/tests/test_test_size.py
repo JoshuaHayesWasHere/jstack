@@ -12,6 +12,11 @@ imports from the `conftest` of `tests/` would get the folder's `conftest` instea
 
 from testing.paths import REPO
 
+READ_SET = (
+    "features/*/tests/",
+    "testing/tests/",
+)
+
 
 def test_no_two_test_files_have_one_name():
     names = {}

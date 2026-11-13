@@ -20,6 +20,11 @@ It reads two kinds of names, each in backticks:
 
 It reads every Python file of those folders and of the tests, and every Markdown file of the
 features and of `docs/`, with the README, except a test's fixtures and the recorded eval runs.
+
+Its read set is the files it reads and the kinds of file their paths name today: a script, a
+spec, a page, a unit, a patch and the lists of `testing/`. A docstring that comes to name a file
+of another kind, as a `.json`, runs it then, and a later rename of that file alone does not,
+until the kind joins the read set.
 """
 
 import ast
@@ -28,6 +33,18 @@ from functools import cache
 from pathlib import Path
 
 from testing.paths import REPO, sources
+
+READ_SET = (
+    "*.py",
+    "*.md",
+    "*.sh",
+    "*.tla",
+    "*.html",
+    "*.timer",
+    "*.patch",
+    "testing/*.txt",
+    "testing/*.tsv",
+)
 
 PACKAGES = {
     package.parent.name: package.parent

@@ -35,6 +35,11 @@ from test_doctor import PROGRAMS, Doctored
 from test_install import line_for
 from testing.paths import REPO
 
+READ_SET = (
+    "README.md",
+    "features/*/docs/",
+)
+
 README = REPO / "README.md"
 DOCS = REPO / "docs"
 PAGES = (README, *sorted(DOCS.glob("**/*.md")), *sorted(REPO.glob("features/*/docs/**/*.md")))

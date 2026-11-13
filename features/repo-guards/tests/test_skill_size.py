@@ -8,6 +8,11 @@ import pytest
 from test_home_thread import NAMED, named
 from testing.paths import skills
 
+READ_SET = (
+    "features/*/*.md",
+    "features/*/skills/",
+)
+
 SKILLS = [folder / "SKILL.md" for folder in skills().values()]
 SIDES = sorted(
     side

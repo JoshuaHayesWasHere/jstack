@@ -6,6 +6,11 @@ import pytest
 
 from testing.paths import skills
 
+READ_SET = (
+    "features/*/*.md",
+    "features/*/skills/",
+)
+
 SKILLS = [
     path
     for folder in skills().values()

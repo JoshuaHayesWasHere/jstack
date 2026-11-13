@@ -10,6 +10,15 @@ from test_home_thread import as_read, named
 from testing.layouts import assembled
 from testing.paths import REPO, skills
 
+READ_SET = (
+    "features/*/*.md",
+    "features/*/skills/",
+    "features/*/hooks/",
+    "features/*/templates/",
+    "skills.json",
+    "plugin.json",
+)
+
 TEMPLATES = assembled() / "templates"
 HOOK = REPO / "features" / "home" / "hooks" / "home-start.sh"
 NAMES = [

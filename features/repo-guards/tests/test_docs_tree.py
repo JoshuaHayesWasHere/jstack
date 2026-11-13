@@ -3,6 +3,11 @@
 The script defines the rules, and this module runs it on fixtures. Each test runs the script as a
 command, on the tree or on a small tree that has a fault in it. It then reads the `FAIL <doc>:<line>
 <why>` lines and the `<n> problems` line that the script prints, after its `read` line.
+
+Its `READ_SET` is the pages and the folders whose files the script counts or lists. A path a page
+names is read only for whether it is there, so a change that removes one and edits no page does not
+run this file: of 400 merges on main, 20 removed a file, and the 2 that edited no page removed
+none a page named. Main's full run catches the rest.
 """
 
 import re
@@ -13,6 +18,14 @@ import sys
 import pytest
 
 from testing.paths import REPO
+
+READ_SET = (
+    "*.md",
+    "features/*/docs/",
+    "features/*/templates/",
+    "features/*/hooks/",
+    "feature.json",
+)
 
 SCRIPT = REPO / "scripts" / "check-jstack-docs.py"
 ROOTS = (

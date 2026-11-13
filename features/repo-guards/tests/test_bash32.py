@@ -4,6 +4,10 @@ Bash 3.2 cannot parse a `case` pattern with no leading `(` inside `$( )`, and a 
 does not parse exits 2 before it runs a line: `jgauge room` did so on every Mac. On macOS the
 guard runs `/bin/bash -n` on each script; elsewhere it runs it in the `bash:3.2` docker image,
 and is skipped where docker cannot run that image.
+
+Its `READ_SET` is every `*.sh` and the folders that hold a script with no `.sh` today
+(`bin/`, `hooks/`, `scripts/`): a change to a script with no `.sh` elsewhere does not run it, and
+main's full run does.
 """
 
 import io
@@ -16,6 +20,13 @@ from pathlib import Path
 import pytest
 
 from testing.paths import REPO
+
+READ_SET = (
+    "*.sh",
+    "bin/",
+    "hooks/",
+    "scripts/",
+)
 
 IMAGE = "bash:3.2"
 SHEBANG = re.compile(r"#!\s*(/bin/|/usr/bin/env\s+)(sh|bash)\b")

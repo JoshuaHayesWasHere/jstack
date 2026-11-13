@@ -13,6 +13,11 @@ import pytest
 
 from testing.paths import REPO, skills
 
+READ_SET = (
+    "SKILL.md",
+    "skills.json",
+)
+
 SKILLS = [folder / "SKILL.md" for folder in skills().values()]
 FIXTURES = REPO / "testing" / "tests" / "fixtures" / "skills"
 KEY = "disable-model-invocation"

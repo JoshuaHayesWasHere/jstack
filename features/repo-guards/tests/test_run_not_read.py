@@ -35,6 +35,11 @@ import pytest
 
 from testing.paths import REPO
 
+READ_SET = (
+    "features/*/tests/",
+    "/testing/",
+)
+
 DOCS = ("skills", "playbooks", "principles", "templates")
 DOC_PATH = re.compile(rf"^(\.*/)*({'|'.join(DOCS)})(/|$)|/({'|'.join(DOCS)})/")
 FILE_NAME = re.compile(r"^[\w.*/-]*\.(md|py|sh|json|toml|txt|yml|yaml|html|css|js)$")

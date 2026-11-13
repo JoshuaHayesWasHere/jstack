@@ -15,6 +15,14 @@ from repo_standard.config import load
 from repo_standard.tree import chosen, tracked
 from testing.paths import REPO
 
+READ_SET = (
+    "features/*/src/",
+    "features/*/tests/",
+    "testing/tests/",
+    "SKILL.md",
+    ".repo-standard.yml",
+)
+
 
 def test_jstack_passes_the_size_guard(capsys):
     assert main(["size", "--root", str(REPO)]) == 0
