@@ -4,12 +4,12 @@
 On 2026-11-11 st-mainred-fast's pull request #1695 waited from 20:20:28Z on `check has no run at
 912dad95c383` (waits.jsonl:1517), a run GitHub kept queued with no job, which no crew can start.
 `clock.held` woke its home at 20:52Z, then dropped the hold as soon as the row's crew was at work
-on something else, and `jbus clear` listed nothing: no `check:`, `row:` or `left:` key is a wait.
-The block reached the user only through a catch-up, hours later.
+on something else, and `jbus tidy blockers` listed nothing: no `check:`, `row:` or `left:` key is a
+wait. The block reached the user only through a catch-up, hours later.
 
 The tests replay that row through the real pass against the kitchen's fakes, at the times of the
 day: the hold stays while the crew is busy, since no crew clears a run GitHub keeps queued;
-`jbus clear` prints `fix wait:st-mainred-fast` once the wait is past its code's bound
+`jbus tidy blockers` prints `fix wait:st-mainred-fast` once the wait is past its code's bound
 (`aged.BOUNDS`), at 21:20Z; and, once the home's fixes reach `retry_cap`, a decision for the
 user. The view lists it as an `aged` wrong."""
 
@@ -72,7 +72,7 @@ class Day:
 
     def clear(self, moment):
         self.kitchen.monkeypatch.setattr(verbs, "clock", lambda: moment)
-        code, said = self.kitchen.main("--project", "demo", "clear")
+        code, said = self.kitchen.main("--project", "demo", "tidy", "blockers")
         assert code == 0, said
         return said.splitlines()
 
@@ -112,7 +112,7 @@ def test_blockers_jbus_clear_prints_fix_wait_st_mainred_fast_at_21_20(kitchen):
 
 def test_blockers_an_aged_wait_whose_fixes_reach_retry_cap_is_a_decision(kitchen):
     """The home briefed two fixes of the key, and both merged; at 22:31Z #1695 still waits on the
-    same reason, so `jbus clear` raises it to the user, once."""
+    same reason, so `jbus tidy blockers` raises it to the user, once."""
     day = Day(kitchen)
     for n in (1, 2):
         slug = f"{SLUG}-fix-{n}"

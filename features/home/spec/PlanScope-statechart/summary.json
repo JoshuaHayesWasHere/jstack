@@ -81,9 +81,9 @@
     "command": "statechart from-spec PlanScope.tla --config PlanScope.chart.cfg --count-config PlanScope.cfg --title 'A plan entry and a scope'\"'\"'s retire: is any work lost?' --expect-broken FixCountedWhereRead --png",
     "inputs": {
       "PlanScope.cfg": "2909646733d346423de0f677203cf668cdd8b8fe2310b80c052404b137dc1aa7",
-      "PlanScope.chart.cfg": "8b65c7cc82241bd7b83ce6fdfe7aef7e517e32901a560babb021ab6cd7b2f80c",
-      "PlanScope.map.py": "48827a4a1190748e04c82b56cf118c02eaa20e8ebaf907ef1cee73fe8b630f68",
-      "PlanScope.tla": "b3913c4738ead42baa9483b4c7304e00dcd320c3654b01a051cd3af401d04fa3"
+      "PlanScope.chart.cfg": "9c57f51201aa0fa5c5a9545515e9835e007c048fb36d4fbd7b8c521a29a4a927",
+      "PlanScope.map.py": "c34e846e445a18c6ddfb004b587338499a9d81184a49a0591ca374f8cc3485a4",
+      "PlanScope.tla": "8072c6d36fc5da0ae6a01152420c5588fffbe1ed6f97df7d4f3b9daacf15707e"
     },
     "chart": "cb2be0b6d25fc3e77fef1dfff139b98c16514d9564f6e4020b90990066656b9e",
     "tables": {

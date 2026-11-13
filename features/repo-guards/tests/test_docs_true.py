@@ -317,7 +317,7 @@ def test_a_page_that_lacks_a_verb_a_flag_or_a_choice_is_found(trees):
         "jbus: --project",
         "jbus project add: --project-id",
         "jbus rules: --project",
-        "jbus stale: --project",
+        "jbus tidy stale: --project",
     ]
     assert missing(trees["jmerge"], "# jmerge\n\n`jmerge --check`\n")[:2] == [
         "jmerge: --sweep",

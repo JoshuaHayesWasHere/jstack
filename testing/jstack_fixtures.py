@@ -157,7 +157,7 @@ def no_sweep_of_tmp():
 
 @pytest.fixture(autouse=True)
 def homes_state(tmp_path_factory, monkeypatch):
-    """Point `JBUS_HOME_DIR` at the run's temporary root, so that `jbus forget`, which deletes
+    """Point `JBUS_HOME_DIR` at the run's temporary root, so that `jbus tidy files`, which deletes
     only inside the homes' state or a repo's git dir, takes a file of a test's `tmp_path` as a
     file of the homes' state. A test that needs another state sets the variable again itself."""
     monkeypatch.setenv("JBUS_HOME_DIR", str(tmp_path_factory.getbasetemp()))

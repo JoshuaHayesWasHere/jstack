@@ -23,7 +23,7 @@ that very trap ("This shell -c script runs rm and could not be checked"). A bloc
 clear scratch on any exit moves the work into a script of its own, as the crew's proof block
 does with `templates/proved.sh`. No block is let off:
 one that fails is fixed by moving its delete or its background run into a jstack command, as
-`jbus forget`, `jmerge --remake` and `jgauge check` do, and never by a comment or a list.
+`jbus tidy files`, `jmerge --remake` and `jgauge check` do, and never by a comment or a list.
 """
 
 import re

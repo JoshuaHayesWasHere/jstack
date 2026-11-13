@@ -20,7 +20,7 @@ refuses is logged the same way, and never tried again. The stall's line is the r
 (`why`) while the check stays stopped at that head, less GitHub's refusal, which only the home
 hears. Until then,
 a row whose every failed check is of a run this module runs again is its own (`owns`), and no
-blocker the home's `jbus clear` asks a fix for.
+blocker the home's `jbus tidy blockers` asks a fix for.
 
 Only the head's own runs count. A check run whose job GitHub says ran on another commit belongs to
 a head that a newer push displaced, and `rerun` neither runs it again nor tells anyone of it.

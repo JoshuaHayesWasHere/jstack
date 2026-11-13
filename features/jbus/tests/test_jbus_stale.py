@@ -1,4 +1,4 @@
-"""`jbus stale --project <p>` lists the state nothing will act on again, five kinds of it, and
+"""`jbus tidy stale --project <p>` lists the state nothing will act on again, five kinds of it, and
 deletes nothing. Each hour a pass counts the same, and the root home hears the count from the one
 list. The tests run the command and the real pass against the kitchen's fakes, over state made up
 here.
@@ -44,7 +44,7 @@ def result(slug, left=True, pull=""):
 
 def listed(kitchen):
     """Run the command, and return its exit code and the lines it printed."""
-    code, said = kitchen.main("stale", "--project", "demo")
+    code, said = kitchen.main("tidy", "stale", "--project", "demo")
     return code, said.splitlines()
 
 
@@ -167,7 +167,7 @@ def test_the_hourly_pass_removes_a_stale_worktree_only_once_its_work_is_saved(ki
     """A clean worktree whose commits are on origin, or whose pull request merged at its head, is
     removed with its branch and logged, caches and all. One with an untracked file, an ignored file
     that is no cache, a commit on no branch of origin, or a use within a day, stays, and
-    `jbus stale` says why. An open row's worktree is not touched."""
+    `jbus tidy stale` says why. An open row's worktree is not touched."""
     home(kitchen)
     rows(kitchen, eps="running")
     pushed, pushed_head = tree(kitchen, "alpha", push=True)
@@ -299,7 +299,7 @@ def test_with_github_silent_it_judges_nothing_that_needs_the_open_pull_requests(
 
 
 def stale_wakes(kitchen):
-    return [line for line in kitchen.wakes.said if line.startswith("jbus stale:")]
+    return [line for line in kitchen.wakes.said if line.startswith("jbus tidy stale:")]
 
 
 def quiet(kitchen):
@@ -313,14 +313,14 @@ def test_the_hourly_count_wakes_no_home_and_jbus_status_shows_it(kitchen):
     home(kitchen)
     (kitchen.home / "holds.json").write_text(json.dumps({"5": "a" * 40}))
     kitchen.poll(NOW)
-    hint = "`jbus stale --project demo` lists each, and deletes nothing"
-    assert quiet(kitchen) == [f"jbus stale: 1 stale in demo (hold 1): {hint}"]
+    hint = "`jbus tidy stale --project demo` lists each, and deletes nothing"
+    assert quiet(kitchen) == [f"jbus tidy stale: 1 stale in demo (hold 1): {hint}"]
     assert stale.read(kitchen.state)["count"] == 1
     (kitchen.home / "holds.json").write_text(json.dumps({"5": "a" * 40, "6": "b" * 40}))
     kitchen.poll(NOW + timedelta(hours=1))
-    assert quiet(kitchen) == [f"jbus stale: 2 stale in demo (hold 2): {hint}"]
+    assert quiet(kitchen) == [f"jbus tidy stale: 2 stale in demo (hold 2): {hint}"]
     sends = [one for tool, one in kitchen.t3.calls if tool == "t3_thread_send"]
-    assert [one for one in sends if "jbus stale:" in one["message"]] == []
+    assert [one for one in sends if "jbus tidy stale:" in one["message"]] == []
     assert stale_wakes(kitchen) == []
     (kitchen.home / "holds.json").write_text("{}")
     kitchen.poll(NOW + timedelta(hours=2))

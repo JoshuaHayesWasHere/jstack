@@ -32,7 +32,7 @@ ARCHIVED_ROOT = (
     " thread"
 )
 WHERE = "printf 'write:"
-CLOSE = 'jbus forget "$M/home-id"'
+CLOSE = 'jbus tidy files "$M/home-id"'
 KEPT = re.compile(r"log/\d{4}-\d\d-\d\d-\d{4}(\d\d)?\.md")
 
 

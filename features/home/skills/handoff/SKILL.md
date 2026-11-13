@@ -223,12 +223,12 @@ Tell the user so in three lines at most, with what this thread leaves undone, an
        fi
        if ! { [ ! -f "$M/handoff.md" ] || mv "$M/handoff.md" "${kept%.md}-before.md"; } ||
            ! { [ -z "$scope" ] || uv run --project "$T/../source" jbus retire "$M" > /dev/null; } ||
-           ! uv run --project "$T/../source" jbus forget "$M/home-id" > /dev/null; then
+           ! uv run --project "$T/../source" jbus tidy files "$M/home-id" > /dev/null; then
            echo "not archived: $M/handoff.md could not be moved, jbus retire did not archive $M/plan.md, or $M/home-id was not removed. Run this again once that is put right."
            exit 1
        fi
    fi
-   if [ -f "$note" ]; then uv run --project "$T/../source" jbus forget "$note" > /dev/null; fi
+   if [ -f "$note" ]; then uv run --project "$T/../source" jbus tidy files "$note" > /dev/null; fi
    if [ -n "$scope" ]; then
        what="scope $scope is closed, and what it had out is the uncategorized home's"
    else
@@ -357,7 +357,7 @@ Two things, in order:
        if { [ ! -f "$M/handoff.md" ] || { mkdir -p "$log" && mv "$M/handoff.md" "$kept"; }; } &&
            sed '/^Was home:/d' "$M/handoff.next.md" > "$M/handoff.md" &&
            printf '\nWas home: %s\n' "$ME" >> "$M/handoff.md" &&
-           uv run --project "$T/../source" jbus forget "$M/handoff.next.md" "$M/home-id" > /dev/null; then
+           uv run --project "$T/../source" jbus tidy files "$M/handoff.next.md" "$M/home-id" > /dev/null; then
            echo "a party's home: start its next thread, then rename and settle this thread"
        else
            echo "not closed: the old page could not be moved to $log, or the new one not written to $M/handoff.md. Launch nothing, and run this again once that is put right."

@@ -41,8 +41,8 @@ LAUNCH = "features/verify-jstack/project-skill/scripts/launch.sh"
 VERBS = {
     "jbus": (
         "poll alarm status events digest view word queue plan gate answer done project t3 bot "
-        "budget ci clear decide failover flow forget health home item kpis link needs out "
-        "playbook relay rules snapshot stale steps stop telemetry tick told view-shot wakes"
+        "budget ci decide failover flow health home item kpis link needs out "
+        "playbook relay rules snapshot steps stop telemetry tick tidy told view-shot wakes"
     ).split(),
     "jgauge": "session context room limits sample spend test-slot check proof sizes".split(),
     "jmerge": ("--check --sweep --claims --scope --checks --range-diff --remake --accept".split()),

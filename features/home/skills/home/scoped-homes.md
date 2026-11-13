@@ -29,7 +29,7 @@ A scoped home gives each brief and request a slug that starts with its prefix, t
 The root home owns no row: every brief whose `Home:` line names no live scope, `root`, or none at all, is `uncategorized`'s, and so is every slug no other scope's prefix claims (`features/jbriefs/src/jbriefs/home.py`).
 It has no `prefix` file, so it overlaps no other scope's prefix, and two other scopes still may not overlap each other.
 The root's start makes it beside a project's first home ("When a home starts", step 1), and jbus keeps its home running; the root's "Making a scope" makes it too, and its home starts with `/home uncategorized` like any scoped home's.
-Until it has a home of its own, the root home's thread stands in for it: jbus sends the root what it would send `uncategorized`, and `jbus clear` and the root's start list its rows.
+Until it has a home of its own, the root home's thread stands in for it: jbus sends the root what it would send `uncategorized`, and `jbus tidy blockers` and the root's start list its rows.
 
 **Escalating to the root** is a scoped home's, and the only way it reaches the root.
 It has three kinds, and jbus checks each against the queue and the plan:

@@ -1,15 +1,24 @@
-"""`jbus forget [--dir] <path>...`: delete the files a skill's step names, and nothing else.
+"""`jbus tidy stale | blockers [--scope] | files [--dir] <path>...`: find and clear what is left
+over, in one of three modes.
+
+- `stale` lists the state of a project that nothing will act on again, and deletes nothing
+  (`jbus.stale`).
+- `blockers` clears this home's blockers, and says what is left to do with each (`jbus.blockers`).
+- `files` deletes the files a skill's step names, and nothing else.
 
 A thread's harness asks the user before it runs a command that removes files, even in full access,
 so a step a thread runs holds no `rm` (`features/repo-guards/tests/test_blocks_ask_nothing.py`). A
-step that clears a file of the homes' state or of the repo's git directory calls this verb.
+step that clears a file of the homes' state or of the repo's git directory calls `files`.
 
-It deletes a path only when the path is inside the homes' state, `JBUS_HOME_DIR` or
+`files` deletes a path only when the path is inside the homes' state, `JBUS_HOME_DIR` or
 `~/.local/state/home`, or inside the git directory of the repo it runs in. The parent of each
 path is resolved, so a link or a `..` cannot lead it out of those. It checks every path before it
 deletes any: one that is outside is refused with a line that names it, nothing is deleted, and
 the exit is 2. A directory is refused too, but with `--dir`, which removes it when it is empty. A
 path that is not there is no error, as with `rm -f`. It prints each path it removed.
+
+`files` reads no config, and imports neither of the other modes' modules: each of those loads the
+config when it runs, so a missing config is refused as any verb that reads one refuses it.
 """
 
 from __future__ import annotations
@@ -27,8 +36,23 @@ REFUSED = 2
 
 
 def _arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("paths", nargs="+", metavar="path", help="a file to delete")
-    parser.add_argument(
+    modes = parser.add_subparsers(dest="mode", required=True)
+    stale = modes.add_parser(
+        "stale",
+        help="list the briefs, worktrees, holds, told lines and home-ids nothing will act on again",
+    )
+    stale.add_argument(
+        "--project",
+        default=argparse.SUPPRESS,
+        help="the project's name in the config, when it has several",
+    )
+    blockers = modes.add_parser("blockers", help="clear this home's blockers, and say what is left")
+    blockers.add_argument("--scope", help="the scoped home whose blockers these are")
+    files = modes.add_parser(
+        "files", help="delete files of the homes' state or of this repo's git dir, and nothing else"
+    )
+    files.add_argument("paths", nargs="+", metavar="path", help="a file to delete")
+    files.add_argument(
         "--dir", action="store_true", help="also remove a path that is an empty directory"
     )
 
@@ -50,7 +74,19 @@ def placed(given: str) -> Path | None:
     return Path(os.path.realpath(path.parent)) / path.name
 
 
-def _run(args: argparse.Namespace, _: jbus.Config) -> int:
+def _tidy(args: argparse.Namespace, _: None) -> int:
+    if args.mode == "stale":
+        from jbus import stale
+
+        return stale.tidy(args, jbus.load())
+    if args.mode == "blockers":
+        from jbus import blockers
+
+        return blockers.tidy(args, jbus.load())
+    return _files(args)
+
+
+def _files(args: argparse.Namespace) -> int:
     inside = roots()
     refused = []
     for given in args.paths:
@@ -85,10 +121,10 @@ def _run(args: argparse.Namespace, _: jbus.Config) -> int:
 
 VERBS = (
     verbs.Verb(
-        "forget",
-        "delete files of the homes' state or of this repo's git dir, and nothing else",
+        "tidy",
+        "find and clear what is left over: stale state, this home's blockers, or named files",
         _arguments,
-        _run,
+        _tidy,
         config=False,
     ),
 )

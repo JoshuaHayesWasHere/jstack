@@ -14,8 +14,8 @@ since a busy crew starts no run GitHub keeps queued.
 past its code's bound, read with its `since` from `waits.jsonl`, is aged, whoever owns the code
 and whatever step was meant to clear it. It is a guard by design, for a state no step has a remedy
 for: each remedy stays the act of its own module (`cancelled`, `rebase`, `expedite`, `jbus.clock`'s
-clocks), and `aged` only escalates what none of them moved. `jbus clear` prints an aged row as its
-home's `fix wait:<slug>`, and as a decision once the home's fixes of it reach `retry_cap`
+clocks), and `aged` only escalates what none of them moved. `jbus tidy blockers` prints an aged row
+as its home's `fix wait:<slug>`, and as a decision once the home's fixes of it reach `retry_cap`
 (`jbus.blockers`), and the view lists it as an `aged` wrong (`jbus.view.state.wrongs`).
 """
 
@@ -216,7 +216,7 @@ def aged(rows: list[queue.Row], waits: list[dict[str, Any]], now: datetime) -> d
     code's bound. Its `since` is the `at` of the row's last line of `waits.jsonl` (`waits`), which
     the pass writes before the table: a row whose last line is not its `why` has no known `since`,
     and is not aged. A code of the user's (`USER`) is never aged here. It reads only what it is
-    given, so `jbus clear` and the view read the same rows the same way."""
+    given, so `jbus tidy blockers` and the view read the same rows the same way."""
     last: dict[str, dict[str, Any]] = {}
     for one in waits:
         if isinstance(one, dict) and isinstance(one.get("slug"), str):
