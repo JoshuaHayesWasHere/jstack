@@ -124,6 +124,9 @@ GREEN = "passed"
 _TIMEBOX = re.compile(r"^TIMEBOX:\s*(\d+(?:\.\d+)?)\s*(?:h\b|hours?\b)", re.M)
 JOBS, KEPT_JOBS = "completed-jobs.json", 1000
 """The file of the project's state where `ran` keeps completed jobs, and how many it keeps."""
+LOGS, KEPT_LOG_BYTES = "job-logs", 64 * 2**20
+"""The directory of the project's state where `job_log` keeps completed jobs' logs, and how many
+bytes of them it keeps."""
 NEVER = "neverStarted"
 """The key of an open pull request's failed checks whose job ran no step, as the pass found
 them: `checks` reads them as `jmerge --checks` does. `look` works it out only for a pull request
@@ -1816,13 +1819,57 @@ def mac_jobs(run: Pass, sha: str) -> list[tuple[str, str, Failed]] | None:
 def job_log(run: Pass, repo: str, job: object) -> str | None:
     """Return a job's log, or None where GitHub did not give it. GitHub's log has escape
     sequences in it, which gh 2.102 gives only when asked to. A job's id is GitHub's own, so once
-    the pass has its world, the first read of a job's log is the pass's answer (`World.logs`)."""
-    kept = run.world.logs if run.world is not None else {}
-    if str(job) not in kept:
-        path = f"repos/{repo}/actions/jobs/{job}/logs"
-        log = run.run("gh", "api", path, "--allow-escape-sequences")
-        kept[str(job)] = log.stdout if log.returncode == 0 else None
-    return kept[str(job)]
+    the pass has its world, the first read of a job's log is the pass's answer (`World.logs`).
+
+    A completed job's log never changes (a rerun is a new job id), and a head waiting on main's
+    check had one asked 175 times in 5 h, a pass each 10 s. So the first read of a completed
+    job's log is kept on disk, in the project's `LOGS` by job id, and a later pass reads it there
+    and asks GitHub nothing. A job is completed where `ran` keeps it, which it asks before the log
+    so a log read as the job ends is never kept. A job that is not completed, and a log GitHub did
+    not give, are kept for no later pass. The kept logs hold at most `KEPT_LOG_BYTES`, 64 MiB, the
+    oldest written dropped first."""
+    world = run.world if run.world is not None else World()
+    key = str(job)
+    if key not in world.logs:
+        log = _kept_log(run, key)
+        if log is None:
+            done = key.isdigit() and _completed(run, world, repo, key)
+            path = f"repos/{repo}/actions/jobs/{job}/logs"
+            asked = run.run("gh", "api", path, "--allow-escape-sequences")
+            log = asked.stdout if asked.returncode == 0 else None
+            if done and log is not None:
+                _keep_log(run, key, log)
+        world.logs[key] = log
+    return world.logs[key]
+
+
+def _completed(run: Pass, world: World, repo: str, job: str) -> bool:
+    ran(run, world, repo, job)
+    return f"{repo}/{job}" in (world.jobs or {})
+
+
+def _kept_log(run: Pass, job: str) -> str | None:
+    if not job.isdigit():
+        return None
+    try:
+        return (run.state / LOGS / f"{job}.log").read_text(encoding="utf-8")
+    except OSError:
+        return None
+
+
+def _keep_log(run: Pass, job: str, log: str) -> None:
+    directory = run.state / LOGS
+    directory.mkdir(parents=True, exist_ok=True)
+    made = directory / f".{job}.log.part"
+    made.write_text(log, encoding="utf-8")
+    made.replace(directory / f"{job}.log")
+    held = sorted((one.stat().st_mtime_ns, one) for one in directory.glob("*.log"))
+    total = sum(one.stat().st_size for _, one in held)
+    for _, one in held:
+        if total <= KEPT_LOG_BYTES:
+            break
+        total -= one.stat().st_size
+        one.unlink(missing_ok=True)
 
 
 def _log_failed(run: Pass, job: object) -> Failed | None:
