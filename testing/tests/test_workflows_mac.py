@@ -195,30 +195,43 @@ def test_the_macos_nightly_names_each_failed_test_in_its_log_and_summary_after_a
     )
 
 
-def test_the_macos_nightly_runs_its_suite_as_two_shards_each_stopped_by_pytest_under_its_cap(
+MAC_SUITE_SECONDS = 7000
+MAC_PART_SECONDS = 30 * 60
+
+
+def test_the_macos_nightly_runs_its_suite_in_parts_each_stopped_by_pytest_under_its_cap(
     tmp_path,
 ):
-    """Each shard's suite step runs `make check` as written, with a `make -n` in place of make,
-    so what it prints is the pytest line the Makefile builds from the step's env: its share of
-    the suite, `--shard K/2`, and a `--session-timeout` that stops pytest between tests and leaves
-    room under the step's cap for the lint before it, the test running at the stop and the
-    report. A suite the step's cap kills writes no report, and the failed tests step names
-    nothing; one pytest stops writes its report, and the step names every test that failed."""
+    """The parts are as many as hold the Mac's suite at `MAC_PART_SECONDS` or less each, which
+    leaves a part 10 minutes of room under 40 for a slower runner or tests added since. With two,
+    part 1 met its session stop in 3 of 4 runs and ended red on time alone. `MAC_SUITE_SECONDS`
+    is the whole suite's pytest seconds on macos-15 under `-n 3` from the nightly's two parts on
+    2026-11-12 and 13: 3082 + 2950 s in run 43268346221, and 3150 s for part 1 of run 43465688836,
+    which the session stop cut 5619 tests in, beside 3133 s for its part 2. Each part's
+    suite step runs `make check` as written, with a `make -n` in place of make, so what it prints
+    is the pytest line the Makefile builds from the step's env: its share of the suite,
+    `--shard K/N`, and a `--session-timeout` that stops pytest between tests and leaves room under
+    the step's cap for the lint before it, the test running at the stop and the report. A suite
+    the step's cap kills writes no report, and the failed tests step names nothing; one pytest
+    stops writes its report, and the step names every test that failed."""
     text = NIGHTLY.read_text()
     found, keys = steps(text, "macos")
     (suite,) = [step for step in found if step.get("id") == "suite"]
     assert "strategy" in keys
     shards = re.search(r"^ {6}matrix:\n {8}shard: (\[.*\])$", text, re.M)
-    assert shards and json.loads(shards[1]) == [1, 2]
+    assert shards
+    parts = len(json.loads(shards[1]))
+    assert json.loads(shards[1]) == list(range(1, parts + 1))
+    assert MAC_SUITE_SECONDS / parts <= MAC_PART_SECONDS
     bin = tmp_path / "bin"
     bin.mkdir()
     (bin / "make").write_text(f'#!/bin/sh\nexec {shutil.which("make")} -n "$@"\n')
     (bin / "make").chmod(0o755)
     cap = int(suite["timeout-minutes"]) * 60
-    for shard in (1, 2):
+    for shard in range(1, parts + 1):
         env = {
             name: value.replace("${{ matrix.shard }}", str(shard)).replace(
-                "${{ strategy.job-total }}", "2"
+                "${{ strategy.job-total }}", str(parts)
             )
             for name, value in suite["env"].items()
         }
@@ -232,7 +245,7 @@ def test_the_macos_nightly_runs_its_suite_as_two_shards_each_stopped_by_pytest_u
         )
         (pytest_line,) = [line for line in ran.stdout.splitlines() if " pytest " in line]
         given = pytest_line.split()
-        assert f"--shard={shard}/2" in given
+        assert f"--shard={shard}/{parts}" in given
         assert f"--junitxml={tmp_path}/junit.xml" in given
         (stop,) = [arg for arg in given if arg.startswith("--session-timeout=")]
         assert 0 < int(stop.partition("=")[2]) <= cap - 5 * 60
