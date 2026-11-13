@@ -100,10 +100,10 @@
   "drawnFrom": {
     "command": "statechart from-spec CrewProof.tla --config CrewProof.chart.cfg --also-config CrewProof.cfg --title 'Does the proof on the brief match the head, and does a rebase leave its record?' --expect-broken RebaseRecorded",
     "inputs": {
-      "CrewProof.cfg": "c13e244e98c33c0bb12b9224c041936430b27adcb4f669e12ae3e169a1038a9c",
+      "CrewProof.cfg": "6a30d4d9f6f4a11635d2a1916611cc71e69883d91a4879ef59836921ad9c3096",
       "CrewProof.chart.cfg": "d5ead165c6c163545d1fe32b7bcf9b08685fdf27f9c37a75d18c16a756ca2b3c",
       "CrewProof.map.py": "50b476e74dd0a358d287e91b4628a04d045a99e5584f30dd681640513958eb51",
-      "CrewProof.tla": "0c8f5c39bd6aa0ce5bb585d5ffa8359d523d7adb0e0fb2218bf5cd83f0a11eef"
+      "CrewProof.tla": "654844a20db4f140f1e5a69e76113fe169c5853198f06ec7db7873cb9ba2cc1e"
     },
     "chart": "6a978f350ddd0e9791985694934ffae798c6fd991e6c92f0e3247304a02cdc1a",
     "tables": {
