@@ -178,8 +178,8 @@ def restate(
     (`go`, `jbus.queue.unheld`), which the line says while it waits on the user's go; a writer that
     gives none keeps what the line said of the go. `scout` says whether the row is a scout's, as
     a writer that read the queue knows; one that did not leaves it to the line's `scout`, which a
-    done scout's row with no thread lacks (`scouted`). A line restated with the facets, the `why` and
-    the go it has comes back as it is, so a writer that runs twice writes nothing the second
+    done scout's row with no thread lacks (`scouted`). A line restated with the facets, the `why`
+    and the go it has comes back as it is, so a writer that runs twice writes nothing the second
     time."""
     facts = stored(one)
     if facts is None:
