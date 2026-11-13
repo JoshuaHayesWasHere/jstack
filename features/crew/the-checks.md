@@ -53,12 +53,12 @@ else
     if [ -n "$files" ]; then
         { printf '%s\n' "$files"; cat "$kept" 2> /dev/null; } | sort -u > "$kept.new" && mv "$kept.new" "$kept"
     fi
-    ran=0
+    ran=0 limit=120
     times=$(git rev-parse --path-format=absolute --git-common-dir)/crew-check-times
     for file in $files; do
         [ -f "$file" ] || { echo "$file: not in this worktree, so not run"; continue; }
-        if awk -v file="$file" 'NF == 2 && $(NF - 1) == file { took = $NF } END { exit !(took != "-" && took + 0 >= 120) }' "$times" 2> /dev/null; then
-            echo "$file: measured at 120 s or more, the short lane's limit: it runs in a full slot"
+        if awk -v file="$file" -v limit="$limit" 'NF == 2 && $(NF - 1) == file { took = $NF } END { exit !(took != "-" && took + 0 >= limit) }' "$times" 2> /dev/null; then
+            echo "$file: measured at $limit s or more, the short lane's limit: it runs in a full slot"
             lane=full
         else
             lane=short

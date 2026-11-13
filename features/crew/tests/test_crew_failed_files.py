@@ -2,11 +2,13 @@
 CI's failed jobs name, each alone in the short lane, and never the whole suite."""
 
 import os
+import re
 import shutil
 import subprocess
 
 import test_room as room
 from crew_helpers import Failed, block, git, run
+from jgauge.slot import SHORT_LIMIT_SECONDS
 from test_machine_sizes import fake_proc
 from testing.layouts import assembled
 
@@ -118,3 +120,12 @@ def test_a_file_measured_over_the_short_lanes_limit_runs_in_a_full_slot_first(tm
     )
     assert made == ["test TESTS=tests/test_a.py full", "test TESTS=tests/test_b.py short"]
     assert "tests/test_a.py: exit 0, full lane" in said
+
+
+def test_each_block_that_sends_a_file_to_a_full_slot_reads_jgauges_short_limit():
+    """The check block and this one send a file measured at the short lane's limit or more to a
+    full slot first, each by its own `limit=`: a limit jgauge moved and a block did not would
+    send a file the lane can finish to a full slot, or one it cannot to a 124 each check."""
+    blocks = (block("Do the task", "budget=540"), block("Stay on the pull request", "--log-failed"))
+    limits = [re.findall(r"\blimit=(\d+)", one) for one in blocks]
+    assert limits == [[f"{SHORT_LIMIT_SECONDS:g}"]] * 2, limits
