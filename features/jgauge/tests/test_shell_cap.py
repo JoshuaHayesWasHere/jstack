@@ -38,9 +38,7 @@ def cap(pid: int, capsys) -> str:
     return said.out + said.err
 
 
-def test_a_shell_joins_the_leaf_of_its_scope_s_capped_shell_cgroup_on_every_command(
-    tree, capsys
-):
+def test_a_shell_joins_the_leaf_of_its_scope_s_capped_shell_cgroup_on_every_command(tree, capsys):
     scope, where = tree
     where(41, f"0::/{SCOPE}\n")
 
@@ -113,4 +111,3 @@ def test_a_take_from_a_capped_shell_is_capped_beside_it_and_counts_its_own_cpu(
     release = json.loads(log.read_text().splitlines()[-1])
     assert (release["cpu_user"], release["cpu_system"], release["left"]) == (2.5, 0.5, 0)
     assert (scope / slotlog.SHELL / slotlog.LEAF / "cgroup.procs").read_text() == str(os.getpid())
-
