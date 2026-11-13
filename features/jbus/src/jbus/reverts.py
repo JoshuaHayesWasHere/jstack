@@ -24,7 +24,8 @@ merges landed on that red and broke nothing more, so the oldest is the culprit, 
   is older than `READ_WAIT`, it is `OVERLAP`.
 - `UNBRIEFED`: the oldest is no briefed merge's commit, such as a merge by hand.
 - `OF_A_REVERT`: the oldest is a revert, jbus's or anyone's: a revert that goes red is not reverted.
-- `TWICE`: jbus reverted the same slug before, so a row is never reverted twice.
+- `TWICE`: jbus reverted the same slug before and still keeps that revert's record, so a row is
+  reverted once until `close` drops the record.
 - `FLAKES`: each test that failed at the oldest is a flake by `jbus ci`'s rule (`flaky`).
 
 `tested` adds one more, on what GitHub says: `SKEW`, where the culprit's own head lacks the green
@@ -73,8 +74,10 @@ over: the row goes from `merged` to `left` (`queue.reland`), and its merge is no
 for any reader of the world (`watch.unlanded`). Its crew's redo is then reviewed before its pull
 request opens and merged by the normal path, as any row's: before, the row stayed `merged`, so jbus
 launched no review of the redo and jmerge held its pull request as a row that is over until the
-user accepted it, as #1872 was on 2026-11-13. A revert a person opened by hand has no record, and
-opens no row.
+user accepted it, as #1872 was on 2026-11-13. A redo's merge is the row's merge in turn: once
+`close` dropped the first revert's record, a red at the redo may be reverted too, and that revert's
+merge opens the row again the same way (`queue.reland` refuses only the merge the row's `reverted`
+column names). A revert a person opened by hand has no record, and opens no row.
 
 `macos` judges main's Mac by the same rule. macos.yml's push runs share one group, as main's check
 does, so a run selects over every merge since the last Mac run that ran, and a commit whose run a

@@ -8,7 +8,7 @@ paths: "features/jbus/spec/RowLife.tla, features/jbus/src/jbus/work.py, features
 
 `features/jbus/spec/RowLife.tla` follows one row of jbus's queue from `jbus queue add` to its end, in two regions at once: the status a pass derives from the facts (`work.status`, written by `queue.derive`), and the go the verbs move (`_grant`, `_hold`, `_lift`, `_void`).
 
-- **The rule, `FinalStays`:** a row that is over stays over; a `done` row may only become `merged`, and a `merged` one stays so.
+- **The rule, `FinalStays`:** a row that is over stays over; a `done` row may only become `merged`, and a `merged` one stays so but for one reland per merge a revert took back.
 - **The harm if it breaks:** the queue, `watch.final` and jmerge all read `work.over`, so a row seen over and then not is launched, merged or judged again.
 - **The table:** `queue.MOVES` is each change of status one step of TLC's graph of the spec makes, so a pass marks `"legal": false` only a fault.
 
@@ -50,7 +50,7 @@ uv run pytest features/jbus/tests/test_rowlife_spec.py -q
 It runs TLC in a copy of the spec folder and prints `7 passed` in a few seconds; it skips where no Java runs TLC.
 The bare TLC command is in `features/jbus/spec/RowLife.md`, "Check the rule"; run it in a copy of the folder, since TLC writes `states/` where it runs.
 
-- **Bounds:** one row, a scout's or a crewmate's, `Fault = "none"`, 13256 distinct states, `TypeOK` and `FinalStays`.
+- **Bounds:** one row, a scout's or a crewmate's, `Fault = "none"`, 12716 distinct states, `TypeOK` and `FinalStays`.
 - **The canaries:** `Fault = "no-latch"` takes `work.kept` out, and `FinalStays` breaks (`test_a_derive_that_writes_over_a_final_status_breaks_the_rule`); `Fault = "any-hand-over"` lets the hand-over take a crewmate's done row, and `FinalStays` breaks (`test_a_hand_over_of_a_crewmates_done_row_breaks_the_rule`); `Fault = "settled-queued"` gives a settled thread's row `queued` again, and its graph has status edges `queue.MOVES` lacks.
 - **Assumptions:** a fact's change and the pass that sees it are one step (no restate drift between passes, no one-source pass); the facts are folded (an open pull request's eight steps are `check`, `quiet` is `working`); no clock, so `watch.unwritten`'s stale to left is out; a scout's row only as far as its role and the hand-over, and no `merge_after`.
   The rest is in the README's "What the model leaves out".
@@ -101,3 +101,7 @@ st-hand-over-line then gave the row a `role`, scout or crew, and a `HandOver` st
 reverted-row-reland then gave the row a `reverted` fact and a `Reland` step: once the revert jbus opened of a merged row's merge merges, `reverts.reland` moves the row from `merged` to `left` with a line marked `reverted`, and `watch.unlanded` reads that merge as no merge of the row's, so its pull request reads as closed or none and the row's redo goes the normal path.
 `FinalStays` lets a merged row leave only by it, once (`Reopened == ~reverted /\ reverted'`), `queue.MOVES` holds `merged` to `left`, and the rule holds over 13256 distinct states with each canary breaking its check.
 The Sync line stays where it was: this row read only its own change against the model.
+
+reverted-row-reland-twice then let a redo's merge be taken back too: `queue.reland` refuses only the merge the row's `reverted` column names, and the model's `reverted` goes back to false once the row reads a merge anew (`Derive`), so a revert of the redo's merge is a second `Reland`.
+`FinalStays` keeps `Reopened == ~reverted /\ reverted'`, which now allows one reopen per merge, and holds over 12716 distinct states with each canary breaking its check; `test_jbus_reverted_row_reland.py` replays a row's two relands.
+The Sync line stays where it was: this row too read only its own change against the model.

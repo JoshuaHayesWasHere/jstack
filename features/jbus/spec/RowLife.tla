@@ -90,8 +90,10 @@ VARIABLES
                \* keeps the last value unconfirmed (work.py
                \* `return _state(BY_VALUE.get(facts.last, UNKNOWN), facts, False)`).
     thread, written, pull,
-    reverted,  \* the row's merge was taken back by a revert jbus opened, which merged (queue.py
-               \* `row.update(status="left", **{REVERTED: merge})`): the row's `reverted` column.
+    reverted,  \* the row's last merge was taken back by a revert jbus opened, which merged
+               \* (queue.py `row.update(status="left", **{REVERTED: merge})`): the row's `reverted`
+               \* column names that merge. A redo's merge is a merge of its own, which the column
+               \* does not name, so the next merge the row reads sets it back.
     question,  \* a question of jbus's is open on the row. How it closed (`closed_by`: an answer,
                \* gates.md, silence, cleared) is the question's record and moves no status: each
                \* is the question closing here.
@@ -176,7 +178,7 @@ Derive(t, w, p, q, l) ==
   /\ value' = ValueOf(go, t, w, p, q, l)  \* states.py `line = work.entry(`
   /\ status' = Kept(status, StatusOf(value', t, w, p, q, l))  \* queue.py `new["status"] = work.kept(was, new["status"])`
   /\ thread' = t /\ written' = w /\ pull' = p /\ question' = q /\ launched' = l
-  /\ reverted' = reverted
+  /\ reverted' = (reverted /\ ~(p = "merged" /\ pull # "merged"))
 
 \* A write of the queue that moves the go restates the row's line at once (restated.py
 \* `def queued(`); a removed row keeps the line `removed`.
@@ -263,12 +265,15 @@ HandOver ==
 \* `def unlanded(world: World, rows: list[dict[str, Any]]) -> None:`). Its pull request then reads
 \* as closed where the Result names its address, and as none otherwise (`watch.pull`), and the
 \* passes after derive the row's status from its facts as any row's, so a redo's pull request
-\* opens, is reviewed and merges with no accept. jbus reverts a row once (`Keep.TWICE`), so
-\* a row whose redo merged is never taken back again; nor is one that merged on the user's accept
-\* of a done row, which no revert of jbus's names here, since the model has no red main.
+\* opens, is reviewed and merges with no accept. The redo's merge, read anew (`Derive`), is one
+\* a revert of its own may take back in its turn, and opens the row again the same way: a row
+\* leaves `merged` once per merge taken back, and never for a merge its `reverted` column names
+\* already. The model has no red main, so it reverts any merge, also one the user accepted.
 Reland ==
   /\ status = "merged" /\ pull = "merged" /\ ~reverted
-  /\ status' = "left" /\ reverted' = TRUE  \* queue.py `if row is None or row.get("status") != "merged" or row.get(REVERTED):`
+  /\ status' = "left" /\ reverted' = TRUE
+     \* queue.py `if row is None or row.get("status") != "merged":`, queue.py
+     \* `if str(row.get(REVERTED) or "").rstrip("/") == merge.rstrip("/"):`
   /\ pull' \in {"none", "closed"}
   /\ value' = ValueOf(go, thread, written, pull', question, launched)
   /\ UNCHANGED <<go, role, thread, written, question, launched>>
@@ -337,8 +342,9 @@ Spec == Init /\ [][Next]_vars
 \* A row that is over stays over: once `merged` or `done`, every reader of `work.over` (the queue,
 \* `watch.final`, jmerge) reads it over for good, and a `done` row may only become `merged`. The
 \* two steps out are a scout's done row that its crewmate's brief takes over, which makes it a
-\* crewmate's, and a merged row whose merge a revert took back, once: a row that merged again
-\* never leaves.
+\* crewmate's, and a merged row whose merge a revert took back, once for that merge: the same
+\* merge never opens the row twice, and only a redo's merge, a merge the row reads anew, lets a
+\* later revert open it again.
 Reopened == ~reverted /\ reverted'
 FinalStays ==
   [][ /\ (status \in Final => status' \in Final \/ (role = "scout" /\ role' = "crew") \/ Reopened)

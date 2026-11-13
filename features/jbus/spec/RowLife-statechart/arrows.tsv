@@ -100,11 +100,11 @@ Approved, behind a row it depends on: left (the Result leaves work)	Approved: le
 Approved, behind a row it depends on: left (the Result leaves work)	Held, its go kept: left (the Result leaves work)	you hold the row, keeping its go	Hold		266
 Approved, behind a row it depends on: left (the Result leaves work)	Held: left (the Result leaves work)	you hold the row	Hold		266
 Approved, behind a row it depends on: merged (its pull request merged)	Approved, behind a row it depends on: left (the Result leaves work)	the revert jbus opened of its merge merges, so its work is left to redo	Reland	r1s5>r1s4	216
-Approved, behind a row it depends on: merged (its pull request merged)	Approved: merged (its pull request merged)	the rows it depends on are over	Ahead	r0s1>r0s0	216
-Approved, behind a row it depends on: merged (its pull request merged)	Approved: merged (its pull request merged)	you approve the approved row again	Grant	r0s1>r0s0	216
-Approved, behind a row it depends on: merged (its pull request merged)	Approved: merged (its pull request merged)	you give the approved row other depends, and its line waits for a pass	Depends		216
-Approved, behind a row it depends on: merged (its pull request merged)	Held, its go kept: merged (its pull request merged)	you hold the row, keeping its go	Hold		216
-Approved, behind a row it depends on: merged (its pull request merged)	Held: merged (its pull request merged)	you hold the row	Hold		216
+Approved, behind a row it depends on: merged (its pull request merged)	Approved: merged (its pull request merged)	the rows it depends on are over	Ahead	r0s1>r0s0	108
+Approved, behind a row it depends on: merged (its pull request merged)	Approved: merged (its pull request merged)	you approve the approved row again	Grant	r0s1>r0s0	108
+Approved, behind a row it depends on: merged (its pull request merged)	Approved: merged (its pull request merged)	you give the approved row other depends, and its line waits for a pass	Depends		108
+Approved, behind a row it depends on: merged (its pull request merged)	Held, its go kept: merged (its pull request merged)	you hold the row, keeping its go	Hold		108
+Approved, behind a row it depends on: merged (its pull request merged)	Held: merged (its pull request merged)	you hold the row	Hold		108
 Approved, behind a row it depends on: pr (its pull request is open)	Approved, behind a row it depends on: done (a clean Result from a thread that ended)	the pull request closes unmerged, and the clean Result names no address of it	Pull	r1s6>r1s0	32
 Approved, behind a row it depends on: pr (its pull request is open)	Approved, behind a row it depends on: failed (the thread failed)	the pull request closes unmerged with no address of it in the Result, and the thread failed	Pull	r1s6>r1s1	4
 Approved, behind a row it depends on: pr (its pull request is open)	Approved, behind a row it depends on: gate (a question is open)	jbus opens a question on the row	Pull		200
@@ -282,11 +282,11 @@ Approved: left (the Result leaves work)	Approved: waiting (the thread asks you)	
 Approved: left (the Result leaves work)	Approved: waiting (the thread asks you)	the thread asks for an answer again	Write	r1s4>r1s11	16
 Approved: left (the Result leaves work)	Held, its go kept: left (the Result leaves work)	you hold the row, keeping its go	Hold	r0s0>r0s3	266
 Approved: left (the Result leaves work)	Held: left (the Result leaves work)	you hold the approved row	Hold	r0s0>r0s2	266
-Approved: merged (its pull request merged)	Approved, behind a row it depends on: merged (its pull request merged)	you approve the row, behind a row it depends on	Grant		216
-Approved: merged (its pull request merged)	Approved, behind a row it depends on: merged (its pull request merged)	you give the approved row other depends, and its line waits for a pass	Depends	r0s0>r0s1	216
+Approved: merged (its pull request merged)	Approved, behind a row it depends on: merged (its pull request merged)	you approve the row, behind a row it depends on	Grant		108
+Approved: merged (its pull request merged)	Approved, behind a row it depends on: merged (its pull request merged)	you give the approved row other depends, and its line waits for a pass	Depends	r0s0>r0s1	108
 Approved: merged (its pull request merged)	Approved: left (the Result leaves work)	the revert jbus opened of its merge merges, so its work is left to redo	Reland	r1s5>r1s4	216
-Approved: merged (its pull request merged)	Held, its go kept: merged (its pull request merged)	you hold the row, keeping its go	Hold	r0s0>r0s3	216
-Approved: merged (its pull request merged)	Held: merged (its pull request merged)	you hold the approved row	Hold	r0s0>r0s2	216
+Approved: merged (its pull request merged)	Held, its go kept: merged (its pull request merged)	you hold the row, keeping its go	Hold	r0s0>r0s3	108
+Approved: merged (its pull request merged)	Held: merged (its pull request merged)	you hold the approved row	Hold	r0s0>r0s2	108
 Approved: pr (its pull request is open)	Approved, behind a row it depends on: pr (its pull request is open)	you approve the row, behind a row it depends on	Grant		216
 Approved: pr (its pull request is open)	Approved, behind a row it depends on: pr (its pull request is open)	you give the approved row other depends, and its line waits for a pass	Depends	r0s0>r0s1	216
 Approved: pr (its pull request is open)	Approved: done (a clean Result from a thread that ended)	the pull request closes unmerged, and the clean Result names no address of it	Pull	r1s6>r1s0	32
@@ -462,12 +462,12 @@ Held, its go kept: left (the Result leaves work)	Held, its go kept: waiting (the
 Held, its go kept: left (the Result leaves work)	Held, its go kept: waiting (the thread asks you)	the thread asks for an answer again	Thread	r1s4>r1s11	146
 Held, its go kept: left (the Result leaves work)	Held, its go kept: waiting (the thread asks you)	the thread asks for an answer again	Write	r1s4>r1s11	16
 Held, its go kept: left (the Result leaves work)	Held: left (the Result leaves work)	you hold the held row again	Hold	r0s3>r0s2	266
-Held, its go kept: merged (its pull request merged)	Approved, behind a row it depends on: merged (its pull request merged)	you approve the row, behind a row it depends on	Grant		216
-Held, its go kept: merged (its pull request merged)	Approved, behind a row it depends on: merged (its pull request merged)	you lift the hold, and its go comes back	Lift		216
-Held, its go kept: merged (its pull request merged)	Approved: merged (its pull request merged)	you approve the row over the hold that kept its go	Grant	r0s3>r0s0	216
-Held, its go kept: merged (its pull request merged)	Approved: merged (its pull request merged)	you lift the hold, and its go comes back	Lift	r0s3>r0s0	216
+Held, its go kept: merged (its pull request merged)	Approved, behind a row it depends on: merged (its pull request merged)	you approve the row, behind a row it depends on	Grant		108
+Held, its go kept: merged (its pull request merged)	Approved, behind a row it depends on: merged (its pull request merged)	you lift the hold, and its go comes back	Lift		108
+Held, its go kept: merged (its pull request merged)	Approved: merged (its pull request merged)	you approve the row over the hold that kept its go	Grant	r0s3>r0s0	108
+Held, its go kept: merged (its pull request merged)	Approved: merged (its pull request merged)	you lift the hold, and its go comes back	Lift	r0s3>r0s0	108
 Held, its go kept: merged (its pull request merged)	Held, its go kept: left (the Result leaves work)	the revert jbus opened of its merge merges, so its work is left to redo	Reland	r1s5>r1s4	216
-Held, its go kept: merged (its pull request merged)	Held: merged (its pull request merged)	you hold the held row again	Hold	r0s3>r0s2	216
+Held, its go kept: merged (its pull request merged)	Held: merged (its pull request merged)	you hold the held row again	Hold	r0s3>r0s2	108
 Held, its go kept: pr (its pull request is open)	Approved, behind a row it depends on: pr (its pull request is open)	you approve the row, behind a row it depends on	Grant		216
 Held, its go kept: pr (its pull request is open)	Approved, behind a row it depends on: pr (its pull request is open)	you lift the hold, and its go comes back	Lift		216
 Held, its go kept: pr (its pull request is open)	Approved: pr (its pull request is open)	you approve the row over the hold that kept its go	Grant	r0s3>r0s0	216
@@ -632,8 +632,8 @@ Held: left (the Result leaves work)	Held: waiting (the thread asks you)	the thre
 Held: left (the Result leaves work)	Held: waiting (the thread asks you)	the thread asks for an answer again	Pull	r1s4>r1s11	12
 Held: left (the Result leaves work)	Held: waiting (the thread asks you)	the thread asks for an answer again	Thread	r1s4>r1s11	146
 Held: left (the Result leaves work)	Held: waiting (the thread asks you)	the thread asks for an answer again	Write	r1s4>r1s11	16
-Held: merged (its pull request merged)	Approved, behind a row it depends on: merged (its pull request merged)	you approve the row, behind a row it depends on	Grant		216
-Held: merged (its pull request merged)	Approved: merged (its pull request merged)	you approve the held row, and the hold ends	Grant	r0s2>r0s0	216
+Held: merged (its pull request merged)	Approved, behind a row it depends on: merged (its pull request merged)	you approve the row, behind a row it depends on	Grant		108
+Held: merged (its pull request merged)	Approved: merged (its pull request merged)	you approve the held row, and the hold ends	Grant	r0s2>r0s0	108
 Held: merged (its pull request merged)	Held: left (the Result leaves work)	the revert jbus opened of its merge merges, so its work is left to redo	Reland	r1s5>r1s4	216
 Held: pr (its pull request is open)	Approved, behind a row it depends on: pr (its pull request is open)	you approve the row, behind a row it depends on	Grant		216
 Held: pr (its pull request is open)	Approved: pr (its pull request is open)	you approve the held row, and the hold ends	Grant	r0s2>r0s0	216
@@ -786,9 +786,9 @@ No go: left (the Result leaves work)	No go: waiting (the thread asks you)	the th
 No go: left (the Result leaves work)	No go: waiting (the thread asks you)	the thread asks for an answer again	Pull	r1s4>r1s11	12
 No go: left (the Result leaves work)	No go: waiting (the thread asks you)	the thread asks for an answer again	Thread	r1s4>r1s11	146
 No go: left (the Result leaves work)	No go: waiting (the thread asks you)	the thread asks for an answer again	Write	r1s4>r1s11	16
-No go: merged (its pull request merged)	Approved, behind a row it depends on: merged (its pull request merged)	you approve the row, behind a row it depends on	Grant	r0s4>r0s1	216
-No go: merged (its pull request merged)	Approved: merged (its pull request merged)	you approve the row, or a rule gives its go	Grant	r0s4>r0s0	216
-No go: merged (its pull request merged)	Held: merged (its pull request merged)	you hold the row	Hold	r0s4>r0s2	216
+No go: merged (its pull request merged)	Approved, behind a row it depends on: merged (its pull request merged)	you approve the row, behind a row it depends on	Grant	r0s4>r0s1	108
+No go: merged (its pull request merged)	Approved: merged (its pull request merged)	you approve the row, or a rule gives its go	Grant	r0s4>r0s0	108
+No go: merged (its pull request merged)	Held: merged (its pull request merged)	you hold the row	Hold	r0s4>r0s2	108
 No go: merged (its pull request merged)	No go: left (the Result leaves work)	the revert jbus opened of its merge merges, so its work is left to redo	Reland	r1s5>r1s4	216
 No go: pr (its pull request is open)	Approved, behind a row it depends on: pr (its pull request is open)	you approve the row, behind a row it depends on	Grant	r0s4>r0s1	216
 No go: pr (its pull request is open)	Approved: pr (its pull request is open)	you approve the row, or a rule gives its go	Grant	r0s4>r0s0	216
