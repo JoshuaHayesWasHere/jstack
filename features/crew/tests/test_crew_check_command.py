@@ -1178,3 +1178,160 @@ def test_the_first_push_with_no_brief_is_refused(tmp_path):
     said, code, _, at = pushed(tmp_path, "", brief=False)
     brief = tmp_path / "state" / "tasks" / "a-task.md"
     assert (said, code, at) == ([f"no push: there is no brief at {brief}"], 1, "")
+
+
+DOC, ONE, TWO = (
+    "testing/tests/test_doc.py",
+    "testing/tests/test_one.py",
+    "testing/tests/test_two.py",
+)
+TREE = "testing/tests/test_tree.py"
+
+
+def desk(tmp_path):
+    """A repo of the selector's own tests whose branch edits the doc `test_doc.py` reads and the
+    skill `test_one.py` reads, with a store of runs on this desk where both, and the
+    cross-cutting `test_tree.py`, passed at the branch's head."""
+    from test_select_tests import FILES, Repo
+
+    split = {"testing/split.py": (REPO / "testing" / "split.py").read_text()}
+    repo = Repo(tmp_path / "desk", files={**FILES, **split, ".gitignore": "__pycache__/\n"})
+    head = repo.change(["docs/alpha.md", "skills/one/SKILL.md"])
+    store = tmp_path / "crew-passed-runs"
+    store.write_text("".join(f"passed {one} {head}\n" for one in (DOC, ONE, TREE)))
+    return repo, head, store
+
+
+def asked(repo, part, head, store=None):
+    env = {key: value for key, value in os.environ.items() if key != "CREW_PASSED_RUNS"}
+    if store is not None:
+        env["CREW_PASSED_RUNS"] = str(store)
+    ran = repo.run(*(["--part", part] if part else []), repo.base, head, env=env)
+    assert ran.returncode == 0, ran.stderr
+    return ran.stdout.split(), ran.stderr.splitlines()
+
+
+def skipped(one, head):
+    return f"{one}: skipped, its read set is as it was when it passed on this desk at {head}"
+
+
+def test_a_test_that_passed_on_this_desk_is_skipped_until_its_read_set_changes(tmp_path):
+    """The desk ran the same guards and readers at each crew's head though what they read had not
+    changed: 61% of the short lane's CPU on 2026-11-12. A test file of the names part whose read
+    set holds the same blobs as at a head it passed at on this desk is left out, and the selector
+    says so, naming that head. One byte more in a file it reads runs it again."""
+    repo, head, store = desk(tmp_path)
+    later = repo.change(["skills/two/SKILL.md"])
+    assert asked(repo, "names", later) == ([DOC, ONE, TWO], [])
+    assert asked(repo, "names", later, store) == ([TWO], [skipped(DOC, head), skipped(ONE, head)])
+    byte = repo.change(["docs/alpha.md"])
+    assert asked(repo, "names", byte, store) == ([DOC, TWO], [skipped(ONE, head)])
+
+
+def test_a_cross_cutting_guard_is_skipped_only_on_the_tree_it_passed_on(tmp_path):
+    """A cross-cutting guard reads the whole tree, so its read set is every file: a head whose tree
+    is the one it passed on skips it, and a byte more anywhere runs it."""
+    repo, head, store = desk(tmp_path)
+    git(
+        repo.root,
+        "-c",
+        "user.name=t",
+        "-c",
+        "user.email=t@t",
+        "commit",
+        "-q",
+        "--allow-empty",
+        "-m",
+        "c",
+    )
+    same = git(repo.root, "rev-parse", "HEAD")
+    assert asked(repo, "cross", same, store) == ([], [skipped(TREE, head)])
+    moved = repo.change(["README.md"])
+    assert asked(repo, "cross", moved, store) == ([TREE], [])
+
+
+@pytest.mark.parametrize("case", ["failed last", "another desk", "no store", "work not committed"])
+def test_a_test_runs_where_no_pass_on_this_desk_covers_its_read_set(tmp_path, case):
+    """A file whose last run on the store failed runs, though it passed before at a head with its
+    read set. So does one that passed only at a head this checkout does not hold, as a run on
+    another desk or CI's, one where the store is not handed over, and every file of a worktree
+    with work not committed, which the step would run and the head lacks."""
+    repo, head, store = desk(tmp_path)
+    later = repo.change(["skills/two/SKILL.md"])
+    if case == "failed last":
+        with store.open("a") as kept:
+            kept.write(f"failed {DOC} {later}\n")
+    elif case == "another desk":
+        other = tmp_path / "other"
+        subprocess.run(["git", "init", "-q", str(other)], check=True)
+        git(
+            other,
+            "-c",
+            "user.name=t",
+            "-c",
+            "user.email=t@t",
+            "commit",
+            "-q",
+            "--allow-empty",
+            "-m",
+            "c",
+        )
+        elsewhere = git(other, "rev-parse", "HEAD")
+        store.write_text("".join(f"passed {one} {elsewhere}\n" for one in (DOC, ONE)))
+    elif case == "no store":
+        store = None
+    else:
+        (repo.root / "scratch.txt").write_text("not committed\n")
+    names, said = asked(repo, "names", later, store)
+    if case == "failed last":
+        assert (names, said) == ([DOC, TWO], [skipped(ONE, head)])
+    elif case == "work not committed":
+        assert names == [DOC, ONE, TWO]
+        assert said == [
+            "select_tests.py: the worktree holds work not committed, so no passed run is reused"
+        ]
+    else:
+        assert (names, said) == ([DOC, ONE, TWO], [])
+
+
+def test_ci_and_jmerge_run_every_file_they_select_whatever_the_store_holds(tmp_path):
+    """The pull request's check and jmerge's guards are the gate: the selection and `--part
+    guards` print every file a pass on the store would cover, and neither CI's workflow, the
+    Makefile it and jmerge run, nor the modules of jmerge that run the selector name the store."""
+    repo, head, store = desk(tmp_path)
+    assert {DOC, ONE, TREE} <= set(asked(repo, None, head, store)[0])
+    assert TREE in asked(repo, "guards", head, store)[0]
+    assert asked(repo, "cross", head, store)[0] == []
+    jmerge = REPO / "features" / "jmerge" / "src" / "jmerge"
+    gate = [REPO / ".github" / "workflows" / "check.yml", REPO / "Makefile"]
+    gate += [jmerge / "treeguards.py", jmerge / "ready.py", jmerge / "reuse.py"]
+    for one in gate:
+        text = one.read_text()
+        assert "CREW_PASSED_RUNS" not in text and "crew-passed-runs" not in text, one
+
+
+def test_the_block_keeps_each_files_run_on_the_desks_store_and_prints_what_was_skipped(tmp_path):
+    """The block hands the selector the store in the git dir every worktree shares, for each
+    part, prints the selector's line for a skipped file, and keeps each file a step passed or
+    failed on at the head on the store."""
+    told = tmp_path / "told"
+    selector = touching("tests/test_a.py", cross=("tests/test_g.py",)) + (
+        "import os\n"
+        f"open({str(told)!r}, 'a').write(sys.argv[2] + ' ' + os.environ['CREW_PASSED_RUNS'])\n"
+        f"open({str(told)!r}, 'a').write('\\n')\n"
+        "if sys.argv[2] in ('cross', 'names'):\n"
+        "    one = 'tests/test_h.py' if sys.argv[2] == 'cross' else 'tests/test_n.py'\n"
+        "    print(one + ': skipped, its read set is as it was', file=sys.stderr)\n"
+    )
+    repo = stubbed(tmp_path, selector)
+    a_brief(tmp_path)
+    said, code, ran, base = selected(tmp_path, repo, exits={"*test_g.py*": 1})
+    head = git(repo, "rev-parse", "HEAD")
+    store = repo / ".git" / "crew-passed-runs"
+    assert code == 1
+    assert "tests/test_h.py: skipped, its read set is as it was" in said
+    assert "tests/test_n.py: skipped, its read set is as it was" in said
+    assert store.read_text() == f"passed tests/test_a.py {head}\nfailed tests/test_g.py {head}\n"
+    assert told.read_text().splitlines() == [
+        f"{part} {store}" for part in ("touched", "cross", "names")
+    ]

@@ -12,6 +12,11 @@
   A step of several files the short lane stops at its time limit (exit 124) reached no verdict: the block forgets their times (`<file> -`) and runs each again alone in the short lane.
   A step of one file it stops runs again alone in a full test slot, which has no time limit, so every step reaches a verdict however loaded the machine is.
   A 124 is never a pass and never a failure: it is no verdict.
+  Each test file a step passed at a committed head, and each one a step failed on, goes on the desk's store of runs, `crew-passed-runs` in the git dir every worktree shares, as `passed <file> <head>` or `failed <file> <head>`, and the block hands the store to the selector (`CREW_PASSED_RUNS`) for the guard tests and the tests that read the change.
+  The selector leaves out a file whose last run on the store passed at a head this checkout holds, where the diff from that head to this one changes nothing the pull request's own selection would run the file for, its read set: it prints `<file>: skipped, its read set is as it was when it passed on this desk at <head>`.
+  A cross-cutting guard reads the whole tree, so only a tree the same as the passed head's skips it; a file whose last run failed, a head from another desk, and a worktree with work not committed skip nothing.
+  On 2026-11-12 61% of jstack's short-lane CPU, 431k of 710k CPU-s, went to a file a worktree had run before.
+  CI's check and jmerge's run never set the store, so they run every file they select.
   The catch-all and the tests the change reaches through imports and features are CI's to run: the desk does not run them.
   The base is the branch the pull request goes on, as the block that opens it reads it from the brief: the branch of a `Stacked on:` line, and `origin/main` for a brief with none.
   A base branch that is gone, as one is once it merged, is `origin/main` too.
@@ -39,24 +44,26 @@
           echo "origin/main has no scripts/select_tests.py: the branch's own names the tests"
           selector=scripts/select_tests.py
       fi
+      reuse=$(git rev-parse --path-format=absolute --git-common-dir)/crew-passed-runs
       selects() {
-          python3 -c 'import os, sys
+          CREW_PASSED_RUNS=$reuse python3 -c 'import os, sys
   main = sys.modules["__main__"]
   path = sys.argv.pop(1)
   sys.argv[0] = main.__file__ = os.path.abspath("scripts/select_tests.py")
   sys.path[0] = os.path.dirname(sys.argv[0])
   exec(compile(open(path).read(), sys.argv[0], "exec"), vars(main))' "$selector" "$@"
       }
+      exec 3>&1
       if ! base=$(git merge-base "$on" HEAD); then
           echo "no check: the branch shares no commit with $on"
           false
       elif ! touched=$(selects --part touched "$base" HEAD); then
           echo "no check: scripts/select_tests.py could not name the touched tests"
           false
-      elif ! guards=$(selects --part cross "$base" HEAD); then
+      elif ! guards=$(selects --part cross "$base" HEAD 2>&3); then
           echo "no check: scripts/select_tests.py could not name the guard tests"
           false
-      elif ! names=$(selects --part names "$base" HEAD); then
+      elif ! names=$(selects --part names "$base" HEAD 2>&3); then
           echo "no check: scripts/select_tests.py could not name the tests that read the change"
           false
       else
@@ -172,6 +179,7 @@
               0)
                   if [ -z "$clean" ] && [ -z "$(git status --porcelain)" ] && [ "$(git rev-parse HEAD)" = "$head" ]; then
                       printf 'passed %s\n' $files >> "$steps"
+                      [ "$step" = lint ] || for one in $files; do echo "passed $one $head"; done >> "$reuse"
                   elif [ -z "$clean" ]; then
                       echo "$step: passed over work that $head does not have, so it is not kept"
                       ran=76
@@ -190,6 +198,7 @@
                           bad=$files
                       fi
                       for one in $bad; do echo "$one: failed in step $step"; done
+                      for one in $bad; do echo "failed $one $head"; done >> "$reuse"
                       { printf '%s\n' $bad; cat "$kept" 2> /dev/null; } | sort -u > "$kept.new" && mv "$kept.new" "$kept"
                   fi
                   ran=$said
@@ -197,6 +206,9 @@
                   ;;
               esac
           done
+          if [ -f "$reuse" ] && [ "$(wc -c < "$reuse")" -gt 4194304 ]; then
+              tail -n 20000 "$reuse" > "$reuse.$$" && mv "$reuse.$$" "$reuse"
+          fi
           if [ -s "$kept" ]; then
               while read -r one; do
                   command grep -qxF "passed $one" "$steps" || echo "$one"
