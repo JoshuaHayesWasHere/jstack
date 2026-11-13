@@ -128,13 +128,15 @@ class Item:
     wrong: str = ""
     text: str = ""
     quiet: bool = False
+    stands: str = ""
 
 
 def words(one: Item) -> str:
     """The digest of what an item says, its line and its text, with no commit or time in them
     (`state.MOMENT`), as its key has none: a fault that only moves to a new commit says nothing
-    new."""
-    said = state.MOMENT.sub("", f"{one.line}\n{one.text}")
+    new. An item whose line holds a count that is no news, as a hold's minutes, says what it is
+    in `stands` instead (`_stands`)."""
+    said = one.stands or state.MOMENT.sub("", f"{one.line}\n{one.text}")
     return hashlib.sha256(said.encode()).hexdigest()[:12]
 
 
@@ -363,7 +365,7 @@ def need_items(run: Pass, listed: list | None) -> list[Item]:
     home` says: a gate with no case on its `Holds:` line. A gate a home asked itself
     (`mirror.asker`) wakes no thread: it is that home's question to the user, which `jbus needs`
     lists."""
-    items = []
+    items, holds = [], read_json(run.state / clock.HELD_FILE, {})
     for one, line in blockers.deciding(run, listed):
         slug = one.get("slug") or ""
         files = (run.home / kind / f"{slug}.md" for kind in ("tasks", "scouts"))
@@ -378,8 +380,20 @@ def need_items(run: Pass, listed: list | None) -> list[Item]:
             text = brief.read_text(errors="replace") if brief else ""
             where = homes.home_of(run.home, text)
             to = catchall_of(run) if where == homes.catchall(run.home) else thread_of(where)
-        items.append(Item(key=one["key"], to=to, line=line, row=slug))
+        stands = _stands(holds, one)
+        items.append(Item(key=one["key"], to=to, line=line, row=slug, stands=stands))
     return items
+
+
+def _stands(holds: dict[str, Any], one: dict[str, Any]) -> str:
+    """What a hold on the list is, for `words`: its rows, its reason and when it began
+    (`clock.held`), and not its minutes, which count up each pass. A hold that clears and comes
+    back begins anew, and one held by another reason is another key. Nothing for any other
+    item, or a hold `held.json` no longer has."""
+    hold = holds.get(one["key"].removeprefix("held:")) if one["kind"] == "held" else None
+    if not isinstance(hold, dict):
+        return ""
+    return f"held {hold.get('rows')} by {hold.get('reason')} since {hold.get('since')}"
 
 
 def alert_items(run: Pass) -> list[Item]:
