@@ -87,7 +87,7 @@ The first branch reads the last round's judgement of the brief, as `jmerge` read
 On `meets: ...`, push the fix for the unmet lines first, with the block of "The review" that pushes a fix, and run the block again: it then gives the launch.
 A scoped review judges a fix, so the block gives no launch at the head the review already judged: a second reviewer there would judge the same commit again.
 A crew that cannot push the fix inside its brief's `Where:` launches nothing: it parks a gate ("Do the task"), with the default that the pull request waits.
-The only other way out is the user's `Waived:` line ("The review").
+The only other way out is a `Waived:` line, on the user's word or the root home's own waiver, `jbus waive --as root` ("The review").
 
 - `write Scoped review: ...`: add that line to the Result, as printed, and only then the `Fixed:` line.
   `jmerge` merges on the `Fixed:` line, so a Result never has it without the line that says whether a review is owed.
