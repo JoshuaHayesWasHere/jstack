@@ -1,4 +1,8 @@
-import copy
+"""Every JSON call a skill gives is one its tool takes. Its `READ_SET` is the parts of a skill an
+agent reads: a feature's own markdown, its skills, and the `references/`, `project-skill/`,
+`playbooks/` and `templates/` of a skill at its root, with the tools' schemas. A feature's `docs/`,
+`tests/`, `evals/`, `spec/` and `src/` are read by no agent that runs the skill, and not here."""
+
 import json
 import re
 
@@ -7,14 +11,22 @@ from jsonschema import Draft202012Validator
 
 from jbriefs.skills import listed
 from test_home_thread import named
-from testing.paths import REPO, skills
+from testing.paths import skills
+from tool_schemas import SCHEMAS, strict
 
+READ_SET = (
+    "skills/",
+    "features/*/*.md",
+    "features/*/skills/",
+    "features/*/references/",
+    "features/*/project-skill/",
+    "features/*/playbooks/",
+    "features/*/templates/",
+    "features/jbus/tests/fixtures/t3/",
+    "testing/tests/fixtures/claude/",
+)
+NOT_READ = ("docs", "tests", "evals", "spec", "src")
 SKILLS = skills()
-SCHEMAS = {
-    path.stem: json.loads(path.read_text())
-    for tools in ("features/jbus/tests/fixtures/t3", "testing/tests/fixtures/claude")
-    for path in (REPO / tools).glob("*.json")
-}
 FENCE = re.compile(r"^[ \t]*(`{3,}|~{3,})(.*)$")
 INLINE = re.compile(r"`(\{[^`\n]*\})`")
 TOOL = re.compile(r"`((?<=`t3-code` server's `)\w+|t3_\w+|Agent)`")
@@ -120,22 +132,6 @@ def where(call):
     return call.where
 
 
-def strict(schema):
-    """A tool's schema, changed to refuse unknown keys at every depth. The tool itself accepts
-    such keys."""
-    schema = copy.deepcopy(schema)
-    todo = [schema]
-    while todo:
-        node = todo.pop()
-        if isinstance(node, dict):
-            if node.get("additionalProperties") is True:
-                node["additionalProperties"] = False
-            todo.extend(node.values())
-        elif isinstance(node, list):
-            todo.extend(node)
-    return schema
-
-
 def errors(call, given):
     """The messages of the errors that a validator finds when it checks `given` against the `strict`
     form of the call's tool schema. An empty list means the tool accepts `given`."""
@@ -154,11 +150,20 @@ def misspelt(given):
                 yield f"{key}.{inner}", {**given, key: changed}
 
 
+def read_by_an_agent(folder):
+    """The markdown of the skill at `folder` that an agent reads: of a skill at its feature's root
+    all but the feature's folders of `NOT_READ`, and all of any other skill."""
+    found = sorted(folder.rglob("*.md"))
+    if folder.parent.name != "features":
+        return found
+    return [path for path in found if path.relative_to(folder).parts[0] not in NOT_READ]
+
+
 def test_no_skill_names_a_tool_the_way_only_claude_code_does():
     only_claude = [
         f"{path.relative_to(folder.parent)}:{number}"
         for folder in SKILLS.values()
-        for path in sorted(folder.rglob("*.md"))
+        for path in read_by_an_agent(folder)
         for number, line in enumerate(path.read_text().splitlines(), 1)
         if "mcp__t3-code__" in line
         or ("ToolSearch" in line and not re.search(r"\bif\b", line, re.I))

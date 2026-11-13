@@ -16,6 +16,7 @@ from jsonschema import Draft202012Validator
 
 import test_playbook_wiring as wiring
 import test_tool_calls as calls
+import tool_schemas
 from jbus import mirror
 from test_handoff_pin import T3
 from test_home_thread import as_read
@@ -497,7 +498,7 @@ def test_a_gate_with_no_jbus_is_not_asked(scene):
 
 
 def takes(tool, given):
-    schema = calls.strict(calls.SCHEMAS[tool])
+    schema = tool_schemas.strict(tool_schemas.SCHEMAS[tool])
     return [error.message for error in Draft202012Validator(schema).iter_errors(given)]
 
 
