@@ -114,6 +114,7 @@ If `jgauge room` cannot read a machine reading, it prints `wait: `.
 If it cannot read a plan limit, it does not wait on that limit.
 It prints `go`, and writes a `note: ` line on stderr.
 
+On Linux the cores are the machine's online processors, the `cpuN` lines of `/proc/stat` (`getconf _NPROCESSORS_ONLN` where it has none), and not `nproc`, which counts only the cores the shell may use: under `jgauge cap-shell` or `taskset` it prints fewer.
 On macOS, which has no `/proc`, it reads the load from `sysctl -n vm.loadavg`, the cores from `sysctl -n hw.ncpu`, and the memory available from `vm_stat`, as its free, inactive and speculative pages.
 macOS has no pressure lines and APFS no fixed count of file slots, so on macOS the CPU pressure, the memory pressure and the file slots are not read and hold no launch.
 On Linux a pressure file that cannot be read still prints `wait: `.
@@ -197,7 +198,7 @@ The install (`jinstall`) links and enables the timer when it links and enables t
 The columns are, in order:
 
 - the time in seconds since the epoch
-- the number of cores
+- the number of cores, the machine's online processors as `jgauge room` counts them, whatever the sampler's affinity
 - the three loads of `/proc/loadavg`, or of `sysctl -n vm.loadavg` on macOS
 - `some` and `full`, each as `avg10` and `avg60`, of `/proc/pressure/cpu`, `memory` and `io`, empty on macOS, which has no pressure lines
 - the file slots of `/tmp`, and how many of them are used

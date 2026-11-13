@@ -232,9 +232,17 @@ def test_a_file_with_no_reading_in_it_waits(tmp_path, file):
     assert says(env).startswith("wait: ")
 
 
+def online(where, answer):
+    """`getconf _NPROCESSORS_ONLN`, the machine's online processors, answers `answer`, and
+    with `None` it fails."""
+    said = "exit 1" if answer is None else f'[ "$*" = "_NPROCESSORS_ONLN" ] && echo {answer}'
+    put(where / "stub" / "getconf", f"#!/bin/sh\n{said}\n", 0o755)
+
+
 @pytest.mark.parametrize("stat", [None, "cpu  9 9 9 9 9 9 9 9 0 0\nintr 1\n"])
 def test_a_core_count_that_cannot_be_read_waits(tmp_path, stat):
     env = machine(tmp_path, **IDLE)
+    online(tmp_path, None)
     if stat is None:
         (tmp_path / "proc" / "stat").unlink()
     else:
@@ -242,13 +250,20 @@ def test_a_core_count_that_cannot_be_read_waits(tmp_path, stat):
     assert says(env) == "wait: the load or the core count could not be read"
 
 
+def test_a_proc_with_no_stat_counts_the_machines_online_processors(tmp_path):
+    """A /proc made of files may give no `stat`, as the verify-jstack sandbox's does."""
+    env = machine(tmp_path, **{**IDLE, "load": "6.00"})
+    (tmp_path / "proc" / "stat").unlink()
+    online(tmp_path, 2)
+    assert says(env) == "wait: load 6.00 is at or over 200% of 2 cores"
+
+
 def capped(where, cores, shell):
     """A machine of `cores` processors at a load of 1.5 times them, read from a shell whose
-    `nproc`, `getconf` and `sysctl` each answer `shell`, as `nproc` does under `jgauge
-    cap-shell`'s cgroup quota or a narrowed affinity."""
+    `nproc` answers `shell`, as it does under `jgauge cap-shell`'s cgroup quota or a narrowed
+    affinity."""
     env = machine(where, **{**IDLE, "load": f"{cores * 1.5:.2f}", "cores": str(cores)})
-    for tool in ("nproc", "getconf", "sysctl"):
-        put(where / "stub" / tool, f"#!/bin/sh\necho {shell}\n", 0o755)
+    put(where / "stub" / "nproc", f"#!/bin/sh\necho {shell}\n", 0o755)
     return env
 
 
