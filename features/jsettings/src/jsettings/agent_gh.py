@@ -41,5 +41,5 @@ def main(argv: list[str]) -> int:
     sys.stderr.flush()
     if said.requests:
         with contextlib.suppress(Exception):
-            proc.log(paths.jbus_state_dir(), command, CALLER, done.returncode, said)
+            proc._log(paths.jbus_state_dir(), command, CALLER, done.returncode, said)
     return done.returncode if done.returncode >= 0 else 128 - done.returncode

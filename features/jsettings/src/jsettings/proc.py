@@ -89,7 +89,7 @@ def run(
         )
     said = Debug.parse(done.stderr or "")
     done.stderr = said.stderr
-    log(state, command, caller, done.returncode, said, waited)
+    _log(state, command, caller, done.returncode, said, waited)
     return done
 
 
@@ -255,7 +255,7 @@ def _endpoint(command: tuple[str, ...], said: Debug) -> str:
     return " ".join(words[:2])
 
 
-def log(
+def _log(
     state: Path,
     command: tuple[str, ...],
     caller: str,
