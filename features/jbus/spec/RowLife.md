@@ -3,7 +3,7 @@
 One row of jbus's queue, from `jbus queue add` to its end, in two regions at the same time.
 
 - The status, which a pass moves: each pass works it out again from the facts (`work.status`), and `queue.derive` writes it, but over a row that is over (`work.over`), whose status it keeps (`work.kept`).
-  Three writes move it too, each with a line of its own: `remove`, the add of a crewmate's brief over a scout's done row (`HandOver`), which makes the row a crewmate's, queued again with no go and none of the scout's facts, and the merge of the revert jbus opened of a merged row's merge (`Reland`, `reverts.reland`), which moves the row to `left` once and makes its merge no merge of the row's (`reverted`), so its redo goes the normal path.
+  Three writes move it too, each with a line of its own: `remove`, the add of a crewmate's brief over a scout's done row (`HandOver`), which makes the row a crewmate's, queued again with no go and none of the scout's facts, and the merge of the revert jbus opened of a merged row's merge (`Reland`, `reverts.reland`), which moves the row to `left` once per merge taken back and makes that merge no merge of the row's (`reverted`), so its redo goes the normal path.
   The row's role, scout or crew, is fixed when it is added, and only the hand-over changes it.
   The spec models the facts `work.status` reads, folded to what it tells apart: the thread (none, starting, at work, hung, waiting, failed, ended, settled, missing), the Result (none, clean, leaving work), the pull request (none, opening, open, merged, closed), a question, and the launch record.
   Each step changes one fact, and the pass derives from them the line's value in `work.json` (`value`, the first of `work.PATTERNS` they match) and the status that value gives, as `work.status` reads it.
@@ -36,10 +36,10 @@ A pass's line matches a path of steps that are no verb's, a hand-over's line (`h
 ## Check the rule
 
 The rule is `FinalStays`: a crewmate's row that is over stays over, so the queue, `watch.final` and jmerge, which all read `work.over`, never see it over and then not.
-A `done` row may only become `merged`, and a `merged` one stays so but for one `Reland`.
+A `done` row may only become `merged`, and a `merged` one stays so but for one `Reland` for each merge a revert took back, so a redo whose own merge is reverted opens the row again.
 The facts can still leave a final row: a pull request opens after a `done`, or a question opens on a `merged` row.
 The rule holds because `queue.derive` keeps the status (`work.kept`), and so checks the code's derive and not only the table.
-`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where the rule holds over 13256 distinct states, on two canaries where it breaks, one that takes `work.kept` out (`Fault = "no-latch"`) and one that lets the hand-over take a crewmate's done row too (`Fault = "any-hand-over"`), and on one that gives a settled thread's row `queued` again (`Fault = "settled-queued"`), whose graph has status edges `queue.MOVES` lacks.
+`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where the rule holds over 12716 distinct states, on two canaries where it breaks, one that takes `work.kept` out (`Fault = "no-latch"`) and one that lets the hand-over take a crewmate's done row too (`Fault = "any-hand-over"`), and on one that gives a settled thread's row `queued` again (`Fault = "settled-queued"`), whose graph has status edges `queue.MOVES` lacks.
 A scout's done row leaves `done` only by the hand-over, which makes it a crewmate's, and a crewmate's row never leaves.
 Its TLC runs skip where no Java runs TLC.
 By hand, in a copy of this folder:
