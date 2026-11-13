@@ -218,7 +218,7 @@ def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_pat
     """When every slot is taken, the blocks end 76. A targeted run in the short lane registers
     nothing and says to run it again now; the check, in the full lane, registers the thread in
     the file, and jbus wakes the thread later because the file lists it. The lanes are the 4
-    full and 3 short slots that a machine with 24 processors and 62 GiB gets, whatever
+    full and 4 short slots that a machine with 24 processors and 62 GiB gets, whatever
     `TEST_SLOTS` the machine sets."""
     monkeypatch.delenv("TEST_SLOTS", raising=False)
     monkeypatch.delenv("XDG_CONFIG_HOME", raising=False)
@@ -230,7 +230,7 @@ def test_with_every_slot_taken_the_blocks_register_the_thread_and_end_76(tmp_pat
     locks = home / ".local" / "state" / "locks"
     locks.mkdir(parents=True)
     held = []
-    for lane, count in (("test-slot", 4), ("test-slot-short", 3)):
+    for lane, count in (("test-slot", 4), ("test-slot-short", 4)):
         for n in range(1, count + 1):
             fd = os.open(locks / f"{lane}.{n}.lock", os.O_RDWR | os.O_CREAT)
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -828,7 +828,7 @@ def test_with_every_short_slot_taken_the_check_waits_and_writes_no_checked_line(
     locks = tmp_path / "home" / ".local" / "state" / "locks"
     locks.mkdir(parents=True)
     held = []
-    for n in (1, 2, 3):
+    for n in (1, 2, 3, 4):
         fd = os.open(locks / f"test-slot-short.{n}.lock", os.O_RDWR | os.O_CREAT)
         fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
         held.append(fd)

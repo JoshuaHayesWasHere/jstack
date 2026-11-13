@@ -71,7 +71,7 @@ A run outside any slot, or one that was killed, leaves its basetemp there, and p
 ### What each lane holds
 
 The short lane holds a run of one test file, the lint, a step of a crew's check, a reviewer's proof and a crew's proof of its tests: each a second or a minute.
-It runs on the lane's own worker count, which `make test` takes under `JGAUGE_TEST_SLOT=short` and `proved.sh` takes in place of `-n auto`, not the desk's quarter of the processors.
+It runs on the lane's own worker count, which `make test` takes under `JGAUGE_TEST_SLOT=short` and `proved.sh` takes in place of `-n auto`, not the desk's eighth of the processors.
 Its slots are sized with the full lane's inside one core budget (`workers` in `jgauge.sizes`), so with every slot of both lanes taken their workers fit the cores, and a short run that took a full lane's workers would put the machine over them.
 
 The full lane holds a short step's rerun after the short lane stopped it at its limit (exit 124), and another repo's check command, the one its `fresh-check` names, through `jgauge check`; `jmerge`'s guards of a merged tree take it too, with no `--thread`.

@@ -52,8 +52,8 @@ A thread that is already running moves to another account only at a real cap of 
 | Limit | Default | Set it in | Read by |
 |---|---|---|---|
 | `workers`, how many test workers the slots of both lanes run at once, machine-wide | The processors | `~/.config/jstack/machine.toml` | `jgauge test-slot`, `jgauge sizes` |
-| `test_slots`, how many whole suites run at once, machine-wide | What `workers` holds after the short lane, at one desk run's workers a slot (a quarter of the processors, at least 2), at least 1, and at most one for each 4 GiB: 1 on 24 cores, 2 on 8 | `~/.config/jstack/machine.toml`; `--slots` and `TEST_SLOTS` come before it | `jgauge test-slot`, `jbus poll` |
-| `short_slots`, how many targeted runs and reviewers' proofs run at once | What `workers` holds after one full slot, at 4 workers a slot, from 1 to 8: 4 on 24 cores, 1 on 8 | `~/.config/jstack/machine.toml` | `jgauge test-slot --short`, `jbus poll` |
+| `test_slots`, how many whole suites run at once, machine-wide | What `workers` holds after the short lane, at one desk run's workers a slot (an eighth of the processors, at least 2), at least 1, and at most one for each 4 GiB: 4 on 24 cores, 2 on 8 | `~/.config/jstack/machine.toml`; `--slots` and `TEST_SLOTS` come before it | `jgauge test-slot`, `jbus poll` |
+| `short_slots`, how many targeted runs and reviewers' proofs run at once | What half of `workers` holds, at 3 workers a slot, from 1 to 8: 4 on 24 cores, 1 on 8 | `~/.config/jstack/machine.toml` | `jgauge test-slot --short`, `jbus poll` |
 | `max_running`, how many crewmates run at once, across every project | One for each processor, while each has 2 GiB | `~/.config/jbus/config.toml` | `jbus` |
 | `headroom`, the share of a usage window at which a launch counts an account as full | `90` | `~/.config/jstack/config.toml` | `jroles`, `jbus`, `jgauge room` |
 | `room_passes`, how many passes a row waits for room before its gate | `10` | `~/.config/jbus/config.toml` | `jbus` |

@@ -45,12 +45,13 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
-DESK_SHARE = 4
-"""A desk run's workers are a quarter of the processors, at least two: the Makefile's
-`PER_CORE` of `1 / 4` and its floor of 2, which testing/tests/test_check_command.py holds to this by
-running `make`. A worker keeps 0.86 of a core busy (yelena, 2026-10-20: 456 to 483 s of CPU
-for a 89 to 94 s run at 6 workers), so the full slots, counted from this share, fill the
-machine once and no more."""
+DESK_SHARE = 8
+"""A desk run's workers are an eighth of the processors, at least two: the Makefile's
+`PER_CORE` of `1 / 8` and its floor of 2, which testing/tests/test_check_command.py holds to this by
+running `make`. It was a quarter until sc-short-lane-budget (2026-11-12): the owner's 4 full slots
+of 6 workers filled yelena's 24 cores before any short slot, so each full slot now takes 3 and
+the 4 of them 12 of the 24. A worker keeps 0.86 of a core busy (yelena, 2026-10-20: 456 to 483 s
+of CPU for a 89 to 94 s run at 6 workers)."""
 
 SUITE_GIB = 4
 """Memory a full slot is given room for: a suite peaks at 1.0 to 1.1 GB (yelena, 2026-10-20),
@@ -60,7 +61,7 @@ CREW_GIB = 2
 """Memory a crew is given room for: an agent is 0.3 GB idle, plus the builds, servers and
 short runs it starts outside the slots."""
 
-SHORT_WORKERS = 4
+SHORT_WORKERS = 3
 """The workers of a run in the short lane: the Makefile's `SHORT_WORKERS` under
 `JGAUGE_TEST_SLOT=short`, and the crew's proved.sh in a short slot, which
 testing/tests/test_check_command.py and features/crew/tests/test_crew_proved.py hold to this.
@@ -69,20 +70,20 @@ alone (test_docs_tree, test_bash32, test_jbus_telemetry, test_jbus_steps, test_j
 5 rounds each, each run in a short slot, the sums of the medians in CPU and wall seconds:
 `-n auto` 147.7 and 31.1, 6 workers 87.7 and 33.6, 4 workers 79.9 and 37.9, 3 workers 77.3 and
 44.0, 2 workers 74.5 and 57.9, no xdist 71.6 and 100.6. Each worker spends about 3 CPU s
-importing and collecting. Four keeps 9% of 6's CPU for 13% more wall time, and 46% of
-`-n auto`'s; 2 saves 5% more CPU for 69% more wall time, which would hold the short slots, 55%
-taken in the 2026-11-09 push at 6, near all the time."""
+importing and collecting. Three spends 12% less CPU than 6 for 31% more wall time, and 48% less
+than `-n auto`; 2 saves 4% more CPU for 32% more wall time again. It was 4 until
+sc-short-lane-budget (2026-11-12): at 3 the owner's 4 short slots are 12 workers, half of
+yelena's 24 cores."""
 
 SHORT_CEILING = 8
 """The most short slots on any machine: past it a machine's cores go to the full lane."""
 
-FULL_FIRST = 1
-"""The full slots the budget keeps before it sizes the short lane: one, so a whole suite always
-has a slot of its own. On yelena on 2026-11-12, 00:00 to 22:30 UTC, the slot log's releases
-spent 8.79 cores in the short lane (32,490 takes) and 2.92 in the full lane (3,782), so the
-short lane has the rest of the budget. At 24 cores that is 1 full slot of 6 workers and 4 short
-of 4: 2.92 cores is 49% of the full slot's 6 workers and 8.79 is 55% of the short lane's 16.
-2 full and 3 short would leave the short lane at 73% and the full at 24%."""
+SHORT_SHARE = 2
+"""The short lane has a half of the budget, and the full lane the rest. On yelena's 24 cores
+that is 4 short slots of 3 and 4 full slots of 3, 24 workers: the owner's 4 full slots ("go with
+4 full test slots", 2026-11-12, after eleven threads queued on one), and on 2026-11-12, 00:00 to
+22:30 UTC, the slot log's releases spent 8.79 cores in the short lane (32,490 takes at 4
+workers), 73% of its 12, and 2.92 in the full lane (3,782), 24% of its 12."""
 
 FALLBACK_CORES = 2
 """The processors taken when none can be read: the Makefile's own fallback."""
@@ -212,12 +213,12 @@ def derive(
     `workers`: the budget, the test workers every slot of both lanes may run at once. It is the
     processors, since a worker keeps 0.86 of a core busy. The owner may set another in
     `machine.toml`, and `workers` here is that value.
-    `short_slots`: what the budget holds after `FULL_FIRST` full slots, at `SHORT_WORKERS` a
-    slot, from 1 to `SHORT_CEILING`.
+    `short_slots`: what the budget's `SHORT_SHARE` holds at `SHORT_WORKERS` a slot, from 1 to
+    `SHORT_CEILING`.
     `test_slots`: what the budget holds after the short lane, given as `short` where the owner
     sets it, at the desk's workers a slot, from 1, and `SUITE_GIB` of memory a slot.
-    That gives 1 full and 4 short slots on 24 cores, 22 workers; 2 and 1 on 8, 8 workers; 2 and
-    8 on 64, 64 workers. On 2 cores the floors of one slot a lane give 6 workers, over the
+    That gives 4 full and 4 short slots on 24 cores, 24 workers; 2 and 1 on 8, 7 workers; 5 and
+    8 on 64, 64 workers. On 2 cores the floors of one slot a lane give 5 workers, over the
     budget, and `jgauge sizes` says so.
     `max_running`: one crew for each processor, as long as each crew has `CREW_GIB` of memory.
     One crew per processor is enough because a crew's heavy work runs under the slots. That
@@ -229,7 +230,7 @@ def derive(
     if name is Name.WORKERS:
         return cores
     if name is Name.SHORT_SLOTS:
-        return min(SHORT_CEILING, max(1, (budget - FULL_FIRST * desk) // SHORT_WORKERS))
+        return min(SHORT_CEILING, max(1, budget // SHORT_SHARE // SHORT_WORKERS))
     if name is Name.TEST_SLOTS:
         short = short or derive(Name.SHORT_SLOTS, machine, workers=budget)
         return max(1, min((budget - short * SHORT_WORKERS) // desk, memory // SUITE_GIB))
