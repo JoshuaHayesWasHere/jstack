@@ -11,7 +11,7 @@ This page lists every file you write, each key in it, the default, and the comma
 |---|---|---|
 | `~/.config/jstack/config.toml` | Your name and time zone | You, or `jinstall --setup` once |
 | `~/.config/jstack/roles` | The model for each role | You, or `jinstall --setup` once |
-| `~/.config/jstack/machine.toml` | The full and short test slots, where you do not want the counts derived from the machine | You |
+| `~/.config/jstack/machine.toml` | The full and short test slots and `workers`, the test workers they share, where you do not want the counts derived from the machine | You |
 | `~/.config/jbus/config.toml` | The projects `jbus` looks after | You, or `jinstall --setup` once |
 | `~/.claude/settings.json`, `~/.codex/hooks.json` | The hook entries and the status line | `jinstall` |
 | `~/.local/state/claude/limits`, `limits.<instanceId>` | The ledger: each instance's plan limits | `jgauge limits`, jgauge's `limits.sh` in the status line, `jbus` |
@@ -233,21 +233,27 @@ The doctor prints `ok optional mirror <home>` for each, `missing` while the home
 
 ## The machine's sizes
 
-Three numbers are sizes of the machine: the full test slots, the short test slots and the crew cap.
+Four numbers are sizes of the machine: the full test slots, the short test slots, `workers` and the crew cap.
+`workers` is the budget: how many test workers the slots of both lanes may run at once, machine-wide.
+Both lanes' slot counts are derived inside it, and its own default is the processors.
 `jgauge.sizes` derives each default from the whole machine: its processors in `/proc/stat` and its `MemTotal`, or on macOS `hw.ncpu` and `hw.memsize` from `sysctl`.
 It never uses the caller's own CPU quota, so `jbus.service` and every shell count the same slots.
-`jgauge sizes` prints the three sizes, each with the value its caller gets and where that value came from.
+`jgauge sizes` prints the four sizes, each with the value its caller gets and where that value came from.
+Its `total` line then adds the workers the slots of both lanes run with every slot taken, and says whether they fit `workers`.
 Then it prints the six limits of `jgauge room`, which `room.sh` keeps.
-`~/.config/jstack/machine.toml` sets a slot count where you do not want the derived one, and nothing else:
+`~/.config/jstack/machine.toml` sets `workers` or a slot count where you do not want the derived one.
+`jgauge` takes a slot count you set even where the slots run more workers than `workers`, and the `total` line then says `over`:
 
 ```toml
+workers = 20
 test_slots = 3
 ```
 
 | Key | Default | What it sets | Read by |
 |---|---|---|---|
-| `test_slots` | One full slot for each desk run's workers, a quarter of the processors, at most one for each 4 GiB: 4 on most machines of 8 cores or more (5 on 10, 11 or 15, where the floor of 2 workers or the rounding leaves room) | How many whole suites run at once, machine-wide. `--slots` and `TEST_SLOTS` come before it. | `jgauge test-slot`, `jbus poll` |
-| `short_slots` | One for each 8 processors, from 2 to 8 | How many targeted runs and reviewers' proofs run at once in the short lane. | `jgauge test-slot --short`, `jbus poll` |
+| `workers` | The processors | How many test workers the slots of both lanes run at once, machine-wide. Both slot counts are derived inside it. | `jgauge test-slot`, `jgauge sizes` |
+| `test_slots` | What `workers` holds after the short lane, at one desk run's workers a slot (an eighth of the processors, at least 2), at least 1, and at most one for each 4 GiB: 4 on 24 cores, 2 on 8 | How many whole suites run at once, machine-wide. `--slots` and `TEST_SLOTS` come before it. | `jgauge test-slot`, `jbus poll` |
+| `short_slots` | What half of `workers` holds, at 3 workers a slot, from 1 to 8: 4 on 24 cores, 1 on 8 | How many targeted runs and reviewers' proofs run at once in the short lane. | `jgauge test-slot --short`, `jbus poll` |
 
 The loader refuses, with one line, a key that is not one of these or a value that is not a whole number of 1 or more.
 The crew cap is `max_running` in jbus's config ([jbus](#jbus)).
