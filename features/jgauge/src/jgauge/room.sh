@@ -223,7 +223,7 @@ if ctypes.CDLL(None).syscall(QUOTACTL_FD, fd, Q_GETQUOTA_USER, os.getuid(), if_d
         if (age > 0 && field[1] != "Z") printf "%d %s\n", 100 * (field[12] + field[13]) / hz / age + 0.5, pid
       }' "$PROC"/[0-9]*/stat 2> /dev/null | sort -rn | head -n 3 | while read -r share pid; do
       [ "$share" -gt 0 ] || continue
-      command=$(tr '\0' ' ' < "$PROC/$pid/cmdline" 2> /dev/null | cut -c1-80 | sed 's/ *$//')
+      command=$(tr '[:cntrl:]' '[ *]' < "$PROC/$pid/cmdline" 2> /dev/null | cut -c1-80 | sed 's/ *$//')
       cwd=$(readlink "$PROC/$pid/cwd" 2> /dev/null)
       printf '%s in %s (%s%%), ' "${command:-?}" "${cwd:-?}" "$share"
     done)
