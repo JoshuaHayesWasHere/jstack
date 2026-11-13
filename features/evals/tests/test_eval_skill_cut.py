@@ -14,6 +14,8 @@ from testing.paths import REPO
 
 EVAL = REPO / "features" / "evals" / "evals" / "skill-cut"
 
+READ_SET = ("features/evals/evals/skill-cut/",)
+
 
 def load(path):
     sys.path.insert(0, str(EVAL))
