@@ -103,5 +103,5 @@ reverted-row-reland then gave the row a `reverted` fact and a `Reland` step: onc
 The Sync line stays where it was: this row read only its own change against the model.
 
 reverted-row-reland-twice then let a redo's merge be taken back too: `queue.reland` refuses only the merge the row's `reverted` column names, and the model's `reverted` goes back to false once the row reads a merge anew (`Derive`), so a revert of the redo's merge is a second `Reland`.
-`FinalStays` keeps `Reopened == ~reverted /\ reverted'`, which now allows one reopen per merge, and holds over 12716 distinct states with each canary breaking its check; `test_jbus_reverted_reland.py` replays a row's two relands.
+`FinalStays` keeps `Reopened == ~reverted /\ reverted'`, which now allows one reopen per merge, and holds over 12716 distinct states with each canary breaking its check; `test_jbus_reverted_row_reland.py` replays a row's two relands.
 The Sync line stays where it was: this row too read only its own change against the model.
