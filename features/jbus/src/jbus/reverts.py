@@ -600,7 +600,9 @@ def _settle(half: Half) -> None:
     in that order, so `close` judges a culprit's slug over only once a merged revert has opened
     its row again."""
     run, world = half.run, half.seen.world
-    if world is not None and reland(run, world) and half.rows is not None:
+    if world is None:
+        return
+    if reland(run, world) and half.rows is not None:
         half.rows = queue.load(run.state)
     close(run, world, half.rows)
 
