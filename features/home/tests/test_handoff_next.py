@@ -12,7 +12,7 @@ from jbus import home
 from test_home_thread import NAME, NOTE, OTHER, THREAD, Scene, block
 from test_party_handoff import DESK, Party, takes
 from test_party_handoff import OTHER as COOK
-from test_tool_calls import REPO
+from testing.paths import REPO
 
 TEMPLATES = REPO / "features" / "home" / "templates"
 ARCHIVED = (

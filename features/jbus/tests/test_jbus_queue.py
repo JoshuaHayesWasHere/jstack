@@ -11,7 +11,7 @@ import pytest
 from jsonschema import Draft202012Validator
 
 import jbus
-import test_tool_calls as tools
+import tool_schemas
 from crew_branches import pushed, started_on
 from jbus import cleanup, passes, poll, queue, wake
 from jmerge import judgement
@@ -543,7 +543,7 @@ def test_an_approved_row_is_launched_as_the_home_launches_a_crewmate(kitchen, js
         "runtimeMode": "full-access",
         "modelSelection": {"provider": "codex", "model": "a-model", "instanceId": "a-provider"},
     }
-    schema = tools.strict(tools.SCHEMAS["t3_thread_launch"])
+    schema = tool_schemas.strict(tool_schemas.SCHEMAS["t3_thread_launch"])
     assert [error.message for error in Draft202012Validator(schema).iter_errors(given)] == []
     assert (kitchen.home / "tasks/alpha.md").read_text() == written + "Thread: mcp:thread-1\n"
     assert "launched alpha: mcp:thread-1" in said
