@@ -2,15 +2,20 @@
 skips it instead of failing it.
 
 A Linux-only mark is a `pytest.mark.skipif` whose condition reads the platform (`sys.platform`,
-or a name such as jinstall's `MAC` that holds it) or asks `shutil.which` for the tool, on the
-test, on its class, or as its module's `pytestmark`, written there or bound to a name the module
-defines or imports.
+or a name such as jinstall's `MAC` that holds it), asks `shutil.which` for the tool, or asks
+whether a Linux-only path exists, on the test, on its class, or as its module's `pytestmark`,
+written there or bound to a name the module defines or imports.
 
 The facilities are the ones that broke the macOS nightly: libc.so.6 loaded through ctypes,
-inotify, a `systemctl` a test runs through `subprocess`, and a sed script a test runs whose form
-BSD sed refuses (`test_portable_shell.GNU_SED`, `test_portable_sed.unended`). The guard reads
-each test's own code and, by name, each function, class, fixture and test helper module the test
-reaches, and each helper script beside it that the test runs, as the 3 tests of
+inotify, a `systemctl` a test runs through `subprocess`, a sed script a test runs whose form
+BSD sed refuses (`test_portable_shell.GNU_SED`, `test_portable_sed.unended`), and a read of
+`/proc` or of the cgroup v2 tree at `/sys/fs/cgroup`, neither of which a Mac has. A read is the
+path's literal handed to a call, as `Path("/proc/self/cgroup")`, or a name a source module binds
+to such a path, as `slotlog.PROCS`; it is none where the same function asks whether the path
+exists, and a bound name the test swaps for a stand-in through `setattr` reads the stand-in.
+
+The guard reads each test's own code and, by name, each function, class, fixture and test helper
+module the test reaches, and each helper script beside it that the test runs, as the 3 tests of
 `test_checks_bound_probe.py` reached libc.so.6 by running `checks_bound_probe.py`. A string the
 code only holds as data is not a use: a command is a use when the code hands it to `subprocess`.
 A `systemctl` stand-in a test writes is run by its path, so a run of the bare name is the real one.
@@ -30,6 +35,8 @@ READ_SET = ("features/*/tests/", "testing/tests/")
 LOADERS = {"CDLL", "PyDLL", "LoadLibrary"}
 SED_RULES = [re.compile(pattern) for pattern, _ in GNU_SED]
 PLATFORM = re.compile(r"\bplatform\b|\bMAC\b|\bwhich\(")
+LINUX_PATHS = ("/proc", "/sys/fs/cgroup")
+CHECKS = {"exists", "is_dir", "is_file", "isdir", "isfile"}
 
 
 def folders(root):
@@ -68,6 +75,94 @@ def command_lines(call):
             yield node.value
 
 
+def linux_path(node):
+    """The Linux-only path a string literal, or an f-string's literal start, is under, if any."""
+    if isinstance(node, ast.JoinedStr) and node.values:
+        node = node.values[0]
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        for root in LINUX_PATHS:
+            if node.value == root or node.value.startswith(root + "/"):
+                return root
+    return None
+
+
+def source(root, dotted):
+    """The source module `dotted` names under a feature's src/, if the repo has one."""
+    for path in sorted(root.glob(f"features/*/src/{dotted.replace('.', '/')}.py")):
+        return module(path)
+    return None
+
+
+def bound_path(mod, dotted, name):
+    """The Linux-only path that source module `dotted` binds `name` to, if it does."""
+    found = source(mod.root, dotted)
+    node = found and found.defs.get(name)
+    if isinstance(node, ast.Assign):
+        return next(filter(None, map(linux_path, ast.walk(node.value))), None)
+    return None
+
+
+def module_named(mod, expr):
+    """The dotted name of the module a name in `mod` stands for, as `from jgauge import slotlog`
+    makes `slotlog` stand for `jgauge.slotlog`."""
+    if isinstance(expr, ast.Name) and expr.id in mod.imports:
+        return ".".join(mod.imports[expr.id])
+    return None
+
+
+def path_named(mod, expr):
+    """`(path, name)` when an expression is a source module's name bound to a Linux-only path,
+    as `slotlog.PROCS` is to /proc, and `(path, None)` when it is such a path's literal."""
+    if root := linux_path(expr):
+        return root, None
+    if isinstance(expr, ast.Attribute) and (owner := module_named(mod, expr.value)):
+        name = expr.attr
+    elif isinstance(expr, ast.Name) and expr.id in mod.imports:
+        owner, name = mod.imports[expr.id]
+    else:
+        return None
+    root = bound_path(mod, owner, name)
+    return (root, f"{owner}.{name}") if root else None
+
+
+def path_reads(mod, node):
+    """What a node's own code says of the Linux-only paths: `(path, None)` for a literal one it
+    hands to a call, `(path, name)` for a source module's name bound to one that it uses, none
+    of them where it asks whether such a path exists, and `(None, name)` for a bound name it
+    swaps for a stand-in."""
+    reads, swaps, checked, held = set(), set(), False, set()
+    for one in ast.walk(node):
+        if isinstance(one, ast.Assign) and any(map(linux_path, ast.walk(one.value))):
+            held |= {target.id for target in one.targets if isinstance(target, ast.Name)}
+    for one in ast.walk(node):
+        if isinstance(one, (ast.Attribute, ast.Name)) and (named := path_named(mod, one)):
+            reads.add(named)
+        if not isinstance(one, ast.Call):
+            continue
+        if one.args and (root := linux_path(one.args[0])):
+            reads.add((root, None))
+        func = one.func
+        if isinstance(func, ast.Attribute) and func.attr in CHECKS:
+            subject = one.args[0] if one.args else func.value
+            checked |= any(
+                path_named(mod, part) or (isinstance(part, ast.Name) and part.id in held)
+                for part in ast.walk(subject)
+            )
+        if getattr(func, "attr", getattr(func, "id", None)) == "setattr" and len(one.args) > 1:
+            owner, name = module_named(mod, one.args[0]), one.args[1]
+            if owner and isinstance(name, ast.Constant) and isinstance(name.value, str):
+                swaps.add((None, f"{owner}.{name.value}"))
+    return swaps if checked else reads | swaps
+
+
+def settled(found):
+    """The facilities of what a test reaches, each path read made its path: a name the test
+    swaps for a stand-in reads the stand-in."""
+    reads = {one for one in found if isinstance(one, tuple)}
+    swapped = {name for root, name in reads if root is None}
+    return (found - reads) | {root for root, name in reads if root and name not in swapped}
+
+
 def own_facilities(node):
     """The Linux-only facilities a function's or class's own code uses."""
     found = set()
@@ -96,6 +191,7 @@ class Module:
 
     def __init__(self, path):
         self.path = path
+        self.root = next(up for up in path.parents if (up / "features").is_dir())
         self.tree = ast.parse(path.read_text(), filename=str(path))
         self.defs, self.imports = {}, {}
         for node in self.tree.body:
@@ -168,7 +264,8 @@ def step(mod, node):
     if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
         reached += list(fixtures(mod, node))
     reached += [(script, script.tree) for script in scripts_run(mod, node)]
-    return own_facilities(node), [one for one in reached if one is not None]
+    own = own_facilities(node) | path_reads(mod, node)
+    return own, [one for one in reached if one is not None]
 
 
 def facilities(mod, node, seen=None):
@@ -185,14 +282,26 @@ def facilities(mod, node, seen=None):
     return found
 
 
+def asks_exists(mod, expr):
+    """Whether an expression asks whether a Linux-only path exists."""
+    return any(
+        isinstance(one, ast.Call)
+        and isinstance(one.func, ast.Attribute)
+        and one.func.attr in CHECKS
+        and any(path_named(mod, part) for part in ast.walk(one))
+        for one in ast.walk(expr)
+    )
+
+
 def linux_only(mod, expr, depth=0):
-    """Whether a decorator, or a `pytestmark`, is a skip on the platform."""
+    """Whether a decorator, or a `pytestmark`, is a skip on the platform, or on whether a
+    Linux-only path exists."""
     if depth > 3:
         return False
     if isinstance(expr, (ast.List, ast.Tuple)):
         return any(linux_only(mod, one, depth) for one in expr.elts)
     text = ast.unparse(expr)
-    if "skipif" in text and PLATFORM.search(text):
+    if "skipif" in text and (PLATFORM.search(text) or asks_exists(mod, expr)):
         return True
     target = expr.func if isinstance(expr, ast.Call) else expr
     if isinstance(target, ast.Name) and (found := mod.resolve(target.id)):
@@ -237,7 +346,7 @@ def unmarked(root):
         for path in sorted(folder.rglob("test_*.py")):
             mod = module(path)
             for name, node, marks in marked_tests(mod):
-                used = facilities(mod, node)
+                used = settled(facilities(mod, node))
                 if used and not any(linux_only(mod, mark) for mark in marks):
                     found.append(f"{path.relative_to(root)}::{name}: {', '.join(sorted(used))}")
     return found
@@ -331,3 +440,78 @@ def test_the_marks_jinstall_and_jbus_write_count_as_linux_only():
     assert "test_the_units_are_linked_and_the_timer_enabled_once_jbus_has_a_config" in marked
     probe = module(REPO / "features" / "jbus" / "tests" / "test_checks_bound_probe.py")
     assert linux_only(probe, ast.Name("INOTIFY"))
+
+
+def test_a_planted_test_that_reads_proc_or_cgroup_v2_unmarked_is_named_and_a_guarded_is_not(
+    tmp_path,
+):
+    """A path under /proc or /sys/fs/cgroup read by its literal, or through a name a source
+    module binds to one, is a use; a read that first asks whether the path exists, a name the
+    test swaps for a stand-in, and a path held only as data are not."""
+    paths = tmp_path / "features" / "demo" / "src" / "demo" / "paths.py"
+    paths.parent.mkdir(parents=True)
+    paths.write_text(
+        'from pathlib import Path\nPROCS = Path("/proc")\nCGROUPS = Path("/sys/fs/cgroup")\n'
+    )
+    plant(
+        tmp_path,
+        "test_reads.py",
+        '''
+        import os, sys
+        from pathlib import Path
+        import pytest
+        from demo import paths
+        from demo.paths import CGROUPS
+        LINUX = pytest.mark.skipif(sys.platform != "linux", reason="Linux's case")
+
+        def own_cgroup():
+            return (paths.PROCS / "self" / "cgroup").read_text()
+
+        def test_literal():
+            assert Path("/proc/self/cgroup").read_text()
+
+        def test_formatted():
+            assert os.readlink(f"/proc/{os.getpid()}/cwd")
+
+        def test_opened():
+            with open("/sys/fs/cgroup/cgroup.controllers") as controllers:
+                assert controllers.read()
+
+        def test_through_a_helper():
+            assert own_cgroup()
+
+        def test_imported_name():
+            assert list(CGROUPS.iterdir())
+
+        def test_checked_first(tmp_path):
+            proc = Path(f"/proc/{os.getpid()}")
+            if proc.exists():
+                assert (proc / "stat").read_text()
+
+        @pytest.mark.skipif(not paths.PROCS.is_dir(), reason="no /proc")
+        def test_skipped_with_no_proc():
+            assert own_cgroup()
+
+        def test_is_gone():
+            assert not Path("/proc/0").exists()
+
+        def test_stood_in(tmp_path, monkeypatch):
+            monkeypatch.setattr(paths, "PROCS", tmp_path)
+            assert own_cgroup() is not None
+
+        def test_held_as_data(monkeypatch):
+            """Reads /proc, says the docstring."""
+            monkeypatch.setenv("STATE", "/proc/no-such-state")
+
+        @LINUX
+        def test_marked():
+            assert own_cgroup()
+        ''',
+    )
+    assert unmarked(tmp_path) == [
+        "features/demo/tests/test_reads.py::test_literal: /proc",
+        "features/demo/tests/test_reads.py::test_formatted: /proc",
+        "features/demo/tests/test_reads.py::test_opened: /sys/fs/cgroup",
+        "features/demo/tests/test_reads.py::test_through_a_helper: /proc",
+        "features/demo/tests/test_reads.py::test_imported_name: /sys/fs/cgroup",
+    ]
