@@ -97,7 +97,8 @@ class Port:
         (`queue.names`), as a go that opens a door does (`acts._unbound`), and says it waives the
         line the `Waived:` line names, quoting it (`meets.quotes`): an earlier word about the row,
         such as its go, waives nothing. A user's plain reply to a home's ask waives the lines a
-        `waive` act binds it to (`jbus.waive`), which checked it when the home recorded it."""
+        `waive` act binds it to (`jbus.waive`), which checked it when the home recorded it, and
+        the root home's own waiver, `root/<act id>`, is that `waive` act itself."""
         ref = waiver.ref
         try:
             found = project(checkout)

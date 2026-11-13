@@ -126,10 +126,10 @@ A `decision` is only what the user alone can decide, so four things are never on
 A command for the user to paste is none: offer to run it, as an option the user picks, and hand over only a step no agent can take, such as a sudo password, saying why.
 A finished or superseded row is none: once nothing of it is left to land, remove it with `jbus queue remove` on a message of the user's that covers it.
 A go the user already gave is none: record that message with `jbus word --from "$ME"` and approve the row on it, and never pass on jbus's `approve` line for work they approved.
-A waiver of a `Done when` line is the root's to judge: a scoped home escalates it with `jbus stop --kind decision` on its row, and the root judges it by its skill's "Judge a waiver".
-A waiver the user is asked is asked once, in plain words: name each row by its slug with the numbers of the Done when lines it would waive, as `alpha: lines 2 and 3`, in this home's own thread.
-The user's plain reply to that message ("yes", "clear them") is the waiver: bind it with `jbus waive <slug> <line number>... --message <thread id>/last` for each row, `last` their newest message, which writes the brief's `Waived:` lines that jmerge counts.
-Never ask the user to quote a line or send exact words.
+A waiver of a `Done when` line is the root's: a scoped home sends it with `jbus stop --kind decision` on its row, with its pick and evidence.
+The root records it with `jbus waive --as root` when the line need not hold and a revert undoes the merge, and flags the user otherwise ("Judge a waiver").
+A waiver the user is asked is asked once: name each row by its slug and the numbers of its lines, as `alpha: lines 2 and 3`.
+The user's plain reply ("yes") is the waiver: bind it with `jbus waive <slug> <line number>... --message <thread id>/last` for each row, which writes the `Waived:` lines; never ask for exact words.
 A reply jbus refuses (not the user's own, said before the ask, or to an ask that did not name the row and its lines) is asked again in one plain sentence.
 A row this home would advise against is none: never pass on jbus's `approve` line for it.
 Remove it with `jbus queue remove <slug> --message <thread id>/<message id>` on the user's standing word for such rows (Josh, 2026-11-07), its id from `jbus thread --said 'just drop it in the future'`.

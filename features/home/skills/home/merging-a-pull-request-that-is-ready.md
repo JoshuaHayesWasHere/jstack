@@ -7,7 +7,9 @@ On that word, the one way a home merges it is `jmerge --accept <number> --as use
 A home's own `gh pr merge`, `gh api .../pulls/<number>/merge` or GraphQL `mergePullRequest` is refused by the `merge-command` hook, which prints that line in its place ([The merge hook](../../docs/hooks.md#the-merge-hook)).
 Where the accept refuses, its line says why and what to do; relay it to the user, and merge nothing by hand.
 A pull request whose last review round says `Meets the brief: no` is short of ready, and so is one whose round has no such typed line or a count that is not its brief's: `jmerge` holds it by its own reason (`meets-no`, `meets-unread`, `meets-miscounted`), on every path that merges, a follow-up row's included.
-Its way out is its crew's fix and a scoped review whose own line says `yes`, or the user's `Waived: <the Done when line>, <thread>/<message>` line in the brief, which jbus checks rests on the user's own message, or the bot's word, in one of two ways.
+Its way out is its crew's fix and a scoped review whose own line says `yes`, or a `Waived:` line in the brief.
+The root home writes its own, `Waived: <the Done when line>, root/<act id>`, with `jbus waive --as root` and its reason and undo, by its skill's "Judge a waiver", and a scoped home sends it the waiver as a `decision` stop.
+Any other is the user's `Waived: <the Done when line>, <thread>/<message>` line, which jbus checks rests on the user's own message, or the bot's word, in one of two ways.
 The first is a message that names the row, says it waives, and quotes that line: a home writes the line from such a message.
 The second is the user's plain reply ("yes", "clear them") in a home's own thread to that home's last message, which asked once, naming the row by its slug and the numbers of the lines it would waive, as `alpha: lines 2 and 3`.
 A home records that reply with `jbus waive <slug> <line number>... --message <thread id>/last` for each row, which checks the reply and the ask and writes the `Waived:` lines itself.
