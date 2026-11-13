@@ -541,11 +541,34 @@ def test_a_machine_with_no_room_waits_whatever_the_limits_file(tmp_path):
     assert full.stdout.startswith("wait: load ") and full.stderr == ""
 
 
-def test_the_check_reads_the_machine_it_runs_on(tmp_path):
-    here = {**os.environ, "LIMITS": str(tmp_path / "none")}
-    (line,) = ran(here).stdout.splitlines()
-    assert line == "go" or line.startswith("wait: ")
-    assert "could not be read" not in line
+def desk(tmp_path, state):
+    """The environment of a desk in that state, stated whole, with a home of its own, so the
+    verdict never follows the machine the test runs on. A busy desk is past its load, has used
+    its whole five-hour limit in the limits file of its home, and runs two busy processes."""
+    home = tmp_path / "home"
+    if state == "busy":
+        env = machine(tmp_path, **{**IDLE, "load": "24.00"}, plan=CAPPED)
+        processes(tmp_path, ("yes", "/tmp/lwr/c", 99), ("bash -c make", "/home/u", 60))
+    else:
+        env = machine(tmp_path, **IDLE)
+    (home / ".local" / "state" / "claude").mkdir(parents=True)
+    os.replace(env.pop("LIMITS"), home / ".local" / "state" / "claude" / "limits")
+    return {**env, "HOME": str(home)}
+
+
+@pytest.mark.parametrize(
+    ("state", "said"),
+    [
+        (
+            "busy",
+            "wait: load 24.00 is at or over 200% of 12 cores; the busiest: "
+            "yes in /tmp/lwr/c (99%), bash -c make in /home/u (60%)",
+        ),
+        ("idle", "go"),
+    ],
+)
+def test_the_check_reads_the_machine_it_runs_on(tmp_path, state, said):
+    assert ran(desk(tmp_path, state)).stdout.splitlines() == [said]
 
 
 def test_the_check_reads_the_limits_file_of_the_account_it_runs_under(tmp_path):
