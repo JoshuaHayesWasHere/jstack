@@ -95,7 +95,7 @@ from collections.abc import Callable, Collection, Iterable, Sequence
 from dataclasses import dataclass
 from datetime import timedelta
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from jbriefs import below
 from jbriefs import home as homes
@@ -107,9 +107,6 @@ from jbus.passes import Pass
 from jbus.watch import World, brief_of, copy_brief, fix_brief, task_brief, tests_said, when
 from jmerge import mainjson
 from jmerge import reverts as kept
-
-if TYPE_CHECKING:
-    from jbus.poll import Half
 
 EVENTS = {"revert": "quiet", "reland": "quiet"}
 READ_WAIT = timedelta(hours=1)
@@ -595,13 +592,11 @@ def reland(run: Pass, world: World) -> bool:
     return moved
 
 
-def _settle(half: Half) -> None:
+def _settle(half: Any) -> None:
     """Open the rows whose revert merged (`reland`), then close or drop the reverts (`close`):
     in that order, so `close` judges a culprit's slug over only once a merged revert has opened
     its row again."""
     run, world = half.run, half.seen.world
-    if world is None:
-        return
     if reland(run, world) and half.rows is not None:
         half.rows = queue.load(run.state)
     close(run, world, half.rows)
