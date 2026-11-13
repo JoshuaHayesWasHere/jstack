@@ -127,8 +127,7 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    Then do what "Its scheduled tasks" says, under "The home before this one" below these steps, before step 4.
 4. See where things stand.
    Read `$M/handoff.md`, a note an older handoff left, where there is one: the block below prints the path of each that is there.
-   Where the repo has a context pack, `<checkout>/docs/context/`, the block prints the path of its `INDEX.md` after those: read it whole as well.
-   It is the light layer, one line a note with what the note answers and the commit it was checked at: open a note under `<checkout>/docs/context/notes/` only when a step needs it.
+   Where the repo has a context pack, `<checkout>/docs/context/`, the block prints the path of its `INDEX.md` after those: read it whole, and open a note under `<checkout>/docs/context/notes/` only when a step needs it.
    When what you know disagrees, the first in this order wins: the user's word, then the source at its current revision, then the pack, then the model's memory, always labelled "from memory, not checked".
    A pack line that a layer above it contradicts is reported, not acted on: say it to the user, and brief the note's fix as a pull request to `<checkout>/docs/context/`.
    A repo with no pack gets one by a brief that starts from the skeleton in `$T/context/`, which `$T/context/README.md` explains, and [features/jpack/docs/context.md](../../../jpack/docs/context.md) of the jstack checkout says how a pack is checked and pruned.
@@ -141,25 +140,20 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
    uv run --project "$T/../source" jbus home status --home "$M" $none
    ```
 
-   It prints this home's part of what jbus and the files hold, each line cut at 110 characters, a line of the plan at 150 and one under `## to read` not at all, and each part at a few lines, with the command that prints the rest.
-   Under `## plan`, one line for each entry of this home's plan: the slug, its one line, and its status.
-   No status is written by hand, in the plan or anywhere else: `jbus plan` counts it from the entry's queue rows each time it is read, as `4 of 7 merged, #383 at pr, 1 queued not approved`.
-   An entry with no row shows its `Stage:` line, and one from before shows its old line as `(typed) Status: ...`, which nobody checked.
-   The plan is not read whole: read an entry's own section of `$M/plan.md` when you take that entry up, its "Done when" list and the user's words under `Decisions:`.
-   On `no jbus plan`, read the file whole.
-   Under `## waiting on you`, what waits on the user in this project, as `jbus needs` prints it and never cut, then a count for each other project with something waiting ("What waits on the user").
-   Under `## queue`, each open row of this home's as its slug, status, pull request and why it waits.
-   Under `## questions`, each open question of this home's, by its number.
-   Under `## merged`, each `merged` line `jmerge` logged since this home's mark in `merge-seen`, which the merge step of step 5 moves, and not this block.
+   It prints this home's part of what jbus and the files hold, each part cut at a few lines with the command that prints the rest; a line under `## to read` is never cut.
+   Under `## plan`, one line for each entry: the slug, its one line, and the status `jbus plan` counts from its queue rows, as `4 of 7 merged, #383 at pr, 1 queued not approved`, or its `Stage:` line where it has no row.
+   No status is written by hand. An old entry's typed line shows as `(typed) Status: ...`, which nobody checked.
+   Read an entry's own section of `$M/plan.md`, its "Done when" list and the user's words under `Decisions:`, when you take it up, and the file whole only on `no jbus plan`.
+   Under `## waiting on you`, what `jbus needs` prints for this project, never cut, then a count for each other project ("What waits on the user").
+   Under `## queue`, each open row of this home's as its slug, status, pull request and why it waits; under `## questions`, each open question of this home's, by its number; under `## merged`, each `merged` line `jmerge` logged since the mark in `merge-seen`, which step 5's merge step moves.
 
-   Under `## to read`, the last `## Result` or `## Report` heading of each brief and request that is this home's and that no home has marked read, at most eight: what came in that no home has read.
-   A `## Review` or a `Finding:` line added under a heading that is marked shows nothing again.
-   A brief whose last Result says `Status: done` and `Left: none`, and whose slug `jmerge` logged as `merged`, has nothing left to read: the block marks its heading read without showing it, and says how many it marked.
-   A home with no `$M/read-seen` yet marks every heading there is now, shows none, and says so: what came before the mark is the last homes'.
+   Under `## to read`, at most eight: the last `## Result` or `## Report` heading of each brief and request of this home's that no home has marked read.
+   A `## Review` or a `Finding:` line added under a marked heading shows nothing again.
+   A brief whose last Result says `Status: done` and `Left: none`, and whose slug `jmerge` logged as `merged`, is marked read without being shown, and the block says how many.
+   A home with no `$M/read-seen` yet marks every heading there is now, shows none, and says so.
    Read each section it printed, then mark them read with the block below, and only then: a start cut off before the mark shows them to the next home again.
-   A path under `read whole:` that ends in `handoff.next.md` is a note a home wrote and was cut off before it archived: read it too, for a gate only it holds.
-   A brief or a request is this home's by what `whose` prints for it: a scoped home's when its `Home:` line names the scope, and the root home's when it has no such line or one that names no home.
-   One written before, with a thread id on the line, is the home's whose `home-id` or whose `handoff.md`'s `Was home:` line has that id.
+   A path under `read whole:` that ends in `handoff.next.md` is a note a home was cut off before archiving: read it too, for a gate only it holds.
+   A brief or a request is this home's by what `whose` prints for it: a scoped home's when its `Home:` line names the scope, the root's when it has no such line or one that names no home, and, for an older one with a thread id on the line, the home whose `home-id` or `Was home:` line has that id.
    Read nothing else yet: not the log, not `plan.md`.
    A step that needs the repo's check command reads `$H/fresh-check` then.
    The code is never the home's to read.
@@ -180,7 +174,6 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
 5. First, where step 4 printed `no project:` under `## questions`, do what "On the bus" says, below these steps: a repo with a home is a jbus project.
    Then do steps 2 and 3 of "When a thread sends a message", once, without waiting for a word: run the merge step, which prints what jbus merged since the last home read the log and what each open pull request waits for, update the plan, and launch what can start.
    Then run the sweep, the last block of "Merging a pull request that is ready", and do what that section says for each of its two lists: a start is the one time it is run.
-   The merge step runs no `jmerge`, and the sweep runs one only while `$H/home-thread` holds an id.
    A message sent while this directory had no home reached nobody, a `fixed and green` line among them, and step 4 has already read what landed.
    Then do what "Its thread" says, under "The home before this one".
    The root home then reads its children by "Reading the scopes", a step of its own skill (`features/home/skills/root/SKILL.md`).

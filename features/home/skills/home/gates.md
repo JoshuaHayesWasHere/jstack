@@ -49,13 +49,9 @@ else
 fi
 ```
 
-It prints nothing.
-`jbus home status --gates` reads jbus for it, and this block reads no file of jbus's itself: where the command fails, `$WHY` says so and nothing else is set.
-`$own` is this home's own slug, `$P` this repo's project in jbus's config, and `$OPEN` the open questions that are this home's, one to a line with their fields joined by `$SEP`, read from the record jbus keeps of them: it is as it is now, with no pass between.
-This block only reads it: `jbus gate` and `jbus answer` are the two that write it.
-A question is this home's by the brief or the request of the slug that asked, as step 4 of "When a home starts" tells, or by this home's own slug, whatever brief has that name: `home` for the root home, `home-<scope>` for a scoped one.
-One that no brief, no request and no home asked, as an expert's finding is, is the root home's.
-`$WHY` says why nothing could be read.
+It prints nothing, and reads no file of jbus's itself.
+`$own` is this home's own slug (`home` for the root, `home-<scope>` for a scoped one), `$P` this repo's project in jbus's config, and `$OPEN` this home's open questions as jbus holds them now, one to a line, their fields joined by `$SEP`; where the command fails, `$WHY` says why and nothing else is set.
+A question is this home's by the brief or the request of the slug that asked (step 4 of "When a home starts"), or by this home's own slug, whatever brief has that name; one that no brief, no request and no home asked, as an expert's finding is, is the root's.
 
 **Ask one** when the question is this home's own.
 Take the default you would recommend and act on it at once, or, for a default the table above holds, do its fail-safe and put the action in a row whose brief has `Holds: <the case>`, which the user's own go in T3 Code opens for that row's crew.
@@ -118,15 +114,12 @@ On `no jbus`, `no project` and `jbus could not be`, say that line: no question c
 Give each open question to the user as text, by its number: the question and the default taken, then what was built on it and how to undo it.
 For one whose last line is `holds (<case>) for the answer`, say instead that its default waits for their answer, with the case and the fail-safe.
 Ask it once, in plain words in this home's own thread, in a message that names it as `question <n>`, or names the row a `may <slug> go?` question waits on: "Question 250: delete the throwaway branch, or keep it?".
-The user's plain reply to that ask is the answer: "drop it", "yes" or "keep it" need not name the question or the row, since jbus reads the last message this home wrote before the reply, and binds the reply to each open door that message named.
-So a door you do not want opened goes in a message of its own; a reply that names its item itself, as `q250`, `#250` or the row's slug, binds only to the items it names, wherever it was said.
-Turn the user's words into the verb yourself: never give them words to send, and never ask them to repeat an answer in exact words.
-Close it with `jbus answer <n> --default --message <thread id>/last`, or `--differs` for an answer that is not the default, on that reply; a reply to a `may <slug> go?` ask opens the row with `jbus queue approve <slug> --message <thread id>/last` the same way (`last`: their newest message there).
-Where they already sent that message, run the command on it yourself, and never ask them to send it again.
-When jbus refuses the reply (said before the ask, or to an ask that named another door), ask again about this one item alone, in plain words, and run the command on their next reply: never hand them a line to send.
-On a `may <slug> go?` question, `--differs` is the go, and jbus approves the row with it.
-"Close one" below cannot close it, since jbus refuses `--by` and `--at` words on a question that holds.
-Ask for nothing more than the answer.
+The user's plain reply to that ask ("drop it", "yes") is the answer: jbus binds it to each open door the last message this home wrote before it named, so a door you do not want opened goes in a message of its own.
+A reply that names its item itself, as `q250`, `#250` or the row's slug, binds only to the items it names, wherever it was said.
+Close it on that reply, or on one they already sent, with `jbus answer <n> --default --message <thread id>/last`, or `--differs` for an answer that is not the default (`last`: their newest message there); a reply to a `may <slug> go?` ask opens the row with `jbus queue approve <slug> --message <thread id>/last`, and on such a question `--differs` is the go.
+"Close one" below cannot close a question that holds, since jbus refuses `--by` and `--at` words on it.
+When jbus refuses the reply (said before the ask, or to an ask that named another door), ask again about this one item alone, in plain words.
+Turn the user's words into the verb yourself: never give them words or a line to send, never ask them to repeat an answer in exact words, and ask for nothing more than the answer.
 
 **Close one** when the user answers it.
 Put the question's number, the user's name, the time they answered, `default` or `differs`, and their words, as they said them, in place of the five placeholders:
@@ -155,9 +148,9 @@ default | differs)
 esac
 ```
 
-`default` is an answer that keeps the default the thread took, and `differs` one that does not: only the one who heard the answer knows which, so words such as "yes" are read against the question's default before the block is run. On `answered: question <number>`, the question is closed, and this home sends nothing and undoes nothing: jbus carries an answer that differs to the thread that asked, with the question's undo line, on its next pass. For a question this home asked under its own slug there is no thread to tell: change the plan entry it touches, or write the new brief. Where jbus says the slug `has no Thread: line`, or the thread is finished or its pull request merged, the answer is work for a new brief.
+`default` keeps the default the thread took, and `differs` does not: read words such as "yes" against the question's default before the block is run. On `answered: question <number>`, the question is closed, and this home sends nothing and undoes nothing: jbus carries an answer that differs to the thread that asked, with the question's undo line, on its next pass. For a question this home asked under its own slug, change the plan entry it touches, or write the new brief. Where jbus says the slug `has no Thread: line`, or the thread is finished or its pull request merged, the answer is work for a new brief.
 
-On `not answered: jbus said: refused:` the question is as it was. `only <name> answers` gives the name `--by` takes, and `--at is "<YYYY-MM-DD HH:MM ZONE>"` the form of the time: set that line and run it again. `was answered already` prints the first answer, which stands: the user answered it elsewhere, and a second answer is theirs to give as a new word, not as this question's.
-A refusal that says the question `holds` ends with the `jbus answer` command that closes it: run it on the user's own message, since no `--by` and `--at` closes it.
+On `not answered: jbus said: refused:` the question is as it was. `only <name> answers` gives the name `--by` takes, and `--at is "<YYYY-MM-DD HH:MM ZONE>"` the form of the time: set that line and run it again. `was answered already` prints the first answer, which stands: a second answer is the user's to give as a new word.
+A refusal that says the question `holds` ends with the `jbus answer` command that closes it: run it on the user's own message.
 
 A gate that came as a `<slug>: gate` message is one jbus could not take, so jbus holds no question for it and no command closes it: this thread is its record. Give it to the user in two lines, and send an answer that differs to the thread on its `Asked by:` line yourself (`t3_thread_send`, the answer and the gate's `Undo:` line). It is the one answer a home carries. Until it is answered, the handoff's note carries it under its labels, whole: nothing else outlasts this thread.

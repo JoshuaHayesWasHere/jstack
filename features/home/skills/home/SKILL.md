@@ -70,15 +70,15 @@ A message that reaches such a thread is not its to act on, whoever sent it: run 
 | `$M/plan.md` | The work this home has planned: one entry per task, each with a "Done when" list. | Open tasks only |
 | `$M/blockers.json` | Each blocker this home briefed a fix of, with each fix queued for it, which `jbus queue add` counts against the retry cap and writes: never by hand ("Clearing its own blockers"). | One entry per blocker |
 | `$M/home-id` | This home's thread id. A scout, a crewmate or a reviewer reads it each time it sends: a scoped home's for a brief or a request that names its scope, and the root home's only for one whose `Home:` line is `root` (or that has none) from before the root queued every row in a child. | One line |
-| `$H/home-thread` | The sweep switch, and not this home's id. An id in it has the home run `jmerge --sweep` at its start, and empty or missing nobody sweeps ("Merging a pull request that is ready", "Who sweeps"). It decides nothing of the merge: jbus runs `jmerge` on each pass whatever it holds, and no home merges. Set by hand only: no skill and no script writes it. | Empty, or one line |
+| `$H/home-thread` | The sweep switch, and not this home's id: an id in it has the home run `jmerge --sweep` at its start ("Who sweeps"). It decides nothing of the merge. Set by hand only: no skill and no script writes it. | Empty, or one line |
 | `$M/read-seen` | The Result and Report headings step 4 of a start has shown this home, one a line, so each is shown once. | One line per heading |
 | `$M/told` | Each decision and stop a turn's end told the user, one a line, so each is told once, and each `local` one is shown on status until a `cleared local` line ends it ("How a turn ends"). | One line per decision or stop |
 | `$M/merge-seen` | The last line of `$H/merge.log` this home has read, so that each `merged` line of jbus's is relayed once ("Merging a pull request that is ready"). | One line |
 | `$M/log/` | The note of each home archived here, dated, with what it had out and its `Was home:` line, and older notes. A start reads only the last `Was home:` line ("The home before this one"). | Unbounded |
 | `$M/plan-archived.md` | An archived scope's plan, moved out of `plan.md` so that no home, jbus or tree counts the scope. `/home <scope>` moves it back. | Open tasks only |
-| `$H/fresh-check` | The repo's check command, which CI's check is the check of record for (a crewmate runs it once, but in a repo whose check selects its tests only its touched check, `PART=touched`), and the line `jbus queue add` holds a brief's check line to. A fact a thread would otherwise relearn is no line in a file: it is code, a config key, or a queued row that codes it. | One line |
+| `$H/fresh-check` | The repo's check command, which CI's check is the check of record for (a crewmate runs it once, but in a repo whose check selects its tests only its touched check, `PART=touched`), and the line `jbus queue add` holds a brief's check line to. | One line |
 | `$M/prefix` | A scoped home's slug prefix, such as `ux-`: each of its briefs and requests starts with it, and no other home's does. Written once, when the root home makes the scope. | One line |
-| `$H/standing.md` | None. A standing rule of the user's is code, the text of the skill step that needs it, or a queued row, and never a line in a file a thread reads at its start: not here, and not in Claude Code's auto-memory. `jbus rules` lists each such file, and jbus wakes the root home for each until it is gone. | Absent |
+| `$H/standing.md` | None. A standing rule of the user's, or a fact a thread would otherwise relearn, is code, a config key, the text of the skill step that needs it, or a queued row, and never a line in a file a thread reads at its start: not here, and not in Claude Code's auto-memory. `jbus rules` lists each such file, and jbus wakes the root home for each until it is gone. | Absent |
 | `$H/tasks/<slug>.md` | A crewmate's brief, and its result, whichever home wrote it. | One page |
 | `$H/scouts/<slug>.md` | A scout's request, and its report, whichever home wrote it. | One page |
 | `$H/reports/` | The visuals a scout or a home makes for the user. | Unbounded |
@@ -126,10 +126,9 @@ A `decision` is only what the user alone can decide, so four things are never on
 A command for the user to paste is none: offer to run it, as an option the user picks, and hand over only a step no agent can take, such as a sudo password, saying why.
 A finished or superseded row is none: once nothing of it is left to land, remove it with `jbus queue remove` on a message of the user's that covers it.
 A go the user already gave is none: record that message with `jbus word --from "$ME"` and approve the row on it, and never pass on jbus's `approve` line for work they approved.
-A waiver of a `Done when` line is the root's: a scoped home sends it with `jbus stop --kind decision` on its row, with its pick and evidence.
-The root records it with `jbus waive --as root` when the line need not hold and a revert undoes the merge, and flags the user otherwise ("Judge a waiver").
-A waiver the user is asked is asked once: name each row by its slug and the numbers of its lines, as `alpha: lines 2 and 3`.
-The user's plain reply ("yes") is the waiver: bind it with `jbus waive <slug> <line number>... --message <thread id>/last` for each row, which writes the `Waived:` lines; never ask for exact words.
+A waiver of a `Done when` line is the root's: a scoped home sends it with `jbus stop --kind decision` on its row, with its pick and evidence, and the root waives it with `jbus waive --as root` or flags the user ("Judge a waiver").
+A waiver the user is asked is asked once, naming each row by its slug and the numbers of its lines, as `alpha: lines 2 and 3`.
+Their plain reply ("yes") is the waiver: bind it with `jbus waive <slug> <line number>... --message <thread id>/last` for each row, which checks the reply and the ask and writes the `Waived:` lines; never ask for exact words.
 A reply jbus refuses (not the user's own, said before the ask, or to an ask that did not name the row and its lines) is asked again in one plain sentence.
 A row this home would advise against is none: never pass on jbus's `approve` line for it.
 Remove it with `jbus queue remove <slug> --message <thread id>/<message id>` on the user's standing word for such rows (Josh, 2026-11-07), its id from `jbus thread --said 'just drop it in the future'`.
@@ -207,9 +206,7 @@ The home does no research of its own: it reads only its state directory, `$H`. N
 
 ## The root home
 
-A repo's root home and its scoped homes have different goals.
-The root runs the whole pipeline for the user: it supplies every child its rows, gives an entry's go, tells and answers its children through jbus, and builds nothing.
-A scoped home lands one goal in depth, owns its crews, and escalates to the root what it may not decide alone.
+The root runs the whole pipeline for the user and builds nothing; a scoped home lands one goal in depth, owns its crews, and escalates to the root what it may not decide alone.
 When step 1 of "When a home starts" printed `root`, and on each turn of the root home after: read `$T/../skills/root/SKILL.md` now.
 It holds the root's goal and its steps, and the sections of this skill that it names are the ones the root shares with every home.
 
@@ -249,7 +246,6 @@ When a thread this home sent out sends it a message, when the user asks for stat
 ## Clearing its own blockers
 
 Each time this home wakes, at its start and on a thread's message, and when a step elsewhere names this section: read `$T/../skills/home/clearing-its-own-blockers.md` now, and run its block.
-No bot outside watches the homes or the queue: this home clears its own blockers, and raises to the user only what the user has to decide.
 
 ## What waits on the user
 
@@ -298,10 +294,8 @@ After the second miss `jbus` sends this home one line that names the slug, the p
 `jbus` interrupts no hung turn, so an interrupt, where one is needed, is the home's.
 
 A thread whose last turn failed on a usage limit, the text `You've hit your weekly limit · resets <time>` or its 5-hour twin, is not carried on in place: its instance is capped until that reset, and the same message fails again.
-`jbus` does it: its pass reads the failure, writes the cap to the ledger of the instance it ran on, moves the thread to the first instance of its role's pool with headroom with only the `instanceId` changed (`t3_thread_configure`), and sends one queued carry-on, once for the failed run.
-Every launch goes to that first instance with headroom as well (`jroles` says which instance it chose and why).
-Where every instance of the pool is capped `jbus` logs one `stall`, which is quiet and in the digest, and waits for the first reset.
-Do the same by hand only where no `jbus` runs: read the thread with `t3_thread_configure` and only its `threadId`, call `t3_thread_configure` again with that selection and the `instanceId` of the next instance of the pool, then send the carry-on below.
+`jbus` moves it: its pass writes the cap to the ledger of the instance it ran on, moves the thread to the first instance of its role's pool with headroom, only its `instanceId` changed (`t3_thread_configure`), and sends one carry-on; where every instance is capped it logs one quiet `stall` and waits for the first reset.
+Do the same by hand only where no `jbus` runs: read the thread with `t3_thread_configure` and only its `threadId`, call it again with that selection and the next instance's `instanceId`, then send the carry-on below.
 Never send a plain carry-on to a thread that failed on a limit.
 
 A message first, when the thread can still take one: `t3_thread_send` to the id on the brief's `Thread:` line, one line, to carry on from its brief and its worktree and to redo nothing that is there.
@@ -311,23 +305,11 @@ Find the worktree whose branch is the slug with `git worktree list --porcelain`,
 With none, there is nothing to pick up: launch from step 2 of "Handing a task to a crewmate".
 Add one line to the brief, above its first `## ` heading, so the new thread knows it resumes: `Resume: <date>, the thread before this one stopped. Its work is in this worktree and in the last Result below: redo nothing that is there, and carry on from <the resume point>`.
 The crew skill reads the brief at its start, and a brief is trusted.
-Then, on `go` from `room`, the `t3-code` server's `t3_thread_launch` (if your harness defers it, load it first):
-
-```json
-{
-  "title": "crew: <slug>",
-  "workspaceStrategy": {"type": "existing_worktree", "worktreePath": "<that worktree>", "branch": "<slug>"},
-  "message": "/crew <slug>"
-}
-```
-
-Before this launch, run `uv run --project "$T/../source" jroles crew` with the block at the top.
-When it prints a JSON object, that line is the `<model selection>`, and the `t3_thread_launch` call is this one, which starts the crewmate on the model the role map names.
-When it prints nothing, the call is the one above.
-Any other line it prints is on stderr and says why the map gives no model: the call is the one above then too, and the user is told that line.
-When it exits 75 and prints no JSON, every instance of the role's pool is capped by a usage limit and the line on stderr says until when: make no launch, and say that line.
-A selection it prints names the instance of the pool it chose as its `instanceId`, and the launch is made with it as printed.
-Leave the project and modes out, and the model unless `jroles` printed one.
+Before the launch, run `uv run --project "$T/../source" jroles crew` with the block at the top.
+A JSON object it prints is the `<model selection>`, with the instance of the pool it chose as its `instanceId`: launch with it as printed.
+When it prints nothing, or a line on stderr that says why the map gives no model, leave `modelSelection` out, and tell the user that line.
+When it exits 75 and prints no JSON, every instance of the role's pool is capped until the time on stderr: make no launch, and say that line.
+Then, on `go` from `room`, the `t3-code` server's `t3_thread_launch` (if your harness defers it, load it first), with the project and modes left out:
 
 ```json
 {

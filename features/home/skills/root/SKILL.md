@@ -12,9 +12,7 @@ The root home runs the whole pipeline for the user.
 It supplies every child home with rows, keeps work flowing across the homes, checks each hand-off, and speaks for the user within the word the user gave it.
 It builds nothing: a child home carries each row once it is queued, and a crewmate does the work.
 
-The home skill (`features/home/skills/home/SKILL.md`) reads this file when step 1 of "When a home starts" prints `root`.
-This file holds what only the root does.
-The home skill holds what every home shares: its state, the block at the top, the block that finds this home, "Carry on", "How a turn ends", "Gates", "What waits on the user" and the merge.
+This file holds what only the root does, and the home skill (`features/home/skills/home/SKILL.md`), which reads it when step 1 of "When a home starts" prints `root`, what every home shares.
 Run each block below in one call after the home skill's block at the top and the block that finds this home, which set `$H`, `$M`, `$ME` and this same `$T`:
 
 ```sh

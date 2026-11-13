@@ -6,15 +6,12 @@ A pull request that is anything short of ready is never merged without the user'
 On that word, the one way a home merges it is `jmerge --accept <number> --as user --message <thread id>/last`, run from the main checkout on the user's own message in T3 Code, `last` their newest there: it lifts the hold, merges, and writes the `merged` line with that message to `$H/merge.log`.
 A home's own `gh pr merge`, `gh api .../pulls/<number>/merge` or GraphQL `mergePullRequest` is refused by the `merge-command` hook, which prints that line in its place ([The merge hook](../../docs/hooks.md#the-merge-hook)).
 Where the accept refuses, its line says why and what to do; relay it to the user, and merge nothing by hand.
-A pull request whose last review round says `Meets the brief: no` is short of ready, and so is one whose round has no such typed line or a count that is not its brief's: `jmerge` holds it by its own reason (`meets-no`, `meets-unread`, `meets-miscounted`), on every path that merges, a follow-up row's included.
+A pull request whose last review round says `Meets the brief: no`, has no such typed line, or has a count that is not its brief's is short of ready: `jmerge` holds it by its own reason (`meets-no`, `meets-unread`, `meets-miscounted`) on every path that merges, a follow-up row's included.
 Its way out is its crew's fix and a scoped review whose own line says `yes`, or a `Waived:` line in the brief.
-The root home writes its own, `Waived: <the Done when line>, root/<act id>`, with `jbus waive --as root` and its reason and undo, by its skill's "Judge a waiver", and a scoped home sends it the waiver as a `decision` stop.
-Any other is the user's `Waived: <the Done when line>, <thread>/<message>` line, which jbus checks rests on the user's own message, or the bot's word, in one of two ways.
-The first is a message that names the row, says it waives, and quotes that line: a home writes the line from such a message.
-The second is the user's plain reply ("yes", "clear them") in a home's own thread to that home's last message, which asked once, naming the row by its slug and the numbers of the lines it would waive, as `alpha: lines 2 and 3`.
-A home records that reply with `jbus waive <slug> <line number>... --message <thread id>/last` for each row, which checks the reply and the ask and writes the `Waived:` lines itself.
+The root writes its own, `Waived: <the Done when line>, root/<act id>`, with `jbus waive --as root` and its reason and undo ("Judge a waiver" in its skill), and a scoped home sends it the waiver as a `decision` stop.
+Any other is the user's `Waived: <the Done when line>, <thread>/<message>` line, which jbus checks rests on the user's own message, or the bot's word: a message that names the row, says it waives and quotes that line, from which a home writes the line, or the plain reply to a home's ask, recorded as "How a turn ends" says.
 A home never has the user quote a line or type exact words, and its own word waives nothing.
-Neither is one that changes a protected path (a secret, or the list of protected paths itself), nor any pull request of a repo whose merge is switched off: those are the user's to merge, ready or not.
+A pull request that changes a protected path (a secret, or the list of protected paths itself), and any pull request of a repo whose merge is switched off, is the user's to merge, ready or not.
 
 The home merges nothing itself, and runs no command that merges but `jmerge --accept` on the user's word.
 One command does all of it, with no model: `jmerge`, from the repo this skill lives in, and jbus alone runs it to merge, on each pass, for every home of the repo, whatever `$H/home-thread` says.
@@ -59,26 +56,17 @@ else
 fi
 ```
 
-It runs no `jmerge`: jbus runs it on each pass, and this home's part is to read what jbus did.
-The block prints what a run of `jmerge` would, from what jbus's runs left on disk.
-First the `merged` lines jbus's `jmerge` appended to `$H/merge.log` since this home last read it, without their date: `$M/merge-seen` keeps the last line read, so a cut loses none, and a home with no mark starts at the log's end.
-Then, for each pull request GitHub lists as open, the last `wait` or `hold` line `jmerge` said of it (`$H/merge.log.last`): that is read anew on every run and no mark is kept for it, so a `hold` is never lost between this block and the one that tells it, a pull request that has waited for long still has its line when the user asks for status, and one that is merged or closed has none.
-An open pull request `jmerge` has no line for yet is `wait <number> <url>: jbus has said nothing of it yet`.
+It runs no `jmerge`: jbus runs it on each pass, and this block reads what jbus's runs left on disk, for this home's briefs alone, by `whose` (`home_of` in `features/jmerge/src/jmerge/claims.py`, which `jmerge --claims` prints by); a pull request with no brief is the root's.
+First the `merged` lines appended to `$H/merge.log` since this home last read it, without their date: `$M/merge-seen` keeps the last line read, so a cut loses none, and a home with no mark starts at the log's end.
+Then, for each pull request GitHub lists as open, the last `wait` or `hold` line `jmerge` said of it (`$H/merge.log.last`), read anew on every run with no mark, so a `hold` is never lost and one merged or closed has none; one with no line yet is `wait <number> <url>: jbus has said nothing of it yet`.
 They are the lines of the table below, and are relayed as a run's own are.
-On `wait: could not ask GitHub` no pull request's line was read.
 
-A line is as of jbus's last pass, not of now: `jmerge` writes one only when it changes, and nothing here says how old it is.
-A pull request that just turned ready often still has the `wait` from before its `Fixed:` line: jbus's next pass judges it, and its `merged` line comes on a later run of this step.
+A line is as of jbus's last pass: `jmerge` writes one only when it changes.
+A pull request that just turned ready often still has the `wait` from before its `Fixed:` line, and its `merged` line comes on a later run of this step.
 If jbus is stopped the lines stay as they were: `systemctl --user status jbus.timer` says whether it runs.
 
-jbus runs `jmerge` for the whole repo, and the block prints this home's lines alone: a `merged` line whose slug is a brief of this home's, and the line of an open pull request that one's `Branch:` line ends on, the first such brief by name in codepoint order, as `jmerge` finds it.
-A brief is the home's that its `Home:` line names: by its thread id, by the id on the `Was home:` line of its handoff, or by its scope, which is a directory of `$H` with a `plan.md`, but for `asked`, `tasks`, `scouts`, `reports` and `log`.
-A brief is the root's when it has no such line, when its line names no such home, or when the pull request has no brief.
-That is `jmerge`'s one rule (`home_of` in `features/jmerge/src/jmerge/claims.py`, over `homes` in `features/jmerge/src/jmerge/cli.py`): `jmerge --claims` prints a brief's home by it, and `jmerge --home` leaves the others' out by it.
-
-jbus runs `jmerge` with no `--home`, and it merges for every home of the repo, whatever `$H/home-thread` holds.
-So the pull request of a brief whose `Home:` line names a scoped home is merged, held or left waiting by the same rules as the root home's, and its `merged` line is in `$H/merge.log` like any other.
-A pull request is `wait <number> <url>: another home's` only to a run of `jmerge --home`, which merges nothing: jbus never says it, and never tell the user that a scoped home's pull request is theirs to merge for that reason.
+A scoped home's pull request is merged, held or left waiting by the same rules as the root's.
+It is `wait <number> <url>: another home's` only to a run of `jmerge --home`, which merges nothing: never tell the user it is theirs to merge for that reason.
 
 [What a merge does](../../../jmerge/docs/jmerge.md#what-a-merge-does) lists the steps of jbus's run of `jmerge` for each ready pull request: the merge, the pull of the main checkout, and the removal of the crewmate's worktree and branches.
 The skills in `~/.claude/skills` may be symlinks into the main checkout, and stay on the old text until that pull.
@@ -99,33 +87,18 @@ The skills in `~/.claude/skills` may be symlinks into the main checkout, and sta
 
 Two more things keep a ready pull request from the command, and only the user lifts them. They are looked at last, so each is said of a pull request that is short of nothing else:
 
-- it changes no protected path.
-  The patterns are in `features/jmerge/src/jmerge/protected.txt`, one per line, `#` for a comment: `secrets/`, `.env`, `.env.*`, `*.pem`, `*.key`, the list itself, `/features/jmerge/src/jmerge/protected.txt`, and `/policy/` and `/dns/` at the root of a repo, where a change applies to the live tailnet policy or DNS records.
-  A pattern that ends in `/` is a directory and covers everything under it, from the root of the repo when it has another `/` in it and at any depth when it has none.
-  Any other pattern is a file: a name at any depth, or with a `/` in it the whole path from the root, as `features/jbus/src/jbus/merge.py`.
-  A `*` matches within one part of a path.
-  `jmerge` refuses to run, and merges nothing, while that file is missing or has a pattern it cannot read (`**`, a leading `!`): no line there is taken and ignored.
-  The line is `hold <number> <url>: needs <the user's name>, touches <first matching path>`, with the name `jmerge` reads from `~/.config/jstack/config.toml` (`user` where that file names none), and no flag lifts it.
-  A rename changes both its paths: one into or out of a protected path is held as an edit there is, and one between two paths that are not protected is not.
-  GitHub lists a rename under its new path alone, so `jmerge` asks for the paths the renames left, of a pull request that has one and is short of nothing else.
-  GitHub must have said every path the pull request changes: one whose file list it cut short is held, and so is one whose renames it would not give the old paths of.
-  To protect another path, a pull request adds a line to `protected.txt`, and since it changes the list the user merges it;
-- the repo's merge is on. Every repo is on until `$H/merge-off` is there: `/nohome merge` makes the file and `/nohome merge on` removes it. With it, the line is `wait <number> <url>: auto-merge is off for this repo`, whoever runs the command, a home or `jbus`.
+- it changes no protected path, a pattern of `features/jmerge/src/jmerge/protected.txt` ([The lists](../../../jmerge/docs/jmerge.md#the-lists) has them and their grammar). The line is `hold <number> <url>: needs <the user's name>, touches <first matching path>`, and no flag lifts it. To protect another path, a pull request adds a line to `protected.txt`, and since it changes the list the user merges it;
+- the repo's merge is on: every repo is, until `$H/merge-off` is there (`/nohome merge` makes it, `/nohome merge on` removes it). With it, the line is `wait <number> <url>: auto-merge is off for this repo`, and the accept waits on it too: the user merges such a pull request themselves.
 
-A pull request that is held (`hold`) is merged on the user's word, through `jmerge --accept <number> --as user --message <thread id>/last`.
-A pull request of a repo whose merge is off is the user's to merge themselves: the accept waits on `merge-off` too.
-The sweep below then removes what its thread left.
+The sweep below removes what a merged pull request's thread left.
 
 A head that moved between the check and the merge fails the merge, and that is the wanted result: the line is `wait <number> <url>: the merge failed`, with what GitHub said, and the next run looks again. A worktree is removed only when it is clean and its branch is at the merged head, so nothing unpushed is lost.
 
 **The log is the undo list.** Each `merged` line in `$H/merge.log` starts with the time it was printed, then its first four words, `merged <number> <slug> <commit>`, then the pull request's title in quotes, the notes above, and last `revert: gh pr revert <url>`. Run as it stands, from anywhere, that command opens a pull request that reverts the merge. It pushes nothing to the default branch and changes nothing in the checkout: the revert is a pull request like any other, and is merged like one. Run it on the user's word only, and give them the pull request it prints.
 
-Write what it printed as lines of the turn's end ("How a turn ends"): one `merged:` line per pull request, the slug, the pull request and anything that was kept, which the user is told when they ask for status.
-A `hold` line is the user's to act on, and jbus tells them of it: each pull request `jmerge` holds is on jbus's list of what waits on the user, from jbus's own run or from the last line a home's run logged, which `jbus queue show` prints first.
-Tell it only when the user asks for status.
-A `wait` line is reported, not acted on: give it to the user when they ask for status.
-The home does not fix what a pull request is short of.
-Its crewmate does.
+Write what it printed as lines of the turn's end ("How a turn ends"): one `merged:` line per pull request, the slug, the pull request and anything that was kept.
+A `hold` line is on jbus's list of what waits on the user (`jbus queue show` prints it first), and a `wait` line is reported, not acted on: tell either only when the user asks for status.
+The home does not fix what a pull request is short of: its crewmate does.
 Settling a merged crewmate's thread is not the command's: T3 Code settles a thread whose linked pull request merges.
 
 To see what is ready and merge nothing, run `uv run --project "$T/../source" jmerge --home '<threadId>'` from the main checkout, in one call with the block at the top, with this thread's id in place of `<threadId>`.
