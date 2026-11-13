@@ -14,6 +14,7 @@
 #                not. `gh run cancel <id>` marks run <id> of it completed and cancelled, and
 #                `gh run rerun <id>` (with or without `--failed`) queued again, at its next
 #                attempt; a run it does not hold is not found, exit 1
+#                `gh api .../actions/runs/<id>` gives run <id> of it, or is not found
 #   jobs/<id>.json  what `gh api .../actions/runs/<id>/jobs` gives for run <id>: no job when it is
 #                not
 # With `-i` an answer of `gh api` has its status and an ETag first, and with
@@ -115,6 +116,13 @@ api() {
   */actions/runs/*/jobs | */actions/runs/*/jobs\?*)
     run=${2#*/actions/runs/}
     cat "$G/jobs/${run%%/*}.json" 2>/dev/null || echo '{"total_count": 0, "jobs": []}'
+    ;;
+  */actions/runs/*)
+    jq -ce --arg id "${2##*/actions/runs/}" '.workflow_runs[] | select((.id | tostring) == $id)' \
+      "$G/runs.json" 2>/dev/null || {
+      echo "gh: Not Found (HTTP 404)" >&2
+      return 1
+    }
     ;;
   */pulls\?state=open*)
     jq -c 'map({number, html_url: .url, title, draft: false, head: {ref: .headRefName, sha: .headRefOid}}
