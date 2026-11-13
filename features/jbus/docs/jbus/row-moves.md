@@ -17,7 +17,7 @@ The add queues the row again as a crewmate's, with no go, and writes the move as
 `queue.MOVES` leaves the move out, so a pass that writes it is still marked, and RowLife's `HandOver` takes only a scout's row.
 The one move out of `merged` is the reland's: once the revert jbus opened of a row's merge merges (`reverts.reland`, a revert on record in `reverts.json`), the row goes to `left` with a line of its own `{slug, from: "merged", to: "left", by: "jbus", at, reverted: <the revert's address>}`, and keeps the merge it took back in its `reverted` column.
 From then on the merge is no merge of the row's for any reader of the world (`watch.unlanded`), so the passes derive its status from its facts as any row's: its crew's redo gets its review before its pull request opens, and merges with no accept.
-`queue.MOVES` holds the move, and RowLife's `Reland` makes it once, since jbus never reverts a row twice.
+`queue.MOVES` holds the move, and RowLife's `Reland` makes it once per merge a revert took back: a revert of the redo's merge, once `close` dropped the first revert's record, opens the row again, and `queue.reland` refuses only a merge its `reverted` column already names.
 A pull request that opens under a row that is over keeps the row where it is: the pass opens a gate on it (`states.reopened`), and jmerge holds the pull request (`row-over`) until the user accepts it or closes it.
 The telemetry store keeps the mark as the column `legal` of `transitions`, 0 for a marked move and 1 for any other, so a count of `legal = 0` by day says what is left to fix.
 

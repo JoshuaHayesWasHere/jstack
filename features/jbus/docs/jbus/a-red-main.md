@@ -38,7 +38,7 @@ Where the outcome is the fix's brief, the brief says which case holds.
 | A commit of the run has a check that has not ended (`UNREAD`), as #864's had under 52b82e7 on 2026-11-02. | Nothing in this pass. The next pass judges the run again, and a commit whose check passes ends the run there. After `READ_WAIT` (1 hour), the fix's brief, as `OVERLAP`. |
 | The oldest is no briefed merge's commit, such as a merge by hand. | The fix's brief. |
 | The oldest is itself a revert, jbus's or anyone's. | The fix's brief. |
-| jbus reverted the same row before. A row is never reverted twice. | The fix's brief. |
+| jbus reverted the same row before and still keeps that revert's record (`TWICE`). A row is reverted once while jbus keeps its revert's record. | The fix's brief. |
 | Each test that failed at the oldest is a flake by `jbus ci`'s rule. | The fix's brief. |
 | Two merges went red together (`SKEW`): the culprit's own check passed over a main that lacked the green commit under it. | The fix's brief. |
 | The tests that failed at the oldest, or at a later tip, could not be read yet (`UNREAD`). | Nothing in this pass. The next pass judges the tip again. |
@@ -52,7 +52,7 @@ A revert is held by every check that leans on it, its `holders` in `reverts.json
 `close` closes a revert jbus opened that is still open once every holder passed at its red or a later commit, as when the fix's row merged first.
 Its comment names each holder's green.
 A revert main's check passed above stays open while the Mac, which leans on it, is still red there: on 2026-11-09 closing #1426 under a red Mac let the Mac open #1427 on the same branch.
-The record in `reverts.json` stays while any check jbus judges main by has not passed at or above its red, or while the culprit's slug can still merge, so the row is never reverted twice.
+The record in `reverts.json` stays while any check jbus judges main by has not passed at or above its red, or while the culprit's slug can still merge, so the row is reverted once while jbus keeps its revert's record.
 Once main is green, the revert's pull request is no longer open, every check (main's and, where the project has one, the Mac's) passed at or above its red, and the culprit's slug is over (no pull request of it open, no thread of it unsettled, and its row final or gone), the next pass drops the record.
 While the Mac stays red, the record stays too, and a later red that the culprit's slug names gets the fix's brief (`TWICE`), not a second revert.
 
