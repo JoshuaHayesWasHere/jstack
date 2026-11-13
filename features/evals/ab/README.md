@@ -110,7 +110,7 @@ The same task file, revisions and seed give the same `jobs.json` (the call order
 
 ## Rescoring a skill-cut run
 
-`rescore features/evals/evals/skill-cut/run-<name>` reads a kept skill-cut run's `key.json` and `scores.json` as its `score.py` wrote them: base is A, base again is A-again and the variant is B; `lead` is graded and `steps` pass/fail.
+`rescore ~/.local/state/home/jstack/reports/evals/skill-cut/run-<name>`, a run of the eval's data folder (`features/evals/docs/evals.md`), reads a kept skill-cut run's `key.json` and `scores.json` as its `score.py` wrote them: base is A, base again is A-again and the variant is B; `lead` is graded and `steps` pass/fail.
 It writes nothing into the run.
 Skill-cut's own rule, in its `README.md`, stays the verdict of those runs; this interval is a reading beside it.
 

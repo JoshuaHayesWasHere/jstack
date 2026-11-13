@@ -5,7 +5,6 @@ rule."""
 import importlib.util
 import json
 import re
-import shutil
 import subprocess
 import sys
 
@@ -14,6 +13,8 @@ import pytest
 from testing.paths import REPO
 
 EVAL = REPO / "features" / "evals" / "evals" / "skill-cut"
+
+STEPS = EVAL / "cases" / "steps.json"
 
 
 def load(path):
@@ -32,12 +33,17 @@ score = load(EVAL / "score.py")
 run = load(EVAL / "eval.py")
 
 
+def steps_case(case_id):
+    """A case of the hand-written `steps.json` in git, the file the eval reads its steps from."""
+    return next(one for one in json.loads(STEPS.read_text()) if one["id"] == case_id)
+
+
 def test_a_finding_outside_where_scores_when_it_ends_with_the_tag_the_skill_gives():
     """The key asks for the words pr-review's SKILL.md tells the reviewer to end such a finding
     with, so a reviewer that does what the skill says scores 1."""
     skill = (REPO / "features" / "pr-review" / "SKILL.md").read_text()
     tag = re.search(r"with these words at the end of its line: `([^`]+)`", skill)[1]
-    case = next(one for one in run.steps_cases() if one["id"] == "pr-review-outside-where")
+    case = steps_case("pr-review-outside-where")
     answer = f"Keep the finding and send it like any other, its line ending `{tag}`."
     assert score.score_steps(answer, case).value == 1.0
 
@@ -47,7 +53,7 @@ def test_a_fault_outside_where_scores_when_the_answer_uses_the_crew_skills_words
     words scores 1 without the judge."""
     rule = (REPO / "features" / "crew" / "SKILL.md").read_text()
     words = re.search(r"which makes it (a queued row)", rule)[1]
-    case = next(one for one in run.steps_cases() if one["id"] == "crew-outside-where")
+    case = steps_case("crew-outside-where")
     answer = f"Leave it out of the diff: the off-by-one becomes {words} of its own."
     assert score.score_steps(answer, case).value == 1.0
 
@@ -122,29 +128,31 @@ def test_a_call_that_fails_is_tried_again_after_a_wait(monkeypatch):
 
 
 def test_write_with_no_claude_writes_nothing(tmp_path, monkeypatch):
-    monkeypatch.setattr(run, "HERE", tmp_path)
+    monkeypatch.setattr(run, "DATA", tmp_path)
     monkeypatch.setenv("PATH", str(tmp_path / "no-bin"))
     with pytest.raises(SystemExit, match="no claude on PATH"):
         run.write("HEAD", "HEAD")
     assert list(tmp_path.iterdir()) == []
 
 
-def test_the_committed_run_1_rescores_to_its_results_byte_for_byte(tmp_path, monkeypatch):
+def test_the_kept_run_1_rescores_to_its_results_byte_for_byte(kept_runs, monkeypatch):
     """run-1 was answered against an older `steps.json`, kept in `fixture/steps-of-run-1.json`."""
-    for name in ("cases", "run-1"):
-        shutil.copytree(EVAL / name, tmp_path / name)
-    shutil.copy(EVAL / "fixture" / "steps-of-run-1.json", tmp_path / "cases" / "steps.json")
-    monkeypatch.setattr(run, "HERE", tmp_path)
+    monkeypatch.setattr(run, "DATA", kept_runs)
+    monkeypatch.setattr(run, "STEPS_FILE", kept_runs / "fixture" / "steps-of-run-1.json")
+    written = [kept_runs / "run-1" / name for name in ("scores.json", "results.md")]
+    kept = {path: path.read_bytes() for path in written}
+    for path in written:
+        path.unlink()
     assert run.main(["--run", "run-1"]) == 0
-    for name in ("scores.json", "results.md"):
-        assert (tmp_path / "run-1" / name).read_bytes() == (EVAL / "run-1" / name).read_bytes()
-    key = json.loads((EVAL / "run-1" / "key.json").read_text())
+    for path, was in kept.items():
+        assert path.read_bytes() == was
+    key = json.loads((kept_runs / "run-1" / "key.json").read_text())
     assert {one["arm"] for one in key.values()} == set(run.ARMS)
 
 
 def test_two_branches_name_their_runs_apart_and_a_kept_name_is_refused(tmp_path, monkeypatch):
     (tmp_path / "run-1").mkdir()
-    monkeypatch.setattr(run, "HERE", tmp_path)
+    monkeypatch.setattr(run, "DATA", tmp_path)
     monkeypatch.setattr(run.shutil, "which", lambda name: "/bin/true")
     calls = []
     monkeypatch.setattr(run, "_private", lambda: calls.append(1) or ())
@@ -194,12 +202,10 @@ def test_the_variant_patch_holds_the_diff_of_a_file_named_as_it_was_before_its_m
     assert run.patch("HEAD", "HEAD", ["skills/demo/SKILL.md"]) == ""
 
 
-def test_a_kept_run_is_not_rescored_against_cases_that_changed(tmp_path, monkeypatch):
-    for name in ("cases", "run-1"):
-        shutil.copytree(EVAL / name, tmp_path / name)
-    steps = tmp_path / "cases" / "steps.json"
-    shutil.copy(EVAL / "fixture" / "steps-of-run-1.json", steps)
-    monkeypatch.setattr(run, "HERE", tmp_path)
+def test_a_kept_run_is_not_rescored_against_cases_that_changed(kept_runs, monkeypatch):
+    steps = kept_runs / "fixture" / "steps-of-run-1.json"
+    monkeypatch.setattr(run, "DATA", kept_runs)
+    monkeypatch.setattr(run, "STEPS_FILE", steps)
     steps.write_text(steps.read_text().replace("Stale base: at", "Stale base:"))
     with pytest.raises(SystemExit, match="answered against cases"):
         run.main(["--run", "run-1"])

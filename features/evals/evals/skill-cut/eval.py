@@ -21,6 +21,9 @@ base again (the noise floor) and variant. Then:
 `eval.py --run run-1` rescores and reports a kept run with no model call, against the cases it
 was answered against: `run.json` holds their hash, and a run whose cases changed is refused.
 `eval.py cases <dir>` rebuilds `cases/lead/` from the extraction's JSON files.
+
+`cases/steps.json` is in git beside this file. The runs and `cases/lead/` are data, kept out of
+git under `DATA`: `SKILL_CUT_DIR`, or `~/.local/state/home/<repo>/reports/evals/skill-cut`.
 """
 
 from __future__ import annotations
@@ -44,6 +47,24 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[3]
+STEPS_FILE = HERE / "cases" / "steps.json"
+
+
+def _data() -> Path:
+    """Where the runs and the lead cases are kept, out of git: `SKILL_CUT_DIR`, or
+    `~/.local/state/home/<repo>/reports/evals/skill-cut`, the lab's reports beside it."""
+    if os.environ.get("SKILL_CUT_DIR"):
+        return Path(os.environ["SKILL_CUT_DIR"])
+    common = subprocess.run(
+        ["git", "-C", str(HERE), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    name = Path(common).parent.name if common else REPO.name
+    return Path.home() / ".local/state/home" / name / "reports/evals/skill-cut"
+
+
+DATA = _data()
 sys.path[:0] = [str(REPO / "features" / "jleak" / "src")]
 
 
@@ -310,15 +331,15 @@ def step5(skill: str) -> str:
 
 
 def steps_cases() -> list[dict]:
-    return json.loads((HERE / "cases" / "steps.json").read_text())
+    return json.loads(STEPS_FILE.read_text())
 
 
 def lead_cases() -> list[str]:
-    return sorted(path.stem for path in (HERE / "cases" / "lead").glob("*.md"))
+    return sorted(path.stem for path in (DATA / "cases" / "lead").glob("*.md"))
 
 
 def lead_key(slug: str) -> dict[str, dict]:
-    return json.loads((HERE / "cases" / "lead" / f"{slug}.key.json").read_text())["key"]
+    return json.loads((DATA / "cases" / "lead" / f"{slug}.key.json").read_text())["key"]
 
 
 def case_ids() -> dict[str, str]:
@@ -339,7 +360,7 @@ def cases(staging: str) -> None:
     """Rebuild `cases/lead/` from the extraction's JSON files: the readers' findings and the
     shipped Review, with the intent from `/tmp/pr-review-<slug>.*/intent`, the oldest
     directory of the slug, which the first review built."""
-    patterns, out = _private(), HERE / "cases" / "lead"
+    patterns, out = _private(), DATA / "cases" / "lead"
     out.mkdir(parents=True, exist_ok=True)
     written = 0
     for path in sorted(Path(staging).glob("*.json")):
@@ -371,7 +392,7 @@ def cases(staging: str) -> None:
 def prompt(case: str, files: dict[str, str]) -> str:
     family, name = case.split("/", 1)
     if family == "lead":
-        body = (HERE / "cases" / "lead" / f"{name}.md").read_text()
+        body = (DATA / "cases" / "lead" / f"{name}.md").read_text()
         body = body.split("\n", 1)[1].strip()
         texts = "\n\n".join(
             f'<text path="{path}">\n{text}\n</text>' for path, text in lead_texts(files)
@@ -391,15 +412,18 @@ def _sha(text: str) -> str:
 
 def runs() -> list[Path]:
     """The kept runs, `run-<name>/`."""
-    return sorted(path for path in HERE.glob("run-*") if path.is_dir())
+    return sorted(path for path in DATA.glob("run-*") if path.is_dir())
 
 
 def cases_sha() -> str:
-    """One hash of every file under `cases/`, its path and its bytes: what a run was answered
-    and scored against."""
+    """One hash of every case file, its path under `cases/` and its bytes: what a run was
+    answered and scored against. `steps.json` is in git and the lead cases are under `DATA`."""
+    lead = DATA / "cases" / "lead"
+    found = {"cases/steps.json": STEPS_FILE}
+    found.update({p.relative_to(DATA).as_posix(): p for p in lead.rglob("*") if p.is_file()})
     digest = hashlib.sha256()
-    for path in sorted(p for p in (HERE / "cases").rglob("*") if p.is_file()):
-        digest.update(path.relative_to(HERE).as_posix().encode() + b"\0" + path.read_bytes())
+    for name in sorted(found):
+        digest.update(name.encode() + b"\0" + found[name].read_bytes())
     return digest.hexdigest()[:12]
 
 
@@ -425,11 +449,16 @@ def write(base: str, variant: str, name: str | None = None) -> None:
     if not shutil.which("claude"):
         raise SystemExit("eval.py: write: no claude on PATH, no run is written")
     revs = {"base": resolve(base), "variant": resolve(variant)}
-    made = HERE / (name or f"run-{revs['variant'][:12]}")
+    made = DATA / (name or f"run-{revs['variant'][:12]}")
     if not re.fullmatch(r"run-[A-Za-z0-9._-]+", made.name):
         raise SystemExit(f"eval.py: write: {made.name} is not run-<letters, digits, . _ ->")
     if made.exists():
         raise SystemExit(f"eval.py: write: {made.name} is kept already: give --name")
+    if not lead_cases():
+        raise SystemExit(
+            f"eval.py: write: no lead cases under {DATA / 'cases' / 'lead'}: restore them as "
+            'the README\'s "Where runs are kept" says, no run is written'
+        )
     patterns = _private()
     cases = cases_sha()
     paths = files_under_test()
@@ -440,7 +469,7 @@ def write(base: str, variant: str, name: str | None = None) -> None:
         (case, arm, trial) for case in case_ids() for arm in ARMS for trial in range(1, 1 + TRIALS)
     ]
     random.shuffle(jobs)
-    kept = HERE / f".{made.name}.answers.jsonl"
+    kept = DATA / f".{made.name}.answers.jsonl"
     stamp = {**revs, "cases": cases}
     had = _kept_answers(kept, stamp)
     if not had:
@@ -472,7 +501,7 @@ def write(base: str, variant: str, name: str | None = None) -> None:
             f"are kept in {kept.name}: run the same command again for the rest. "
             f"The last: {failed[-1]}"
         )
-    fresh = Path(tempfile.mkdtemp(prefix=".write-", dir=HERE))
+    fresh = Path(tempfile.mkdtemp(prefix=".write-", dir=DATA))
     try:
         key, which, answers = {}, {}, {}
         for case, arm, trial in jobs:
@@ -739,7 +768,7 @@ def report() -> None:
 
 
 KEPT = ("score", "report")
-RUN = HERE
+RUN = DATA
 
 
 def main(argv: list[str]) -> int:
@@ -755,13 +784,13 @@ def main(argv: list[str]) -> int:
         cases(argv[1])
         return 0
     if argv[:1] == ["--run"]:
-        if len(argv) < 2 or HERE / argv[1] not in kept:
+        if len(argv) < 2 or DATA / argv[1] not in kept:
             print(
                 f"eval.py: --run names a kept run: {', '.join(p.name for p in kept) or 'none'}",
                 file=sys.stderr,
             )
             return 2
-        RUN, steps = HERE / argv[1], argv[2:] or list(KEPT)
+        RUN, steps = DATA / argv[1], argv[2:] or list(KEPT)
         if set(steps) - set(KEPT):
             print("eval.py: --run scores and reports a kept run: score, report", file=sys.stderr)
             return 2
