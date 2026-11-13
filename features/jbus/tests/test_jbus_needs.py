@@ -21,7 +21,8 @@ from test_jbus_leftover import home
 from test_jbus_questions import held
 from test_jbus_queue import add, brief, go
 from test_jbus_scout import request
-from test_jbus_snapshot import killed, take, tree_fixture, with_origin  # noqa: F401
+from test_jbus_snapshot import killed, take, with_origin
+from test_jbus_snapshot import tree as state_tree
 
 HOLDS = "hold 9 https://example.test/pull/9: needs user, touches skills/crew/SKILL.md"
 
@@ -469,13 +470,14 @@ exit 1
 
 
 def test_a_failed_snapshot_is_one_item_on_jbus_needs_until_a_run_succeeds(
-    kitchen, tree, tmp_path, monkeypatch
+    kitchen, tmp_path, monkeypatch
 ):
     """A run of the unit that fails, on a secret gitleaks found or stopped at its timeout, puts
     one item on the user's list, with when the backup first failed and the run's last line. A
     second failed run gives that item its own last line and adds none, and the next run that
     succeeds ends it."""
     kitchen.config(infra="demo")
+    tree = state_tree(kitchen, monkeypatch)
     with_origin(tree, tmp_path)
     kitchen.poll()
     assert needs(kitchen) == ["nothing waits on user in any project"]
