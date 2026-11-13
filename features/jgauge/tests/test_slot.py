@@ -375,8 +375,7 @@ def test_a_short_job_stopped_at_its_limit_takes_a_child_in_a_session_of_its_own_
         " slot.STOP_GRACE_SECONDS = 0.5; sys.exit(cli.main(sys.argv[1:]))"
     )
     started = (
-        "setsid sh -c 'trap \"\" TERM; exec sleep 600' > /dev/null 2>&1 &"
-        ' echo $! > "$D/pid"; wait'
+        'setsid sh -c \'trap "" TERM; exec sleep 600\' > /dev/null 2>&1 & echo $! > "$D/pid"; wait'
     )
     home = tmp_path / "home"
     env = {**os.environ, "HOME": str(home), "D": str(tmp_path)}
