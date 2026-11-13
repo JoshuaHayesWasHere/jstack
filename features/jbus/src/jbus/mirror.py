@@ -7,10 +7,13 @@ with no home wrote into its own Result or Report. A gate of a scoped home names 
 that a thread piped to `jbus gate` is a question jbus keeps (`questions`). `gate_key` gives such a
 question the same key as the gate in the file, so the two are one event, and jbus sends no event for
 its answer. `seen.json` keeps the file, heading and hash of every section jbus sent. So jbus sends
-each section once, and sends a Result, Review or Report again when its text changes. On a project's
-first pass jbus sends nothing: it only records what is already there. jbus also sends nothing for a
-file that no pass read before and whose slug was never a row of the queue. Restoring a tree from a
-backup puts such a file back (`scan`).
+each section once, and sends a Result or Report again when its text changes. It sends a Review
+again when the review changes: its verdict, head or findings (`_review`). The crew appends its desk
+checks and wake lines (`Checked:`, `Proved:`, `Stale base:`, `Dropped on rebase:`) under a Review
+that is the brief's last section. None of them is a review round, so adding one sends nothing.
+On a project's first pass jbus sends nothing: it only records what is already there. jbus also
+sends nothing for a file that no pass read before and whose slug was never a row of the queue.
+Restoring a tree from a backup puts such a file back (`scan`).
 """
 
 from __future__ import annotations
@@ -181,6 +184,17 @@ def gate_key(slug: str, asked: str) -> str:
     return "asked " + hashlib.sha256(f"{slug}\n{asked}".encode()).hexdigest()[:16]
 
 
+REVIEW = ("Verdict:", "Head:", "- ")
+"""The lines of a Review that say what the review found: its verdict, the head it read, and each
+item under it (a finding, an unmet Done when line, a dismissed finding), as `templates/review.md`
+words them. The crew writes none of them."""
+
+
+def _review(body: str) -> str:
+    """Return a Review's verdict, head and findings, the lines `REVIEW` names."""
+    return "\n".join(line for line in body.splitlines() if line.startswith(REVIEW))
+
+
 def _found(kind: str, slug: str, heading: str, body: str) -> tuple[str, str, str] | None:
     if kind == "tasks" and heading.startswith("## Result"):
         return "result", f"result {slug}: {below.line(body, 'Status:') or heading[3:]}", ""
@@ -279,13 +293,15 @@ def scan(
     restored: set[str] = set()
     sent = 0
 
-    def new(file: str, heading: str, whole: str, *, again: bool) -> str:
-        digest = hashlib.sha256(whole.encode()).hexdigest()[:16]
+    def new(file: str, heading: str, whole: str, *, again: bool, was_of: str = "") -> str:
+        """`was_of` is the text a pass before `REVIEW` hashed for a Review, its whole section, so
+        a Review that pass sent is recorded again and not sent again."""
+        digest = _digest(whole)
         was = seen.setdefault(file, {}).get(heading)
         if was == digest or (was is not None and not again):
             return ""
         seen[file][heading] = digest
-        return digest
+        return "" if was_of and was == _digest(was_of) else digest
 
     for kind in ("tasks", "scouts"):
         for path in sorted((run.home / kind).glob("*.md")):
@@ -304,7 +320,8 @@ def scan(
                 counts[heading] = counts.get(heading, 0) + 1
                 made = _found(kind, slug, heading, body)
                 name = f"{heading} #{counts[heading]}"
-                digest = made and new(file, name, body, again=True)
+                said = _review(body) if made and made[0] == "review" else body
+                digest = made and new(file, name, said, again=True, was_of=body)
                 if made and digest and file not in restored:
                     what, line, _ = made
                     whole = f"{heading}\n{body}"
@@ -322,6 +339,10 @@ def scan(
                 sent += run.find(slug, what, line, whole, key=key, past=True)
     write_json(seen_path, seen)
     return sent
+
+
+def _digest(text: str) -> str:
+    return hashlib.sha256(text.encode()).hexdigest()[:16]
 
 
 def _read(path: Path) -> str:
