@@ -242,8 +242,11 @@ MEETS_NO = Reason(
     "findings",
     "its review at {head} says the brief is not met, {met} of {count}: Done when {lines} unmet, "
     "so a fix and a scoped review whose line says yes, or a waiver: the root home's jbus waive "
-    "--as root, or the user's Waived: line",
+    "--as root, or a Waived: line for those lines",
     earlier=(
+        "its review at {head} says the brief is not met, {met} of {count}: Done when {lines} "
+        "unmet, so a fix and a scoped review whose line says yes, or a waiver: the root home's "
+        "jbus waive --as root, or the user's Waived: line",
         "its review at {head} says the brief is not met, {met} of {count}: Done when {lines} "
         "unmet, so a fix and a scoped review whose line says yes, or the user's Waived: line",
     ),
