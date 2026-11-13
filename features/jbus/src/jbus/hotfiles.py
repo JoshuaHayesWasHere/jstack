@@ -15,7 +15,8 @@ src/main.ts each time it freed while its oldest waiters sat 9.6 h (#1834). `HOLD
 hold first held each row, which a row's `since` cannot, since that moves each time the row it
 waits on changes; `ahead` names the row that goes first, and `keep` writes the ledger at the end of
 the pass. A row keeps its time while it waits on anything, and drops it once it launches, is gated
-or is gone, so an older row that cannot launch for another reason holds no one back.
+or is gone. The pass reads the older row first and goes on to the younger whatever it found, so an
+older row that waits for something else holds no one back.
 
 A file is hot once it was in `TIMES` or more conflicts in the `WINDOW` before the pass. The
 `rebase` event names a head, in the backup ref of its message (`rebase.MESSAGE`), and not the
