@@ -356,13 +356,21 @@ def test_a_tip_whose_failed_test_failed_on_one_other_branch_alone_is_reverted(ki
 
 
 def test_a_row_is_reverted_once_while_jbus_keeps_its_revert_record(kitchen):
+    """While the record of alpha's revert is kept, a later red alpha's slug names is no second
+    revert, and the fix row's Task says why in words that hold once `close` drops the record."""
     made = kept.Revert("0" * 40, "alpha", "revert-6-alpha", "e" * 40, url(6))
     kitchen.state.mkdir(parents=True, exist_ok=True)
     (kitchen.state / kept.NAME).write_text(json.dumps({made.red: kept.record(made)}))
     (red,) = red_merges(kitchen, ("alpha", 7, None))
     passes(kitchen)
     assert asked(kitchen, "pr revert") == []
-    assert [row["slug"] for row in main_red(kitchen)] == [f"{mainjson.FIX}{red[:12]}"]
+    (row,) = main_red(kitchen)
+    assert row["slug"] == f"{mainjson.FIX}{red[:12]}"
+    text = (kitchen.home / "tasks" / f"{row['slug']}.md").read_text()
+    assert (
+        "jbus reverts nothing: jbus reverted this row before, and a row is reverted once while "
+        "jbus keeps the record\n"
+    ) in text
 
 
 def test_a_revert_github_does_not_open_files_the_row(kitchen):
