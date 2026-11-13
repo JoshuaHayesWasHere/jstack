@@ -20,7 +20,6 @@ jleak = "jleak.cli:main"
 jmerge = "jmerge.cli:main"
 jpack = "jpack.cli:main"
 jroles = "jroles.cli:main"
-jstack = "jstack.cli:main"
 repo-standard = "repo_standard.cli:main"
 # end generated
 
@@ -58,7 +57,6 @@ packages = [
     "features/jpack/src/jpack",
     "features/jroles/src/jroles",
     "features/jsettings/src/jsettings",
-    "features/jstack/src/jstack",
     "features/repo-standard/src/repo_standard",
 ]
 # end generated
@@ -97,7 +95,6 @@ testpaths = [
     "features/jpack/tests",
     "features/jroles/tests",
     "features/jsettings/tests",
-    "features/jstack/tests",
     "features/ketchup/tests",
     "features/lessons/tests",
     "features/no-comments/tests",
@@ -126,7 +123,6 @@ pythonpath = [
     "features/jpack/src",
     "features/jroles/src",
     "features/jsettings/src",
-    "features/jstack/src",
     "features/repo-standard/src",
     "testing/tests",
     "features/architect/tests",
@@ -146,7 +142,6 @@ pythonpath = [
     "features/jpack/tests",
     "features/jroles/tests",
     "features/jsettings/tests",
-    "features/jstack/tests",
     "features/ketchup/tests",
     "features/lessons/tests",
     "features/no-comments/tests",
@@ -208,7 +203,6 @@ src = [
     "features/jpack/src",
     "features/jroles/src",
     "features/jsettings/src",
-    "features/jstack/src",
     "features/repo-standard/src",
     "testing/tests",
     "features/architect/tests",
@@ -228,7 +222,6 @@ src = [
     "features/jpack/tests",
     "features/jroles/tests",
     "features/jsettings/tests",
-    "features/jstack/tests",
     "features/ketchup/tests",
     "features/lessons/tests",
     "features/no-comments/tests",

@@ -16,9 +16,9 @@
   `git worktree`, and a diff of every event's decision. No model runs.
 
 `rescore` reports a kept run again and calls no model: a run of this harness, or a kept run of the
-skill-cut eval (`features/evals/evals/skill-cut/run-*`), read from its `key.json` and `scores.json`
-as `score.py` wrote them, base as A, base again as A-again and the variant as B. It writes into no
-run directory: `--out` names the file `results.md` goes to.
+skill-cut eval (`run-*` of its data folder, `features/evals/docs/evals.md`), read from its
+`key.json` and `scores.json` as `score.py` wrote them, base as A, base again as A-again and the
+variant as B. It writes into no run directory: `--out` names the file `results.md` goes to.
 """
 
 from __future__ import annotations

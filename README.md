@@ -42,7 +42,7 @@ jstack runs only when every **hard** need is met.
 | Linux or macOS | hard | Supported: macOS on Apple Silicon, and Windows in [WSL2](features/jinstall/docs/windows-wsl2.md). |
 | T3 Code | hard | The desktop app the threads run in, with Claude Code as their agent, from `t3.codes` ([how to install it](features/jinstall/docs/troubleshooting/the-platform-and-the-programs.md#where-to-get-each-program)): stable `0.1.2`, or nightly `0.1.2-nightly.20261022.3526` or newer. |
 | Claude Code | hard | The `claude` command on `PATH`. |
-| `uv` | hard | It installs the eleven commands as one tool, `jstack`. |
+| `uv` | hard | It installs the ten commands as one tool, `jstack`. |
 | `git` | hard | 2.31 or newer. |
 | `jq` | hard | 1.6 or newer. |
 | `gh`, signed in | hard | `gh auth login`. The threads open pull requests with it, and `jmerge` merges with it. |
@@ -78,7 +78,7 @@ In this tutorial we install jstack, point it at a repo of yours, and watch it me
 	curl -fsSL https://raw.githubusercontent.com/JoshuaHayesWasHere/jstack/main/install.sh | sh
 	```
 
-	The script installs `uv` when it is missing, installs the eleven commands as the `uv` tool `jstack`, and runs `jinstall --setup`.
+	The script installs `uv` when it is missing, installs the ten commands as the `uv` tool `jstack`, and runs `jinstall --setup`.
 	With `uv` already there, you can do the same by hand:
 
 	```sh
@@ -178,7 +178,6 @@ Each command has one page.
 | `jmerge` | [features/jmerge/docs/jmerge.md](features/jmerge/docs/jmerge.md) | Merges every pull request that is reviewed, fixed and green. |
 | `jpack` | [features/jpack/docs/jpack.md](features/jpack/docs/jpack.md) | Checks a context pack. |
 | `jroles` | [features/jroles/docs/jroles.md](features/jroles/docs/jroles.md) | Picks the model for a role from the role map. |
-| `jstack` | [features/jstack/docs/jstack.md](features/jstack/docs/jstack.md) | Runs the other commands: `jstack leak` runs `jleak`. |
 | `repo-standard` | [features/repo-standard/docs/standard.md](features/repo-standard/docs/standard.md) | The standard a repo's layout, feature map and docs hold to, and the guards any repo runs from its .repo-standard.yml to hold them. |
 <!-- generated: end -->
 

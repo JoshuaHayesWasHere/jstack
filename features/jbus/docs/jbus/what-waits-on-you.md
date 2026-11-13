@@ -87,6 +87,10 @@ The item wakes no thread, the root's included, and no stall raises an alert.
 It leaves the list once the home does something jbus can see.
 `~/.local/state/jbus/<project>/stalls.json` keeps each spell.
 
+## A backup that failed
+
+A run of `jbus-snapshot.service` that failed is one item on `jbus needs`, on the infra project's list, or the first project's where the config names none, and its root home's, until a later run succeeds ([Back up the homes' state](back-up-the-homes-state.md)).
+
 ## The one answer to "what needs me"
 
 `jbus needs` prints what of that list only you can do, for every project, or for one with `--project`.

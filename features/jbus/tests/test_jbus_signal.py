@@ -307,7 +307,10 @@ def test_the_third_failure_in_a_row_alerts_once_and_the_first_success_recovers_o
     assert fail(10) == "alert: pass failed 3 times in a row since 11:00 ET: it broke"
     told(tmp_path, "pass")
     assert [fail(15), fail(20)] == [None, None]
-    kept = alert.Streak("pass", 5, NOW.isoformat(), True, line="alert: pass", why="it broke")
+    last = later(20).isoformat()
+    kept = alert.Streak(
+        "pass", 5, NOW.isoformat(), True, line="alert: pass", why="it broke", last=last
+    )
     assert alert.streak(tmp_path, "pass") == kept
     assert jbus.read_json(tmp_path / "streaks.json", {}) == {
         "pass": {
@@ -320,6 +323,7 @@ def test_the_third_failure_in_a_row_alerts_once_and_the_first_success_recovers_o
             "ends": "",
             "why": "it broke",
             "once": "",
+            "last": last,
         }
     }
     assert alert.ok(tmp_path, "pass", user=ET) == "recovered: pass after 5 failures since 11:00 ET"

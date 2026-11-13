@@ -70,7 +70,6 @@ def test_the_sweep_reads_every_package_the_scripts_and_the_tests():
         "jpack",
         "jgauge",
         "jroles",
-        "jstack",
         "repo_standard",
     }
     assert {
