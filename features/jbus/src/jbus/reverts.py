@@ -62,12 +62,12 @@ that is still open once every holder passed at its red or a later commit, as whe
 first, with a comment that names each green: it would only sit in conflict with main. Closing it
 on one holder's green while another is still red there closed #1426 under a red Mac, and the Mac
 then opened #1427 on the same branch. A closed revert keeps its record, so a check that goes red
-at its commits later leans on it and files a fix row, and the row is never reverted twice. `close`
-drops the record once main is green, the revert's pull request is no longer open, every check jbus
-judges main by here passed at or above its red, and its culprit's slug is over: no pull request
-of it is open, no thread of it is unsettled and its row, if the queue still has one, is final. A
-slug that is over merges nothing more, so its record holds nothing, and `TWICE` no longer files a
-fix row for a later red that is due a revert.
+at its commits later leans on it and files a fix row, and the row is reverted once while jbus keeps
+the record. `close` drops the record once main is green, the revert's pull request is no longer
+open, every check jbus judges main by here passed at or above its red, and its culprit's slug is
+over: no pull request of it is open, no thread of it is unsettled and its row, if the queue still
+has one, is final. A slug that is over merges nothing more, so its record holds nothing, and
+`TWICE` no longer files a fix row for a later red that is due a revert.
 
 `reland` opens the culprit's row again once its revert merged, before `close` reads the slug as
 over: the row goes from `merged` to `left` (`queue.reland`), and its merge is no merge of the row's
@@ -149,7 +149,7 @@ class Keep(enum.StrEnum):
     OVERLAP = "two reds overlap: the merges since the last green are not shown to be one break"
     UNBRIEFED = "it is no briefed merge's commit"
     OF_A_REVERT = "it is a revert, and a revert that goes red is not reverted"
-    TWICE = "jbus reverted this row before, and a row is never reverted twice"
+    TWICE = "jbus reverted this row before, and a row is reverted once while jbus keeps the record"
     FLAKES = "each test that failed there is a flake by jbus ci's rule"
     NOT_READ = "the tests that failed there could not be read from its logs"
     SKEW = (
