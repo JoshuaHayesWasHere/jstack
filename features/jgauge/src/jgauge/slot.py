@@ -373,15 +373,17 @@ def _sweep() -> None:
 
 
 def _signal(child: subprocess.Popen, number: int, lane: Lane) -> None:
-    """Send the signal to the command, and in the short lane to every process it started, which
-    is its process group. A group with no process left to signal is no fault: Linux says ESRCH,
-    and macOS says EPERM while a zombie of the group waits to be reaped, as an orphan does until
-    launchd gets to it."""
+    """Send the signal to the command, and in the short lane to every process it started: its
+    process group and every process under the command, also one in a session of its own, which
+    no signal to the group reaches. The tree is taken stopped, as `_stop` takes it, so none
+    leaves it between the look and the signal, and then let go on. A group or a process with
+    none left to signal is no fault: `children.tell` passes over the error."""
     if lane.limit is None:
         child.send_signal(number)
         return
-    with contextlib.suppress(ProcessLookupError, PermissionError):
-        os.killpg(child.pid, number)
+    tree = children.stop({child.pid}, child.pid)
+    children.tell(tree, child.pid, number)
+    children.tell(tree, child.pid, signal.SIGCONT)
 
 
 def _stop(child: subprocess.Popen, program: str, lane: Lane) -> int:
