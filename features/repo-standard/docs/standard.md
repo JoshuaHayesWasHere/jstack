@@ -119,7 +119,7 @@ Nobody edits a generated list by hand: a change edits the manifest or the folder
 **In jstack** `make trees` runs `scripts/generate-jstack-trees.py`, which writes `skills.json`, the regions of `README.md` and `CATALOG.md` between `<!-- generated: <part> -->` and `<!-- generated: end -->`, the regions of `pyproject.toml` between `# generated: <part>` and `# end generated`, and the `pages` region of a page of docs.
 `pyproject.toml`'s regions hold the commands, the wheel's packages, and the paths pytest and ruff read, so a new feature's tests run once the generator has run.
 
-Enforced by: `scripts/generate-jstack-trees.py`, `scripts/jtrees/outputs/docs.py`, `scripts/jtrees/outputs/pyproject.py`, `scripts/jtrees/outputs/jstack.py`
+Enforced by: `scripts/generate-jstack-trees.py`, `scripts/jtrees/outputs/docs.py`, `scripts/jtrees/outputs/pyproject.py`
 
 ### A stale index fails the lint
 
