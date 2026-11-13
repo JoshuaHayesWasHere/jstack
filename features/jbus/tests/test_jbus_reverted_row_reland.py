@@ -8,8 +8,10 @@ accept it to merge it") until the root accepted it by hand.
 
 Like `test_jbus_prereview.py`, the tests run the real pass against the kitchen's fakes, with a real
 origin, over a row jbus launched, and read the reason jmerge gives a pull request from the queue
-the pass wrote (`jmerge.rows.short`). The last replays the row's `transitions.jsonl` over
-RowLife's graph (`features/jbus/spec/RowLife.tla`)."""
+the pass wrote (`jmerge.rows.short`). The row keeps the merge the revert took back in its
+`reverted` column (`jbus.queue.reland`), and every later pass reads that merge out of the world
+(`jbus.watch.unlanded`), so the redo's merge is the row's. The last replays the row's
+`transitions.jsonl` over RowLife's graph (`features/jbus/spec/RowLife.tla`)."""
 
 import json
 from datetime import timedelta
