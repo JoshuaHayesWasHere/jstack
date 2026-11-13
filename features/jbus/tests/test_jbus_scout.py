@@ -573,6 +573,49 @@ def test_a_scout_row_whose_followup_report_says_done_is_done_and_report_in(kitch
     assert rows(kitchen)["look"]["status"] == "done"
 
 
+def test_a_done_scout_row_with_no_thread_has_no_scout_state_from_any_writer(kitchen):
+    """T3 Code's tree shows a row with a `scout` whatever its value, and a row leaves it once its
+    thread is archived. A scout row the queue has at done with no thread, as one is once its request
+    file went and its thread was archived (`crewthread.crew`), has no thread to archive, so `work.json` gives it no `scout` and it leaves the tree as a done
+    crew row does. One that names a thread keeps `report in`. The pass, a write of the queue that
+    restates the line, and the line a write of the queue makes for a row with none all agree."""
+    kitchen.config(max_running=8)
+    for slug in ("look", "kept"):
+        assert add(kitchen, slug, text=request(slug, asked=f"find out what {slug} does"))[0] == 0
+        assert go(kitchen, slug)[0] == 0
+    kitchen.poll()
+    for slug in ("look", "kept"):
+        reported(kitchen, slug)
+        scout_thread(kitchen, slug)["settled"] = True
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert (judged(kitchen, "look")["scout"], judged(kitchen, "kept")["scout"]) == ("report in",) * 2
+    (kitchen.home / "scouts" / "look.md").unlink()
+    scout_thread(kitchen, "look")["archived"] = True
+    kitchen.poll(NOW + timedelta(minutes=6))
+    passed, kept = judged(kitchen, "look"), judged(kitchen, "kept")
+    assert (passed["value"], passed["thread"], "scout" in passed) == ("done", "", False)
+    assert (kept["value"], kept["scout"]) == ("done", "report in")
+
+    stale = {**passed, "scout": "report in", "value": "working"}
+    restated = restated_line(stale)
+    assert {**restated, "confirmed": ""} == {**passed, "confirmed": ""}
+
+    work = json.loads((kitchen.state / "work.json").read_text())
+    work["work"] = [one for one in work["work"] if one.get("key") != "look"]
+    (kitchen.state / "work.json").write_text(json.dumps(work))
+    assert add(kitchen, "other", text=request("other", asked="find out what Z does"))[0] == 0
+    made = judged(kitchen, "look")
+    assert (made["value"], made["lane"], "scout" in made) == ("done", passed["lane"], False)
+
+
+def restated_line(one):
+    """Return a line of `work.json` as a write of the queue restates it, with the role the queue
+    gives its row."""
+    from jbus import restated
+
+    return restated.restate(one, scout=True)
+
+
 def test_a_scout_row_a_crewmates_brief_took_over_has_no_scout_state(kitchen):
     """Once the brief a scout delivered takes its row over, the row is a crewmate's and is closed
     as a scout's, so `work.json` gives it no `scout`."""
