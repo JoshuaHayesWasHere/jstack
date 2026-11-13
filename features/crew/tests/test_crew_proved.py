@@ -531,7 +531,7 @@ def test_the_head_and_the_base_run_on_pytests_workers_where_the_repo_has_them(re
     assert all(f"-n {sizes.SHORT_WORKERS} " in run for run in runs)
 
 
-def test_a_side_the_short_lane_stopped_runs_again_on_the_desks_quarter_of_the_processors(repo):
+def test_a_side_the_short_lane_stopped_runs_again_on_the_desks_eighth_of_the_processors(repo):
     commit(repo, {"calc.py": FIXED, "tests/test_calc.py": FAILS_AT_BASE})
     proof(repo, LIMIT="1", SLOW="3")
     runs = (repo.parent / "pytest-args").read_text().splitlines()
