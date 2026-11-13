@@ -25,7 +25,7 @@ READ_SET = (
     "features/jbus/tests/fixtures/t3/",
     "testing/tests/fixtures/claude/",
 )
-AGENT_READS = ("references", "project-skill", "playbooks", "templates")
+NOT_READ = ("docs", "tests", "evals", "spec", "src")
 SKILLS = skills()
 FENCE = re.compile(r"^[ \t]*(`{3,}|~{3,})(.*)$")
 INLINE = re.compile(r"`(\{[^`\n]*\})`")
@@ -151,12 +151,12 @@ def misspelt(given):
 
 
 def read_by_an_agent(folder):
-    """The markdown of the skill at `folder` that an agent reads: all of a skill in a `skills/`
-    folder, and of a skill at its feature's root, its own files and the folders of `AGENT_READS`."""
-    if folder.parent.name == "skills":
-        return sorted(folder.rglob("*.md"))
-    parts = (one for part in AGENT_READS for one in (folder / part).rglob("*.md"))
-    return sorted([*folder.glob("*.md"), *parts])
+    """The markdown of the skill at `folder` that an agent reads: of a skill at its feature's root
+    all but the feature's folders of `NOT_READ`, and all of any other skill."""
+    found = sorted(folder.rglob("*.md"))
+    if folder.parent.name != "features":
+        return found
+    return [path for path in found if path.relative_to(folder).parts[0] not in NOT_READ]
 
 
 def test_no_skill_names_a_tool_the_way_only_claude_code_does():
