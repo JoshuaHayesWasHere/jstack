@@ -3,6 +3,7 @@ be written stops no run, and the report reads only what is a row. `test_slot.py`
 `jgauge test-slot` itself and reads its rows back."""
 
 import contextlib
+import errno
 import json
 import os
 import subprocess
@@ -327,6 +328,53 @@ def test_a_take_s_cgroup_is_capped_at_its_workers_and_a_take_with_none_runs_unca
     *_, release = rows(log)
     assert release["cpu_user"] + release["cpu_system"] >= 0.25 - 2 / os.sysconf("SC_CLK_TCK")
     assert not (tmp_path / "no cgroups").exists()
+
+
+def the_kernel_s_threaded_rule(monkeypatch, root):
+    """The fake tree keeps the kernel's rule for a cgroup whose parent turns the cpu controller
+    on for its children: it is born `domain invalid`, and once `threaded` it lists its threads
+    and refuses a read of its processes (EOPNOTSUPP)."""
+    made, read = Path.mkdir, Path.read_text
+
+    def mkdir(self, *args, **kwargs):
+        made(self, *args, **kwargs)
+        control = self.parent / "cgroup.subtree_control"
+        if self.is_relative_to(root) and control.exists() and "+cpu" in read(control):
+            (self / "cgroup.type").write_text("domain invalid\n")
+
+    def read_text(self, *args, **kwargs):
+        kind = self.parent / "cgroup.type"
+        if self.name == "cgroup.procs" and kind.exists() and read(kind).strip() == "threaded":
+            raise OSError(errno.EOPNOTSUPP, "Operation not supported", str(self))
+        return read(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", mkdir)
+    monkeypatch.setattr(Path, "read_text", read_text)
+
+
+def test_a_take_under_a_cgroup_with_processes_is_threaded_and_counts_its_threads_processes(
+    tmp_path, monkeypatch
+):
+    """Under a holder's cgroup that has processes and the cpu controller on for its children,
+    the take's cgroup and its leaf are made threaded, so the holder may move in, and the release
+    counts the processes left from the threads the leaf lists, a thread since gone left out."""
+    home = a_cgroup_tree(tmp_path, monkeypatch)
+    (home / "cgroup.subtree_control").write_text("+cpu\n")
+    the_kernel_s_threaded_rule(monkeypatch, tmp_path / "cgroups")
+    monkeypatch.setattr(slotlog, "DRAIN_SECONDS", 0.1)
+    log = slotlog.path(tmp_path / "locks")
+
+    taken = slotlog.take(log, "short", 1, 3, "", ["sh"], 0, workers=1)
+    (own,) = home.glob(f"{slotlog.PREFIX}*")
+    assert (own / "cgroup.type").read_text() == "threaded"
+    assert (own / "run" / "cgroup.type").read_text() == "threaded"
+    assert (own / "cpu.max").read_text().split() == ["100000", "100000"]
+    (own / "run" / "cgroup.threads").write_text(f"{os.getpid()}\n1\n{2**22 + 1}\n")
+    (own / "cpu.stat").write_text("user_usec 700000\nsystem_usec 100000\n")
+    slotlog.release(taken, 0)
+
+    _take, release = rows(log)
+    assert (release["cpu_user"], release["cpu_system"], release["left"]) == (0.7, 0.1, 1)
 
 
 SPINS_FOR_A_SECOND = "import time\nend = time.monotonic() + 1\nwhile time.monotonic() < end: pass"
