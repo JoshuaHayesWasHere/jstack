@@ -1,5 +1,6 @@
 """`jbus tidy files` deletes a file of the homes' state or of the repo's git dir, and refuses any
-other path before it deletes anything. The tests run the command as a skill's step does."""
+other path before it deletes anything (`jbus.tidy`). The tests run the command as a skill's step
+does."""
 
 import os
 import subprocess
@@ -59,9 +60,9 @@ def test_a_path_outside_is_refused_and_nothing_is_deleted(forget):
 
 
 @pytest.mark.parametrize(
-    "given", ["{state}/../kept.txt", "{state}/link/kept.txt", "{state}", "{repo}/kept.txt"]
+    "given", ["{state}/../kept.txt", "{state}/link/kept.txt", "{state}", "{repo}/kept.txt", "/"]
 )
-def test_a_dot_dot_a_link_the_root_itself_or_the_worktree_is_outside(forget, given):
+def test_a_dot_dot_a_link_the_root_itself_the_worktree_or_no_name_is_outside(forget, given):
     (forget.outside / "kept.txt").write_text("")
     (forget.repo / "kept.txt").write_text("")
     (forget.state / "link").symlink_to(forget.outside)

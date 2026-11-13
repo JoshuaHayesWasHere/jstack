@@ -1,8 +1,8 @@
 """`jbus tidy` finds and clears what is left over, in one of three modes: `stale` lists the state
 nothing will act on again, `blockers` clears a home's blockers, and `files` deletes the files a
 skill's step names. Each refusal and exit code the modes had as three verbs of their own, stale,
-clear and forget, is run here through the command, against the kitchen's fakes; `files` has its
-own tests in `test_jbus_tidy_files.py`.
+clear and forget, is run here through the command (`jbus.tidy`), against the kitchen's fakes;
+`files` has its own tests in `test_jbus_tidy_files.py`.
 """
 
 import pytest
