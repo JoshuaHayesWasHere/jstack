@@ -148,9 +148,14 @@ default | differs)
 esac
 ```
 
-`default` keeps the default the thread took, and `differs` does not: read words such as "yes" against the question's default before the block is run. On `answered: question <number>`, the question is closed, and this home sends nothing and undoes nothing: jbus carries an answer that differs to the thread that asked, with the question's undo line, on its next pass. For a question this home asked under its own slug, change the plan entry it touches, or write the new brief. Where jbus says the slug `has no Thread: line`, or the thread is finished or its pull request merged, the answer is work for a new brief.
+`default` keeps the default the thread took, and `differs` does not: read words such as "yes" against the question's default before the block is run.
+On `answered: question <number>`, the question is closed, and this home sends nothing and undoes nothing: jbus carries an answer that differs to the thread that asked, with the question's undo line, on its next pass.
+For a question this home asked under its own slug, change the plan entry it touches, or write the new brief.
+Where jbus says the slug `has no Thread: line`, or the thread is finished or its pull request merged, the answer is work for a new brief.
 
-On `not answered: jbus said: refused:` the question is as it was. `only <name> answers` gives the name `--by` takes, and `--at is "<YYYY-MM-DD HH:MM ZONE>"` the form of the time: set that line and run it again. `was answered already` prints the first answer, which stands: a second answer is the user's to give as a new word.
+On `not answered: jbus said: refused:` the question is as it was.
+`only <name> answers` gives the name `--by` takes, and `--at is "<YYYY-MM-DD HH:MM ZONE>"` the form of the time: set that line and run it again.
+`was answered already` prints the first answer, which stands: a second answer is the user's to give as a new word.
 A refusal that says the question `holds` ends with the `jbus answer` command that closes it: run it on the user's own message.
 
 A gate that came as a `<slug>: gate` message is one jbus could not take, so jbus holds no question for it and no command closes it: this thread is its record. Give it to the user in two lines, and send an answer that differs to the thread on its `Asked by:` line yourself (`t3_thread_send`, the answer and the gate's `Undo:` line). It is the one answer a home carries. Until it is answered, the handoff's note carries it under its labels, whole: nothing else outlasts this thread.

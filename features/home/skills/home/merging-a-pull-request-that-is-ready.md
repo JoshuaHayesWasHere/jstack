@@ -87,8 +87,11 @@ The skills in `~/.claude/skills` may be symlinks into the main checkout, and sta
 
 Two more things keep a ready pull request from the command, and only the user lifts them. They are looked at last, so each is said of a pull request that is short of nothing else:
 
-- it changes no protected path, a pattern of `features/jmerge/src/jmerge/protected.txt` ([The lists](../../../jmerge/docs/jmerge.md#the-lists) has them and their grammar). The line is `hold <number> <url>: needs <the user's name>, touches <first matching path>`, and no flag lifts it. To protect another path, a pull request adds a line to `protected.txt`, and since it changes the list the user merges it;
-- the repo's merge is on: every repo is, until `$H/merge-off` is there (`/nohome merge` makes it, `/nohome merge on` removes it). With it, the line is `wait <number> <url>: auto-merge is off for this repo`, and the accept waits on it too: the user merges such a pull request themselves.
+- it changes no protected path, a pattern of `features/jmerge/src/jmerge/protected.txt` ([The lists](../../../jmerge/docs/jmerge.md#the-lists) has them and their grammar).
+  The line is `hold <number> <url>: needs <the user's name>, touches <first matching path>`, and no flag lifts it.
+  To protect another path, a pull request adds a line to `protected.txt`, and since it changes the list the user merges it;
+- the repo's merge is on: every repo is, until `$H/merge-off` is there (`/nohome merge` makes it, `/nohome merge on` removes it).
+  With it, the line is `wait <number> <url>: auto-merge is off for this repo`, and the accept waits on it too: the user merges such a pull request themselves.
 
 The sweep below removes what a merged pull request's thread left.
 

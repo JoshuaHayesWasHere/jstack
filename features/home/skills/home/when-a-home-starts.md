@@ -142,7 +142,8 @@ The user opts out with `/nohome` (the `nohome` skill), for one thread or for the
 
    It prints this home's part of what jbus and the files hold, each part cut at a few lines with the command that prints the rest; a line under `## to read` is never cut.
    Under `## plan`, one line for each entry: the slug, its one line, and the status `jbus plan` counts from its queue rows, as `4 of 7 merged, #383 at pr, 1 queued not approved`, or its `Stage:` line where it has no row.
-   No status is written by hand. An old entry's typed line shows as `(typed) Status: ...`, which nobody checked.
+   No status is written by hand.
+   An old entry's typed line shows as `(typed) Status: ...`, which nobody checked.
    Read an entry's own section of `$M/plan.md`, its "Done when" list and the user's words under `Decisions:`, when you take it up, and the file whole only on `no jbus plan`.
    Under `## waiting on you`, what `jbus needs` prints for this project, never cut, then a count for each other project ("What waits on the user").
    Under `## queue`, each open row of this home's as its slug, status, pull request and why it waits; under `## questions`, each open question of this home's, by its number; under `## merged`, each `merged` line `jmerge` logged since the mark in `merge-seen`, which step 5's merge step moves.
