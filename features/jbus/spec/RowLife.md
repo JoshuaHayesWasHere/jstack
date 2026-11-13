@@ -72,4 +72,4 @@ Its `tlc/` folder holds TLC's output, which is not committed.
 - The faults the table leaves out: a pull request read in neither of GitHub's lists while the row has one, and a thread, Result or pull request of a row with no launch record.
   A pass marks each one `"legal": false` in `transitions.jsonl` and writes it all the same, and `statechart replay` names it.
 - The live guards of `remove`: a thread at work, an open or merged pull request, a launch with no answer yet, which read T3 Code and GitHub at that moment.
-- What of a scout's row `work.scouting` reads, past its role and the hand-over, and a row's `merge_after`.
+- What of a scout's row `scouted.scouting` reads, past its role and the hand-over, and a row's `merge_after`.
