@@ -10,12 +10,11 @@ can give, and an approved row that waits for room on a full /tmp after the pass 
 finished crews left there (`room`): its row's `why` says so, `waiting: /tmp is full: its quota`,
 from the first pass it waits. A hold of GitHub's budget at or under its floor is one item for
 the whole project once it has lasted over ten minutes (`budgethold.needed`), since no row
-launches until its reset. A failing state backup is one item of the machine's, on the infra
-project's list and its root home's, until a snapshot succeeds (`jbus.snapshot.failing`). A row a
-home can clear by itself (a row at `gate`, a leftover its home still has, a hold a thread works
-on) is not on it, and neither is a refused go: a refusal is
-an act of the home's (`acts.jsonl`), most of them a sha that did not match, and the home tries
-again by itself.
+launches until its reset. A failing state backup is one item of the machine's (`machines`), on
+its root home's list, until a snapshot succeeds (`jbus.snapshot.failing`). A row a home can clear
+by itself (a row at `gate`, a leftover its home still has, a hold a thread works on) is not on it,
+and neither is a refused go: a refusal is an act of the home's (`acts.jsonl`), most of them a sha
+that did not match, and the home tries again by itself.
 
 Each item is one line with what it holds, then a plain hint for the reply, the same `Reply:` a
 decision carries (`blockers.reply`), and, for a gate that holds, the fail-safe to read first. A
@@ -162,7 +161,7 @@ def of(
     needs += [(slug, Need(project.name, f"row {slug}: {why}", FREE)) for slug, why in room(run)]
     if held := budgethold.needed(run):
         needs.append((None, Need(project.name, held, HELD)))
-    if config.owner(alert.MACHINE) == project and (backup := snapshot.failing(config)):
+    if machines(config) == project and (backup := snapshot.failing(config)):
         since, line = backup
         said = f"{UNIT}, the state backup, has failed since {config.user.stamp(since)}"
         needs.append(("", Need(project.name, f"{said}; its last line: {line}", MEND)))
@@ -177,6 +176,12 @@ def of(
         or home == root == at.parent
     ]
     return kept + asks(project, root, home)
+
+
+def machines(config: jbus.Config) -> jbus.Project | None:
+    """The project whose list has what the machine owns: the infra project, else the config's
+    first, so a config with no infra project still shows it."""
+    return config.owner(alert.MACHINE) or next(iter(config.projects), None)
 
 
 def asks(project: jbus.Project, root: Path, home: Path) -> list[Need]:

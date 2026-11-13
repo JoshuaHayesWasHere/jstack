@@ -469,14 +469,15 @@ exit 1
 """A gitleaks that finds a secret in `demo/notes.md`, as the real one finds a planted key."""
 
 
+@pytest.mark.parametrize("infra", ["demo", None], ids=["infra", "no infra project"])
 def test_a_failed_snapshot_is_one_item_on_jbus_needs_until_a_run_succeeds(
-    kitchen, tmp_path, monkeypatch
+    kitchen, tmp_path, monkeypatch, infra
 ):
     """A run of the unit that fails, on a secret gitleaks found or stopped at its timeout, puts
     one item on the user's list, with when the backup first failed and the run's last line. A
     second failed run gives that item its own last line and adds none, and the next run that
-    succeeds ends it."""
-    kitchen.config(infra="demo")
+    succeeds ends it. With no infra project it is the first project's."""
+    kitchen.config(infra=infra)
     tree = state_tree(kitchen, monkeypatch)
     with_origin(tree, tmp_path)
     kitchen.poll()

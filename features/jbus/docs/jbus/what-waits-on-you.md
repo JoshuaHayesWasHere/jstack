@@ -89,7 +89,7 @@ It leaves the list once the home does something jbus can see.
 
 ## A backup that failed
 
-A run of `jbus-snapshot.service` that failed is one item on `jbus needs`, on the infra project's list and its root home's, until a later run succeeds ([Back up the homes' state](back-up-the-homes-state.md)).
+A run of `jbus-snapshot.service` that failed is one item on `jbus needs`, on the infra project's list, or the first project's where the config names none, and its root home's, until a later run succeeds ([Back up the homes' state](back-up-the-homes-state.md)).
 
 ## The one answer to "what needs me"
 

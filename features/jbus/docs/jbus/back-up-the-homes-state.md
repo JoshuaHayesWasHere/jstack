@@ -39,7 +39,7 @@ A snapshot that is stopped before its end, as the unit's timeout stops one, cann
 The first snapshot that finishes after them says it recovered.
 A snapshot that fails only for other projects ends the alert of a project whose files it read clean.
 
-A failed run also reaches you on `jbus needs`, as one item on the infra project's list and its root home's, whatever the cause: a secret gitleaks found, a push that failed, a run the timeout stopped.
+A failed run also reaches you on `jbus needs`, as one item on the infra project's list, or the first project's where the config names none, and its root home's, whatever the cause: a secret gitleaks found, a push that failed, a run the timeout stopped.
 It reads `infra jbus-snapshot.service, the state backup, has failed since <YYYY-MM-DD HH:MM zone>; its last line: snapshot: <why>`, with the time of the first run that failed and the line the last failed run wrote to the journal.
 A later run that fails too gives the item its own last line, and adds no second item.
 Nothing you say clears it: fix what its last line names, and the next snapshot that succeeds removes it.
