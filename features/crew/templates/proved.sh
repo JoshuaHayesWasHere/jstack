@@ -318,8 +318,9 @@ elif ! tests=$(git diff --name-only --diff-filter=d "$base" HEAD | command grep 
     ! printf '%s\n' "$changed" | command grep -vE "$fork" | command grep -qvE "$exempt"; then
     prove_fork
 elif [ -z "$tests" ]; then
-    # A .py file whose change is to its docstrings and comments alone is docs, which only its
-    # parsed code can tell, so jbriefs names the kinds (`jbriefs.proved.none_kinds`).
+    # A .py file whose change is to its docstrings and comments alone is docs, and so is a
+    # Makefile or *.mk whose change is to its comment lines alone, which only the file's code
+    # can tell, so jbriefs names the kinds (`jbriefs.proved.none_kinds`).
     if line=$(uv run --project "$T/../source" jbriefs --proved-none "$base..$head"); then
         echo "$line"
         if command grep -q '^## Result' "$B"; then printf '%s\n' "$line" >> "$B"; fi

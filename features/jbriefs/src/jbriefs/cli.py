@@ -349,8 +349,9 @@ def main(argv: list[str] | None = None) -> int:
         "--proved-none",
         metavar="BASE..HEAD",
         help="print the `Proved: none, <kinds>` line of the change from BASE to HEAD in this "
-        "repo, a .py file whose change is to its docstrings and comments alone being docs, or, "
-        "exiting 1, the first file of no kind; write no page",
+        "repo, a .py file whose change is to its docstrings and comments alone, or a Makefile or "
+        "*.mk whose change is to its comment lines alone, being docs, or, exiting 1, the first "
+        "file of no kind; write no page",
     )
     parser.add_argument(
         "--shown",

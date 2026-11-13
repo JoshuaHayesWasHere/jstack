@@ -140,8 +140,9 @@ def _on(run: Pass, brief: str) -> str:
 
 def proved(run: Pass, brief: str, head: str) -> str:
     """Why the brief's desk proof does not bind `head`, or nothing: `jmerge`'s rules of the
-    `Checked:` and `Proved:` lines, with no other head carried, and a `.py` file whose change is
-    to its docstrings and comments alone counted as docs (`proved.prose_in`), and a fork file
+    `Checked:` and `Proved:` lines, with no other head carried, a `.py` file whose change is to
+    its docstrings and comments alone and a `Makefile` or `*.mk` whose change is to its comment
+    lines alone counted as docs (`proved.prose_in`), and a fork file
     whose change is to the fork's tests alone counted as no code (`forktests.in_repo`)."""
     root, on = str(run.project.checkout), f"origin/{_on(run, brief)}"
     prose, fork = jproved.prose_in(root, on, head), forktests.in_repo(root, on, head)

@@ -624,9 +624,10 @@ class Repo:
         return rangediff.verdict(self.main, reviewed, head, default, since or "")
 
     def prose(self, one: ready.PullRequest) -> Callable[[str], bool]:
-        """Whether a `.py` file of the pull request changes in its docstrings and comments alone
-        (`proved.prose_in`), from the merge-base of its base on origin to its head, which a fetch
-        of origin brings once a pass."""
+        """Whether a `.py` file of the pull request changes in its docstrings and comments alone,
+        or a `Makefile` or `*.mk` in its comment lines alone (`proved.prose_in`), from the
+        merge-base of its base on origin to its head, which a fetch of origin brings once a
+        pass."""
 
         @functools.cache
         def asked() -> Callable[[str], bool]:
