@@ -17,6 +17,11 @@ from jgauge import slotlog
 from test_room import BIN
 
 NOON = datetime(2026, 11, 5, 10, 0, tzinfo=UTC)
+LINUX = pytest.mark.skipif(
+    sys.platform != "linux",
+    reason="a take's cgroup and the CPU of a process it left are read from cgroup v2 and /proc,"
+    " which a Mac has neither of, so there a release counts only what the command waited for",
+)
 
 
 def rows(log):
@@ -217,6 +222,7 @@ SPIN = "import time\nwhile time.process_time() < 0.25: pass\ntime.sleep(0.2)"
 LEAVES_A_SPIN = '(setsid "$1" -c "$2" &)'
 
 
+@LINUX
 def test_a_release_counts_a_detached_child_that_burns_after_the_command_exits(tmp_path):
     """The command's shell starts a Python in a session of its own and exits at once, so no
     process the holder waits for ever reaps it. The Python then spins until it has used 0.25 s
@@ -239,6 +245,7 @@ def test_a_release_counts_a_detached_child_that_burns_after_the_command_exits(tm
     assert release["cpu_user"] + release["cpu_system"] >= 0.25 - 2 / os.sysconf("SC_CLK_TCK")
 
 
+@LINUX
 def test_with_no_cgroup_a_release_counts_a_detached_child_that_carries_the_take(
     tmp_path, monkeypatch
 ):
@@ -266,6 +273,7 @@ def a_cgroup_tree(tmp_path, monkeypatch):
     return home
 
 
+@LINUX
 def test_a_release_records_the_cgroup_s_cpu_and_the_processes_left(tmp_path, monkeypatch):
     """The release's CPU is the take's cgroup's `cpu.stat`, `left` counts the processes still in
     it after the drain, and a take clears the cgroup an earlier take left behind."""
@@ -286,6 +294,7 @@ def test_a_release_records_the_cgroup_s_cpu_and_the_processes_left(tmp_path, mon
     assert not (home / f"{slotlog.PREFIX}stale").exists()
 
 
+@LINUX
 def test_a_release_whose_cgroup_cannot_be_read_writes_its_row_with_no_cpu(tmp_path, monkeypatch):
     """A take's cgroup gone under it (here, one with no `cpu.stat` and no process list) costs
     the row its CPU, and the release still writes the row and returns, so the run keeps its exit
@@ -303,6 +312,7 @@ def test_a_release_whose_cgroup_cannot_be_read_writes_its_row_with_no_cpu(tmp_pa
     assert "cpu_user" not in release and "left" not in release
 
 
+@LINUX
 def test_a_take_s_cgroup_is_capped_at_its_workers_and_a_take_with_none_runs_uncapped(
     tmp_path, monkeypatch
 ):
@@ -352,6 +362,7 @@ def the_kernel_s_threaded_rule(monkeypatch, root):
     monkeypatch.setattr(Path, "read_text", read_text)
 
 
+@LINUX
 def test_a_take_under_a_cgroup_with_processes_is_threaded_and_counts_its_threads_processes(
     tmp_path, monkeypatch
 ):
@@ -382,6 +393,7 @@ SPINS_TWO = 'for i in 1 2; do "$1" -c "$2" & done; wait'
 OWN_QUOTA = 'cat "/sys/fs/cgroup$(sed -n "s/^0:://p" /proc/self/cgroup)/cpu.max" 2> /dev/null'
 
 
+@LINUX
 def test_a_take_of_one_worker_runs_two_spinning_processes_on_one_core(tmp_path):
     """Two processes that each spin for a second of wall time use about 2 s of CPU uncapped. In
     a take of 1 worker they share one core, so the release counts at most 1.2 s, the 0.2 for
