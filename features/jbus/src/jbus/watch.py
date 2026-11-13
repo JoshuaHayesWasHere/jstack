@@ -1831,14 +1831,14 @@ def job_log(run: Pass, repo: str, job: object) -> str | None:
     world = run.world if run.world is not None else World()
     key = str(job)
     if key not in world.logs:
-        world.logs[key] = _kept_log(run, key)
-    if world.logs[key] is None:
-        done = key.isdigit() and _completed(run, world, repo, key)
-        path = f"repos/{repo}/actions/jobs/{job}/logs"
-        asked = run.run("gh", "api", path, "--allow-escape-sequences")
-        log = asked.stdout if asked.returncode == 0 else None
-        if done and log is not None:
-            _keep_log(run, key, log)
+        log = _kept_log(run, key)
+        if log is None:
+            done = key.isdigit() and _completed(run, world, repo, key)
+            path = f"repos/{repo}/actions/jobs/{job}/logs"
+            asked = run.run("gh", "api", path, "--allow-escape-sequences")
+            log = asked.stdout if asked.returncode == 0 else None
+            if done and log is not None:
+                _keep_log(run, key, log)
         world.logs[key] = log
     return world.logs[key]
 

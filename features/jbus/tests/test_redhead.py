@@ -99,11 +99,14 @@ def test_a_completed_jobs_log_is_asked_of_github_once_across_passes(kitchen):
 
 
 def test_a_log_of_a_job_not_completed_or_not_given_is_asked_again_each_pass(kitchen):
-    """A running job's log grows, and a log GitHub did not give may come later: neither is kept."""
+    """A running job's log grows, and a log GitHub did not give may come later: neither is kept for
+    a later pass, and each is still asked once a pass."""
     kitchen.set("jobs.json", {"902": {"status": "in_progress"}, "903": {"status": "completed"}})
     kitchen.set("logs.json", {"902": MERGED})
     assert redhead.tested(a_pass(kitchen), HEAD, red("903", "902")) == MAIN
-    assert redhead.tested(a_pass(kitchen), HEAD, red("903", "902")) == MAIN
+    run = a_pass(kitchen)
+    assert redhead.tested(run, HEAD, red("903", "902")) == MAIN
+    assert redhead.tested(run, HEAD, red("903", "902")) == MAIN
     assert len(log_reads(kitchen, "902")) == 2
     assert len(log_reads(kitchen, "903")) == 2
 
