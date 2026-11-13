@@ -17,6 +17,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
+from jbus import queue
 from jmerge import ready
 from jmerge import reverts as kept
 from jmerge import rows as merge_rows
@@ -98,6 +99,8 @@ def jmerge_says(kitchen, slug="alpha"):
 def test_a_row_whose_revert_merged_opens_again_and_its_redo_gets_its_review_and_no_row_over_hold(
     kitchen,
 ):
+    """Once #9 merged, the row keeps #7 in its `reverted` column, and `jbus.watch.unlanded` reads
+    #7 as no merge of the row's, so the redo #10 goes the way of any row's pull request."""
     thread, path = merged_row(kitchen)
     reverted(kitchen)
     kitchen.poll(NOW - timedelta(minutes=24))
@@ -109,6 +112,7 @@ def test_a_row_whose_revert_merged_opens_again_and_its_redo_gets_its_review_and_
 
     assert status(kitchen) not in ("merged", "done")
     assert rows(kitchen)["alpha"]["pr"] == ""
+    assert rows(kitchen)["alpha"][queue.REVERTED] == url(7)
     assert kitchen.lines("reland") == [
         f"reland alpha: its revert {url(9)} merged, so the row is open for its redo"
     ]
