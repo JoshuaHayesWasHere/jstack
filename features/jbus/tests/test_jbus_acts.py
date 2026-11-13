@@ -629,6 +629,7 @@ def test_a_bot_word_on_bot_chat_evidence_goes_to_the_projects_home(kitchen, rout
         "checked": False,
         "picks": [],
         "answers": "",
+        "undo": "",
     }
     (sent,) = sends(kitchen)
     assert sent["threadId"] == "home-1" and sent["message"].endswith(f"\n\n{READ}")

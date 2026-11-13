@@ -47,7 +47,20 @@ from pathlib import Path
 
 import jbus
 from jbriefs import home as homes
-from jbus import blockers, budgethold, cleanup, passes, questions, queue, turnend, verbs, waiting
+from jbriefs import meets
+from jbus import (
+    blockers,
+    budgethold,
+    cleanup,
+    passes,
+    questions,
+    queue,
+    turnend,
+    verbs,
+    waiting,
+    waive,
+)
+from jsettings.brief import head_lines
 
 FREE = "nothing to reply: free room on it, and the next pass launches the row"
 """The hint a row that waits for /tmp ends in: no word of the user's frees it."""
@@ -207,6 +220,7 @@ def lines(
     line that says nothing waits, and `home` keeps one home's items (`of`)."""
     user, found, unknown = config.user.user, [], []
     stands = [line for project in projects for line in standing(config, project, home)]
+    stands += [line for project in projects for line in waived(config, project, now, home)]
     for project in projects:
         try:
             found += of(config, project, now, home)
@@ -235,6 +249,33 @@ def standing(config: jbus.Config, project: jbus.Project, home: Path | None = Non
         lines.append(
             f"{project.name} {name} home standing word {word} for follow-ups that open no door: "
             f'"{said.words}"'
+        )
+    return lines
+
+
+def waived(
+    config: jbus.Config, project: jbus.Project, now: datetime, home: Path | None = None
+) -> list[str]:
+    """Return a line for each waiver the root home made on its own judgment in the day before
+    `now` (`jbus.waive`), naming the row, each line, the reason and the undo: with `home`, only
+    the rows of that home, and a root home's scopes' with the root's. It waits on nobody, so the
+    user reads here, with nothing to answer, what the root waived in their name."""
+    state, root = config.state(project), config.home(project)
+    lines = []
+    for act in waive.recent(state, now):
+        slug, said = act["action"]["subject"], act["evidence"]
+        at = home_of(state, root, slug)
+        if home is not None and home != at and not home == root == at.parent:
+            continue
+        brief = root / "tasks" / f"{slug}.md"
+        items = meets.done_when(head_lines(brief.read_text())) if brief.is_file() else []
+        named = ", ".join(
+            f'line {one} "{items[int(one) - 1]}"' if int(one) <= len(items) else f"line {one}"
+            for one in act["action"]["pre"].split()
+        )
+        lines.append(
+            f"{project.name} root waived {slug}: {named}, because {said['words']}; "
+            f"undo: {said.get('undo', '')}; nothing to answer"
         )
     return lines
 

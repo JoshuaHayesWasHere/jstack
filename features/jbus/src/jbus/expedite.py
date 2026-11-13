@@ -26,8 +26,8 @@ crew's own proof or check clears (`Short.spells`, `TELLS`). `TABLE` holds every 
 - `meets-no`, `meets-unread` and `meets-miscounted`, the last review round's `Meets the brief:`
   line (`jbriefs.meets`) says `no`, has no shape `jmerge` reads, or counts other lines than the
   brief has: run the crew skill's block of "A second pass", which gives the scoped review the
-  line is owed, after a fix for a `no`. A `Waived:` line on the user's own word is the only other
-  way out, and `jmerge` already counts it before it gives `meets-no`;
+  line is owed, after a fix for a `no`. A `Waived:` line, the user's or the root's (`jbus waive
+  --as root`), is the only other way out, and `jmerge` counts it before it gives `meets-no`;
 - `overruled`, `the scoped review did not uphold the decline of <ids>`: fix each finding and answer
   it `fixed`, or, where the crew still stands by the decline, tell its home. The stall for this
   reason goes to the home's thread on the one list (`jbus.wakes`) and never to the user. Only a
@@ -346,8 +346,8 @@ TABLE = (
         SECOND_PASS + "the last review says the brief is not met, so fix each `Done when` line "
         "the reason names and push, and the block gives the one scoped review whose own "
         "`Meets the brief:` line must say yes. Never write or rewrite a review's line yourself: "
-        "only the user's `Waived:` line, as the crew skill's \"The review\" says, clears a line "
-        "otherwise.",
+        "only a `Waived:` line, the user's or the root home's `jbus waive --as root`, clears a "
+        "line otherwise.",
         reviewed=True,
     ),
     Short(

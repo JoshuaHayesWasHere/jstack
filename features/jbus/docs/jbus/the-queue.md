@@ -367,9 +367,9 @@ An act's line is JSON with `v: 1`, an `id`, the time `at`, and these:
 
 | Key | What it holds |
 | --- | --- |
-| `party` | Who acted: `kind` is `user`, `bot`, `home` or `jbus`, and `route` is `cli`, `view` or `bot`. The bot has no name: one bot speaks for you. |
-| `action` | `verb`, one of `go`, `answer`, `hold`, `remove`, `withdraw`, `word`, `item` and `accept`, its `subject` (the slug, the question's number, the item's id, or for a word the scope of the home it is for, empty for the root home), the `pre` sha or head it was given, the event it had `seen`, and the `doors` the brief, the gate or the pull request holds for. |
-| `evidence` | The words it rests on: `source`, `ref`, `words`, `said_at`, `said_in`, `checked`, true only where jbus read your words and their time itself, and `picks`, each label you picked in a question box with its `question`, empty for every other source. |
+| `party` | Who acted: `kind` is `user`, `bot`, `home`, `root` (the root home's own waiver, `jbus waive --as root`) or `jbus`, and `route` is `cli`, `view` or `bot`. The bot has no name: one bot speaks for you. |
+| `action` | `verb`, one of `go`, `answer`, `hold`, `remove`, `withdraw`, `word`, `item`, `accept` and `waive` (a `Waived:` line, the user's or the root's), its `subject` (the slug, the question's number, the item's id, or for a word the scope of the home it is for, empty for the root home), the `pre` sha or head it was given, the event it had `seen`, and the `doors` the brief, the gate or the pull request holds for. |
+| `evidence` | The words it rests on: `source`, `ref`, `words`, `said_at`, `said_in`, `checked`, true only where jbus read your words and their time itself, `picks`, each label you picked in a question box with its `question`, empty for every other source, and `undo`, how to undo a root waiver's merge, empty for every other act. |
 | `outcome` | `done`, `gated`, `refused` or `noop`. |
 | `line` | What the act printed, and `gate` the number of the gate a `gated` go parked. |
 
