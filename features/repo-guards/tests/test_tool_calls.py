@@ -9,17 +9,6 @@ from jbriefs.skills import listed
 from test_home_thread import named
 from testing.paths import REPO, skills
 
-READ_SET = (
-    "features/*/*.md",
-    "features/*/skills/",
-    "features/*/references/",
-    "features/*/project-skill/",
-    "features/*/playbooks/",
-    "features/*/templates/",
-    "features/jbus/tests/fixtures/t3/",
-    "testing/tests/fixtures/claude/",
-)
-
 SKILLS = skills()
 SCHEMAS = {
     path.stem: json.loads(path.read_text())
@@ -29,7 +18,6 @@ SCHEMAS = {
 FENCE = re.compile(r"^[ \t]*(`{3,}|~{3,})(.*)$")
 INLINE = re.compile(r"`(\{[^`\n]*\})`")
 TOOL = re.compile(r"`((?<=`t3-code` server's `)\w+|t3_\w+|Agent)`")
-NO_INSTRUCTIONS = ("docs", "tests", "evals", "spec", "src")
 PLACEHOLDER = re.compile(r"<[^<>]+>")
 FILLED = {
     "<slug>": "fix-login",
@@ -171,7 +159,6 @@ def test_no_skill_names_a_tool_the_way_only_claude_code_does():
         f"{path.relative_to(folder.parent)}:{number}"
         for folder in SKILLS.values()
         for path in sorted(folder.rglob("*.md"))
-        if path.relative_to(folder).parts[0] not in NO_INSTRUCTIONS
         for number, line in enumerate(path.read_text().splitlines(), 1)
         if "mcp__t3-code__" in line
         or ("ToolSearch" in line and not re.search(r"\bif\b", line, re.I))

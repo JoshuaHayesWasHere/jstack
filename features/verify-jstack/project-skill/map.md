@@ -139,6 +139,7 @@ Cross-cutting:
 - `testing/tests/test_select_tests_rules.py`
 - `features/jbriefs/tests/test_skills_named.py`
 - `testing/tests/test_test_plugins.py`
+- `features/repo-guards/tests/test_tool_calls.py`
 - `features/verify-jstack/tests/test_verify_jstack.py`
 - `features/jbus/tests/view/test_view_sources.py`
 - `features/skill-library/tests/test_statechart_tlc_bounds.py`

@@ -574,7 +574,6 @@ READ_BY_A_GUARD = {
     "test_skill_size.py": "features/crew/do-the-task.md",
     "test_templates.py": "features/crew/templates/result.md",
     "test_test_size.py": "features/jgauge/tests/test_slot.py",
-    "test_tool_calls.py": "features/home/skills/home/SKILL.md",
     "test_tool_project.py": "features/scout/SKILL.md",
 }
 
