@@ -238,6 +238,7 @@ TABLE = {
     "slot-wake": "quiet",
     "slot-end": "quiet",
     "pool-wake": "quiet",
+    "run-wake": "quiet",
     "retro": "quiet",
     "revert": "quiet",
     "reland": "quiet",

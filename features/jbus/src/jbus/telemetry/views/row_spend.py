@@ -58,7 +58,7 @@ SQL = (
     "GROUP BY l.project, l.slug, o.role, o.provider"
 )
 
-WAKE = ("slot-wake", "slot-end", "pool-wake", "clock")
+WAKE = ("slot-wake", "slot-end", "pool-wake", "run-wake", "clock")
 """The send keys of a wake (`jbus.outbox.WAKES`): a wake is its own class, before the row's first
 prereview and after it."""
 CHECK = ("failed", "refailed")

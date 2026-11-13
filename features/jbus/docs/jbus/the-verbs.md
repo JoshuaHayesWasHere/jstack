@@ -14,6 +14,7 @@ Without it, these verbs act on the project whose repo they are run in (`jbus vie
 - `jbus needs`
 - `jbus out`
 - `jbus plan`
+- `jbus run-wait`
 - `jbus view-shot`
 - `jbus wakes`
 <!-- built: end -->

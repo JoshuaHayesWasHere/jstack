@@ -653,6 +653,14 @@ def fake_gh(stub, args, cwd):
             return 1, "", "gh: Bad Gateway (HTTP 502)\n"
         said = json.dumps({"jobs": every.get(args[1].split("/")[-2], [])})
         said = json.dumps([json.loads(said)]) if "--slurp" in args else said
+    elif args[0] == "api" and args[1].split("/actions/runs/")[-1].isdigit():
+        kept, run = stub / "run-view.json", args[1].split("/")[-1]
+        with open(stub / "run-view.log", "a") as log:
+            log.write(run + "\n")
+        found = (json.loads(kept.read_text()) if kept.exists() else {}).get(run)
+        if found is None:
+            return 1, "", "gh: Not Found (HTTP 404)\n"
+        said = json.dumps(found)
     elif args[0] == "api":
         said = (stub / "commits.json").read_text()
     else:

@@ -40,7 +40,8 @@ from jgauge import slot
 NO_RESULT = (
     "jbus: your brief, {brief}, has no `## Result` yet, so this turn does not end here. Carry on "
     'with the task from where you are, and end the turn with the Result the crew skill\'s "End" '
-    "has you write, or on a wait that jbus wakes you from: a test slot or your run that holds one."
+    "has you write, or on a wait that jbus wakes you from: a test slot, your run that holds one, "
+    "or a GitHub run you registered with `jbus run-wait`."
 )
 OWES_PULL = (
     "jbus: every review of {brief} is written, and its last Result says the pull request opens "

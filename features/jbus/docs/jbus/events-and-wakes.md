@@ -133,6 +133,7 @@ It is in the log, which `jbus events` prints and the view shows.
 - `reviewed`
 - `rollover`
 - `rule-breaks`
+- `run-wake`
 - `slot-end`
 - `slot-wake`
 - `snapshot`
@@ -158,6 +159,7 @@ A review jbus does not launch, since the desk proof does not hold at the pushed 
 While that review is due, running, or refused and told to the crew, the row runs and is held by its review, whatever its Result's `Left:` line names (`jbus.watch.owes_pull`).
 A `slot-wake` is jbus's one message to a thread that waits on a full test slot, once one is free (`jbus.slotwait.wake`).
 A short call waits for its slot in its own call and registers nothing, so no `slot-wake` goes for the short lane, and a short-lane waiter an older jgauge left in the waiters file is dropped with one line.
+A `run-wake` is jbus's one message to a thread that waits on a GitHub run it started (`jbus run-wait <run> --thread <id>`), once the run has ended, with its conclusion (`jbus.runwait.wake`).
 
 jbus logs a `snapshot` event once a day, on the first pass at or after 5:15 PM in your time zone.
 With the snapshot jbus runs `jmerge --sweep --check`, which removes nothing, and logs its lines as one `sweep` event when there are any.
