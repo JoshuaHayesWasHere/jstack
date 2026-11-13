@@ -162,13 +162,16 @@ def test_a_run_github_does_not_know_is_refused(kitchen):
 
 @pytest.mark.parametrize("how", ["interrupted", "gone"])
 def test_the_wait_of_a_thread_that_ended_for_good_is_dropped_unasked(kitchen, how):
+    """`jbus.slotwait.dead` drops a run wait as it drops a slot wait, before GitHub is asked."""
     thread = waiting_crew(kitchen)
     if how == "gone":
         kitchen.t3.threads.remove(thread)
     else:
         thread["status"] = how
-    kitchen.poll(NOW)
+    said = kitchen.poll(NOW)
     assert runwaiters.read(runwaiters.where()) == [] and asked(kitchen) == [RUN]
+    dropped = [line for line in said if "its run wait is dropped, its thread is gone" in line]
+    assert len(dropped) == (how == "gone")
 
 
 def gh(code, out="", error=""):
