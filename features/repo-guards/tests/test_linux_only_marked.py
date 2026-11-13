@@ -331,3 +331,74 @@ def test_the_marks_jinstall_and_jbus_write_count_as_linux_only():
     assert "test_the_units_are_linked_and_the_timer_enabled_once_jbus_has_a_config" in marked
     probe = module(REPO / "features" / "jbus" / "tests" / "test_checks_bound_probe.py")
     assert linux_only(probe, ast.Name("INOTIFY"))
+
+
+def test_a_planted_test_that_reads_proc_or_cgroup_v2_unmarked_is_named_and_a_guarded_is_not(
+    tmp_path,
+):
+    """A path under /proc or /sys/fs/cgroup read by its literal, or through a name a source
+    module binds to one, is a use; a read that first asks whether the path exists, a name the
+    test swaps for a stand-in, and a path held only as data are not."""
+    paths = tmp_path / "features" / "demo" / "src" / "demo" / "paths.py"
+    paths.parent.mkdir(parents=True)
+    paths.write_text(
+        'from pathlib import Path\nPROCS = Path("/proc")\nCGROUPS = Path("/sys/fs/cgroup")\n'
+    )
+    plant(
+        tmp_path,
+        "test_reads.py",
+        '''
+        import os, sys
+        from pathlib import Path
+        import pytest
+        from demo import paths
+        from demo.paths import CGROUPS
+        LINUX = pytest.mark.skipif(sys.platform != "linux", reason="Linux's case")
+
+        def own_cgroup():
+            return (paths.PROCS / "self" / "cgroup").read_text()
+
+        def test_literal():
+            assert Path("/proc/self/cgroup").read_text()
+
+        def test_formatted():
+            assert os.readlink(f"/proc/{os.getpid()}/cwd")
+
+        def test_opened():
+            with open("/sys/fs/cgroup/cgroup.controllers") as controllers:
+                assert controllers.read()
+
+        def test_through_a_helper():
+            assert own_cgroup()
+
+        def test_imported_name():
+            assert list(CGROUPS.iterdir())
+
+        def test_checked_first(tmp_path):
+            proc = Path(f"/proc/{os.getpid()}")
+            if proc.exists():
+                assert (proc / "stat").read_text()
+
+        def test_is_gone():
+            assert not Path("/proc/0").exists()
+
+        def test_stood_in(tmp_path, monkeypatch):
+            monkeypatch.setattr(paths, "PROCS", tmp_path)
+            assert own_cgroup() is not None
+
+        def test_held_as_data(monkeypatch):
+            """Reads /proc, says the docstring."""
+            monkeypatch.setenv("STATE", "/proc/no-such-state")
+
+        @LINUX
+        def test_marked():
+            assert own_cgroup()
+        ''',
+    )
+    assert unmarked(tmp_path) == [
+        "features/demo/tests/test_reads.py::test_literal: /proc",
+        "features/demo/tests/test_reads.py::test_formatted: /proc",
+        "features/demo/tests/test_reads.py::test_opened: /sys/fs/cgroup",
+        "features/demo/tests/test_reads.py::test_through_a_helper: /proc",
+        "features/demo/tests/test_reads.py::test_imported_name: /sys/fs/cgroup",
+    ]
