@@ -344,12 +344,14 @@ def test_a_take_of_one_worker_runs_two_spinning_processes_on_one_core(tmp_path):
             with contextlib.suppress(OSError):
                 cap = (own / "cpu.max").read_text().split()
         quota = subprocess.run(["sh", "-c", OWN_QUOTA], capture_output=True, text=True).stdout
-        subprocess.run(["sh", "-c", SPINS_TWO, "sh", sys.executable, SPINS_FOR_A_SECOND], check=True)
+        subprocess.run(
+            ["sh", "-c", SPINS_TWO, "sh", sys.executable, SPINS_FOR_A_SECOND], check=True
+        )
     finally:
         slotlog.release(taken, 0)
 
     if cap != ["100000", "100000"]:
-        pytest.skip(f"the cgroup tree here allows the take no cap: {cap or 'no cgroup'}")
+        pytest.skip(f"the cgroup tree here allows the take no cap: {cap}")
     _take, release = rows(log)
     assert release["cpu_user"] + release["cpu_system"] <= 1.2
     assert quota.split()[:1] in ([], ["max"])
