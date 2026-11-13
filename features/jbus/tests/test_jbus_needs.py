@@ -525,7 +525,8 @@ def test_a_decision_whose_default_was_taken_leaves_the_list_three_days_after_it_
     lines buried an approval, a spend and a public stage among 81 items. Three days after `jbus
     told` told it, a `decision local` line whose default was taken leaves `jbus needs`, and
     `--all` still lists it. A stop, a question jbus holds and a decision with no default taken
-    wait on the user at any age."""
+    wait on the user at any age. A later turn that tells the same line again, or rewrites `told`
+    for another line, keeps when it was first told, so the default still ages out."""
     sc = scoped(kitchen, "sc")
     kitchen.brief("alpha")
     assert kitchen.main("gate", "alpha", stdin=held())[0] == 0
@@ -536,6 +537,10 @@ def test_a_decision_whose_default_was_taken_leaves_the_list_three_days_after_it_
     )
     kitchen.monkeypatch.setattr(verbs, "clock", lambda: AFTER)
     assert kitchen.main("told", str(sc), stdin=turn)[0] == 0
+    kitchen.monkeypatch.setattr(verbs, "clock", lambda: AFTER + timedelta(days=2))
+    again = turn + "stop local later: a later turn's own stop\n"
+    assert kitchen.main("told", str(sc), stdin=again)[0] == 0
+    assert kitchen.main("told", str(sc), stdin="cleared local later: done\n")[0] == 0
     kitchen.poll()
     asked = [
         "demo sc home decision local taken: deploy main? Default taken: prod stays where it is",

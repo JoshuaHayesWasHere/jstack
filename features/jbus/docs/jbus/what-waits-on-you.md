@@ -130,7 +130,7 @@ A project no pass has listed yet is a `not known:` line, and the line that follo
 `jbus needs --home <directory>`, with `--project <name>`, keeps one home's items: a scope's directory keeps that scope's, and the root home's keeps its own and every scope's.
 An item is a home's by the slug it is about, by its brief's or request's `Home:` line, and a gate is the home's whose `gates.md` holds it.
 Every home's list also has the items about the whole project, no row and no home: a T3 Code build to install, a setup only you can give, and a hold of GitHub's budget.
-It also has each ask the home made of you itself that is still open: each `decision local <slug>` or `stop local <slug>` line in the home's `told` file, which `jbus told` keeps until a `cleared local <slug>` line ends it.
+It also has each ask the home made of you itself that is still open: each `decision local <slug>` or `stop local <slug>` line in the home's `told` file, which `jbus told` keeps until a `cleared local <slug>` line ends it, less the two kinds that wait on no one, as on the project-wide list: a default taken over three days ago, and a closed home's asks (`--all` keeps them).
 Such a line prints as `<project> <home> home decision local <slug>: ...`, with `answer: reply to the <home> home in your own words`.
 So `nothing waits on <you> in <project>'s <home> home` means that none of these is open either.
 The ketchup skill runs it in a home, so a home's catch-up names no other project's items.
