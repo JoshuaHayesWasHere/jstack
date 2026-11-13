@@ -83,15 +83,15 @@
   },
   "checked": {
     "cfg": "OneList.cfg",
-    "modelStates": 39564
+    "modelStates": 2044
   },
   "drawnFrom": {
     "command": "statechart from-spec OneList.tla --config OneList.chart.cfg --count-config OneList.cfg --title 'Does a gate reach my list, and leave it once I answer?'",
     "inputs": {
-      "OneList.cfg": "374c37e2c1602eed71fc705e3816ac561291a4d9085eec82bc059a7bd4f01a22",
+      "OneList.cfg": "b742e92c1a4a82bd9aa786e2edfce1932905b5dc3dcc2e5de07bb3cdf1b9e272",
       "OneList.chart.cfg": "b9af02e7b6235f9ec2b7b7e4f638d33e2ca838befd603891de3f70ddb63dab0b",
       "OneList.map.py": "6f9d741ec2611eff16d0d6e5812882a1b3e09f667e80226c9f8de6179b36c13a",
-      "OneList.tla": "bff184346fcda2a06737ba107cf40bee58aecbf4a439cd677c4cb51dda3b64f3"
+      "OneList.tla": "dfdb56394a9333eb3e21850188bd9a835253075f223257fd628f5255419b0ee4"
     },
     "chart": "544feaadd7c8a95a8a8623170ed7cafd7267d61e20b75b29ff3e90365893b86e",
     "tables": {

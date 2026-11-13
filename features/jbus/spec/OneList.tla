@@ -12,9 +12,12 @@
 \* The parts of the list share no state but the project's passes and the streaks' lock, so a
 \* behavior moves one scene, which Init picks (`scene`), and the others stay at their start.
 \* This is how HomeTree.tla checks its scenes, and it keeps the states a sum and not a product.
-\* - "alerts": the streaks of one project's jmerge, of a home's stall from before, of the sign-in
-\*   and of a full disk, the budget's hold and the kinds a pass rebuilds, with a pass of the
-\*   project and a look of the machine that take the lock in turn.
+\* - "alerts": the streaks of one project's jmerge and of a home's stall from before.
+\* - "machine": the streaks of a full disk and of the sign-in, which the machine's look raises.
+\* - "rows": the budget's hold and the kinds a pass rebuilds.
+\*   In each of these three a pass of the project and a look of the machine take the lock in
+\*   turn, and the user may close the project. Their causes share nothing else, so one cause
+\*   flipping beside another adds states and no behavior a rule can tell apart.
 \* - "gates": one gate, from the home that writes it to its answer, its question and the handoff
 \*   that moves gates.md.
 \* - "marks": merge.log with merge-seen, and one brief's Result headings with read-seen.
@@ -32,6 +35,8 @@
 \* row: it piped a gate the home asked under the catch-all's key, so the gate was asked twice.
 EXTENDS Naturals, Sequences, FiniteSets
 CONSTANTS World, Fault, Scenes, After, MaxLines
+
+Alerts == {"alerts", "machine", "rows"}         \* the scenes of the streaks and the lock
 
 By == IF Fault = "mark-count" THEN "count" ELSE "line"  \* how merge-seen marks in this run
 
@@ -165,19 +170,18 @@ GateListed(q) == FileGate(q) \/ \E k \in QKeys : q[k] = "open"
 \* ---- The world, which no code of jbus moves ----
 
 Flip ==
-  /\ scene = "alerts"
-  /\ \/ broke' = ~broke /\ UNCHANGED <<full, near, low, waits>>
-     \/ full' = ~full /\ UNCHANGED <<broke, near, low, waits>>
-     \/ near' = ~near /\ UNCHANGED <<broke, full, low, waits>>
-     \/ low' = ~low /\ UNCHANGED <<broke, full, near, waits>>
-     \/ waits' = ~waits /\ UNCHANGED <<broke, full, near, low>>
+  /\ \/ scene = "alerts" /\ broke' = ~broke /\ UNCHANGED <<full, near, low, waits>>
+     \/ scene = "machine" /\ full' = ~full /\ UNCHANGED <<broke, near, low, waits>>
+     \/ scene = "machine" /\ near' = ~near /\ UNCHANGED <<broke, full, low, waits>>
+     \/ scene = "rows" /\ low' = ~low /\ UNCHANGED <<broke, full, near, waits>>
+     \/ scene = "rows" /\ waits' = ~waits /\ UNCHANGED <<broke, full, near, low>>
   /\ UNCHANGED <<scene, closed, listed, lock, hold>> /\ UNCHANGED gate /\ UNCHANGED streaks
   /\ UNCHANGED marks
 
 \* The user closes the project: config.toml `closed =`, after which no pass of it runs. Its list
 \* and its alerts stay as the last pass left them.
 Close ==
-  /\ "closes" \in World /\ scene = "alerts" /\ ~closed /\ lock /= "pass"
+  /\ "closes" \in World /\ scene \in Alerts /\ ~closed /\ lock /= "pass"
   /\ closed' = TRUE
   /\ UNCHANGED <<scene, listed, lock, hold>> /\ UNCHANGED world /\ UNCHANGED gate
   /\ UNCHANGED streaks /\ UNCHANGED marks
@@ -185,7 +189,7 @@ Close ==
 \* ---- A pass of the project, under streaks.lock ----
 
 PassTake ==
-  /\ scene \in {"alerts", "gates"} /\ ~closed /\ lock = "free" /\ lock' = "pass"
+  /\ scene \in Alerts \cup {"gates"} /\ ~closed /\ lock = "free" /\ lock' = "pass"
   /\ UNCHANGED <<scene, closed, listed, hold>> /\ UNCHANGED world /\ UNCHANGED gate
   /\ UNCHANGED streaks /\ UNCHANGED marks
 
@@ -249,7 +253,7 @@ PassBlind ==
 \* ---- The machine's look: `jbus alarm`, health and the sign-in, under streaks.lock ----
 
 LookTake ==
-  /\ scene = "alerts" /\ lock = "free" /\ lock' = "look"
+  /\ scene \in Alerts /\ lock = "free" /\ lock' = "look"
   /\ UNCHANGED <<scene, closed, listed, hold>> /\ UNCHANGED world /\ UNCHANGED gate
   /\ UNCHANGED streaks /\ UNCHANGED marks
 

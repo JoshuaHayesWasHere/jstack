@@ -2,7 +2,8 @@
 
 `OneList.tla` models what waits on the user and the marks of what a home has read, at main aa5469d97 (2026-11-11): a gate in gates.md and in questions.json, gates-moved.md, the kinds of waiting-on-user.json, the streaks of streaks.json under streaks.lock, the disk's reading, the sign-in line, budget-hold.json, read-seen, and merge-seen with merge.log.
 Each ledger row of the machine OneList (st-state-ledger) is a variable whose comment names the row and quotes the code that writes it.
-The parts share only the project's passes and the lock, so Init picks the scene a behavior moves (alerts, gates or marks), and the others stay at their start.
+The parts share only the project's passes and the lock, so Init picks the scene a behavior moves (alerts, machine, rows, gates or marks), and the others stay at their start.
+The alerts are three scenes, the jmerge and stall streaks, the disk and the sign-in, and the budget's hold with the rows, since their causes share only the lock and a project that closes: one run of all five causes at once had 39,564 states and took TLC's liveness check 24 s, where the three scenes have 2,044.
 `World` is the set of acts outside the code a run lets happen: a project that closes, a hand that cuts merge.log, and a gate asked by the home.
 `OneList.map.py` labels the states and maps each kind of the list to the HomeTree `msg` it refines.
 
@@ -39,7 +40,7 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --e
 
 `OneList.chart.cfg` draws the gates scene alone: the other scenes have too many states to draw.
 `states.tsv` and `arrows.tsv` list its 152 states and 366 arrows between them, each with its action and its count of model steps.
-They leave out `OneList.cfg`'s alerts and marks scenes: `OneList.map.py` labels nearly each of their 39,564 model states apart, which would add 19,490 states and 139,099 arrows, a 54 MB table, so `--count-config OneList.cfg` has TLC count them for the chart's tab, which names the scenes the tables leave out.
+They leave out `OneList.cfg`'s other scenes, whose model states `OneList.map.py` labels nearly each apart, so `--count-config OneList.cfg` has TLC count them, 2,044 in all, for the chart's tab, which names the scenes the tables leave out.
 Its rules are about whole behaviors, which the chart does not draw: TLC's traces are in `OneList-statechart/tlc/`, which is not committed.
 
 ## What the one-list model leaves out
