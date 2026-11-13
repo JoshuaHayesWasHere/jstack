@@ -10,9 +10,10 @@ can give, and an approved row that waits for room on a full /tmp after the pass 
 finished crews left there (`room`): its row's `why` says so, `waiting: /tmp is full: its quota`,
 from the first pass it waits. A hold of GitHub's budget at or under its floor is one item for
 the whole project once it has lasted over ten minutes (`budgethold.needed`), since no row
-launches until its reset. A failing state backup is one item of the machine's, on the infra project's
-list and its root home's, until a snapshot succeeds (`jbus.snapshot.failing`). A row a home can clear by itself (a row at `gate`, a leftover its
-home still has, a hold a thread works on) is not on it, and neither is a refused go: a refusal is
+launches until its reset. A failing state backup is one item of the machine's, on the infra
+project's list and its root home's, until a snapshot succeeds (`jbus.snapshot.failing`). A row a
+home can clear by itself (a row at `gate`, a leftover its home still has, a hold a thread works
+on) is not on it, and neither is a refused go: a refusal is
 an act of the home's (`acts.jsonl`), most of them a sha that did not match, and the home tries
 again by itself.
 
@@ -50,9 +51,9 @@ import jbus
 from jbriefs import home as homes
 from jbriefs import meets
 from jbus import (
+    alert,
     blockers,
     budgethold,
-    alert,
     cleanup,
     passes,
     questions,
