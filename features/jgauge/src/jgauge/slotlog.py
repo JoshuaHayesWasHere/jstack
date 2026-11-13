@@ -176,9 +176,7 @@ class _Cgroup:
             (line,) = (PROCS / "self" / "cgroup").read_text().splitlines()
             home = CGROUPS / line.removeprefix("0::/").strip("/")
             for stale in home.glob(f"{PREFIX}*"):
-                for empty in (stale / LEAF, stale):
-                    with contextlib.suppress(OSError):
-                        empty.rmdir()
+                _remove_empty(stale)
             own = home / f"{PREFIX}{key}"
             own.mkdir()
             if workers is not None:
@@ -239,6 +237,14 @@ class _Cgroup:
             for empty in (self.run, self.own):
                 with contextlib.suppress(OSError):
                     empty.rmdir()
+
+
+def _remove_empty(group: Path) -> None:
+    """Remove `group` and each cgroup under it that no process is in, the deepest first: a take
+    made inside a take, as a test of jgauge makes, leaves its cgroup in the outer one's."""
+    for under, _dirs, _files in sorted(os.walk(group), key=lambda one: -one[0].count(os.sep)):
+        with contextlib.suppress(OSError):
+            os.rmdir(under)
 
 
 def _threaded(group: Path) -> None:

@@ -269,7 +269,7 @@ def test_a_release_records_the_cgroup_s_cpu_and_the_processes_left(tmp_path, mon
     """The release's CPU is the take's cgroup's `cpu.stat`, `left` counts the processes still in
     it after the drain, and a take clears the cgroup an earlier take left behind."""
     home = a_cgroup_tree(tmp_path, monkeypatch)
-    (home / f"{slotlog.PREFIX}stale").mkdir()
+    (home / f"{slotlog.PREFIX}stale" / slotlog.PREFIX / "run").mkdir(parents=True)
     monkeypatch.setattr(slotlog, "DRAIN_SECONDS", 0.1)
     log = slotlog.path(tmp_path / "locks")
 
@@ -282,6 +282,7 @@ def test_a_release_records_the_cgroup_s_cpu_and_the_processes_left(tmp_path, mon
     _take, release = rows(log)
     assert (release["cpu_user"], release["cpu_system"], release["left"]) == (1.5, 0.5, 1)
     assert own.name != f"{slotlog.PREFIX}stale"
+    assert not (home / f"{slotlog.PREFIX}stale").exists()
 
 
 def test_a_release_whose_cgroup_cannot_be_read_writes_its_row_with_no_cpu(tmp_path, monkeypatch):
