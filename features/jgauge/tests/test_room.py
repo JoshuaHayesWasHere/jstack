@@ -120,7 +120,6 @@ def machine(
         f"some avg10=0.00 avg60={cpu} avg300=0.00 total=1812999696\n"
         "full avg10=0.00 avg60=0.00 avg300=0.00 total=0\n",
     )
-    put(stub / "nproc", f"#!/bin/sh\necho {cores}\n", 0o755)
     if str(cores).isdecimal():
         put(proc / "stat", "".join(f"cpu{n} 1 1 1 1 0 0 0 0 0 0\n" for n in range(int(cores))))
     if plan is None:
@@ -233,51 +232,35 @@ def test_a_file_with_no_reading_in_it_waits(tmp_path, file):
     assert says(env).startswith("wait: ")
 
 
-def test_a_core_count_that_cannot_be_read_waits(tmp_path):
+@pytest.mark.parametrize("stat", [None, "cpu  9 9 9 9 9 9 9 9 0 0\nintr 1\n"])
+def test_a_core_count_that_cannot_be_read_waits(tmp_path, stat):
     env = machine(tmp_path, **IDLE)
-    for tool in ("nproc", "getconf", "sysctl"):
-        put(tmp_path / "stub" / tool, "#!/bin/sh\nexit 1\n", 0o755)
+    if stat is None:
+        (tmp_path / "proc" / "stat").unlink()
+    else:
+        (tmp_path / "proc" / "stat").write_text(stat)
     assert says(env) == "wait: the load or the core count could not be read"
 
 
-def lacking(env, where, tool):
-    """The environment with no `tool` anywhere on its PATH, as a Mac has no `nproc`: every
-    other command of the PATH is linked into one directory, after the machine's stubs."""
-    farm = where / "farm"
-    farm.mkdir()
-    stub = Path(env["PATH"].split(os.pathsep)[0])
-    (stub / tool).unlink(missing_ok=True)
-    for directory in env["PATH"].split(os.pathsep)[1:]:
-        for one in Path(directory).glob("*") if Path(directory).is_dir() else ():
-            if one.name != tool and not (farm / one.name).exists() and os.access(one, os.X_OK):
-                (farm / one.name).symlink_to(one)
-    return {**env, "PATH": f"{stub}{os.pathsep}{farm}"}
-
-
-def counted(where, cores, getconf, sysctl):
-    """A machine with a load of 6.00, whose cores are `getconf`'s and `sysctl`'s answers
-    beside `nproc`'s: `None` is a command that fails."""
-    env = machine(where, **{**IDLE, "load": "6.00", "cores": cores})
-    for tool, asked, answer in (
-        ("getconf", "_NPROCESSORS_ONLN", getconf),
-        ("sysctl", "-n hw.ncpu", sysctl),
-    ):
-        said = "exit 1" if answer is None else f'[ "$*" = "{asked}" ] && echo {answer}'
-        put(where / "stub" / tool, f"#!/bin/sh\n{said}\n", 0o755)
+def capped(where, cores, shell):
+    """A machine of `cores` processors at a load of 1.5 times them, read from a shell whose
+    `nproc`, `getconf` and `sysctl` each answer `shell`, as `nproc` does under `jgauge
+    cap-shell`'s cgroup quota or a narrowed affinity."""
+    env = machine(where, **{**IDLE, "load": f"{cores * 1.5:.2f}", "cores": str(cores)})
+    for tool in ("nproc", "getconf", "sysctl"):
+        put(where / "stub" / tool, f"#!/bin/sh\necho {shell}\n", 0o755)
     return env
 
 
-def test_nproc_counts_the_cores_while_it_is_there(tmp_path):
-    assert says(counted(tmp_path, "12", getconf="3", sysctl="2")) == "go"
+def test_a_capped_shell_judges_the_load_against_the_machines_cores(tmp_path):
+    """24 cores at load 36 is under room's 200% line, though the shell may run on only 3."""
+    assert says(capped(tmp_path, 24, 3)) == "go"
 
 
-@pytest.mark.parametrize(("getconf", "sysctl", "cores"), [("3", "2", "3"), (None, "2", "2")])
-def test_a_proc_with_no_nproc_counts_the_cores_with_getconf_and_then_sysctl(
-    tmp_path, getconf, sysctl, cores
-):
-    env = lacking(counted(tmp_path, "12", getconf, sysctl), tmp_path, "nproc")
-    assert shutil.which("nproc", path=env["PATH"]) is None
-    assert says(env) == f"wait: load 6.00 is at or over 200% of {cores} cores"
+def test_a_capped_shell_on_a_loaded_machine_names_the_machines_cores(tmp_path):
+    env = capped(tmp_path, 24, 3)
+    put(tmp_path / "proc" / "loadavg", "48.00 1.10 0.90 2/2647 4039610\n")
+    assert says(env) == "wait: load 48.00 is at or over 200% of 24 cores"
 
 
 @pytest.mark.parametrize(

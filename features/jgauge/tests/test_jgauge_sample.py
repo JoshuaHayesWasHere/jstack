@@ -36,6 +36,8 @@ def machine(tmp_path, monkeypatch):
     (proc / "pressure" / "cpu").write_text(pressure(("5.00", "5.72"), ("0.00", "0.10")))
     (proc / "pressure" / "memory").write_text(pressure(("0.01", "0.02"), ("0.03", "0.04")))
     (proc / "pressure" / "io").write_text(pressure(("1.50", "2.25"), ("0.75", "1.25")))
+    cpus = "".join(f"cpu{n} 1 2 3 4 5 6 7 8 0 0\n" for n in range(24))
+    (proc / "stat").write_text(f"cpu  9 9 9 9 9 9 9 9 0 0\n{cpus}intr 1\n")
     log = tmp_path / "state" / "jgauge" / "load.tsv"
     monkeypatch.setenv("PROC", str(proc))
     monkeypatch.setenv("JGAUGE_LOAD_LOG", str(log))
@@ -78,7 +80,7 @@ def test_a_sample_appends_one_row_under_a_header_of_the_columns(machine, monkeyp
     else:
         assert row[17:] == ["", ""]
     assert row[1:17] == [
-        str(len(os.sched_getaffinity(0)) if hasattr(os, "sched_getaffinity") else os.cpu_count()),
+        "24",
         *("11.54", "8.96", "7.51"),
         *("5.00", "5.72", "0.00", "0.10"),
         *("0.01", "0.02", "0.03", "0.04"),
@@ -86,14 +88,14 @@ def test_a_sample_appends_one_row_under_a_header_of_the_columns(machine, monkeyp
     ]
 
 
-def test_a_system_with_no_affinity_counts_every_core(machine, monkeypatch):
-    """macOS has no `sched_getaffinity`: a sample of a given /proc there counts every core."""
+def test_a_narrowed_affinity_still_counts_every_core_of_the_machine(machine, monkeypatch):
+    """Under `taskset -c 0-2` the sampler may run on 3 cores, and the machine still has 24."""
     _, log = machine
-    monkeypatch.delattr(os, "sched_getaffinity", raising=False)
-    monkeypatch.setattr(os, "cpu_count", lambda: 7)
+    monkeypatch.setattr(os, "sched_getaffinity", lambda pid: {0, 1, 2}, raising=False)
+    monkeypatch.setattr(os, "process_cpu_count", lambda: 3, raising=False)
     assert cli.main(["sample"]) == 0
     (row,) = rows(log)
-    assert row[1:5] == ["7", "11.54", "8.96", "7.51"]
+    assert row[1:5] == ["24", "11.54", "8.96", "7.51"]
 
 
 def test_a_missing_pressure_file_writes_empty_fields_and_not_a_crash(machine):
