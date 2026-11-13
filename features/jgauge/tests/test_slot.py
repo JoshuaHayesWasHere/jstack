@@ -368,12 +368,16 @@ def test_a_short_job_stopped_at_its_limit_takes_what_it_started_with_it(tmp_path
 
 def test_a_short_job_stopped_at_its_limit_takes_a_child_in_a_session_of_its_own_with_it(tmp_path):
     """Playwright starts its web server in a session of its own, so no signal to the command's
-    group reaches it, and once the command dies it is no longer under the command either."""
+    group reaches it, and once the command dies it is no longer under the command either. The
+    child ignores SIGTERM, as a server may, so only the kill after the grace ends it."""
     limited = (
         "import sys; from jgauge import cli, slot; slot.SHORT_LIMIT_SECONDS = 0.5;"
         " slot.STOP_GRACE_SECONDS = 0.5; sys.exit(cli.main(sys.argv[1:]))"
     )
-    started = 'setsid sleep 600 > /dev/null 2>&1 & echo $! > "$D/pid"; wait'
+    started = (
+        "setsid sh -c 'trap \"\" TERM; exec sleep 600' > /dev/null 2>&1 &"
+        ' echo $! > "$D/pid"; wait'
+    )
     home = tmp_path / "home"
     env = {**os.environ, "HOME": str(home), "D": str(tmp_path)}
     env["JGAUGE_LOCKS_DIR"] = str(home / ".local" / "state" / "locks")
