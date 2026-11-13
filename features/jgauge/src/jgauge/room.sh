@@ -156,7 +156,12 @@ if ctypes.CDLL(None).syscall(QUOTACTL_FD, fd, Q_GETQUOTA_USER, os.getuid(), if_d
       if (light != "1" && (busy !~ number || cores !~ number || cores == 0)) why = "the load or the core count could not be read"
       else if (light != "1" && int(busy * 100 + 0.5) >= cores * LOAD) why = "load " busy " is at or over " LOAD "% of " cores " cores"
       else if (light != "1" && psi && stalled !~ number) why = "the CPU pressure could not be read"
-      else if (light != "1" && psi && stalled >= CPU) why = "CPU pressure " stalled " is at or over " CPU
+      # A task held at the cpu.max of its cgroup stalls, which raises the CPU pressure of that
+      # cgroup and of every ancestor up to the root, but it leaves the run queue, so it adds
+      # nothing to the load. Work waits for a core of the machine only while the load fills
+      # every core, so the pressure holds a launch only then.
+      else if (light != "1" && psi && stalled >= CPU && int(busy * 100 + 0.5) >= cores * 100)
+        why = "CPU pressure " stalled " is at or over " CPU
       else if (memory !~ number) why = "the available memory could not be read"
       else if (memory < MEMORY * 1048576) why = sprintf("%.1f GB of memory available, under %s", memory / 1048576, MEMORY)
       else if (psi && pressure !~ number) why = "the memory pressure could not be read"
