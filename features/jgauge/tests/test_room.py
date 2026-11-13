@@ -542,17 +542,13 @@ def test_a_machine_with_no_room_waits_whatever_the_limits_file(tmp_path):
 
 
 def desk(tmp_path, state):
-    """The environment of a desk in that state, with a home of its own. `live` is the machine the
-    test runs on, as busy as it happens to be, with the account's limits out of the way. `busy`
-    and `idle` are stated: a busy desk is past its load on every core count and has used its
-    whole five-hour limit, in the limits file of its own home."""
+    """The environment of a desk in that state, stated whole, with a home of its own, so the
+    verdict never follows the machine the test runs on. A busy desk is past its load, has used
+    its whole five-hour limit in the limits file of its home, and runs two busy processes."""
     home = tmp_path / "home"
-    if state == "live":
-        return {**os.environ, "HOME": str(home), "LIMITS": str(tmp_path / "none")}
     if state == "busy":
         env = machine(tmp_path, **{**IDLE, "load": "24.00"}, plan=CAPPED)
-        processes(tmp_path, ("yes", "/tmp/lwr/c", 99), ("bash", "/home/u", 60))
-        put(tmp_path / "proc" / "4001" / "cmdline", "bash\0-c\0set -e\ncd /x\nmake check\0")
+        processes(tmp_path, ("yes", "/tmp/lwr/c", 99), ("bash -c make", "/home/u", 60))
     else:
         env = machine(tmp_path, **IDLE)
     (home / ".local" / "state" / "claude").mkdir(parents=True)
@@ -560,12 +556,19 @@ def desk(tmp_path, state):
     return {**env, "HOME": str(home)}
 
 
-@pytest.mark.parametrize("state", ["live", "busy", "idle"])
-def test_the_check_reads_the_machine_it_runs_on(tmp_path, state):
-    here = desk(tmp_path, state)
-    (line,) = ran(here).stdout.splitlines()
-    assert line == "go" or line.startswith("wait: ")
-    assert "could not be read" not in line
+@pytest.mark.parametrize(
+    ("state", "said"),
+    [
+        (
+            "busy",
+            "wait: load 24.00 is at or over 200% of 12 cores; the busiest: "
+            "yes in /tmp/lwr/c (99%), bash -c make in /home/u (60%)",
+        ),
+        ("idle", "go"),
+    ],
+)
+def test_the_check_reads_the_machine_it_runs_on(tmp_path, state, said):
+    assert ran(desk(tmp_path, state)).stdout.splitlines() == [said]
 
 
 def test_the_check_reads_the_limits_file_of_the_account_it_runs_under(tmp_path):
