@@ -7,6 +7,16 @@ from jdrift.explained import COMMENT as CARD
 from testing.layouts import assembled
 from testing.paths import REPO, playbooks
 
+READ_SET = (
+    "features/*/*.md",
+    "features/*/skills/",
+    "features/*/playbooks/",
+    "features/*/templates/",
+    "THIRD_PARTY.md",
+    "skills.json",
+    "plugin.json",
+)
+
 TEMPLATE = "features/skill-library/templates/playbook.md"
 IN_THE_LAYOUT = "templates/playbook.md"
 EM_DASH = "\N{EM DASH}"

@@ -554,6 +554,65 @@ def test_a_change_to_a_file_a_test_of_this_repo_globs_selects_that_test(changed,
     assert reader in tests
 
 
+GUARDS = "features/repo-guards/tests/"
+
+READ_BY_A_GUARD = {
+    "test_bash32.py": "features/evals/benchmark/replay.sh",
+    "test_docs_tree.py": "features/home/docs/flow.md",
+    "test_docs_true.py": "features/jmerge/src/jmerge/cli.py",
+    "test_module_size.py": "features/jbus/src/jbus/wake.py",
+    "test_names_resolve.py": "features/jbus/src/jbus/stall.py",
+    "test_new_lines_run.py": "features/jbus/src/jbus/queue.py",
+    "test_no_comments.py": "features/jleak/hooks/commit-msg.sh",
+    "test_one_way.py": "features/crew/SKILL.md",
+    "test_playbook_wiring.py": "features/crew/playbooks/bug-fix.md",
+    "test_playbooks.py": "features/writing/playbooks/opening-a-pr.md",
+    "test_readme_current.py": "features/home/docs/state.md",
+    "test_run_not_read.py": "features/jbus/tests/test_jbus_queue.py",
+    "test_skill_args.py": "features/home/skills/handoff/SKILL.md",
+    "test_skill_frontmatter.py": "features/how/SKILL.md",
+    "test_skill_size.py": "features/crew/do-the-task.md",
+    "test_templates.py": "features/crew/templates/result.md",
+    "test_test_size.py": "features/jgauge/tests/test_slot.py",
+    "test_tool_calls.py": "features/home/skills/home/SKILL.md",
+    "test_tool_project.py": "features/scout/SKILL.md",
+}
+
+
+@pytest.mark.parametrize(("guard", "changed"), READ_BY_A_GUARD.items(), ids=READ_BY_A_GUARD)
+def test_a_change_to_a_path_a_guards_read_set_names_selects_the_guard(guard, changed):
+    """Each guard here read the whole tree from the `Cross-cutting:` list, and every change ran
+    it. It now declares the paths it reads in a `READ_SET`, and a change to one of them runs it,
+    at the desk and in CI."""
+    assert f"{GUARDS}{guard}" not in select.cross_cutting()
+
+    tests, _ = select.selection([changed])
+
+    assert f"{GUARDS}{guard}" in tests
+
+
+@pytest.mark.parametrize(
+    ("changed", "unread"),
+    [
+        (
+            "features/home/docs/flow.md",
+            ["test_module_size.py", "test_new_lines_run.py", "test_test_size.py"],
+        ),
+        (
+            "features/jgauge/tests/test_slot.py",
+            ["test_docs_tree.py", "test_skill_size.py", "test_playbook_wiring.py"],
+        ),
+    ],
+    ids=["a page", "a test"],
+)
+def test_a_change_no_read_set_of_a_guard_names_leaves_that_guard_out(changed, unread):
+    """On 2026-11-12 these guards, then on every change, took 227k of the desk short lane's 710k
+    CPU-s. A page reaches no guard of the code, and a test reaches no guard of the skills."""
+    tests, _ = select.selection([changed])
+
+    assert [one for one in unread if f"{GUARDS}{one}" in tests] == []
+
+
 @pytest.mark.parametrize(
     ("path", "readers"),
     [

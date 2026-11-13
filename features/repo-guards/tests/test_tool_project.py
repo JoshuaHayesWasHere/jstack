@@ -16,6 +16,12 @@ import pytest
 from testing.layouts import assembled
 from testing.paths import REPO
 
+READ_SET = (
+    "*.md",
+    "skills.json",
+    "plugin.json",
+)
+
 TOOLS = (*tomllib.loads((REPO / "pyproject.toml").read_text())["project"]["scripts"], "python")
 RUN = re.compile(r"uv run(?: --[a-z-]+)* --project (\"\$[^\"]*\") (" + "|".join(TOOLS) + r")\b")
 WHERE = "import jbriefs.skills as s; print(s.root())"

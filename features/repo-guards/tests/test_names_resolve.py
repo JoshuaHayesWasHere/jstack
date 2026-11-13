@@ -29,6 +29,11 @@ from pathlib import Path
 
 from testing.paths import REPO, sources
 
+READ_SET = (
+    "*.py",
+    "*.md",
+)
+
 PACKAGES = {
     package.parent.name: package.parent
     for root in sources()

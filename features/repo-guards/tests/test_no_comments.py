@@ -28,6 +28,18 @@ from repo_standard.config import Config, load
 from repo_standard.tree import chosen, tracked
 from testing.paths import REPO
 
+READ_SET = (
+    "features/*/src/",
+    "features/*/hooks/",
+    "features/*/tests/",
+    "features/*/units/",
+    "features/*/templates/",
+    "/scripts/",
+    "/testing/",
+    "install.sh",
+    ".repo-standard.yml",
+)
+
 COMMENTS = load(REPO).part("comments")
 PACKAGE = re.compile(r"features/[^/]+/src/([^/]+)/")
 

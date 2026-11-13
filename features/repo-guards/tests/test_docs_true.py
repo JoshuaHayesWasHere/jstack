@@ -43,6 +43,14 @@ import pytest
 from repo_standard.cli import main
 from testing.paths import REPO
 
+READ_SET = (
+    "*.md",
+    "features/*/docs/",
+    "features/*/src/",
+    ".repo-standard.yml",
+    "Makefile",
+)
+
 README = REPO / "README.md"
 DOCS = REPO / "docs"
 FRONT = tuple(REPO / name for name in ("CONTRIBUTING.md", "SECURITY.md"))

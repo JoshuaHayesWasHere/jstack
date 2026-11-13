@@ -25,6 +25,17 @@ from test_home_thread import as_read
 from testing.layouts import assembled
 from testing.paths import REPO, playbooks, skills
 
+READ_SET = (
+    "features/*/*.md",
+    "features/*/skills/",
+    "features/*/references/",
+    "features/*/project-skill/",
+    "features/*/playbooks/",
+    "features/*/templates/",
+    "skills.json",
+    "plugin.json",
+)
+
 COPY = assembled()
 TEMPLATES = COPY / "templates"
 PLAYBOOK = playbooks()
