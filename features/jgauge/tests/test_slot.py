@@ -35,7 +35,13 @@ def slots(tmp_path):
     tmpfs.mkdir()
     proc = fake_proc(tmp_path / "proc", 24, 62)
     env = {**os.environ, "HOME": str(home), "D": str(state), "PROC": str(proc), "TMPFS": str(tmpfs)}
-    for name in ("TEST_SLOTS", "XDG_CONFIG_HOME", "JGAUGE_TEST_SLOT", "JGAUGE_LOCKS_DIR"):
+    for name in (
+        "TEST_SLOTS",
+        "XDG_CONFIG_HOME",
+        "JGAUGE_TEST_SLOT",
+        "JGAUGE_LOCKS_DIR",
+        "PYTEST_XDIST_AUTO_NUM_WORKERS",
+    ):
         env.pop(name, None)
     going, taken = [], []
 
@@ -119,6 +125,29 @@ def test_the_command_is_told_the_lane_of_the_slot_it_holds(slots):
     says = ["sh", "-c", 'echo "$JGAUGE_TEST_SLOT"']
     assert slots("--slots", "1", command=says).communicate(timeout=5) == ("full\n", "")
     assert slots("--short", command=says).communicate(timeout=5) == ("short\n", "")
+
+
+def workers_started(slots, tmp_path, *lane, count="auto"):
+    """The workers `pytest -n <count>` says it started under a slot of the lane."""
+    (tmp_path / "suite").mkdir(exist_ok=True)
+    (tmp_path / "suite" / "test_one.py").write_text("def test_one():\n    pass\n")
+    command = [sys.executable, "-m", "pytest", "-p", "no:cacheprovider", "-n", count]
+    command += ["--rootdir", str(tmp_path / "suite"), str(tmp_path / "suite")]
+    out, _err = slots(*lane, command=command).communicate(timeout=60)
+    (said,) = [line for line in out.splitlines() if line.startswith("created: ")]
+    return said
+
+
+@pytest.mark.parametrize("lane", [("--slots", "1"), ("--short",)], ids=["full", "short"])
+def test_pytest_n_auto_starts_no_more_workers_than_the_slot_is_sized_for(slots, tmp_path, lane):
+    """A take is capped at its slot's workers, 3 on this 24-core machine in either lane, while
+    its affinity is every core: `-n auto` counts the slot, not the affinity."""
+    assert workers_started(slots, tmp_path, *lane) == "created: 3/3 workers"
+
+
+def test_a_run_that_names_its_workers_keeps_them_under_a_slot(slots, tmp_path):
+    """`make test` passes `-n` its own count, which the slot leaves alone."""
+    assert workers_started(slots, tmp_path, "--slots", "1", count="5") == "created: 5/5 workers"
 
 
 def test_a_command_ended_by_a_signal_ends_as_a_shell_would_say(slots):
