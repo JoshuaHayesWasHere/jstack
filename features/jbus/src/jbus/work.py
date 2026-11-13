@@ -32,8 +32,8 @@ pattern matches, the state is the last state that a pass judged (`Facts.last`), 
 confirmed.
 
 `status` gives the row's `status` column, one of `queue.STATUSES`, as a projection of the
-state, so every reader of the queue still finds the same words as before. `scouting` gives a
-scout's row one of queued, scouting and report in, which the sidebar's tree draws. `write` keeps
+state, so every reader of the queue still finds the same words as before, and
+`jbus.scouted` gives a scout's row where it stands, which the sidebar's tree draws. `write` keeps
 every state of a pass, whole, in `work.json` in the project's state directory, and the view
 draws that file. Between passes, each writer of a row's inputs restates that row's line, judged
 again from the facts the last pass kept for it with the facet that writer knows, as
@@ -523,26 +523,6 @@ def status(state: State) -> str:
     if unlaunched and facts.thread in (Thread.NONE, Thread.SETTLED, Thread.MISSING):
         return "queued"
     return _THREAD[facts.thread]
-
-
-class Scouting(StrEnum):
-    QUEUED = "queued"
-    SCOUTING = "scouting"
-    REPORT_IN = "report in"
-
-
-def scouting(state: State) -> Scouting:
-    """Return where a scout's row stands, as the tree's diamond draws it. The row's report is in
-    once its last Report says `Status: done`, whether or not its thread was settled. It is queued
-    while no thread was launched for it, and scouting otherwise: a thread starting, at work, or
-    ended with no Report that says done. A row taken over by a crewmate's brief is no scout's
-    row, and has no such state."""
-    facts = state.facts
-    if facts.written == Written.CLEAN:
-        return Scouting.REPORT_IN
-    if facts.thread == Thread.NONE and not facts.seen and facts.launch == Launch.NONE:
-        return Scouting.QUEUED
-    return Scouting.SCOUTING
 
 
 _THREAD = {

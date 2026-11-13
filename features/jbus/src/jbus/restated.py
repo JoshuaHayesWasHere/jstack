@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from jbus import locked, read_json, write_json
+from jbus.scouted import scouted
 from jbus.work import (
     APPROVED,
     LOCK,
@@ -48,7 +49,6 @@ from jbus.work import (
     lift,
     path,
     read,
-    scouting,
     stored,
     unforeseen,
 )
@@ -142,7 +142,8 @@ def queued(
                     work.append(one)
                     continue
                 made = facet(row)
-                one = restate(one, row=made, go=unheld(row) if made in UNHELD else None)
+                go = unheld(row) if made in UNHELD else None
+                one = restate(one, row=made, go=go, scout=scout(row))
             work.append(one)
         at = max((n for n, one in enumerate(work) if _is_row(one)), default=-1) + 1
         work[at:at] = [
@@ -162,6 +163,7 @@ def restate(
     why: str | None = None,
     thread: Thread | None = None,
     go: Go | None = None,
+    scout: bool | None = None,
 ) -> dict[str, Any]:
     """Return a line of `work.json` judged again from its stored facts, with `row` as the new `Row`
     facet, `pull` as the new `Pull` facet and `thread` as the new `Thread` facet where given, as the
@@ -174,8 +176,10 @@ def restate(
     and so has a line whose go holds again (`lifted`), unless the writer gives one (`why`), as a run
     of `jmerge` does with its reason. A write of the queue gives why the row's go does not hold
     (`go`, `jbus.queue.unheld`), which the line says while it waits on the user's go; a writer that
-    gives none keeps what the line said of the go. A line restated with the facets, the `why` and
-    the go it has comes back as it is, so a writer that runs twice writes nothing the second
+    gives none keeps what the line said of the go. `scout` says whether the row is a scout's, as
+    a writer that read the queue knows; one that did not leaves it to the line's `scout`, which a
+    done scout's row with no thread lacks (`scouted`). A line restated with the facets, the `why`
+    and the go it has comes back as it is, so a writer that runs twice writes nothing the second
     time."""
     facts = stored(one)
     if facts is None:
@@ -194,7 +198,10 @@ def restate(
     word = lift(state, said)
     if not word and one.get("lift") == Lift.ACCEPT and (state.value, said) == (one["value"], had):
         word = Lift.ACCEPT
+    role = "scout" if ("scout" in one if scout is None else scout) else ""
+    scouts = scouted(state, str(one.get("thread", ""))) if role else {}
     kept = str(word or "") == one.get("lift", "") and (go is None or word != Lift.APPROVE)
+    kept = kept and scouts.get("scout") == one.get("scout")
     if made == facts and said == had and kept:
         return one
     if state.value == one["value"] and said == had and kept:
@@ -204,13 +211,11 @@ def restate(
         about["why"] = why
     elif "why" in about and (state.value != one["value"] or lifted(one, word)):
         about["why"] = ""
-    role = "scout" if "scout" in one else ""
-    scout = {"scout": str(scouting(state))} if role else {}
     pr = str(one.get("pr", ""))
     held = holder(state, role=role, why=str(about.get("why", "")), go=go, pr=pr)
     if go is None and held.lift == Lift.APPROVE and one.get("lift") == Lift.APPROVE:
         held = replace(held, waits=str(one.get("waits", "")), why=one.get("why"))
-    line = entry(state, held, **about, **scout)
+    line = entry(state, held, **about, **scouts)
     return one if line == one else line
 
 
@@ -233,7 +238,7 @@ def fresh(row: dict[str, Any], facet: Row, scout: bool, go: Go | None = None) ->
     state = judge(facts)
     slug = row["slug"]
     about = {"key": slug, "kind": "row", "slug": slug, **{name: row.get(name, "") for name in SEEN}}
-    said = {"scout": str(scouting(state))} if scout else {}
+    said = scouted(state, str(row.get("thread", ""))) if scout else {}
     held = holder(state, role="scout" if scout else "", go=go, pr=str(row.get("pr", "")))
     return entry(state, held, **about, **said)
 

@@ -16,7 +16,8 @@ import pytest
 import jroles.mirror
 from crew_branches import git_said
 from jbriefs import parse
-from jbus import queue
+from jbus import queue, restated
+from jbus.scouted import Scouting
 from jgauge import slot, waiters
 from test_jbus_entry_go import PLAN, plan_go
 from test_jbus_kitchen import NOW, Kitchen, iso
@@ -571,6 +572,45 @@ def test_a_scout_row_whose_followup_report_says_done_is_done_and_report_in(kitch
     line = judged(kitchen, "look")
     assert (line["scout"], line["value"], line["who"]) == ("report in", "done", "ok")
     assert rows(kitchen)["look"]["status"] == "done"
+
+
+def test_a_done_scout_row_with_no_thread_has_no_scout_state_from_any_writer(kitchen):
+    """T3 Code's tree shows a row with a `scout` whatever its value, and a row leaves it once its
+    thread is archived. A scout row the queue has at done with no thread, as one is once its
+    request file went and its thread was archived (`crewthread.crew`), has no thread to archive,
+    so `work.json` gives it no `scout` and it leaves the tree as a done crew row does. One that
+    names a thread keeps `report in`. The pass and a write of the queue that restates the line
+    agree, and the line a write of the queue makes for a row with none, which it judges as if
+    nothing launched (`restated.fresh`), is a queued scout's until the next pass."""
+    kitchen.config(max_running=8)
+    for slug in ("look", "kept"):
+        assert add(kitchen, slug, text=request(slug, asked=f"find out what {slug} does"))[0] == 0
+        assert go(kitchen, slug)[0] == 0
+    kitchen.poll()
+    for slug in ("look", "kept"):
+        reported(kitchen, slug)
+        scout_thread(kitchen, slug)["settled"] = True
+    kitchen.poll(NOW + timedelta(minutes=3))
+    for slug in ("look", "kept"):
+        assert judged(kitchen, slug)["scout"] == Scouting.REPORT_IN
+    (kitchen.home / "scouts" / "look.md").unlink()
+    scout_thread(kitchen, "look")["archived"] = True
+    kitchen.poll(NOW + timedelta(minutes=6))
+    passed, kept = judged(kitchen, "look"), judged(kitchen, "kept")
+    assert (passed["value"], passed["thread"], "scout" in passed) == ("done", "", False)
+    assert (kept["value"], kept["scout"]) == ("done", Scouting.REPORT_IN)
+
+    stale = {**passed, "scout": Scouting.REPORT_IN, "value": "working"}
+    again = restated.restate(stale, scout=True)
+    assert {**again, "confirmed": ""} == {**passed, "confirmed": ""}
+
+    work = json.loads((kitchen.state / "work.json").read_text())
+    work["work"] = [one for one in work["work"] if one.get("key") != "look"]
+    (kitchen.state / "work.json").write_text(json.dumps(work))
+    assert add(kitchen, "other", text=request("other", asked="find out what Z does"))[0] == 0
+    assert judged(kitchen, "look")["scout"] == Scouting.QUEUED
+    kitchen.poll(NOW + timedelta(minutes=9))
+    assert judged(kitchen, "look") == {**passed, "confirmed": judged(kitchen, "look")["confirmed"]}
 
 
 def test_a_scout_row_a_crewmates_brief_took_over_has_no_scout_state(kitchen):
