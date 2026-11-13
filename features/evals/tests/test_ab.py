@@ -13,10 +13,6 @@ import pytest
 from testing.paths import REPO
 
 AB = REPO / "features" / "evals" / "ab" / "ab.py"
-SKILL_CUT = REPO / "features" / "evals" / "evals" / "skill-cut"
-
-READ_SET = ("features/evals/evals/skill-cut/",)
-
 STAND_IN = r"""#!/usr/bin/env python3
 import json, os, sys
 here = os.environ["AB_STAND_IN"]
@@ -126,7 +122,9 @@ def run(lab, out, *more):
     )
 
 
-def test_rescore_of_the_kept_skill_cut_runs_agrees_on_each_same_pair_and_catches_986(lab):
+def test_rescore_of_the_kept_skill_cut_runs_agrees_on_each_same_pair_and_catches_986(
+    lab, kept_runs
+):
     """The two priming runs are the same revisions, and skill-cut's own rule split them; so are
     the two 0d1d871af1a3 runs, whose B - A came out -0.002 and -0.038, and 17 lead tasks are too
     few to tell those apart at an mde of 0.03, so both say so. #986's cut is a known regression,
@@ -139,7 +137,7 @@ def test_rescore_of_the_kept_skill_cut_runs_agrees_on_each_same_pair_and_catches
         "run-0d1d871af1a3",
         "run-0d1d871af1a3-2",
     ):
-        ran = lab.ab("rescore", str(SKILL_CUT / name), refuse=True)
+        ran = lab.ab("rescore", str(kept_runs / name), refuse=True)
         assert ran.returncode == 0, ran.stderr
         said[name] = {line.split(":")[0]: line for line in ran.stdout.splitlines()}
     assert lab.calls() == []
@@ -153,8 +151,10 @@ def test_rescore_of_the_kept_skill_cut_runs_agrees_on_each_same_pair_and_catches
         assert f"mde 0.030; power: mde80 {mde80}, above the mde;" in said[name]["lead"]
 
 
-def test_a_rescore_writes_the_same_results_byte_for_byte_and_nothing_into_the_kept_run(lab):
-    kept = SKILL_CUT / "run-crew-scout-priming"
+def test_a_rescore_writes_the_same_results_byte_for_byte_and_nothing_into_the_kept_run(
+    lab, kept_runs
+):
+    kept = kept_runs / "run-crew-scout-priming"
     before = {p.name: p.read_bytes() for p in kept.iterdir()}
     for out in ("one.md", "two.md"):
         assert (

@@ -5,7 +5,6 @@ rule."""
 import importlib.util
 import json
 import re
-import shutil
 import subprocess
 import sys
 
@@ -122,29 +121,31 @@ def test_a_call_that_fails_is_tried_again_after_a_wait(monkeypatch):
 
 
 def test_write_with_no_claude_writes_nothing(tmp_path, monkeypatch):
-    monkeypatch.setattr(run, "HERE", tmp_path)
+    monkeypatch.setattr(run, "DATA", tmp_path)
     monkeypatch.setenv("PATH", str(tmp_path / "no-bin"))
     with pytest.raises(SystemExit, match="no claude on PATH"):
         run.write("HEAD", "HEAD")
     assert list(tmp_path.iterdir()) == []
 
 
-def test_the_committed_run_1_rescores_to_its_results_byte_for_byte(tmp_path, monkeypatch):
+def test_the_kept_run_1_rescores_to_its_results_byte_for_byte(kept_runs, monkeypatch):
     """run-1 was answered against an older `steps.json`, kept in `fixture/steps-of-run-1.json`."""
-    for name in ("cases", "run-1"):
-        shutil.copytree(EVAL / name, tmp_path / name)
-    shutil.copy(EVAL / "fixture" / "steps-of-run-1.json", tmp_path / "cases" / "steps.json")
-    monkeypatch.setattr(run, "HERE", tmp_path)
+    monkeypatch.setattr(run, "DATA", kept_runs)
+    monkeypatch.setattr(run, "STEPS_FILE", kept_runs / "fixture" / "steps-of-run-1.json")
+    written = [kept_runs / "run-1" / name for name in ("scores.json", "results.md")]
+    kept = {path: path.read_bytes() for path in written}
+    for path in written:
+        path.unlink()
     assert run.main(["--run", "run-1"]) == 0
-    for name in ("scores.json", "results.md"):
-        assert (tmp_path / "run-1" / name).read_bytes() == (EVAL / "run-1" / name).read_bytes()
-    key = json.loads((EVAL / "run-1" / "key.json").read_text())
+    for path, was in kept.items():
+        assert path.read_bytes() == was
+    key = json.loads((kept_runs / "run-1" / "key.json").read_text())
     assert {one["arm"] for one in key.values()} == set(run.ARMS)
 
 
 def test_two_branches_name_their_runs_apart_and_a_kept_name_is_refused(tmp_path, monkeypatch):
     (tmp_path / "run-1").mkdir()
-    monkeypatch.setattr(run, "HERE", tmp_path)
+    monkeypatch.setattr(run, "DATA", tmp_path)
     monkeypatch.setattr(run.shutil, "which", lambda name: "/bin/true")
     calls = []
     monkeypatch.setattr(run, "_private", lambda: calls.append(1) or ())
@@ -194,12 +195,10 @@ def test_the_variant_patch_holds_the_diff_of_a_file_named_as_it_was_before_its_m
     assert run.patch("HEAD", "HEAD", ["skills/demo/SKILL.md"]) == ""
 
 
-def test_a_kept_run_is_not_rescored_against_cases_that_changed(tmp_path, monkeypatch):
-    for name in ("cases", "run-1"):
-        shutil.copytree(EVAL / name, tmp_path / name)
-    steps = tmp_path / "cases" / "steps.json"
-    shutil.copy(EVAL / "fixture" / "steps-of-run-1.json", steps)
-    monkeypatch.setattr(run, "HERE", tmp_path)
+def test_a_kept_run_is_not_rescored_against_cases_that_changed(kept_runs, monkeypatch):
+    steps = kept_runs / "fixture" / "steps-of-run-1.json"
+    monkeypatch.setattr(run, "DATA", kept_runs)
+    monkeypatch.setattr(run, "STEPS_FILE", steps)
     steps.write_text(steps.read_text().replace("Stale base: at", "Stale base:"))
     with pytest.raises(SystemExit, match="answered against cases"):
         run.main(["--run", "run-1"])
