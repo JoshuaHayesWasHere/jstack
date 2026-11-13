@@ -10,7 +10,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import remarks
+from jbus import budget, remarks
 from test_jbus_kitchen import NOW, sends
 from test_jbus_queue import add, gates
 
@@ -195,13 +195,71 @@ def test_a_pull_request_that_no_brief_with_a_thread_holds_is_not_asked_about(kit
     assert [line for line in asked if not any(part in line for part in checks)] == []
 
 
-def test_the_owners_comment_behind_a_page_of_a_strangers_is_still_relayed(opened):
-    crowd = [one(n, OTHER, STEER) for n in range(100, 103)]
+def test_the_owners_comment_behind_a_full_page_of_a_strangers_is_still_relayed_once(opened):
+    """A list whose page 1 is full (100 remarks) is read on from page 2. The fake `gh` gives the
+    whole list for any page, as a remark deleted between two reads makes GitHub give one twice,
+    so the owner's comment is on both, and is given once."""
+    crowd = [one(n, OTHER, STEER) for n in range(100, 199)]
     opened.set("remarks.json", {"issues/7/comments": [*crowd, one(1, OWNER, "use a table here")]})
     opened.poll()
     assert [given["clientRequestId"] for given in sends(opened)] == ["remark|alpha|#7|comment 1 t1"]
     assert [line for line in opened.log("gh") if "issues/7/comments" in line] == [
-        "api repos/{owner}/{repo}/issues/7/comments?per_page=100 --paginate --slurp"
+        "api repos/{owner}/{repo}/issues/7/comments?per_page=100 -i",
+        "api repos/{owner}/{repo}/issues/7/comments?per_page=100&page=2 --paginate --slurp",
+    ]
+
+
+def _answered(kitchen):
+    """What GitHub answered each read of a remark list, `200` or `304`, in order: a 304 spends
+    none of the API allowance."""
+    every = budget.calls(kitchen.state_dir, NOW - timedelta(days=3650))
+    lists = ("/comments", "/reviews")
+    return [
+        ("304" if budget.free(call) else "200", call["endpoint"].split("?")[0].split("/", 4)[-1])
+        for call in every
+        if call["endpoint"].split("?")[0].endswith(lists)
+    ]
+
+
+def test_an_unchanged_list_is_a_304_so_a_second_read_of_the_pull_request_costs_no_call(opened):
+    """A pull request whose `updatedAt` moved for another reason, a label or a push, is read
+    again, and each of its three lists that did not change is a 304: the read costs nothing and
+    gives the remarks it gave before. What is kept of a list to give again holds no word a
+    stranger wrote."""
+    pull = {**opened.opened("alpha", 7), "mergeable": "MERGEABLE", "updatedAt": "u1"}
+    opened.set("open.json", [pull])
+    given = [one(1, OWNER, "use a table here"), one(2, OTHER, STEER)]
+    opened.set("remarks.json", {"issues/7/comments": given})
+    opened.poll()
+    lists = ["issues/7/comments", "pulls/7/comments", "pulls/7/reviews"]
+    assert sorted(_answered(opened)) == [("200", name) for name in lists]
+    opened.set("open.json", [{**pull, "updatedAt": "u2"}])
+    said = opened.poll(NOW + timedelta(minutes=3))
+    assert sorted(_answered(opened)[3:]) == [("304", name) for name in lists]
+    assert not [line for line in said if line.startswith("wait alpha")]
+    assert [given["clientRequestId"] for given in sends(opened)] == ["remark|alpha|#7|comment 1 t1"]
+    assert jbus.read_json(opened.state / "remarks-read.json", {}) == {"alpha #7": "u2"}
+    assert jbus.read_json(opened.state / "remarks.json", {}) == {"alpha #7": 1}
+    assert not anywhere(opened, STEER)
+
+
+def test_a_list_that_changed_is_read_in_full_again(opened):
+    pull = {**opened.opened("alpha", 7), "mergeable": "MERGEABLE", "updatedAt": "u1"}
+    opened.set("open.json", [pull])
+    first = [one(1, OWNER, "use a table here")]
+    opened.set("remarks.json", {"issues/7/comments": first})
+    opened.poll()
+    opened.set("remarks.json", {"issues/7/comments": [*first, one(2, OWNER, "name it plainly")]})
+    opened.set("open.json", [{**pull, "updatedAt": "u2"}])
+    opened.poll(NOW + timedelta(minutes=3))
+    assert sorted(_answered(opened)[3:]) == [
+        ("200", "issues/7/comments"),
+        ("304", "pulls/7/comments"),
+        ("304", "pulls/7/reviews"),
+    ]
+    assert [given["clientRequestId"] for given in sends(opened)] == [
+        "remark|alpha|#7|comment 1 t1",
+        "remark|alpha|#7|comment 2 t1",
     ]
 
 
@@ -220,7 +278,7 @@ def test_a_send_that_t3_code_refuses_is_a_gate_and_is_not_said_to_be_given(opene
 def test_two_pull_requests_are_read_at_once_and_told_in_their_order(kitchen, monkeypatch):
     barrier, met, real = threading.Barrier(2), [], remarks.read
 
-    def reading(run, number):
+    def reading(run, number, owner):
         try:
             barrier.wait(20)
             met.append(True)
@@ -228,7 +286,7 @@ def test_two_pull_requests_are_read_at_once_and_told_in_their_order(kitchen, mon
             met.append(False)
         if number == 8:
             time.sleep(0.1)
-        return real(run, number)
+        return real(run, number, owner)
 
     monkeypatch.setattr(remarks, "read", reading)
     kitchen.brief("beta", "Thread: mcp:thread-8\n")
