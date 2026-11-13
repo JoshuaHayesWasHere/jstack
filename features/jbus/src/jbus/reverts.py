@@ -149,10 +149,7 @@ class Keep(enum.StrEnum):
     OVERLAP = "two reds overlap: the merges since the last green are not shown to be one break"
     UNBRIEFED = "it is no briefed merge's commit"
     OF_A_REVERT = "it is a revert, and a revert that goes red is not reverted"
-    TWICE = (
-        "jbus reverted this row before, and a row is reverted once while jbus keeps its revert's "
-        "record"
-    )
+    TWICE = "jbus reverted this row before, and a row is reverted once while jbus keeps the record"
     FLAKES = "each test that failed there is a flake by jbus ci's rule"
     NOT_READ = "the tests that failed there could not be read from its logs"
     SKEW = (

@@ -1,5 +1,5 @@
 # main-red-dddddddddddd: main's check failed at dddddddddddd, after alpha merged
-Task: "main check failed at dddddddddddd, 1 merges since the last green" (jbus, the retro of alpha). jbus reverts nothing: jbus reverted this row before, and a row is reverted once while jbus keeps its revert's record
+Task: "main check failed at dddddddddddd, 1 merges since the last green" (jbus, the retro of alpha). jbus reverts nothing: jbus reverted this row before, and a row is reverted once while jbus keeps the record
 Why: while main's check is red jmerge merges no pull request, so every approved row waits on this fix, and each merge on a red main hides the next fault behind this one
 Done when:
 - each failed test named under Read passes on main, and the failed job passes at the commit that merges the fix
