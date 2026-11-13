@@ -14,7 +14,7 @@ from testing.paths import REPO
 
 EVAL = REPO / "features" / "evals" / "evals" / "skill-cut"
 
-READ_SET = ("features/evals/evals/skill-cut/",)
+STEPS = EVAL / "cases" / "steps.json"
 
 
 def load(path):
@@ -33,12 +33,17 @@ score = load(EVAL / "score.py")
 run = load(EVAL / "eval.py")
 
 
+def steps_case(case_id):
+    """A case of the hand-written `steps.json` in git, the file the eval reads its steps from."""
+    return next(one for one in json.loads(STEPS.read_text()) if one["id"] == case_id)
+
+
 def test_a_finding_outside_where_scores_when_it_ends_with_the_tag_the_skill_gives():
     """The key asks for the words pr-review's SKILL.md tells the reviewer to end such a finding
     with, so a reviewer that does what the skill says scores 1."""
     skill = (REPO / "features" / "pr-review" / "SKILL.md").read_text()
     tag = re.search(r"with these words at the end of its line: `([^`]+)`", skill)[1]
-    case = next(one for one in run.steps_cases() if one["id"] == "pr-review-outside-where")
+    case = steps_case("pr-review-outside-where")
     answer = f"Keep the finding and send it like any other, its line ending `{tag}`."
     assert score.score_steps(answer, case).value == 1.0
 
@@ -48,7 +53,7 @@ def test_a_fault_outside_where_scores_when_the_answer_uses_the_crew_skills_words
     words scores 1 without the judge."""
     rule = (REPO / "features" / "crew" / "SKILL.md").read_text()
     words = re.search(r"which makes it (a queued row)", rule)[1]
-    case = next(one for one in run.steps_cases() if one["id"] == "crew-outside-where")
+    case = steps_case("crew-outside-where")
     answer = f"Leave it out of the diff: the off-by-one becomes {words} of its own."
     assert score.score_steps(answer, case).value == 1.0
 
