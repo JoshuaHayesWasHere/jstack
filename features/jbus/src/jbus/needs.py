@@ -10,7 +10,8 @@ can give, and an approved row that waits for room on a full /tmp after the pass 
 finished crews left there (`room`): its row's `why` says so, `waiting: /tmp is full: its quota`,
 from the first pass it waits. A hold of GitHub's budget at or under its floor is one item for
 the whole project once it has lasted over ten minutes (`budgethold.needed`), since no row
-launches until its reset. A row a home can clear by itself (a row at `gate`, a leftover its
+launches until its reset. A failing state backup is one item of the machine's, on the infra project's
+list and its root home's, until a snapshot succeeds (`jbus.snapshot.failing`). A row a home can clear by itself (a row at `gate`, a leftover its
 home still has, a hold a thread works on) is not on it, and neither is a refused go: a refusal is
 an act of the home's (`acts.jsonl`), most of them a sha that did not match, and the home tries
 again by itself.
@@ -51,10 +52,12 @@ from jbriefs import meets
 from jbus import (
     blockers,
     budgethold,
+    alert,
     cleanup,
     passes,
     questions,
     queue,
+    snapshot,
     turnend,
     verbs,
     waiting,
@@ -68,6 +71,12 @@ WIDE = ("install", "config")
 """The kinds of item about the whole project, no row and no home: every home's list has them."""
 HELD = "nothing to reply: the launches start again at the reset, and merges still go"
 """The hint a hold of GitHub's budget ends in: no word of the user's lifts it."""
+UNIT = "jbus-snapshot.service"
+MEND = (
+    f"nothing to reply: fix what its last line names (journalctl --user -u {UNIT} has the rest), "
+    "and the next snapshot that succeeds clears this"
+)
+"""The hint a failing backup ends in: the next run that succeeds ends it, and no word does."""
 
 
 @dataclass(frozen=True)
@@ -152,6 +161,10 @@ def of(
     needs += [(slug, Need(project.name, f"row {slug}: {why}", FREE)) for slug, why in room(run)]
     if held := budgethold.needed(run):
         needs.append((None, Need(project.name, held, HELD)))
+    if config.owner(alert.MACHINE) == project and (backup := snapshot.failing(config)):
+        since, line = backup
+        said = f"{UNIT}, the state backup, has failed since {config.user.stamp(since)}"
+        needs.append(("", Need(project.name, f"{said}; its last line: {line}", MEND)))
     root = config.home(project)
     if home is None:
         return [need for _, need in needs] + asks(project, root, root)

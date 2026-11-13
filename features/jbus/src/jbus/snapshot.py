@@ -26,6 +26,10 @@ A snapshot that is killed, as systemd kills one at the unit's `TimeoutStartSec`,
 raise its alert, so each run leaves a mark of its own in the state dir's `RUNS`, holds a lock on it
 while it runs, and removes it at its end. A pass that finds a mark nobody holds counts it as a
 snapshot of the machine's that did not finish, and removes it (`unfinished`).
+
+While any snapshot streak is open, the unit is failing, and `jbus needs` lists it as one item of
+the machine's, on the infra project's list (`failing`): when the backup first failed, and the last
+line the last failed run wrote. A run that succeeds ends every streak, and the item with them.
 """
 
 from __future__ import annotations
@@ -231,6 +235,23 @@ def _snapshot(
         key = f"{alert.SNAPSHOT} {owner}" if owner else alert.SNAPSHOT
         alert.sound(config, key, f"{FAILED}: {cause}", AFTER, now, say, owner=owner)
     return 1 if failed else 0
+
+
+def failing(config: jbus.Config) -> tuple[datetime, str] | None:
+    """Return when the backup first failed and the line the last failed run wrote to the journal,
+    `snapshot: <why>`, while any snapshot streak is open, whoever owns it; None once a run
+    succeeded."""
+    found = [
+        one
+        for key, kept in alert.streaks(config.state_dir).items()
+        if _owner(key) is not None
+        for one in [alert.Streak(**kept)]
+    ]
+    if not found:
+        return None
+    since = min(datetime.fromisoformat(one.since) for one in found)
+    last = max(found, key=lambda one: datetime.fromisoformat(one.last or one.since))
+    return since, f"snapshot: {last.why.removeprefix(f'{FAILED}: ')}"
 
 
 def _owner(key: str) -> str | None:
