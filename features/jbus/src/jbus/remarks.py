@@ -137,11 +137,9 @@ def _pages(run: Pass, kind: str, path: str, owner: str) -> list[Remark] | None:
     kept = read_json(file, {})
     had = isinstance(kept, dict) and kept.get("path") == asked and "first" in kept
     said = conditional.ask(run, asked, str(kept.get("etag") or "") if had else "")
-    if said is None:
-        return None
     if isinstance(said, conditional.Same):
         first, full = [Remark(**one) for one in kept["first"]], bool(kept.get("full"))
-    elif isinstance(said.body, list):
+    elif isinstance(said, conditional.Fresh) and isinstance(said.body, list):
         first, full = _remarks(kind, said.body), len(said.body) >= PAGE
         bare = [{**asdict(one), "body": one.body if by_owner(one, owner) else ""} for one in first]
         write_json(file, {"path": asked, "etag": said.etag, "full": full, "first": bare})
@@ -154,9 +152,8 @@ def _pages(run: Pass, kind: str, path: str, owner: str) -> list[Remark] | None:
         pages = json.loads(rest.stdout) if rest.returncode == 0 else None
     except ValueError:
         return None
-    if not (isinstance(pages, list) and all(isinstance(page, list) for page in pages)):
-        return None
-    return first + _remarks(kind, [one for page in pages for one in page])
+    whole = isinstance(pages, list) and all(isinstance(page, list) for page in pages)
+    return first + _remarks(kind, [one for page in pages for one in page]) if whole else None
 
 
 def read(run: Pass, number: int, owner: str) -> list[Remark] | None:
