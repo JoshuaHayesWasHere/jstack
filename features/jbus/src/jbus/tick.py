@@ -10,12 +10,14 @@ written by the pass's
 step `tick.pending`). It asks GitHub for the check runs at the head of every such pull request at
 once, at most `proc.GH_CAP` at a time, so one more pending pull request adds no wait to the
 others' reads. It asks for each head as it is now, by the pull request's ref and not by the sha
-the pass saw, which are the jobs of its workflow runs (`CHECK_RUNS`), with the ETag it kept
-(`SEEN`). GitHub answers 304, which spends none
-of the API allowance, until a job at that head changes or a push moves the head. So a head pushed
-after the pass's read reaches the next tick at no call of its own, and a head a newer push
-superseded is no longer read. A check suite the tick has not seen yet costs one read of the head's
-workflow runs (`RUNS_AT`), for the workflow each job belongs to.
+the pass saw, which are the jobs of its workflow runs (`CHECK_RUNS`), with the ETag of the
+pass's own read of them by the head's sha, which GitHub gives the same ETag, or else the one it
+kept (`SEEN`). GitHub answers 304, which spends none of the API allowance, until a job at that
+head changes or a push moves the head, and the pass and the tick pay for each change once,
+whichever reads it first (`_read`). So a head pushed after the pass's read reaches the next tick
+at no call of its own, and a head a newer push superseded is no longer read. A check suite the
+tick has not seen yet costs one read of the head's workflow runs, the pass's own read, with its
+ETag (`_suites`), for the workflow each job belongs to.
 
 On a 200 the tick restates, from that answer and as soon as it lands, not after the project's
 other reads, the line of `work.json` of the pull request on the check step (`_verdict`,
@@ -74,6 +76,7 @@ from jbus import (
     launchd,
     merge,
     passes,
+    pulls,
     reload,
     restated,
     rulebreaks,
@@ -97,9 +100,6 @@ it (`asked`). Only the tick writes it."""
 CHECK_RUNS = "repos/{owner}/{repo}/commits/pull/%s/head/check-runs?per_page=100"
 """The check runs at a pull request's head as it is now, the latest of each name, which are the
 jobs of its workflow runs. Each names the head it ran at (`head_sha`)."""
-RUNS_AT = "repos/{owner}/{repo}/actions/runs?head_sha=%s&per_page=100"
-"""A head's workflow runs, asked for only when its check runs name a check suite the tick does
-not know the workflow of yet."""
 EVERY = 10
 """The seconds between the tick's reads while a run of `jmerge` it started is still going, the
 interval of `jbus-merge.timer`, which starts no tick while one runs."""
@@ -186,14 +186,15 @@ def _suites(
     run: passes.Pass, head: str, jobs: list[dict[str, Any]], known: dict[str, Any]
 ) -> dict[str, list[Any]]:
     """Return the workflow run of each check suite of `jobs`, `[name, run id]`, from `known`, and
-    where a suite is new, from one read of the head's workflow runs. A suite that read does not
+    where a suite is new, from one read of the head's workflow runs. That read is the pass's own
+    (`watch._runs_of`, through `conditional.read`), so it shares the pass's ETag, and a list the
+    pass or an earlier tick already paid for costs a 304. A suite that read does not
     list yet stays unknown, and its jobs belong to no workflow, until a later 200 asks again: a
     suite's workflow run may reach the runs list after its jobs reach the check runs."""
     suites = {k: list(one) for k, one in known.items() if isinstance(one, list) and len(one) == 2}
     if all(_suite(job) in suites for job in jobs):
         return suites
-    asked = conditional.ask(run, RUNS_AT % head)
-    given = asked.body if isinstance(asked, conditional.Fresh) else None
+    given = conditional.read(run, watch._runs_of(head))
     listed = (given if isinstance(given, dict) else {}).get("workflow_runs") or []
     for one in listed:
         if isinstance(one, dict) and one.get("check_suite_id") is not None:
@@ -325,16 +326,30 @@ def _due(
 def _read(
     run: passes.Pass, names: tuple[str, ...], number: int, seen: str, found: Any
 ) -> dict[str, Any]:
-    """Read the check runs at pull request `number`'s head with the ETag the tick kept (`found`),
-    restate its line at once where its required checks failed or ended (`restated.checked`), and
-    return what the tick keeps of it. A read GitHub answered 304, or did not answer, keeps what
-    the tick had."""
+    """Read the check runs at pull request `number`'s head, restate its line at once where its
+    required checks failed or ended (`restated.checked`), and return what the tick keeps of it.
+
+    GitHub gives the check runs at a head the same ETag by the pull request's ref and by the
+    head's sha, which the pass reads (`pulls.RUNS`). So the tick asks by ref with the ETag of the
+    pass's kept answer at the head it last read (`found`), or the pass saw (`seen`), where one is
+    kept, and otherwise its own: check runs the pass already paid for cost the tick a 304, and it
+    reads them from the pass's answer. Its own 200 at one head is kept as the pass's answer at
+    that head, so the pass's next read of unchanged check runs costs a 304 too. A read GitHub
+    answered 304 to the ETag the tick already read under, or did not answer, keeps what the tick
+    had."""
     was: dict[str, Any] = found if isinstance(found, dict) else {}
-    asked = conditional.ask(run, CHECK_RUNS % number, str(was.get("etag", "")))
+    shared = conditional.kept(run, pulls.RUNS % (was.get("head") or seen))
+    etag = shared.etag if shared and shared.etag else str(was.get("etag", ""))
+    asked = conditional.ask(run, CHECK_RUNS % number, etag)
+    if isinstance(asked, conditional.Same) and shared and etag != was.get("etag"):
+        asked = shared
     if not isinstance(asked, conditional.Fresh):
         return was
     etag, given = asked.etag, asked.body if isinstance(asked.body, dict) else {}
     jobs = [job for job in given.get("check_runs") or [] if isinstance(job, dict)]
+    shas = {str(job["head_sha"]) for job in jobs if job.get("head_sha")}
+    if len(shas) == 1 and asked is not shared:
+        conditional.keep(run, pulls.RUNS % next(iter(shas)), asked)
     head = next((str(job["head_sha"]) for job in jobs if job.get("head_sha")), seen)
     jobs = [job for job in jobs if job.get("head_sha", head) == head]
     same = was if was.get("head") == head else {}

@@ -68,22 +68,37 @@ def read(run: Pass, path: str) -> Any:
     so an answer that has not changed is the kept one, at no cost. None where GitHub gave no
     answer, never a kept one. A 200 replaces what was kept: one with no ETag is kept with none, so
     the next ask sends no `If-None-Match` and gets a 200."""
+    had = kept(run, path)
+    said = ask(run, path, had.etag if had else "")
+    answer = said if isinstance(said, Fresh) else had if isinstance(said, Same) else None
+    if answer is None:
+        return None
+    keep(run, path, answer)
+    return answer.body
+
+
+def kept(run: Pass, path: str) -> Fresh | None:
+    """The answer kept for `path`, asking GitHub nothing, or None where none is kept."""
     folder = run.state / ANSWERS
     _prune(folder)
-    file = folder / f"{hashlib.sha256(path.encode()).hexdigest()[:32]}.json"
-    kept = store.read_json(file, {})
-    had = isinstance(kept, dict) and kept.get("path") == path and "body" in kept
-    said = ask(run, path, str(kept.get("etag") or "") if had else "")
-    if said is None:
+    one = store.read_json(_file(folder, path), {})
+    if not (isinstance(one, dict) and one.get("path") == path and "body" in one):
         return None
-    if isinstance(said, Same):
-        etag, body = kept["etag"], kept["body"]
-    else:
-        etag, body = said.etag, said.body
+    return Fresh(str(one.get("etag") or ""), one["body"])
+
+
+def keep(run: Pass, path: str, answer: Fresh) -> None:
+    """Keep `answer` as the one for `path`, so the next `read` of it asks with its ETag. A GET of
+    another path that gives the same body, as the check runs at a pull request's head do by its
+    ref and by its sha, gets the same ETag from GitHub, so its answer may be kept for this one."""
+    file = _file(run.state / ANSWERS, path)
     temporary = file.with_name(f"{file.name}.{os.getpid()}.{threading.get_ident()}.tmp")
-    answer = {"path": path, "etag": etag, "body": body, "asked": run.now.isoformat()}
-    store.write_json(file, answer, indent=None, sort_keys=False, temporary=temporary)
-    return body
+    one = {"path": path, "etag": answer.etag, "body": answer.body, "asked": run.now.isoformat()}
+    store.write_json(file, one, indent=None, sort_keys=False, temporary=temporary)
+
+
+def _file(folder: Path, path: str) -> Path:
+    return folder / f"{hashlib.sha256(path.encode()).hexdigest()[:32]}.json"
 
 
 def _prune(folder: Path) -> None:
