@@ -60,6 +60,7 @@ from jbus import (
     queue,
     read_json,
     review,
+    runwaiters,
     shots,
     t3,
     verbs,
@@ -141,13 +142,16 @@ _AGAINST = re.compile(r"^Pull request:[ \t]*open one against (?P<branch>[^\s,;:(
 
 
 def owned_waits(locks: Path) -> set[str]:
-    """The threads whose turn ended on a wait that jbus owns and ends with a wake (`slotwait`):
-    one waits on a test slot and is not woken yet (`jgauge.waiters`), or its own run holds a test
-    slot now, or ended with its wake not yet sent (`jgauge.holders`). The one rule for such a
-    wait, which `World.awaits` and the `Stop` hook (`jbus.crewend`) read."""
-    return {one.thread for one in waiters.read(locks) if not one.woken} | {
-        one.thread for one in holders.read(locks) if one.ended or holders.running(one)
-    }
+    """The threads whose turn ended on a wait that jbus owns and ends with a wake: one waits on a
+    test slot and is not woken yet (`jgauge.waiters`), or its own run holds a test slot now, or
+    ended with its wake not yet sent (`jgauge.holders`) (`slotwait`), or it waits on a GitHub run
+    it started (`runwaiters`, `runwait`). The one rule for such a wait, which `World.awaits` and
+    the `Stop` hook (`jbus.crewend`) read."""
+    return (
+        {one.thread for one in waiters.read(locks) if not one.woken}
+        | {one.thread for one in holders.read(locks) if one.ended or holders.running(one)}
+        | set(runwaiters.waiting(paths.jbus_state_dir()))
+    )
 
 
 @dataclass
@@ -158,7 +162,8 @@ class World:
     thread that the list does not have. `archived` holds, by slug, the threads that T3 Code
     reports as archived. `missing` holds the slugs whose thread is unknown to T3 Code, and
     `unasked` the slugs for which jbus could not ask T3 Code. `awaiting` holds the threads whose
-    turn ended on a wait that jbus owns (`owned_waits`), which jbus reads once a pass.
+    turn ended on a wait that jbus owns (`owned_waits`), which jbus reads once a pass, and `runs`
+    what each thread that waits on a GitHub run waits on (`runwaiters.waiting`).
 
     `results` holds each row's last Result as `look` read it, after T3 Code's list and before
     GitHub's, so a pass judges one world. A crew opens its pull request and then writes the Result
@@ -178,6 +183,7 @@ class World:
     open: dict[str, dict[str, Any]] = field(default_factory=dict)
     merged: dict[str, dict[str, Any]] = field(default_factory=dict)
     awaiting: set[str] = field(default_factory=set)
+    runs: dict[str, str] = field(default_factory=dict)
     results: dict[str, str] = field(default_factory=dict)
     logs: dict[str, str | None] = field(default_factory=dict)
     jobs: dict[str, dict[str, Any]] | None = None
@@ -457,7 +463,7 @@ def look(run: Pass, client: Client | None, rows: list[dict[str, Any]]) -> Look:
             _silent(run, "no token: run `jbus t3 login`"), held=held, spent=spent, left=left
         )
     locks = slot.locks_dir()
-    world = World(awaiting=owned_waits(locks))
+    world = World(awaiting=owned_waits(locks), runs=runwaiters.waiting(paths.jbus_state_dir()))
     try:
         listed = crew_threads(client, run.project.project_id)
     except T3Error as error:
@@ -1197,7 +1203,8 @@ def unwritten(run: Pass, world: World, thread: dict[str, Any] | None, state: wor
 def status(run: Pass, world: World, slug: str, state: work.State, crew: str = "") -> dict[str, str]:
     """Return a row's derived columns. The row's status is the projection of the row's state
     (`work.status`). `why` holds the reason that comes with the status itself: what a Result
-    leaves.
+    leaves. A row whose crew waits on a GitHub run it started, and that is not done or at its pull
+    request, gives what it waits on (`World.runs`).
 
     `crew` is the thread of the slug's crew (`jbus.crewthread.crew`), the `thread` column, or for
     a row with none the one thread T3 Code lists for it.
@@ -1216,6 +1223,9 @@ def status(run: Pass, world: World, slug: str, state: work.State, crew: str = ""
             reason = left(result)
         else:
             reason = closes(run, slug, brief_of(run, slug), result)
+    at = jsettings.thread_id(crew or str((found or {}).get("threadId", "")))
+    if word not in ("done", "pr") and at in world.runs:
+        reason = world.runs[at]
     return {
         "thread": crew or (found or {}).get("threadId", ""),
         "pr": f"#{pull['number']}" if pull else "",

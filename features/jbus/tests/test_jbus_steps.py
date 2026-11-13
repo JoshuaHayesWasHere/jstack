@@ -95,6 +95,7 @@ ORDER = [
     "tellers 36 reverts.known (world)",
     "tellers 40 watch.watch (client, world)",
     "tellers 41 watch.rewritten (sight, client)",
+    "tellers 45 runwait.wake (client, world, budget)",
     "tellers 50 threads.tie (client, world)",
     "tellers 52 reviewed.tell (client, world)",
     "tellers 53 reviewlaunch.scoped (world)",

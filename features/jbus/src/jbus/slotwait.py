@@ -63,6 +63,7 @@ from typing import Any
 
 from jbus import END_TURN, outbox, verbs
 from jbus.passes import Pass
+from jbus.runwaiters import RunWait
 from jbus.t3 import GONE, Client, T3Error, T3Refused
 from jbus.watch import ENDED, at_work, when
 from jgauge import holders, slot, waiters
@@ -91,7 +92,7 @@ CAPPED = (
 )
 
 
-def dead(run: Pass, client: Client, waiter: Waiter | Wait) -> bool:
+def dead(run: Pass, client: Client, waiter: Waiter | Wait | RunWait) -> bool:
     """Say whether the waiter's thread cannot be woken: it is gone, settled or archived, or it
     ended with a failure, an interrupt or a cancel. When T3 Code does not answer about the
     thread, `dead` returns False."""
@@ -109,11 +110,13 @@ def dead(run: Pass, client: Client, waiter: Waiter | Wait) -> bool:
     return bool(thread.get("settled") or thread.get("archived")) or thread.get("status") in OVER
 
 
-def _kind(waiter: Waiter | Wait) -> str:
+def _kind(waiter: Waiter | Wait | RunWait) -> str:
+    if isinstance(waiter, RunWait):
+        return "run"
     return "pool" if isinstance(waiter, Wait) else "slot"
 
 
-def _gone(run: Pass, waiter: Waiter | Wait, error: T3Error) -> bool:
+def _gone(run: Pass, waiter: Waiter | Wait | RunWait, error: T3Error) -> bool:
     run.say(
         f"wait {waiter.thread}: its {_kind(waiter)} wait is dropped, its thread is gone ({error})"
     )
@@ -223,7 +226,7 @@ def tell_capped(run: Pass, client: Client, one: Wait) -> bool:
     return True
 
 
-def waited(one: Waiter | Wait, now: datetime) -> int:
+def waited(one: Waiter | Wait | RunWait, now: datetime) -> int:
     """Return the whole minutes since the thread first waited, which `jgauge sample --report`
     counts."""
     try:
