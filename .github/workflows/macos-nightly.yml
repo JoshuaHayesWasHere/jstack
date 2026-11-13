@@ -34,8 +34,10 @@ env:
 jobs:
   # The whole suite took 2907 to 4731 s on macos-15 by 2026-11-11, and one run outgrew the step's
   # 80-minute cap, which killed pytest before it wrote its report (run 43050563617). So the suite
-  # runs as two shards, split by time (testing/shard.py), each a job of its own with its own
-  # failed tests step.
+  # runs in parts, split by time (testing/shard.py), each a job of its own with its own failed
+  # tests step. By 2026-11-13 it took about 7000 s, and with two parts part 1 met its 52-minute
+  # stop in 3 of 4 runs, so it runs as four, each about 30 minutes
+  # (testing/tests/test_workflows_mac.py).
   macos:
     name: macos ${{ matrix.shard }} of ${{ strategy.job-total }}
     runs-on: macos-15
@@ -44,7 +46,7 @@ jobs:
       # Every shard runs to its end, so a red run names every failing test.
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
