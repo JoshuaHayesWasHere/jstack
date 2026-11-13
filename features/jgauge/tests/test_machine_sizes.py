@@ -88,13 +88,13 @@ def test_a_mac_whose_sysctl_says_nothing_takes_the_fallbacks(mac):
 @pytest.mark.parametrize(
     ("cores", "gib", "full", "short", "crews"),
     [
-        (1, 2, 1, 2, 1),
-        (2, 4, 1, 2, 2),
-        (8, 16, 4, 2, 8),
-        (12, 32, 4, 2, 12),
-        (24, 62, 4, 3, 24),
-        (64, 128, 4, 8, 64),
-        (24, 8, 2, 3, 4),
+        (1, 2, 1, 1, 1),
+        (2, 4, 1, 1, 2),
+        (8, 16, 2, 1, 8),
+        (12, 32, 3, 2, 12),
+        (24, 62, 4, 4, 24),
+        (64, 128, 5, 8, 64),
+        (24, 8, 2, 4, 4),
     ],
 )
 def test_each_size_is_derived_from_the_cores_and_the_memory(cores, gib, full, short, crews):
@@ -112,15 +112,15 @@ def test_every_full_slot_at_once_runs_at_most_one_desk_worker_a_processor(cores)
 
 def test_the_flag_wins_then_the_variable_then_the_file_then_the_machine(machine, monkeypatch):
     assert sizes.resolve(Name.TEST_SLOTS).came_from is From.DERIVED
-    assert sizes.resolve(Name.TEST_SLOTS).value == 4
-    written = write_machine(machine, "test_slots = 2\nshort_slots = 5\n")
+    assert sizes.resolve(Name.TEST_SLOTS).value == 2
+    written = write_machine(machine, "test_slots = 3\nshort_slots = 5\n")
     assert sizes.resolve(Name.TEST_SLOTS) == sizes.Limit(
-        Name.TEST_SLOTS, 2, From.FILE, str(written), 4
+        Name.TEST_SLOTS, 3, From.FILE, str(written), 1
     )
     assert sizes.resolve(Name.SHORT_SLOTS).value == 5
-    monkeypatch.setenv("TEST_SLOTS", "3")
+    monkeypatch.setenv("TEST_SLOTS", "4")
     assert (
-        sizes.resolve(Name.TEST_SLOTS).line() == "test_slots     3  env TEST_SLOTS=3 (derived: 4)"
+        sizes.resolve(Name.TEST_SLOTS).line() == "test_slots     4  env TEST_SLOTS=4 (derived: 1)"
     )
     assert sizes.resolve(Name.TEST_SLOTS, flag="1").came_from is From.FLAG
 
@@ -167,16 +167,67 @@ def test_jgauge_limits_prints_each_size_where_it_came_from_and_rooms_lines(
     monkeypatch.setenv("TEST_SLOTS", "3")
     assert cli.main(["sizes"]) == 0
     out = capsys.readouterr().out.splitlines()
-    assert out[:3] == [
-        "test_slots     3  env TEST_SLOTS=3 (derived: 4)",
-        "short_slots    2  derived from 8 cores, 16 GiB",
+    assert out[:5] == [
+        "test_slots     3  env TEST_SLOTS=3 (derived: 2)",
+        "short_slots    1  derived from 8 cores, 16 GiB",
         f"max_running    6  file {jbus / 'config.toml'} (derived: 8)",
+        "workers        8  derived from 8 cores, 16 GiB",
+        "total          9  3 full x 2 + 1 short x 3 workers, over workers 8 by 1: lower test_slots"
+        f" or short_slots, or raise workers, in {machine / 'config' / 'jstack' / 'machine.toml'}",
     ]
-    assert out[3].startswith("room LOAD=200 CPU=40 MEMORY=6 PRESSURE=10 CUSHION=90 SLOTS=85 ")
-    assert out[4] == (
+    assert out[5].startswith("room LOAD=200 CPU=40 MEMORY=6 PRESSURE=10 CUSHION=90 SLOTS=85 ")
+    assert out[6] == (
         "note: TEST_SLOTS=3 is set here and jbus.service does not see it:"
         f" set test_slots in {machine / 'config' / 'jstack' / 'machine.toml'}"
     )
+
+
+def printed(monkeypatch, capsys, root: Path, cores: int) -> dict[str, list[str]]:
+    """What `jgauge sizes` prints on a machine of `cores` processors and 64 GiB, by first word."""
+    monkeypatch.setenv("PROC", str(fake_proc(root / f"proc{cores}", cores, 64)))
+    monkeypatch.setenv("JBUS_CONFIG_DIR", str(root / "no-jbus"))
+    assert cli.main(["sizes"]) == 0
+    return {line.split()[0]: line.split() for line in capsys.readouterr().out.splitlines()}
+
+
+@pytest.mark.parametrize(("cores", "desk"), [(24, 3), (8, 2)])
+def test_the_derived_slots_of_both_lanes_keep_their_workers_within_the_budget(
+    machine, monkeypatch, capsys, cores, desk
+):
+    """The short lane is inside the core budget (sc-short-lane-budget): 6 short slots of 4 beside
+    4 full of 6 put 48 workers on yelena's 24 cores, and the slots made a run queue of 25 on their
+    own. With every slot of both lanes taken, the workers fit the cores, and each lane keeps a
+    slot. `desk` is the Makefile's count for a full run, an eighth of the cores, at least 2."""
+    said = printed(monkeypatch, capsys, machine, cores)
+    full, short = int(said["test_slots"][1]), int(said["short_slots"][1])
+    assert said["workers"][1:3] == [str(cores), "derived"]
+    assert full >= 1 and short >= 1
+    total = int(said["total"][1])
+    assert total == full * desk + short * 3
+    assert total <= cores
+    assert said["total"][-3:] == ["within", "workers", str(cores)]
+
+
+def test_the_owner_sets_the_budget_and_both_lanes_are_sized_inside_it(machine, monkeypatch, capsys):
+    """A `workers` line in machine.toml is the budget in place of the cores: 12 on 24 cores leaves
+    room for 2 full slots of 3 and 2 short slots of 3."""
+    written = write_machine(machine, "workers = 12\n")
+    said = printed(monkeypatch, capsys, machine, 24)
+    assert said["workers"][1:4] == ["12", "file", str(written)]
+    assert (said["test_slots"][1], said["short_slots"][1]) == ("2", "2")
+    assert said["total"][1] == "12"
+
+
+def test_slots_the_owner_sets_past_the_budget_are_kept_and_called_over_budget(
+    machine, monkeypatch, capsys
+):
+    """The owner's count wins over the budget, as over any derived count, and `jgauge sizes` says
+    by how much it is over: yelena's 6 short slots beside 4 full, 3 workers each, are 30."""
+    write_machine(machine, "test_slots = 4\nshort_slots = 6\n")
+    said = printed(monkeypatch, capsys, machine, 24)
+    assert (said["test_slots"][1], said["short_slots"][1]) == ("4", "6")
+    assert said["total"][1] == "30"
+    assert "workers, over workers 24 by 6: " in " ".join(said["total"])
 
 
 def test_the_module_runs_with_the_standard_library_alone(machine):

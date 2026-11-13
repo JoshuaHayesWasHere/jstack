@@ -11,7 +11,7 @@
 # one): a container sees every processor of the machine, and `--cpus` sets only the quota. With
 # no quota they are what `getconf` counts.
 #
-# A desk takes a quarter of them. Not `auto`, which takes them all: other work shares the
+# A desk takes an eighth of them. Not `auto`, which takes them all: other work shares the
 # machine, and several checks run at once. A runner (GitHub Actions sets GITHUB_ACTIONS to
 # true) of GitHub's own, where RUNNER_ENVIRONMENT is github-hosted and every jstack CI job runs,
 # runs nothing else, so it takes one for each processor. A self-hosted runner takes one and a
@@ -20,18 +20,18 @@
 # 6 workers. None takes fewer than two. `make check TEST_WORKERS=4`
 # sets the count by hand, and `CORES=4` the processors it is counted from.
 #
-# The desk share is also the full test slots' count (`test_slots` in
-# features/jgauge/src/jgauge/sizes.py, whose DESK_SHARE is this quarter): every slot at once
-# runs at most one desk worker for each of the machine's processors: 4 slots on most machines
-# of 8 cores or more, 5 on 10, 11 or 15. A worker keeps 0.86 of a core busy (measured on
-# yelena, 24 processors, 2026-10-20: 456 to 483 s of CPU for each 89 to 94 s run at 6 workers),
-# so every slot at once asks for about 21 of the 24. testing/tests/test_check_command.py holds the
-# share and the count to each other. CI is not in that count: it runs on GitHub's machines.
+# The desk share is also the full test slots' worker count (`test_slots` in
+# features/jgauge/src/jgauge/sizes.py, whose DESK_SHARE is this eighth): the slots of both lanes
+# are sized inside one budget of workers, the processors, so every slot at once runs at most one
+# worker for each processor: on 24 processors 4 full slots of 3 and 4 short slots of 3. A worker
+# keeps 0.86 of a core busy (measured on yelena, 24 processors, 2026-10-20: 456 to 483 s of CPU
+# for each 89 to 94 s run at 6 workers). testing/tests/test_check_command.py holds the share and
+# the count to each other. CI is not in that count: it runs on GitHub's machines.
 # A system with no /proc/self/cgroup, such as macOS, has no cgroup, so no quota.
 CGROUP ?= $(if $(wildcard /proc/self/cgroup),/sys/fs/cgroup$(shell sed -n 's/^0:://p' /proc/self/cgroup))
 QUOTA = $(shell read -r q p 2>/dev/null < '$(CGROUP)/cpu.max' && [ "$$q" != max ] && n=$$((q / p)) && echo $$((n > 0 ? n : 1)))
 CORES ?= $(or $(QUOTA),$(shell getconf _NPROCESSORS_ONLN 2>/dev/null || echo 2))
-PER_CORE = $(if $(filter true,$(GITHUB_ACTIONS)),$(if $(filter github-hosted,$(RUNNER_ENVIRONMENT)),1 / 1,3 / 2),1 / 4)
+PER_CORE = $(if $(filter true,$(GITHUB_ACTIONS)),$(if $(filter github-hosted,$(RUNNER_ENVIRONMENT)),1 / 1,3 / 2),1 / 8)
 # A runner of GitHub's own runs the suite alone, so the TLC runs the suite starts take no jgauge
 # test slot: `JGAUGE_TEST_SLOT` says one is held (features/jgauge/src/jgauge/slot.py). Were they
 # to take one, a macos-15 runner's 3 cores, which jgauge gives a single slot, would queue each on
@@ -41,12 +41,13 @@ JGAUGE_TEST_SLOT ?= runner
 export JGAUGE_TEST_SLOT
 endif
 # A run in jgauge's short lane (`JGAUGE_TEST_SLOT=short`: one test file, a step of a crew's
-# check) takes SHORT_WORKERS and not the desk's quarter: the short slots are sized beside the full
-# lane and outside its core budget (`short_slots` in features/jgauge/src/jgauge/sizes.py, whose
-# SHORT_WORKERS is this count), and a one-file run spends its CPU on starting workers.
-# Four workers spend 9% less CPU than six on five test files a crew runs alone, and 46% less
-# than `-n auto`, for 13% more wall time (the measure is in sizes.py).
-SHORT_WORKERS = 4
+# check) takes SHORT_WORKERS and not the desk's eighth: the short slots are sized inside the worker
+# budget with the full lane, half of it (`workers` and `short_slots` in
+# features/jgauge/src/jgauge/sizes.py, whose SHORT_WORKERS is this count), and a one-file run
+# spends its CPU on starting workers. Three workers spend 12% less CPU than six on five test
+# files a crew runs alone, and 48% less than `-n auto`, for 31% more wall time (the measure is in
+# sizes.py).
+SHORT_WORKERS = 3
 TEST_WORKERS ?= $(if $(filter short,$(JGAUGE_TEST_SLOT)),$(SHORT_WORKERS),$(shell n=$$(($(or $(strip $(CORES)),2) * $(PER_CORE))); [ "$$n" -ge 2 ] || n=2; echo "$$n"))
 # Workers take the next test as each finishes (`worksteal`), so a slow file does not hold up
 # the tests queued behind it. The 25 slowest tests are printed at the end, and `JUNIT=<file>`

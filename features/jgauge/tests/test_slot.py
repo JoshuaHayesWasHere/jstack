@@ -283,10 +283,10 @@ def test_with_every_full_slot_held_a_short_job_runs_at_once(slots):
 
 
 def test_the_short_lane_waits_only_on_its_own_slots(slots):
-    holders = [slots("--short", name=name) for name in "abc"]
-    assert slots.waits(lambda: slots.started() == ["a", "b", "c"])
+    holders = [slots("--short", name=name) for name in "abcd"]
+    assert slots.waits(lambda: slots.started() == ["a", "b", "c", "d"])
     ran = slots("--short", command=["echo", "ran"])
-    assert ran.stderr.readline() == "test-slot: waiting for one of 3 short slots\n"
+    assert ran.stderr.readline() == "test-slot: waiting for one of 4 short slots\n"
     assert slots("--slots", "1", command=["echo", "full"]).communicate(timeout=5) == ("full\n", "")
     slots.release("a")
     assert holders[0].wait(timeout=5) == 0
@@ -709,8 +709,8 @@ def test_every_take_and_release_in_both_lanes_appends_one_row_to_the_slot_log(sl
         ("release", "full", 2, 2),
         ("take", "full", 1, 2),
         ("release", "full", 1, 2),
-        ("take", "short", 1, 3),
-        ("release", "short", 1, 3),
+        ("take", "short", 1, 4),
+        ("release", "short", 1, 4),
     ]
     takes, releases = rows[::2], rows[1::2]
     assert [r["id"] for r in takes] == [r["id"] for r in releases]
