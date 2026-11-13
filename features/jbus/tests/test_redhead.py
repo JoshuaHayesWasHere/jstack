@@ -106,3 +106,19 @@ def test_a_log_of_a_job_not_completed_or_not_given_is_asked_again_each_pass(kitc
     assert redhead.tested(a_pass(kitchen), HEAD, red("903", "902")) == MAIN
     assert len(log_reads(kitchen, "902")) == 2
     assert len(log_reads(kitchen, "903")) == 2
+
+
+def test_the_kept_logs_drop_the_oldest_past_their_bound(kitchen, monkeypatch):
+    """The kept logs are bounded: past `KEPT_LOG_BYTES` the oldest is dropped and asked again. The
+    kitchen's `gh` ends what it prints with a newline, so each log here is 1000 bytes."""
+    monkeypatch.setattr(watch, "KEPT_LOG_BYTES", 2500)
+    jobs = ["1", "2", "3", "4", "5"]
+    kitchen.set("jobs.json", {job: {"status": "completed"} for job in jobs})
+    kitchen.set("logs.json", {job: job * 999 for job in jobs})
+    for job in jobs:
+        assert watch.job_log(a_pass(kitchen), "o/r", job) == job * 999 + "\n"
+    kept = sum(one.stat().st_size for one in (kitchen.state / watch.LOGS).iterdir())
+    assert kept <= 2500
+    assert watch.job_log(a_pass(kitchen), "o/r", "5") == "5" * 999 + "\n"
+    assert watch.job_log(a_pass(kitchen), "o/r", "1") == "1" * 999 + "\n"
+    assert (len(log_reads(kitchen, "5")), len(log_reads(kitchen, "1"))) == (1, 2)
