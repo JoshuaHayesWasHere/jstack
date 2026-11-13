@@ -1,3 +1,4 @@
+import contextlib
 import fcntl
 import json
 import os
@@ -365,6 +366,48 @@ def test_a_short_job_stopped_at_its_limit_takes_what_it_started_with_it(tmp_path
     assert gone, f"process {left}, started by the short job, still runs after the stop"
 
 
+def test_a_short_job_stopped_at_its_limit_takes_a_child_in_a_session_of_its_own_with_it(tmp_path):
+    """Playwright starts its web server in a session of its own, so no signal to the command's
+    group reaches it, and once the command dies it is no longer under the command either. The
+    child ignores SIGTERM, as a server may, so only the kill after the grace ends it."""
+    limited = (
+        "import sys; from jgauge import cli, slot; slot.SHORT_LIMIT_SECONDS = 0.5;"
+        " slot.STOP_GRACE_SECONDS = 0.5; sys.exit(cli.main(sys.argv[1:]))"
+    )
+    started = (
+        'setsid sh -c \'trap "" TERM; exec sleep 600\' > /dev/null 2>&1 & echo $! > "$D/pid"; wait'
+    )
+    home = tmp_path / "home"
+    env = {**os.environ, "HOME": str(home), "D": str(tmp_path)}
+    env["JGAUGE_LOCKS_DIR"] = str(home / ".local" / "state" / "locks")
+    try:
+        ran = subprocess.run(
+            [sys.executable, "-c", limited, "test-slot", "--short", "--", "sh", "-c", started],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        left = int((tmp_path / "pid").read_text())
+        assert ran.returncode == slot.TIMED_OUT
+        deadline = time.monotonic() + 5
+        while live(left) and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert not live(left), f"process {left}, in a session of its own, outlived the stop"
+    finally:
+        if (tmp_path / "pid").exists():
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(int((tmp_path / "pid").read_text()), signal.SIGKILL)
+
+
+def live(pid: int) -> bool:
+    """`pid` runs, and is no zombie waiting for its parent."""
+    try:
+        return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0] != "Z"
+    except OSError:
+        return False
+
+
 LEAVES_A_ZOMBIE = """\
 import os, time
 state = os.environ["D"]
@@ -410,7 +453,8 @@ def test_a_short_job_whose_group_is_left_with_a_zombie_still_stops_and_says_so(t
         )
     finally:
         if (tmp_path / "pid").exists():
-            os.kill(int((tmp_path / "pid").read_text()), signal.SIGKILL)
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(int((tmp_path / "pid").read_text()), signal.SIGKILL)
     assert (ran.returncode, ran.stderr) == (
         slot.TIMED_OUT,
         f"test-slot: stopped {sys.executable} at 0.5 s, the short lane's limit\n",
