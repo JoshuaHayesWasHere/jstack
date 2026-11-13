@@ -21,7 +21,10 @@ QUOTED = {
 
 
 def cites():
-    return [(path, int(first), int(last or first)) for path, first, last in CITE.findall(VISION.read_text())]
+    return [
+        (path, int(first), int(last or first))
+        for path, first, last in CITE.findall(VISION.read_text())
+    ]
 
 
 def test_each_cite_points_at_the_text_it_names():
