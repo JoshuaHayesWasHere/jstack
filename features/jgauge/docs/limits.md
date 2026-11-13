@@ -126,7 +126,7 @@ They are set in `features/jgauge/src/jgauge/room.sh`.
 | Limit | Where | Value | Protects | Its yelena basis |
 |---|---|---|---|---|
 | Load line | `features/jgauge/src/jgauge/room.sh` | `LOAD=200` | A backstop for when CPU pressure cannot be read | A share of the cores. Six suites reach 216% of the cores, and the busy night's hold was at 120 to 146%. |
-| CPU pressure line | `features/jgauge/src/jgauge/room.sh` | `CPU=40` | Launches stop when work waits for a core | A share of time. Five suites reach 30 and six reach 55, so it holds the sixth. |
+| CPU pressure line | `features/jgauge/src/jgauge/room.sh` | `CPU=40` | Launches stop when work waits for a core | A share of time, read only while the one-minute load is at or over the cores: a cgroup held at its `cpu.max` counts its throttled time as pressure in itself and every ancestor, but its throttled tasks leave the run queue. On 2026-11-13 one test-slot take at `cpu.max 300000 100000` put the root at 58.67 with load 6.2 on 24 cores. Five suites reach 30 and six reach 55 at 216% of the cores, so it holds the sixth. |
 | Memory floor, GB | `features/jgauge/src/jgauge/room.sh` | `MEMORY=6` | Room for one more launch and its check | A floor, not a size. A launch and a suite are 1.4 GB, and the idle machine has 49 GiB available. |
 | Memory pressure line | `features/jgauge/src/jgauge/room.sh` | `PRESSURE=10` | Launches stop when work waits for memory | A share of time. It was 0 in every run. |
 | Plan cushion, percent | `features/jgauge/src/jgauge/room.sh` | `CUSHION=${HEADROOM:-90}` | A launch passes an account by before its plan window is used up | The provider's, not the machine's. The user's `headroom` in `~/.config/jstack/config.toml` sets it, and with none it is `CUSHION=90`. |

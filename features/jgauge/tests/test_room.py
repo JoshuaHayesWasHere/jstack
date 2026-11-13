@@ -172,8 +172,6 @@ def test_yelenas_busiest_load_with_little_cpu_pressure_goes(tmp_path):
         ("load", "24.01", "wait: load 24.01 is at or over 200% of 12 cores"),
         ("load", "99.00", "wait: load 99.00 is at or over 200% of 12 cores"),
         ("cores", "4", None),
-        ("cpu", "40.00", "wait: CPU pressure 40.00 is at or over 40"),
-        ("cpu", "71.30", "wait: CPU pressure 71.30 is at or over 40"),
         ("memory", 6 * KB_PER_GB - 1, "wait: 6.0 GB of memory available, under 6"),
         ("memory", 2 * KB_PER_GB, "wait: 2.0 GB of memory available, under 6"),
         ("pressure", "10.00", "wait: memory pressure 10.00 is at or over 10"),
@@ -192,13 +190,40 @@ def test_a_reading_past_its_threshold_waits_and_says_which(tmp_path, reading, va
     ("reading", "value"),
     [
         ("load", "23.99"),
-        ("cpu", "39.99"),
         ("memory", 6 * KB_PER_GB),
         ("pressure", "9.99"),
     ],
 )
 def test_a_reading_just_inside_its_threshold_goes(tmp_path, reading, value):
     assert says(machine(tmp_path, **{**IDLE, reading: value})) == "go"
+
+
+@pytest.mark.parametrize(
+    ("load", "cpu", "said"),
+    [
+        ("12.00", "40.00", "wait: CPU pressure 40.00 is at or over 40"),
+        ("23.99", "71.30", "wait: CPU pressure 71.30 is at or over 40"),
+        ("12.00", "39.99", "go"),
+        ("11.99", "71.30", "go"),
+    ],
+)
+def test_cpu_pressure_waits_only_while_the_load_fills_every_core(tmp_path, load, cpu, said):
+    """Work waits for a core of the machine only while more is runnable than there are cores.
+    Under that, the stall is a cgroup held at its own `cpu.max`."""
+    assert says(machine(tmp_path, **{**IDLE, "load": load, "cpu": cpu})) == said
+
+
+def test_a_cap_throttled_on_an_idle_machine_goes(tmp_path):
+    """A test-slot take held at `cpu.max 300000 100000`, throttled in 1049 of 1055 periods,
+    as room met it on 2026-11-13: the root's CPU pressure was 58.67 with load 6.2 on 24 cores.
+    A throttled task leaves the run queue, so it raises the pressure and not the load."""
+    throttled = {**IDLE, "load": "6.20", "cores": "24", "cpu": "58.67"}
+    assert says(machine(tmp_path, **throttled)) == "go"
+
+
+def test_a_real_overload_with_cpu_pressure_still_waits(tmp_path):
+    overloaded = {**IDLE, "load": "30.00", "cores": "24", "cpu": "58.67"}
+    assert says(machine(tmp_path, **overloaded)) == "wait: CPU pressure 58.67 is at or over 40"
 
 
 @pytest.mark.parametrize("cores", ["4", "12", "20"])
@@ -212,8 +237,9 @@ def test_a_load_at_its_threshold_waits_on_any_core_count(tmp_path, cores):
 def test_the_first_reading_with_no_room_is_the_one_named(tmp_path):
     full = {"load": "30.00", "cores": "12", "memory": KB_PER_GB, "pressure": "54.31", "cpu": "90"}
     assert says(machine(tmp_path, **full)).startswith("wait: load ")
-    assert says(machine(tmp_path, **{**full, "load": "0.42"})).startswith("wait: CPU pressure ")
-    assert says(machine(tmp_path, **{**full, "load": "0.42", "cpu": "1"})).startswith(
+    assert says(machine(tmp_path, **{**full, "load": "12.00"})).startswith("wait: CPU pressure ")
+    assert says(machine(tmp_path, **{**full, "load": "0.42"})).startswith("wait: 1.0 GB ")
+    assert says(machine(tmp_path, **{**full, "load": "12.00", "cpu": "1"})).startswith(
         "wait: 1.0 GB "
     )
 
@@ -833,7 +859,7 @@ def test_a_light_look_needs_no_load_it_cannot_read(tmp_path):
 
 
 def test_a_light_look_skips_cpu_pressure_as_it_skips_the_load(tmp_path):
-    env = machine(tmp_path, **{**IDLE, "cpu": "90.00"})
+    env = machine(tmp_path, **{**IDLE, "load": "12.00", "cpu": "90.00"})
     assert says(env) == "wait: CPU pressure 90.00 is at or over 40"
     assert light(env) == (["go"], 0)
     (tmp_path / "proc" / "pressure" / "cpu").unlink()
@@ -1220,7 +1246,7 @@ def test_a_wait_for_load_names_the_three_busiest_processes_and_where_they_run(tm
 
 
 def test_a_wait_for_another_reason_or_a_machine_with_room_names_no_process(tmp_path):
-    env = machine(tmp_path, **{**IDLE, "cpu": "71.30"})
+    env = machine(tmp_path, **{**IDLE, "load": "12.00", "cpu": "71.30"})
     processes(tmp_path, ("yes", "/tmp/lwr/c", 99))
     assert says(env) == "wait: CPU pressure 71.30 is at or over 40"
     assert says(machine(tmp_path, **IDLE)) == "go"

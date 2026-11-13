@@ -531,7 +531,7 @@ def test_a_load_that_holds_a_launch_holds_no_review(tmp_path):
 
 
 def test_cpu_pressure_that_holds_a_launch_holds_no_review(tmp_path):
-    assert room_calls(tmp_path, cpu="90.00") == [
+    assert room_calls(tmp_path, load="12.00", cpu="90.00") == [
         "wait: CPU pressure 90.00 is at or over 40",
         "go",
     ]

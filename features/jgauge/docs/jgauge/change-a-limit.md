@@ -71,7 +71,7 @@ On macOS, `jgauge room` reads only the load and the memory available, since macO
 | Line | Value |
 |---|---|
 | The one-minute load, a backstop | At or over 200% of the cores (`LOAD=200`) |
-| CPU pressure, `some avg60` | At or over 40 (`CPU=40`) |
+| CPU pressure, `some avg60`, while the one-minute load is at or over the cores | At or over 40 (`CPU=40`) |
 | Memory available | Under 6 GB (`MEMORY=6`) |
 | Memory pressure, `some avg60` | At or over 10 (`PRESSURE=10`) |
 | File slots of `/tmp` used | Over 85% (`SLOTS=85`) |
