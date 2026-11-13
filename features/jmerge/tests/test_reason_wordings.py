@@ -51,3 +51,21 @@ def test_the_desk_checks_words_from_before_1715_place_1718s_line_as_stale():
         "`PART=guards` line of an earlier head binds too), runs again at ba66f41642f6"
     )
     assert (ready.code_of(line), ready.step_of(ready.code_of(line))) == ("checked-stale", "result")
+
+
+def test_a_meets_no_wait_that_names_the_users_waived_line_keeps_its_code():
+    """A meets-no wait written before the waiver was the root's to record, as jbus's view holds it
+    in merge.log and a row's `why`: once the reason ends in "a Waived: line for those lines", the
+    line still reads as `MEETS_NO`, `meets-no` on the findings step, not the view's Unknown lane."""
+    for way_out in (
+        "or the user's Waived: line",
+        "or a waiver: the root home's jbus waive --as root, or the user's Waived: line",
+    ):
+        line = (
+            "its review at 5d41402abc4b says the brief is not met, 2 of 3: Done when 2 unmet, so "
+            f"a fix and a scoped review whose line says yes, {way_out}"
+        )
+        assert (ready.code_of(line), ready.step_of(ready.code_of(line))) == (
+            "meets-no",
+            "findings",
+        ), line
