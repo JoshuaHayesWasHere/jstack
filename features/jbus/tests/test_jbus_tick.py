@@ -169,6 +169,45 @@ def test_a_304_to_the_ticks_conditional_read_is_not_counted_against_the_budget(w
     assert "and 3 answered 304, which spend nothing:" in lines
 
 
+def costed(kitchen, part):
+    """The calls to GitHub the call log names with `part` in their endpoint that GitHub answered
+    200, which spends the API allowance: a 304 spends none."""
+    log = kitchen.state_dir / "gh-calls.jsonl"
+    lines = [json.loads(one) for one in log.read_text().splitlines()] if log.exists() else []
+    return [one for one in lines if part in one["endpoint"] and " 200 " in one.get("http", "")]
+
+
+def check_reads(kitchen):
+    """The costed reads of #7's head's workflow runs and of its check runs, by its sha or by its
+    ref, whoever asked them."""
+    return (
+        len(costed(kitchen, f"runs?head_sha={HEAD}")),
+        len(costed(kitchen, f"/{HEAD}/check-runs")) + len(costed(kitchen, "/pull/7/head/check-runs")),
+    )
+
+
+def test_a_pass_and_a_tick_over_one_head_pay_for_each_check_read_once(kitchen):
+    """The pass and the tick both read the check runs at #7's head, a row's pull request, the
+    pass by its sha and the tick by its ref, and both read the head's workflow runs. GitHub gives
+    both check-runs reads the same ETag, so whichever asks second, after no change, is answered
+    304: one pass and one tick over the same head cost one read of each, and a change to the
+    check runs costs one more read of them, whichever of the two sees it first."""
+    add(kitchen, "alpha")
+    kitchen.brief("alpha", f"\n## Result\nStatus: done\nBranch: alpha   Pull request: {PULL}\n")
+    kitchen.t3.thread("alpha", "completed")
+    kitchen.set("jmerge.txt", f"{RUNNING}\n")
+    listed(kitchen, job("check"))
+    going(kitchen)
+    assert len(costed(kitchen, f"runs?head_sha={HEAD}")) == 1
+    assert restated.pending(kitchen.state) == {7: HEAD}
+    ticks(kitchen)
+    assert check_reads(kitchen) == (1, 1)
+    check_ended(kitchen, 1, "failure")
+    ticks(kitchen)
+    going(kitchen)
+    assert check_reads(kitchen) == (1, 2)
+
+
 def test_a_busy_jmerge_leaves_the_ended_run_to_the_next_tick(watched):
     watched.set("jmerge-busy", "")
     ended(watched, 2)
