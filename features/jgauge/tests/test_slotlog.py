@@ -2,11 +2,13 @@
 be written stops no run, and the report reads only what is a row. `test_slot.py` drives
 `jgauge test-slot` itself and reads its rows back."""
 
+import contextlib
 import json
 import os
 import subprocess
 import sys
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 
@@ -273,7 +275,7 @@ def test_a_release_records_the_cgroup_s_cpu_and_the_processes_left(tmp_path, mon
 
     taken = slotlog.take(log, "short", 1, 3, "", ["sh"], 0)
     (own,) = home.glob(f"{slotlog.PREFIX}*")
-    (own / "cgroup.procs").write_text(f"{os.getpid()}\n1\n")
+    (own / "run" / "cgroup.procs").write_text(f"{os.getpid()}\n1\n")
     (own / "cpu.stat").write_text("usage_usec 2000000\nuser_usec 1500000\nsystem_usec 500000\n")
     slotlog.release(taken, 0)
 
@@ -293,3 +295,61 @@ def test_a_release_whose_cgroup_cannot_be_read_writes_its_row_with_no_cpu(tmp_pa
     _take, release = rows(log)
     assert release["code"] == 3
     assert "cpu_user" not in release and "left" not in release
+
+
+def test_a_take_s_cgroup_is_capped_at_its_workers_and_a_take_with_none_runs_uncapped(
+    tmp_path, monkeypatch
+):
+    """A take of 3 workers may run 3 cores: its cgroup's `cpu.max` is 3 periods of CPU a
+    period. Where the take can have no cgroup there is nothing to cap, and its CPU is still
+    counted from the processes that carry it."""
+    home = a_cgroup_tree(tmp_path, monkeypatch)
+    log = slotlog.path(tmp_path / "locks")
+
+    taken = slotlog.take(log, "full", 1, 4, "", ["make", "check"], 0, workers=3)
+    (own,) = home.glob(f"{slotlog.PREFIX}*")
+    assert (own / "cpu.max").read_text().split() == ["300000", "100000"]
+    slotlog.release(taken, 0)
+
+    monkeypatch.setattr(slotlog, "CGROUPS", tmp_path / "no cgroups")
+    taken = slotlog.take(log, "full", 1, 4, "", ["sh"], 0, workers=3)
+    subprocess.run(["sh", "-c", LEAVES_A_SPIN, "sh", sys.executable, SPIN], check=True)
+    slotlog.release(taken, 0)
+
+    *_, release = rows(log)
+    assert release["cpu_user"] + release["cpu_system"] >= 0.25 - 2 / os.sysconf("SC_CLK_TCK")
+    assert not (tmp_path / "no cgroups").exists()
+
+
+SPINS_FOR_A_SECOND = "import time\nend = time.monotonic() + 1\nwhile time.monotonic() < end: pass"
+SPINS_TWO = 'for i in 1 2; do "$1" -c "$2" & done; wait'
+OWN_QUOTA = 'cat "/sys/fs/cgroup$(sed -n "s/^0:://p" /proc/self/cgroup)/cpu.max" 2> /dev/null'
+
+
+def test_a_take_of_one_worker_runs_two_spinning_processes_on_one_core(tmp_path):
+    """Two processes that each spin for a second of wall time use about 2 s of CPU uncapped. In
+    a take of 1 worker they share one core, so the release counts at most 1.2 s, the 0.2 for
+    the two Pythons' start and the cap's first period. The command's own cgroup sets no quota,
+    so a Makefile that counts its workers from its cgroup's `cpu.max` counts them as before.
+    Where the cgroup tree here allows no cap (no cgroup v2 one the holder may write, or no cpu
+    controller to delegate), the test skips."""
+    log = slotlog.path(tmp_path / "locks")
+
+    taken = slotlog.take(log, "short", 1, 3, "", ["sh"], 0, workers=1)
+    try:
+        (line,) = (slotlog.PROCS / "self" / "cgroup").read_text().splitlines()
+        own = Path("/sys/fs/cgroup", line.removeprefix("0::/")).parent
+        cap = []
+        if own.name.startswith(slotlog.PREFIX):
+            with contextlib.suppress(OSError):
+                cap = (own / "cpu.max").read_text().split()
+        quota = subprocess.run(["sh", "-c", OWN_QUOTA], capture_output=True, text=True).stdout
+        subprocess.run(["sh", "-c", SPINS_TWO, "sh", sys.executable, SPINS_FOR_A_SECOND], check=True)
+    finally:
+        slotlog.release(taken, 0)
+
+    if cap != ["100000", "100000"]:
+        pytest.skip(f"the cgroup tree here allows the take no cap: {cap or 'no cgroup'}")
+    _take, release = rows(log)
+    assert release["cpu_user"] + release["cpu_system"] <= 1.2
+    assert quota.split()[:1] in ([], ["max"])
