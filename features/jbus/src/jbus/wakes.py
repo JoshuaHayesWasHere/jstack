@@ -362,12 +362,13 @@ def need_items(run: Pass, listed: list | None) -> list[Item]:
     stalled home's is no thread's either, since that home is the one that stalled, and nor is a
     T3 Code build to install, which no home can do. Any other need
     is the item of the home whose brief or scout's request its row is (`jbriefs.home`), as `jbus
-    home` says: a gate with no case on its `Holds:` line. A gate a home asked itself
-    (`mirror.asker`) wakes no thread: it is that home's question to the user, which `jbus needs`
-    lists."""
+    home` says: a gate with no case on its `Holds:` line. A hold names its rows and no slug, and
+    its rows share one home (`clock.held`), so its first row's brief names it. A gate a home asked
+    itself (`mirror.asker`) wakes no thread: it is that home's question to the user, which `jbus
+    needs` lists."""
     items, holds = [], read_json(run.state / clock.HELD_FILE, {})
     for one, line in blockers.deciding(run, listed):
-        slug = one.get("slug") or ""
+        slug = one.get("slug") or next(iter(one.get("rows") or []), "")
         files = (run.home / kind / f"{slug}.md" for kind in ("tasks", "scouts"))
         brief = next((file for file in files if slug and file.exists()), None)
         if door(one):
