@@ -1,7 +1,7 @@
 [project]
 name = "jstack"
 version = "0.1.0"
-description = "jstack's eight commands. jgauge: what a thread cost in tokens. jbriefs: one page of every home. jmerge: merge what is ready. jbus: a home's routine work, on a timer and with no model. jdrift: what changed upstream in pstack since the pin. jroles: the model each role's thread is launched on. jleak: what must not leave the machine for a public repo, found before a push or a pull request. jpack: a context pack's notes linted, their citations verified, and the stale ones listed."
+description = "jstack's ten commands. jgauge: what a thread cost in tokens. jbriefs: one page of every home. jmerge: merge what is ready. jbus: a home's routine work, on a timer and with no model. jdrift: what changed upstream in pstack since the pin. jroles: the model each role's thread is launched on. jleak: what must not leave the machine for a public repo, found before a push or a pull request. jpack: a context pack's notes linted, their citations verified, and the stale ones listed. jinstall: install, check and remove jstack on a machine. repo-standard: the guards a repo runs to hold its layout, feature map and docs to the standard."
 license = "MIT"
 readme = "README.md"
 requires-python = ">=3.12"
