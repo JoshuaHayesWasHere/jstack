@@ -903,6 +903,20 @@
       ]
     },
     {
+      "name": "gh-logged.sh",
+      "path": "features/crew/hooks/gh-logged.sh",
+      "harnesses": [
+        "claude-code"
+      ],
+      "events": [
+        {
+          "harness": "claude-code",
+          "event": "SessionStart",
+          "matcher": "startup|resume|clear|compact|fork"
+        }
+      ]
+    },
+    {
       "name": "home-start.sh",
       "path": "features/home/hooks/home-start.sh",
       "harnesses": [

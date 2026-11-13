@@ -15,7 +15,9 @@ one line to `CALLS` there: when it ended, its caller, the endpoint, its exit sta
 (`GH_DEBUG=api`), so `run` asks for it and takes it out of what gh said on stderr: a caller sees
 gh's own words only. GitHub keeps more than one count of a window for one token, each with its own
 reset, so a line's `resource` and `reset` together name the count the call spent
-(`jsettings.budget.count`). `jbus budget --callers` counts the lines.
+(`jsettings.budget.count`). `jbus budget --callers` counts the lines. Each `gh` that `run`
+starts carries `LOGGED`, so the crew's `gh` an agent's shell finds first on PATH
+(`features/crew/bin/gh`, `jsettings.agent_gh`) passes it to the real one with no second line.
 """
 
 from __future__ import annotations
@@ -46,6 +48,8 @@ CALLS = "gh-calls.jsonl"
 KEPT = 16 * 2**20
 """The bytes `CALLS` grows to before it becomes `gh-calls.old.jsonl`, and a new one starts."""
 WAIT = 0.05
+LOGGED = "JSETTINGS_GH_LOGGED"
+"""Set in the environment of each `gh` that `run` starts, whose line `run` writes itself."""
 
 
 class Unrun(subprocess.CompletedProcess[str]):
@@ -76,7 +80,12 @@ def run(
     with _slot(state / SLOTS):
         waited = time.monotonic() - began
         done = _run(
-            command, cwd, timeout, stdin, {**(env or os.environ), "GH_DEBUG": "api"}, errors
+            command,
+            cwd,
+            timeout,
+            stdin,
+            {**(env or os.environ), "GH_DEBUG": "api", LOGGED: "1"},
+            errors,
         )
     said = Debug.parse(done.stderr or "")
     done.stderr = said.stderr
@@ -192,8 +201,9 @@ class Debug:
     @classmethod
     def parse(cls, stderr: str) -> Debug:
         """Read gh's stderr. Each request's log runs from `* Request at` to `* Request took`;
-        what is outside is gh's own. A log cut off before its end keeps no header and no body,
-        and gives back the lines that are neither, such as why the request failed."""
+        what is outside is gh's own, but for the line the debug log gives each git command gh
+        runs, such as `[git remote -v]`. A log cut off before its end keeps no header and no
+        body, and gives back the lines that are neither, such as why the request failed."""
         kept: list[str] = []
         block: list[str] | None = None
         requests: list[str] = []
@@ -203,7 +213,8 @@ class Debug:
                 block = []
                 continue
             if block is None:
-                kept.append(line)
+                if not (line.startswith("[git ") and line.rstrip("\r\n").endswith("]")):
+                    kept.append(line)
                 continue
             if line.startswith("* Request took "):
                 block = None
@@ -245,7 +256,12 @@ def _endpoint(command: tuple[str, ...], said: Debug) -> str:
 
 
 def _log(
-    state: Path, command: tuple[str, ...], caller: str, status: int, said: Debug, waited: float
+    state: Path,
+    command: tuple[str, ...],
+    caller: str,
+    status: int,
+    said: Debug,
+    waited: float = 0,
 ) -> None:
     """Write the call's line to `CALLS`, in one append, so that lines from many processes never
     mix. A log grown past `KEPT` becomes `gh-calls.old.jsonl` first, with the size checked and

@@ -1,0 +1,27 @@
+#!/bin/sh
+here=$(cd "$(dirname "$0")" && pwd -P)
+rest=
+set -f
+was=$IFS
+IFS=:
+for dir in $PATH; do
+  [ "$(cd "$dir" 2>/dev/null && pwd -P)" = "$here" ] && continue
+  rest=${rest:+$rest:}$dir
+done
+IFS=$was
+PATH=$rest
+export PATH
+if [ -n "$JSETTINGS_GH_LOGGED" ] || ! command -v gh >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1; then
+  exec gh "$@"
+fi
+exec python3 -c '
+import sys
+del sys.path[0]
+sys.path.insert(0, sys.argv.pop(1))
+try:
+    from jsettings import agent_gh
+except Exception:
+    import os
+    os.execvp("gh", ["gh", *sys.argv[1:]])
+sys.exit(agent_gh.main(sys.argv[1:]))
+' "${here%/features/crew/bin}/features/jsettings/src" "$@"
