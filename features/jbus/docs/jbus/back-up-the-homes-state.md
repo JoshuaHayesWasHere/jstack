@@ -38,5 +38,11 @@ The first failure alerts at once, and the later ones in the same run of failures
 A snapshot that is stopped before its end, as the unit's timeout stops one, cannot raise its alert itself, so the next pass of jbus raises it, as the machine's.
 The first snapshot that finishes after them says it recovered.
 A snapshot that fails only for other projects ends the alert of a project whose files it read clean.
+
+A failed run also reaches you on `jbus needs`, as one item on the infra project's list, or the first project's where the config names none, and its root home's, whatever the cause: a secret gitleaks found, a push that failed, a run the timeout stopped.
+It reads `infra jbus-snapshot.service, the state backup, has failed since <YYYY-MM-DD HH:MM zone>; its last line: snapshot: <why>`, with the time of the first run that failed and the line the last failed run wrote to the journal.
+A later run that fails too gives the item its own last line, and adds no second item.
+Nothing you say clears it: fix what its last line names, and the next snapshot that succeeds removes it.
+A run that fails on a real secret still commits nothing.
 `systemctl --user list-timers jbus-snapshot.timer` shows when the next snapshot runs on Linux, and `git -C ~/.local/state/home log -1` shows the last one.
 To take one now, run `systemctl --user start jbus-snapshot.service` on Linux, or `jbus snapshot` on macOS.

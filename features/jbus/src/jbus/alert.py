@@ -69,8 +69,9 @@ LASTING = {PASS: timedelta(minutes=2)}
 @dataclass
 class Streak:
     """One streak, under its key, with `why` the cause of its last failure and `once` the name
-    it was counted under, if any (`failed`). Once `alerted` it is an open item: `line` is what it
-    says, and `owner` whose it is. `ends` is when a line raised once leaves the list by itself."""
+    it was counted under, if any (`failed`), and `last` when it last counted one. Once `alerted` it
+    is an open item: `line` is what it says, and `owner` whose it is. `ends` is when a line raised
+    once leaves the list by itself."""
 
     key: str
     count: int
@@ -81,6 +82,7 @@ class Streak:
     ends: str = ""
     why: str = ""
     once: str = ""
+    last: str = ""
 
 
 def home(project: str, thread: str = "") -> str:
@@ -145,6 +147,7 @@ def failed(
         one = streak(state, key) or Streak(key, 0, now.isoformat(), False)
         if not once or one.once != once:
             one.count, one.why, one.once = one.count + 1, why, once or one.once
+            one.last = now.isoformat()
             _keep(state, key, one)
     lasted = now - datetime.fromisoformat(one.since)
     if one.count < after or one.alerted or lasted < LASTING.get(key, timedelta(0)):
