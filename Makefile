@@ -113,10 +113,11 @@ select:
 # `PART=rest` runs its own, and never the whole suite. `PART=guards`, the lint and
 # the guard tests, is what jmerge runs on a pull request's tree merged over its base, and it too
 # never runs the whole suite: where the selection is `all` its guards are the cross-cutting tests,
-# the catch-all and the changed test files, since the whole suite outran jmerge's 10 minutes on
-# 2026-11-05. With `MERGE_BASE`, which jmerge sets to the merge base of the pull request's head
-# with that base, the guards also run the test files of the selection that main changed or added
-# since the merge base: the pull request's check, run over its merge base, never ran them.
+# the catch-all, the test files of `features/repo-guards/tests/` and the changed test files, since
+# the whole suite outran jmerge's 10 minutes on 2026-11-05. With `MERGE_BASE`, which jmerge sets to
+# the merge base of the pull request's head with that base, the guards also run the test files of
+# the selection that main changed or added since the merge base: the pull request's check, run
+# over its merge base, never ran them.
 # `PART=rest`, the other tests the selection names and no lint, stays for a run by hand.
 # PART and MERGE_BASE stay out of the environment, as TESTS does, so a make that a guard test runs
 # is whole.
