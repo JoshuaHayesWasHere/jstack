@@ -77,34 +77,46 @@ def _parents() -> dict[int, int]:
     return found
 
 
-def end(pid: int, group: bool) -> None:
-    """Kill `pid` and every process under it, and with `group` its process group. Each one is
-    stopped first, until no new one turns up, so none starts another while they are killed."""
+def stop(roots: set[int], group: int | None) -> set[int]:
+    """Stop each live one of `roots`, every process under them, and with `group` that process
+    group, until no new one turns up, so none starts another or leaves the tree while it is
+    looked at, and give back the processes stopped. A process stays under its parent while it is
+    stopped, also one in a session of its own, which no signal to the group reaches."""
     seen: set[int] = set()
     while True:
         parents = _parents()
-        tree = {pid} if pid in parents else set()
+        tree = roots & parents.keys()
         grew = True
         while grew:
             under = {child for child, parent in parents.items() if parent in tree}
             grew = not under <= tree
             tree |= under
         new = tree - seen
-        if group:
+        if group is not None:
             with contextlib.suppress(OSError):
-                os.killpg(pid, signal.SIGSTOP)
+                os.killpg(group, signal.SIGSTOP)
         if not new:
-            break
+            return seen
         for one in new:
             with contextlib.suppress(OSError):
                 os.kill(one, signal.SIGSTOP)
         seen |= new
-    if group:
+
+
+def tell(stopped: set[int], group: int | None, number: int) -> None:
+    """Send signal `number` to each of `stopped` and with `group` to that process group."""
+    if group is not None:
         with contextlib.suppress(OSError):
-            os.killpg(pid, signal.SIGKILL)
-    for one in seen:
+            os.killpg(group, number)
+    for one in stopped:
         with contextlib.suppress(OSError):
-            os.kill(one, signal.SIGKILL)
+            os.kill(one, number)
+
+
+def end(pid: int, group: bool) -> None:
+    """Kill `pid` and every process under it, and with `group` its process group."""
+    leader = pid if group else None
+    tell(stop({pid}, leader), leader, signal.SIGKILL)
 
 
 def main() -> None:

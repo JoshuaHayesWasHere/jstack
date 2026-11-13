@@ -1,3 +1,4 @@
+import contextlib
 import fcntl
 import json
 import os
@@ -355,14 +356,63 @@ def test_a_short_job_stopped_at_its_limit_takes_what_it_started_with_it(tmp_path
     assert ran.returncode == slot.TIMED_OUT
     left = int((tmp_path / "pid").read_text())
     deadline = time.monotonic() + 5
-    while Path(f"/proc/{left}").exists() and time.monotonic() < deadline:
-        if Path(f"/proc/{left}/stat").read_text().split()[2] == "Z":
-            break
+    while live(left) and time.monotonic() < deadline:
         time.sleep(0.02)
-    gone = not Path(f"/proc/{left}").exists() or (
-        Path(f"/proc/{left}/stat").read_text().split()[2] == "Z"
+    assert not live(left), f"process {left}, started by the short job, still runs after the stop"
+
+
+def test_a_short_job_stopped_at_its_limit_takes_a_child_in_a_session_of_its_own_with_it(tmp_path):
+    """Playwright starts its web server in a session of its own, so no signal to the command's
+    group reaches it, and once the command dies it is no longer under the command either. The
+    child ignores SIGTERM, as a server may, so only the kill after the grace ends it."""
+    limited = (
+        "import sys; from jgauge import cli, slot; slot.SHORT_LIMIT_SECONDS = 0.5;"
+        " slot.STOP_GRACE_SECONDS = 0.5; sys.exit(cli.main(sys.argv[1:]))"
     )
-    assert gone, f"process {left}, started by the short job, still runs after the stop"
+    started = f'"{sys.executable}" -c "$SESSION" > /dev/null 2>&1 & echo $! > "$D/pid"; wait'
+    home = tmp_path / "home"
+    env = {**os.environ, "HOME": str(home), "D": str(tmp_path), "SESSION": IN_A_SESSION}
+    env["JGAUGE_LOCKS_DIR"] = str(home / ".local" / "state" / "locks")
+    try:
+        ran = subprocess.run(
+            [sys.executable, "-c", limited, "test-slot", "--short", "--", "sh", "-c", started],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        left = int((tmp_path / "pid").read_text())
+        assert ran.returncode == slot.TIMED_OUT
+        deadline = time.monotonic() + 5
+        while live(left) and time.monotonic() < deadline:
+            time.sleep(0.02)
+        assert not live(left), f"process {left}, in a session of its own, outlived the stop"
+    finally:
+        if (tmp_path / "pid").exists():
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(int((tmp_path / "pid").read_text()), signal.SIGKILL)
+
+
+IN_A_SESSION = """\
+import os, signal, time
+os.setsid()
+signal.signal(signal.SIGTERM, signal.SIG_IGN)
+time.sleep(600)
+"""
+"""A child in a session of its own that ignores SIGTERM, from Python since macOS has no
+`setsid` command."""
+
+
+def live(pid: int) -> bool:
+    """`pid` runs, and is no zombie waiting for its parent, read from /proc or, on a machine with
+    none, as macOS is, from `ps`."""
+    try:
+        return Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[0] != "Z"
+    except OSError:
+        if Path("/proc").is_dir():
+            return False
+    state = subprocess.run(["ps", "-o", "stat=", "-p", str(pid)], capture_output=True, text=True)
+    return state.stdout.strip()[:1] not in ("", "Z")
 
 
 LEAVES_A_ZOMBIE = """\
@@ -410,7 +460,8 @@ def test_a_short_job_whose_group_is_left_with_a_zombie_still_stops_and_says_so(t
         )
     finally:
         if (tmp_path / "pid").exists():
-            os.kill(int((tmp_path / "pid").read_text()), signal.SIGKILL)
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(int((tmp_path / "pid").read_text()), signal.SIGKILL)
     assert (ran.returncode, ran.stderr) == (
         slot.TIMED_OUT,
         f"test-slot: stopped {sys.executable} at 0.5 s, the short lane's limit\n",

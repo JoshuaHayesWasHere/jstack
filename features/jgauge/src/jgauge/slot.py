@@ -385,15 +385,22 @@ def _signal(child: subprocess.Popen, number: int, lane: Lane) -> None:
 
 
 def _stop(child: subprocess.Popen, program: str, lane: Lane) -> int:
+    """End a short job at its limit: its process group, and every process under the command,
+    also one in a session of its own, as Playwright starts its web server, which no signal to
+    the group reaches. The tree is taken while it is whole, every process in it stopped, since
+    once the command dies its children are no longer under it. Each is told SIGTERM and given
+    the grace, then whatever is left of it, and anything it started meanwhile, is killed."""
     print(
         f"test-slot: stopped {program} at {lane.limit:g} s, the short lane's limit",
         file=sys.stderr,
         flush=True,
     )
-    _signal(child, signal.SIGTERM, lane)
+    tree = children.stop({child.pid}, child.pid)
+    children.tell(tree, child.pid, signal.SIGTERM)
+    children.tell(tree, child.pid, signal.SIGCONT)
     with contextlib.suppress(subprocess.TimeoutExpired):
         child.wait(timeout=STOP_GRACE_SECONDS)
-    _signal(child, signal.SIGKILL, lane)
+    children.tell(children.stop(tree | {child.pid}, child.pid), child.pid, signal.SIGKILL)
     child.wait()
     return TIMED_OUT
 
