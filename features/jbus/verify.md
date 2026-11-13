@@ -3,7 +3,7 @@
 `jbus poll` is one pass over every project.
 It reads the queue, the briefs, T3 Code and GitHub, launches what is approved and has room, tells each thread what it must act on, runs `jmerge`, and writes what it saw to the state directory.
 Every other `jbus` verb reads or writes that state, and `jbus view` is a local web page over it.
-This page has four journeys: a queue row from add to launch, a scout's request from add to launch, a decision that wakes the home thread, and a red main that files the brief for its fix.
+This page has six journeys: a queue row from add to launch, a scout's request from add to launch, a decision that wakes the home thread, a red main that files the brief for its fix, a check that ends merges within seconds, and a merged row whose revert opens it again for its redo.
 The pass as a whole and the view have no recipe yet.
 Their tests are the ones that import the `jbus` package, which `scripts/select_tests.py` follows through the imports.
 A headless browser drives the view's page with axe (`features/jbus/tests/fixtures/jbus-view/axe-run.js`).
@@ -61,6 +61,13 @@ A red main files the brief for its fix (`main-red`):
 - `red-row` queues the brief unapproved, so `jbus queue show` lists the row with `approved` empty.
 - `red-once` files nothing more for the same commit on a later pass, and leaves an edited brief as it is.
 
+A merged row's revert opens it again for its redo (`revert-reland`):
+
+- `revert-open` has a pass over a red main whose one culprit is a row's merge open its revert, `gh pr revert`, and print `revert <slug>: main red at <sha12>, jbus opened <address> to revert it`.
+- `reland` has the pass after the revert merged take the row from `merged` to `left`, with an empty `pr` column and a `reland` event, and a line of `transitions.jsonl` marked `reverted`.
+- `reland-review` has jbus launch the redo's reviewer, `review: <slug>, 1`, once the crew's desk proof holds at its pushed head, with no hand launch.
+- `reland-merge` has `jmerge --check` say `ready` of the redo's pull request, with no wait line that asks for an accept, and the next pass's `jmerge` ask `gh pr merge` of it.
+
 A check that ends merges within seconds, apart from the pass (`merge-tick`):
 
 - `tick-pending` has the pass keep the open pull requests whose checks are still going, in `checks-pending.json`.
@@ -85,6 +92,7 @@ A check that ends merges within seconds, apart from the pass (`merge-tick`):
 - After a merge whose commit on main has a failed check run, run `jbus poll`.
   On the live machine, the systemd timer runs it.
 - Run `jbus queue show` to see the row, and read the brief in the home's `tasks/`.
+- After a revert jbus opened of a row's merge merges, run `jbus poll`, then `jmerge --check` from the repo once the redo's pull request is open.
 - Run `jbus tick` between passes.
   On the live machine, `jbus-merge.timer` runs it every 10 seconds while the last pass saw a row's pull request open or another pull request's checks going, and 10 seconds after the pass starts it; the pass stops it while it saw neither.
 
@@ -258,6 +266,87 @@ Preconditions:
 - **Proof.**
   Copy `ticks.log` and `gh/calls.log` into `$VERIFY_JSTACK_EVIDENCE`.
 
+### A merged row's revert opens it again for its redo
+
+Preconditions:
+
+- You are in a new sandbox, `env.sh` is sourced, and the doctor prints `doctor: ok`.
+- No `jbus poll` has run in it.
+
+- **Launch a reviewed row.**
+  Run the first recipe's add, word and approve with the record name `revert-reland`, with `Review: review` and `Pull request: open one when done` in the brief, then `record revert-reland jbus poll`.
+  It prints `launched alpha: mcp:sandbox-thread-1`.
+- **Merge it onto a red main.**
+  The crew commits in the worktree jbus made, GitHub squash-merges it as #7, and main's check fails there:
+
+  ```sh
+  S=$VERIFY_JSTACK_SANDBOX G=$VERIFY_JSTACK_SANDBOX/gh W=$HOME/.t3/worktrees/demo/alpha
+  git config user.email sandbox@example.test && git config user.name sandbox
+  green=$(git rev-parse HEAD)
+  mkdir -p "$W/src/alpha" && echo 'x = 1' > "$W/src/alpha/a.py" && git -C "$W" add src/alpha/a.py && git -C "$W" commit -qm 'feat: alpha' && git -C "$W" push -q origin alpha
+  head7=$(git -C "$W" rev-parse HEAD)
+  git merge -q --squash alpha && git commit -qm 'feat: alpha (#7)' && git push -q origin main
+  red=$(git rev-parse HEAD)
+  printf '\n## Result\nStatus: done\nDone when: holds\nProof:\n- the demo test\nBranch: alpha   Pull request: https://example.test/pull/7\nChanged: src/alpha/a.py\nSteers: none\nLeft: none\n' >> "$HOME/.local/state/home/demo/tasks/alpha.md"
+  jq 'map(.status = "completed" | .latestRunId = "run-1")' "$S/t3/threads.json" > "$S/t3/t" && mv "$S/t3/t" "$S/t3/threads.json"
+  at=$(perl -MPOSIX -e 'print strftime("%Y-%m-%dT%H:%M:%SZ", gmtime(time - 7200))') before=$(perl -MPOSIX -e 'print strftime("%Y-%m-%dT%H:%M:%SZ", gmtime(time - 10800))')
+  jq -n --arg red "$red" --arg at "$at" --arg h "$head7" '[{number: 7, url: "https://example.test/pull/7", title: "feat: alpha", headRefName: "alpha", headRefOid: $h, baseRefName: "main", mergeCommit: {oid: $red}, mergedAt: $at}]' > "$G/merged.json"
+  jq -n --arg red "$red" --arg green "$green" --arg at "$at" --arg before "$before" '[{sha: $red, commit: {message: "feat: alpha (#7)", committer: {date: $at}}}, {sha: $green, commit: {message: "feat: older (#6)", committer: {date: $before}}}]' > "$G/commits.json"
+  jq -n --arg red "$red" --arg green "$green" '{($red): [{name: "check", status: "completed", conclusion: "failure", id: 901, html_url: "https://example.test/o/r/actions/runs/77/job/901"}], ($green): [{name: "check", status: "completed", conclusion: "success", id: 800}]}' > "$G/checks.json"
+  printf '2026-11-13T05:01:02Z FAILED tests/test_a.py::test_one - AssertionError\n' > "$G/logs/901"
+  ```
+
+- **Pass over the red main.**
+  Run `record revert-reland jbus poll`.
+  It prints `revert alpha: main red at <red's sha12>, jbus opened https://example.test/pull/8 to revert it`, and `jbus queue show --all` has alpha `merged` with `#7`.
+  `gh/calls.log` has the `compare` of `$green...$head7` and the `pr revert https://example.test/pull/7`, and `t3/calls.jsonl` a `t3_thread_send` that tells `mcp:sandbox-thread-1` of the revert.
+- **Merge the revert, and pass.**
+  GitHub merges #8 and main's check passes there:
+
+  ```sh
+  git fetch -q origin && rv=$(git rev-parse origin/revert-7-alpha) && git merge -q --ff-only "$rv" && git push -q origin main
+  now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+  jq --arg rv "$rv" --arg now "$now" '. + [{number: 8, url: "https://example.test/pull/8", title: "Revert \"feat: alpha\"", headRefName: "revert-7-alpha", headRefOid: $rv, baseRefName: "main", mergeCommit: {oid: $rv}, mergedAt: $now}]' "$G/merged.json" > "$G/m" && mv "$G/m" "$G/merged.json"
+  echo '[]' > "$G/open.json"
+  jq --arg rv "$rv" --arg now "$now" '[{sha: $rv, commit: {message: "Revert \"feat: alpha\" (#8)", committer: {date: $now}}}] + .' "$G/commits.json" > "$G/c" && mv "$G/c" "$G/commits.json"
+  jq --arg rv "$rv" '.[$rv] = [{name: "check", status: "completed", conclusion: "success", id: 902}]' "$G/checks.json" > "$G/k" && mv "$G/k" "$G/checks.json"
+  jq 'map(.status = "completed" | .settled = false | .latestRunId = "run-2")' "$S/t3/threads.json" > "$S/t3/t" && mv "$S/t3/t" "$S/t3/threads.json"
+  ```
+
+  Run `record revert-reland jbus poll`, `record revert-reland jbus queue show --all` and `record revert-reland jbus events`.
+  alpha is `left`, its `pr` column empty, the events have `reland alpha: its revert https://example.test/pull/8 merged, so the row is open for its redo`, and `$JBUS_STATE_DIR/demo/transitions.jsonl` has the line `merged` to `left` with `"reverted": "https://example.test/pull/8"`.
+- **Push the redo with its desk proof, and pass twice.**
+  The crew brings alpha back as a doc on its branch, with no rewrite of it, and writes the desk proof's Result:
+
+  ```sh
+  git -C "$W" pull -q --no-rebase --no-edit origin main
+  git -C "$W" rm -q src/alpha/a.py && mkdir -p "$W/docs" && echo 'alpha, again' > "$W/docs/alpha.md" && git -C "$W" add docs/alpha.md && git -C "$W" commit -qm 'docs: alpha, again' && git -C "$W" push -q origin alpha
+  redo=$(git -C "$W" rev-parse HEAD)
+  printf '\n## Result, follow-up (the redo)\nStatus: done\nDone when: each holds\nProof:\n- the check: Checked below\nChecked: make check-fast BASE=%s PART=touched exit 0 at %s\nProved: none, docs\nBranch: alpha   Pull request: after the review\nChanged: docs/alpha.md\nSteers: none\nLeft: none\n' "$(git rev-parse origin/main)" "$redo" >> "$HOME/.local/state/home/demo/tasks/alpha.md"
+  jq --arg w "$W" 'map(.status = "completed" | .settled = false | .archived = false | .latestRunId = "run-3" | .worktreePath = $w)' "$S/t3/threads.json" > "$S/t3/t" && mv "$S/t3/t" "$S/t3/threads.json"
+  ```
+
+  Run `record revert-reland jbus poll` twice.
+  The first prints `launched review alpha: mcp:sandbox-thread-2 at <the redo's sha12>`, and `t3/calls.jsonl` has a `t3_thread_launch` titled `review: alpha, 1`.
+- **Review it, open its pull request, and check.**
+  The reviewer writes its section, and the crew opens #9 and names it:
+
+  ```sh
+  printf '\n## Review\nBy: claudeAgent claude-sonnet-5-5 #1\nVerdict: clean\nMeets the brief: yes, 1 of 1\nHead: %s   Unchanged by the run: yes\nFindings:\nnone\n' "$redo" >> "$HOME/.local/state/home/demo/tasks/alpha.md"
+  jq 'map(if .threadId == "mcp:sandbox-thread-2" then .status = "completed" | .settled = true else . end)' "$S/t3/threads.json" > "$S/t3/t" && mv "$S/t3/t" "$S/t3/threads.json"
+  jq -n --arg h "$redo" '[{number: 9, url: "https://example.test/pull/9", title: "docs: alpha, again", headRefName: "alpha", headRefOid: $h, baseRefName: "main", mergeable: "MERGEABLE", isDraft: false, changedFiles: 1, files: [{path: "docs/alpha.md", additions: 1, deletions: 0, changeType: "ADDED"}], statusCheckRollup: [{__typename: "CheckRun", name: "check", status: "COMPLETED", conclusion: "SUCCESS"}, {__typename: "CheckRun", name: "borders", status: "COMPLETED", conclusion: "SUCCESS"}]}]' > "$G/open.json"
+  printf '\n## Result, follow-up (the redo pull request)\nStatus: done\nDone when: each holds\nProof:\n- the check: Checked above\nBranch: alpha   Pull request: https://example.test/pull/9\nChanged: docs/alpha.md\nSkills run:\n- tdd: the demo test\nSteers: none\nLeft: none\n' >> "$HOME/.local/state/home/demo/tasks/alpha.md"
+  ```
+
+  Run `record revert-reland jbus poll`, then `record revert-reland jmerge --check`.
+  alpha is `pr` with `#9`, and `jmerge --check` prints `ready 9 <the redo's sha> alpha alpha`: no wait line, and none that asks for an accept.
+- **Pass, and merge.**
+  Run `record revert-reland jbus poll`.
+  `gh/calls.log` has the pass's `pr merge 9 --squash`, which the stand-in refuses, and no `--accept` anywhere.
+  Merge #9 the way the revert was merged above, and run `record revert-reland jbus poll` and `record revert-reland jbus queue show --all`: alpha is `merged` with `#9`.
+- **Proof.**
+  Copy `t3/calls.jsonl`, `gh/calls.log`, the brief, `$JBUS_STATE_DIR/demo/queue.json` and `$JBUS_STATE_DIR/demo/transitions.jsonl` into `$VERIFY_JSTACK_EVIDENCE`.
+
 ## Gotchas
 
 A queue row, from add to launch:
@@ -297,3 +386,18 @@ A red main files the brief for its fix:
   So if you delete the brief while its row stays, jbus does not write it again.
   It also does not write the brief again once its row is removed.
 - The stand-in `gh` lists no changed files for a commit, so `Where:` names only the failed tests' files in a sandbox.
+
+A merged row's revert opens it again for its redo:
+
+- jbus reverts only a culprit whose own head holds the green under the red, which it asks GitHub with `compare`.
+  The stand-in answers that from `origin.git`, so every commit the recipe names is a real one pushed there: a sha written only to `gh/*.json` is not found, and the pass files `main-red-<sha12>` in place of the revert.
+- jbus asks GitHub for the merged list only once a base branch moved in git.
+  A merge written to `gh/merged.json` alone, over a main that did not move, makes the pass ask `gh pr view <the Result's address>`, and a merge the stand-in does not hold stops the pass at `wait demo: could not ask GitHub`.
+  Push each merge to the sandbox's origin `main`.
+- A desk proof with `Proved: none, docs` holds only for a change of docs: over a change to `src/` the pass prints `prereview-refused alpha` and launches no review.
+  So the redo is a doc.
+- jbus writes `Reviewer: <thread> #1` when it launches the review, so the round counts only a `## Review` whose `By:` line ends `#1`.
+  Without it, or without `Meets the brief: yes, <n> of <n>`, jmerge waits on the review, which is no fault of the reland.
+- The stand-in names no worktree for a thread until a drive writes its `worktreePath` in `t3/threads.json`.
+  Without it the pass prints `prereview-refused alpha`, and tells the crew `T3 Code names no worktree for its crew`.
+- The door hook refuses `git push -f`, even to the sandbox's origin, so the redo goes on the branch as a new commit.
