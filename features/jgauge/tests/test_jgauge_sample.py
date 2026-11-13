@@ -89,7 +89,8 @@ def test_a_sample_appends_one_row_under_a_header_of_the_columns(machine, monkeyp
 
 
 def test_a_narrowed_affinity_still_counts_every_core_of_the_machine(machine, monkeypatch):
-    """Under `taskset -c 0-2` the sampler may run on 3 cores, and the machine still has 24."""
+    """Under `taskset -c 0-2` the sampler, `jgauge.sample`, may run on 3 cores, and the
+    machine still has 24: the cores column is the machine's, as room.sh counts them."""
     _, log = machine
     monkeypatch.setattr(os, "sched_getaffinity", lambda pid: {0, 1, 2}, raising=False)
     monkeypatch.setattr(os, "process_cpu_count", lambda: 3, raising=False)
