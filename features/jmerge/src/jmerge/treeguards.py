@@ -354,7 +354,7 @@ class Guards(Kept):
         run on already says it is that tree's `retried` run, which `due` never runs again."""
         now = datetime.now().astimezone()
         retried = self.same(one, tip) is not None
-        record = {"head": one.head, "tip": tip, "said": said, "note": note}
+        record: dict[str, object] = {"head": one.head, "tip": tip, "said": said, "note": note}
         if tail:
             record["tail"] = tail
         if retried:
