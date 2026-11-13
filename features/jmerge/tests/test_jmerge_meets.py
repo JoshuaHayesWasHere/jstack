@@ -43,6 +43,15 @@ def test_a_last_round_that_says_no_holds_the_merge_by_its_own_reason():
     assert ready.short_of(brief(section(YES)), SAW) == ""
 
 
+def test_the_meets_no_line_names_the_root_waiver_beside_the_users():
+    """The wait line is the way out a home reads: once the root home may waive a line itself
+    (`jbus waive --as root`), a line that names only the user's `Waived:` line sends the home back
+    to the user for a waiver the root records (#1795 held about 11 h, #1803 about 8 h)."""
+    held = ready.short_of(brief(section(NO)), SAW)
+    assert "the root home's jbus waive --as root" in held
+    assert "the user's Waived: line" in held
+
+
 @pytest.mark.parametrize(
     "line",
     [

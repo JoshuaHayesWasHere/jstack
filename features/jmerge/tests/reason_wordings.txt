@@ -36,6 +36,7 @@ FIX_UNREVIEWED	its fix is not reviewed: the scoped review of it is not written
 DECLINES_OVERRULED	its findings are not handled: the scoped review did not uphold the decline of {ruled}
 RISKY_OVERRULED	needs {user}, the scoped review did not uphold the decline of {ruled} on {risks}
 MEETS_NO	its review at {head} says the brief is not met, {met} of {count}: Done when {lines} unmet, so a fix and a scoped review whose line says yes, or the user's Waived: line
+MEETS_NO	its review at {head} says the brief is not met, {met} of {count}: Done when {lines} unmet, so a fix and a scoped review whose line says yes, or a waiver: the root home's jbus waive --as root, or the user's Waived: line
 MEETS_UNREAD	its review at {head} has no Meets the brief line of the shape yes, <n> of <n> or no, <m> of <n>
 MEETS_MISCOUNTED	its review at {head} counts {said} Done when lines, and its brief has {count}
 UNENDED	its findings are not handled: {left} of {found} have no Finding line
