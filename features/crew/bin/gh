@@ -11,13 +11,17 @@ done
 IFS=$was
 PATH=$rest
 export PATH
-command -v python3 >/dev/null 2>&1 || exec gh "$@"
-exec python3 -I -c '
-import os, sys
+if [ -n "$JSETTINGS_GH_LOGGED" ] || ! command -v gh >/dev/null 2>&1 || ! command -v python3 >/dev/null 2>&1; then
+  exec gh "$@"
+fi
+exec python3 -c '
+import sys
+del sys.path[0]
 sys.path.insert(0, sys.argv.pop(1))
 try:
     from jsettings import agent_gh
 except Exception:
+    import os
     os.execvp("gh", ["gh", *sys.argv[1:]])
 sys.exit(agent_gh.main(sys.argv[1:]))
 ' "${here%/features/crew/bin}/features/jsettings/src" "$@"

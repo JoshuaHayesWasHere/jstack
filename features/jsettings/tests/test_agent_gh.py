@@ -1,5 +1,6 @@
-"""A `gh` an agent runs in its own shell is logged in `gh-calls.jsonl` with the caller `agent`,
-as a `gh` that `jsettings.proc.run` starts is logged with the function that asked for it.
+"""A `gh` an agent runs in its own shell is logged in `gh-calls.jsonl` with the caller `agent`
+(`jsettings.agent_gh`), as a `gh` that `jsettings.proc.run` starts is logged with the function
+that asked for it.
 
 The shell is the one Claude Code gives its Bash tool: it sources the file the crew's
 SessionStart hook wrote to `CLAUDE_ENV_FILE`. The real `gh` is a script later on PATH that
@@ -51,6 +52,8 @@ def shell(tmp_path, monkeypatch):
     real.mkdir()
     (real / "gh").write_text(GH)
     (real / "gh").chmod(0o755)
+    (real / "python3").write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
+    (real / "python3").chmod(0o755)
     monkeypatch.setenv("PATH", f"{real}:{os.environ['PATH']}")
     monkeypatch.setenv("GH_STDIN", str(tmp_path / "stdin"))
     monkeypatch.delenv("GH_DEBUG", raising=False)

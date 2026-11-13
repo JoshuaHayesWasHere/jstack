@@ -15,7 +15,9 @@ one line to `CALLS` there: when it ended, its caller, the endpoint, its exit sta
 (`GH_DEBUG=api`), so `run` asks for it and takes it out of what gh said on stderr: a caller sees
 gh's own words only. GitHub keeps more than one count of a window for one token, each with its own
 reset, so a line's `resource` and `reset` together name the count the call spent
-(`jsettings.budget.count`). `jbus budget --callers` counts the lines.
+(`jsettings.budget.count`). `jbus budget --callers` counts the lines. Each `gh` that `run`
+starts carries `LOGGED`, so the crew's `gh` an agent's shell finds first on PATH
+(`features/crew/bin/gh`, `jsettings.agent_gh`) passes it to the real one with no second line.
 """
 
 from __future__ import annotations
