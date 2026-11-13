@@ -19,6 +19,7 @@ import subprocess
 import sys
 import threading
 import time
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -26,6 +27,7 @@ import pytest
 import jbus
 from jbus import alert, snapshot
 from test_jbus_kitchen import NOW, REPO
+from test_jbus_needs import needs
 
 UNITS = ("jbus-snapshot.service", "jbus-snapshot.timer")
 HASH = "9e6221dd362b652bb22a8bf3570b9c240de3b68d662f05df5e18787994137b9a-"
@@ -508,3 +510,53 @@ def test_a_snapshot_that_waits_too_long_for_another_fails_and_commits_nothing(tr
         assert take() == (1, [f"snapshot: {why}", failed(why)])
     assert git(tree, "rev-parse", "HEAD") == before
     assert git(tree, "diff", "--cached", "--name-only") == ""
+
+
+FINDS = """#!/bin/sh
+while [ $# -gt 0 ]; do [ "$1" = --report-path ] && report=$2; shift; done
+printf '[{"File": "demo/notes.md"}]' > "$report"
+exit 1
+"""
+"""A gitleaks that finds a secret in `demo/notes.md`, as the real one finds a planted key."""
+
+
+def test_a_failed_snapshot_is_one_item_on_jbus_needs_until_a_run_succeeds(
+    kitchen, tree, tmp_path, monkeypatch
+):
+    """A run of the unit that fails, on a secret gitleaks found or stopped at its timeout, puts
+    one item on the user's list, with when the backup first failed and the run's last line. A
+    second failed run gives that item its own last line and adds none, and the next run that
+    succeeds ends it."""
+    kitchen.config(infra="demo")
+    with_origin(tree, tmp_path)
+    kitchen.poll()
+    assert needs(kitchen) == ["nothing waits on user in any project"]
+    finds = kitchen.root / "finds-gitleaks"
+    finds.mkdir()
+    (finds / "gitleaks").write_text(FINDS)
+    (finds / "gitleaks").chmod(0o755)
+    path = os.environ["PATH"]
+    monkeypatch.setenv("PATH", f"{finds}{os.pathsep}{path}")
+    (tree / "demo" / "notes.md").write_text("# notes\nAKIA...\n")
+    assert take(NOW - timedelta(hours=1))[0] == 1
+    answer = (
+        "  answer: nothing to reply: fix what its last line names (journalctl --user -u "
+        "jbus-snapshot.service has the rest), and the next snapshot that succeeds clears this"
+    )
+    head = "demo jbus-snapshot.service, the state backup, has failed since 2026-10-12 10:00 ET"
+    refused = "gitleaks found a secret in the changes (demo/notes.md), nothing committed"
+    assert needs(kitchen) == [
+        "waiting on user: 1, in demo",
+        f"{head}; its last line: snapshot: {refused}",
+        answer,
+    ]
+    monkeypatch.setenv("PATH", path)
+    killed(kitchen, tree)
+    kitchen.poll()
+    assert needs(kitchen) == [
+        "waiting on user: 1, in demo",
+        f"{head}; its last line: snapshot: {snapshot.KILLED}",
+        answer,
+    ]
+    assert take()[0] == 0
+    assert needs(kitchen) == ["nothing waits on user in any project"]
