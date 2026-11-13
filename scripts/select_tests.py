@@ -1714,13 +1714,21 @@ def touched(changed):
     return sorted(set(changed) & collected())
 
 
+REPO_GUARDS = "features/repo-guards/tests/"
+
+
 def guards(changed, tests, moved=()):
     """Of a selection's `tests`, the ones a desk runs first and must pass: the cross-cutting
-    tests, the catch-all, the changed test files and the `moved` ones, the test files main changed
-    or added since the pull request's merge base, which its check, run over that merge base, never
-    saw. A selection of `["all"]` gives them all the same, never the whole suite, which outran
-    jmerge's 600 s on a merged tree: CI's check of the pull request runs the rest."""
-    first = set(cross_cutting()) | unowned() | set(changed) | set(moved)
+    tests, the catch-all, the test files of `features/repo-guards/tests/`, the changed test files
+    and the `moved` ones, the test files main changed or added since the pull request's merge
+    base, which its check, run over that merge base, never saw. A repo guard off the
+    `Cross-cutting:` list runs only where its read set reaches the change, and still runs here
+    then: jmerge's run of this part on a tree merged over main is the one run that sees two pull
+    requests together, such as two that each grow a module under the size cap. A selection of
+    `["all"]` gives them all the same, never the whole suite, which outran jmerge's 600 s on a
+    merged tree: CI's check of the pull request runs the rest."""
+    repo = {one for one in collected() if one.startswith(REPO_GUARDS)}
+    first = set(cross_cutting()) | unowned() | repo | set(changed) | set(moved)
     if tests == ["all"]:
         return sorted(first & collected())
     return sorted(set(tests) & first)

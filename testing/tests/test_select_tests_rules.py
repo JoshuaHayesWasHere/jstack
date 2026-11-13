@@ -875,6 +875,38 @@ def test_the_guards_on_a_merged_tree_run_the_tests_main_gained_since_the_merge_b
     assert "features/jmerge/docs/jmerge.md" not in guards
 
 
+MODULE_SIZE = "features/repo-guards/tests/test_module_size.py"
+
+
+@pytest.mark.parametrize(
+    ("changed", "reaches"),
+    [("features/jbus/src/jbus/wake.py", True), ("features/home/docs/flow.md", False)],
+)
+@pytest.mark.parametrize("on_list", [True, False])
+def test_the_guards_on_a_merged_tree_keep_each_repo_guard_the_selection_names(
+    monkeypatch, changed, reaches, on_list
+):
+    """jmerge's run of the guards part on a tree merged over main is the one run that sees two
+    pull requests together: two that each grow a module under the 800-line cap pass alone and
+    merge over it unless `test_module_size.py` runs there. Off the `Cross-cutting:` list, the
+    selection names it only where its read set, a feature's `src/`, reaches the change, and the
+    guards part holds it then as it does on the list; where the selection does not name it, as
+    for a change to a feature's docs, the guards part does not add it."""
+    tests, _ = select.selection([changed])
+    if not on_list:
+        listed = [one for one in select.cross_cutting() if one != MODULE_SIZE]
+        monkeypatch.setattr(select, "cross_cutting", lambda: listed)
+        tests = sorted(set(tests) - {MODULE_SIZE} | ({MODULE_SIZE} if reaches else set()))
+
+    guards = select.desk_part("guards", [changed], tests)
+
+    if reaches or on_list:
+        assert MODULE_SIZE in guards
+        assert MODULE_SIZE not in select.desk_part("rest", [changed], tests)
+    else:
+        assert MODULE_SIZE not in guards
+
+
 SPELLS = {
     "#1584": (SPELL_41[0], "features/jbus/tests/test_jbus_telemetry_spells.py"),
     "#1600": (
