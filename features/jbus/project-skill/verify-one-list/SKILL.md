@@ -49,7 +49,7 @@ At the sync commit, main's tip when this branch took main in, the model was read
 `budgethold.hold` keeps the hold when the budget was not read, unlinks it when not held and writes it when held, as `PassSee` and `PassBlind` say.
 `signin.remind` raises the sign-in alert while a line is due and retires it once none is, and `health.watch` opens and closes the disk incident, as `SignIn` and `LookRead` say.
 `homestatus._to_read` marks every heading read on the first call and shows none, as `FirstMark` says.
-The merging block starts at the log's end where there is no mark, reads a line mark as the last place it is found, and none read where the cut took it, shows the lines past it and writes the last line, as `Read` says; `homestatus._read_to` reads the mark the same way.
+The merging block starts at the log's end where there is no mark, reads a line mark as the last place it is found, and none read where the cut took it, shows the lines past it and writes the last `merged` line, as `Read` says, whose lines are all merged lines and so all unequal; `homestatus._read_to` reads the mark the same way.
 The handoff pipes a gate asked by the home, by no one or by `home-$scope` under `home-$scope`, as `Handoff` says.
 st-one-list-home-marks changed the merging block, the handoff and the model together on the sync commit, and `features/jbus/tests/test_one_list_spec.py` passed with them.
 `features/repo-guards/tests/test_model_sync.py` fails when a file or name above is gone.

@@ -52,8 +52,9 @@ uv run pytest features/crew/tests/test_crew_proof_spec.py -q
 It runs TLC on the cfg, on each rule alone and on the canary, in under half a minute, and skips where no Java runs TLC.
 The bare TLC command is in `features/crew/spec/CrewProof.md`, "Check the rules"; run it in a copy of the folder, since TLC writes `states/` where it runs.
 
-- **Bounds:** `MaxHead = 2`, `Background = TRUE`, repos `jstack` and `other`, kinds `code`, `tests` and `docs`; `ReviewHeld` and `RecordKept` hold over 836,904 distinct states, and with `Background = FALSE` `ProofAtHead` holds over 607,169.
-- **Today's verdicts:** `CheckedAtHead`, `RecordGoes` and `OneScopedReviewer` break, each with the trace `CrewProof.cfg` keeps; `ProvedAtHead` holds.
+- **Bounds:** `MaxHead = 2`, `Background = TRUE`, repos `jstack` and `other`, kinds `code`, `tests` and `docs`; `CheckedAtHead`, `ReviewHeld`, `OneScopedReviewer`, `RecordKept` and `ProvedAtHead` each hold over 681,275 distinct states, and with `Background = FALSE` `ProofAtHead` holds over 533,837.
+- **Today's verdicts:** `RecordGoes` breaks, with the trace `CrewProof.cfg` keeps; `CheckedAtHead`, `ProvedAtHead`, `ReviewHeld`, `OneScopedReviewer` and `RecordKept` hold.
+  The cfg's comments are the verdicts: the test fails where TLC prints another.
 - **The canary:** `Fault = "line-before-run"` writes `Checked:` before its run ends, and `ProofAtHead` breaks in two steps.
 - **Assumptions:** two heads, no push by anybody else, a failed step's exits folded into one, and the rest of the README's "What the model leaves out".
 
@@ -70,4 +71,8 @@ When every step is backed, it is a bug: tell it as the crew's story in the block
 
 ## Drift at the sync commit
 
-None: the model and #1733's change to `proved.sh` landed together, and no covered file changed after.
+The model and #1733's change to `proved.sh` landed together on the sync commit.
+Covered files changed after it, and `Sync:` stays until each change is read against the model:
+
+- with the model, so the verdicts above are TLC's for them: #1754 (`do-the-task.md`, `CheckedAtHead` now holds), #1731 (`a-second-pass.md`, `OneScopedReviewer` now holds), #1838 (`do-the-task.md`, `the-checks.md`, no change to the cfg);
+- with no change to the model: #1757, #1760, #1761, #1784, #1797, #1808, #1822, #1831, #1835, #1837, #1839, #1845, #1847, #1849, #1850, #1854, #1864, #1865.
