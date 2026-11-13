@@ -3040,9 +3040,9 @@ class Change:
 
 REVERTED = "reverted"
 """The column of a row whose merge a revert jbus opened took back (`reland`): the address of the
-merged pull request it took back. `jbus.watch.look` reads that pull request as no merge of the
-row's, so the row's facts are those of a row with work left, and a redo's merge, another pull
-request, is the row's merge again."""
+last merged pull request it took back. `jbus.watch.look` reads that pull request as no merge of
+the row's, so the row's facts are those of a row with work left, and a redo's merge, another pull
+request, is the row's merge again, which a later revert may take back in its turn."""
 
 
 def reland(state: Path, slug: str, merge: str, revert: str) -> bool:
@@ -3051,11 +3051,14 @@ def reland(state: Path, slug: str, merge: str, revert: str) -> bool:
     `merged`, with a line of its own `{slug, from, to, by, at, reverted}` of `transitions.jsonl`,
     which `statechart replay` reads as RowLife's `Reland` (`RowLife.trace.py`), and keeps `merge`
     in its `reverted` column. The pass that follows works its status out from the facts as for
-    any row, so its crew's redo is reviewed and merged by the normal path. Return whether it moved
-    the row: a row that is not merged, or whose merge was taken back already, is left as it is."""
+    any row, so its crew's redo is reviewed and merged by the normal path, and a revert of that
+    redo's merge opens the row again in the same way. Return whether it moved the row: a row that
+    is not merged, or whose column names `merge`, a merge taken back already, is left as it is."""
     with _changing(state) as rows:
         row = next((row for row in rows if row["slug"] == slug), None)
-        if row is None or row.get("status") != "merged" or row.get(REVERTED):
+        if row is None or row.get("status") != "merged":
+            return False
+        if str(row.get(REVERTED) or "").rstrip("/") == merge.rstrip("/"):
             return False
         line = {"slug": slug, "from": "merged", "to": "left", "by": "jbus"}
         at = jsettings.stamp(clock())

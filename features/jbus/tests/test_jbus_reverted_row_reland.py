@@ -181,10 +181,10 @@ def test_a_row_whose_revert_merged_opens_again_and_its_redo_gets_its_review_and_
     redone(kitchen)
 
 
-def redone_twice(kitchen):
+def reverted_twice(kitchen):
     """The redo #10 merged, main went red at it, and jbus reverted it too, in #12: once #12
-    merges the row is open again, though its `reverted` column already names #7, and its second
-    redo, #13, is reviewed and merged by the normal path, with no row-over hold of jmerge's."""
+    merges the row is open again, though its `reverted` column already names #7. Returns the
+    crew's thread and the brief's path."""
     thread, path = redone(kitchen)
     reverted(kitchen, red=REDO, merge=10, revert=12)
     kitchen.poll(NOW + timedelta(minutes=12))
@@ -201,7 +201,13 @@ def redone_twice(kitchen):
         f"reland alpha: its revert {url(9)} merged, so the row is open for its redo",
         f"reland alpha: its revert {url(12)} merged, so the row is open for its redo",
     ]
+    return thread, path
 
+
+def redone_twice(kitchen):
+    """The row reverted twice, whose second redo, #13, is reviewed and merged by the normal path,
+    with no row-over hold of jmerge's."""
+    thread, path = reverted_twice(kitchen)
     launched = redo_merges(
         kitchen, thread, path, 13, SECOND_REDO, NOW + timedelta(minutes=18), "the second redo"
     )
@@ -268,10 +274,10 @@ def test_the_reland_and_the_redo_replay_as_steps_of_rowlife(kitchen, capsys):
 
 
 def test_both_relands_replay_as_steps_of_rowlife(kitchen, capsys):
-    """A row merged, reverted, redone, merged, reverted again and redone again is a chain of
-    RowLife's steps: each reland's line reads as `Reland`, the second from a merge the first did
-    not take back, and no pass's line misses."""
-    redone_twice(kitchen)
+    """A row merged, reverted, redone, merged and reverted again is a chain of RowLife's steps:
+    each reland's line reads as `Reland`, the second from a merge the first did not take back,
+    and no pass's line misses."""
+    reverted_twice(kitchen)
     log = kitchen.state / "transitions.jsonl"
     lines = [json.loads(line) for line in log.read_text().splitlines()]
     moved = [(line["from"], line["to"], line["reverted"]) for line in lines if line.get("reverted")]
