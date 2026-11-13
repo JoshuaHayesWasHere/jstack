@@ -286,12 +286,16 @@ def test_a_release_records_the_cgroup_s_cpu_and_the_processes_left(tmp_path, mon
 
 
 def test_a_release_whose_cgroup_cannot_be_read_writes_its_row_with_no_cpu(tmp_path, monkeypatch):
-    """A take's cgroup gone under it (here, one with no `cpu.stat`) costs the row its CPU, and
-    the release still writes the row and returns, so the run keeps its exit code."""
-    a_cgroup_tree(tmp_path, monkeypatch)
+    """A take's cgroup gone under it (here, one with no `cpu.stat` and no process list) costs
+    the row its CPU, and the release still writes the row and returns, so the run keeps its exit
+    code."""
+    home = a_cgroup_tree(tmp_path, monkeypatch)
     log = slotlog.path(tmp_path / "locks")
 
-    slotlog.release(slotlog.take(log, "short", 1, 3, "", ["sh"], 0), 3)
+    taken = slotlog.take(log, "short", 1, 3, "", ["sh"], 0)
+    (own,) = home.glob(f"{slotlog.PREFIX}*")
+    (own / "run" / "cgroup.procs").unlink()
+    slotlog.release(taken, 3)
 
     _take, release = rows(log)
     assert release["code"] == 3
@@ -301,15 +305,18 @@ def test_a_release_whose_cgroup_cannot_be_read_writes_its_row_with_no_cpu(tmp_pa
 def test_a_take_s_cgroup_is_capped_at_its_workers_and_a_take_with_none_runs_uncapped(
     tmp_path, monkeypatch
 ):
-    """A take of 3 workers may run 3 cores: its cgroup's `cpu.max` is 3 periods of CPU a
-    period. Where the take can have no cgroup there is nothing to cap, and its CPU is still
-    counted from the processes that carry it."""
+    """A take of 3 workers may run 3 cores: the holder's cgroup turns the cpu controller on for
+    its children, and the take's cgroup's `cpu.max` is 3 periods of CPU a period. Where the take
+    can have no cgroup there is nothing to cap, and its CPU is still counted from the processes
+    that carry it."""
     home = a_cgroup_tree(tmp_path, monkeypatch)
+    (home / "cgroup.subtree_control").write_text("memory\n")
     log = slotlog.path(tmp_path / "locks")
 
     taken = slotlog.take(log, "full", 1, 4, "", ["make", "check"], 0, workers=3)
     (own,) = home.glob(f"{slotlog.PREFIX}*")
     assert (own / "cpu.max").read_text().split() == ["300000", "100000"]
+    assert (home / "cgroup.subtree_control").read_text() == "+cpu"
     slotlog.release(taken, 0)
 
     monkeypatch.setattr(slotlog, "CGROUPS", tmp_path / "no cgroups")
