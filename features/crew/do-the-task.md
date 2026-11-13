@@ -130,7 +130,7 @@
                   set -- make test TESTS="$files" BASE="$base" JUNIT="$junit"
               fi
               started=$(date +%s)
-              rm -f "$junit"
+              : > "$junit"
               if [ "$lane" = full ]; then
                   echo "$step: measured at $limit s or more, the short lane's limit: it runs in a full slot"
                   uv run --project "$T/../source" jgauge test-slot --thread '<thread id>' -- "$@"
