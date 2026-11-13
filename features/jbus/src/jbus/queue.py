@@ -290,6 +290,7 @@ MOVES: dict[tuple[str, str], str] = {
     ("pr", "waiting"): "the pull request closes unmerged while the thread asks for an answer",
     ("pr", "removed"): "the `remove` verb takes the row out",
     ("done", "merged"): "the pull request of a done row merges on the user's accept",
+    ("merged", "left"): "the revert jbus opened of its merge merges, so its work is left to redo",
 }
 """Every move of a row's status that the work makes, one entry each: from a status, to a status
 (or `removed`, the line `remove` and `withdraw` write), with the change of facts that makes it.
@@ -297,13 +298,15 @@ The table is the status edges of TLC's graph of `features/jbus/spec/RowLife.tla`
 step of the model makes but the hand-over's, and `test_rowlife_spec.py` fails when the two differ.
 No verb moves a row but `remove`, and the add of a crewmate's brief over a scout's done row, which
 takes it from `done` to `queued` with a line of its own marked `handed` (`_hand_over`): the table
-leaves that move out, so `derive` still marks a pass that writes it. Each pass works the status out
+leaves that move out, so `derive` still marks a pass that writes it. The one move out of `merged`
+is `reland`'s, with a line of its own marked `reverted`: the revert jbus opened of the row's merge
+merged, so the merge is undone and the row is open again for its redo. Each pass works the status out
 again from the facts (`work.status`), so the table cannot drive a row as `item.MOVES` drives an
 item. It judges a move after the facts made it:
 `derive` marks each line of `transitions.jsonl` whose move it does not hold, and writes the
 status all the same, since the status is what the facts say, but for a row that is over: `derive`
-keeps it (`work.kept`), so no move leaves `merged` or `done` but `done` to `merged`, and `remove`
-refuses such a row. A thread that ends, settles or leaves T3 Code's list with nothing written
+keeps it (`work.kept`), so no pass's move leaves `merged` or `done` but `done` to `merged`, and
+`remove` refuses such a row. A thread that ends, settles or leaves T3 Code's list with nothing written
 makes a launched row `stale`, so no launched row goes back to `queued`. So a mark is a status
 the table does not know, or a change of the code the model has not taken in, and
 `statechart replay` with `RowLife.trace.py` names the line.
@@ -3033,6 +3036,32 @@ class Change:
     row: Row
     columns: dict[str, tuple[str, str]]
     illegal: tuple[str, str] | None = None
+
+
+REVERTED = "reverted"
+"""The column of a row whose merge a revert jbus opened took back (`reland`): the address of the
+merged pull request it took back. `jbus.watch.look` reads that pull request as no merge of the
+row's, so the row's facts are those of a row with work left, and a redo's merge, another pull
+request, is the row's merge again."""
+
+
+def reland(state: Path, slug: str, merge: str, revert: str) -> bool:
+    """Open the merged row of `slug` again, since `revert`, the revert jbus opened of its merge
+    `merge` (`jbus.reverts`), merged: the row goes from `merged` to `left`, the one move out of
+    `merged`, with a line of its own `{slug, from, to, by, at, reverted}` of `transitions.jsonl`,
+    which `statechart replay` reads as RowLife's `Reland` (`RowLife.trace.py`), and keeps `merge`
+    in its `reverted` column. The pass that follows works its status out from the facts as for
+    any row, so its crew's redo is reviewed and merged by the normal path. Return whether it moved
+    the row: a row that is not merged, or whose merge was taken back already, is left as it is."""
+    with _changing(state) as rows:
+        row = next((row for row in rows if row["slug"] == slug), None)
+        if row is None or row.get("status") != "merged" or row.get(REVERTED):
+            return False
+        line = {"slug": slug, "from": "merged", "to": "left", "by": "jbus"}
+        at = jsettings.stamp(clock())
+        store.append_jsonl(transitions_path(state), [line | {"at": at, "reverted": revert}])
+        row.update(status="left", **{REVERTED: merge})
+        return True
 
 
 def moved_thread(state: Path, slug: str, thread: str, line: Callable[[], None]) -> None:
