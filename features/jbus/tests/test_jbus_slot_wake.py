@@ -4,6 +4,7 @@ wakes the oldest waiter, once for each free slot, and once for each wait. Like
 files in a directory of the kitchen's own."""
 
 import fcntl
+import json
 import os
 import subprocess
 from datetime import UTC, datetime, timedelta
@@ -15,7 +16,7 @@ import jbus
 from jbus import outbox
 from jgauge import holders, slot, waiters
 from jroles import waits
-from test_jbus_kitchen import NOW, iso, sends
+from test_jbus_kitchen import NOW, iso, queued, review, sends
 
 LANES = {"short": slot.short(), "full": slot.full(2)}
 MIN = timedelta(minutes=1)
@@ -462,3 +463,77 @@ def test_slot_wakes_run_once_a_pass(kitchen, slots):
     assert ends == [f"slot-end|{busy}|{run.since}", f"slot-end|{busy}|{again.since}"]
     assert heard(kitchen) == [first]
     assert holders.read(slot.locks_dir()) == []
+
+
+STALE = (
+    "wait 7 https://example.test/pull/7: main changed src/alpha/a.py after its check started at "
+    "07:00 ET; it needs a fresh check"
+)
+
+
+def test_a_crew_that_waits_on_a_slot_while_main_moves_twice_is_told_to_rebase_once_after_its_wake(
+    kitchen,
+):
+    """The census of jbus's messages found 91 sent to a crew that waited on a test slot or on its
+    review: the crew wrote a line and ended, and a later message did the work. Here the crew of
+    alpha waits on the full lane, every slot of it taken, while main moves twice under its pull
+    request. The outbox holds the rebase message by its `slot` rule while the crew waits, and by
+    its `busy` rule in the pass of the wake, which told the thread already, and while the woken
+    turn runs. Once the crew took its
+    slot and ended its turn, the next pass sends the one rebase message, and the row ends as it
+    would have: the rebase key marked sent."""
+    queued(kitchen, "alpha")
+    assert "launched alpha: mcp:thread-1" in kitchen.poll(NOW - timedelta(minutes=30))
+    (crew,) = kitchen.t3.threads
+    crew["status"] = "completed"
+    kitchen.t3.at_work.discard(crew["threadId"])
+    brief = kitchen.home / "tasks" / "alpha.md"
+    brief.write_text(brief.read_text() + review(verdict="clean", findings="none"))
+    kitchen.set("open.json", [{**kitchen.opened("alpha", 7), "mergeable": "MERGEABLE"}])
+    locks = slot.locks_dir()
+    locks.mkdir(parents=True, exist_ok=True)
+    lane = slot.full(2)
+    taken = []
+    for n in range(1, lane.slots + 1):
+        fd = os.open(locks / f"{lane.lock}.{n}.lock", os.O_RDWR | os.O_CREAT)
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        taken.append(fd)
+    command = ["uv", "run", "pytest", "tests/test_alpha.py"]
+    waiters.register(locks, crew["threadId"], "full", lane.slots, command, NOW)
+    other = kitchen.root / "other"
+    kitchen.git("clone", "-q", str(kitchen.origin), str(other), cwd=kitchen.root)
+    try:
+        for minute in (0, 3):
+            kitchen.git("commit", "-q", "--allow-empty", "-m", "a merge", cwd=other)
+            kitchen.git("push", "-q", "origin", "main", cwd=other)
+            kitchen.set("jmerge.txt", STALE + "\n")
+            kitchen.poll(NOW + timedelta(minutes=minute))
+        for fd in taken:
+            os.close(fd)
+        taken.clear()
+        kitchen.poll(NOW + timedelta(minutes=6))
+        crew["status"] = "running"
+        kitchen.poll(NOW + timedelta(minutes=9))
+        waiters.drop(locks, crew["threadId"])
+        crew["status"] = "completed"
+        kitchen.poll(NOW + timedelta(minutes=12))
+        kitchen.poll(NOW + timedelta(minutes=15))
+    finally:
+        for fd in taken:
+            os.close(fd)
+    to_crew = [one["clientRequestId"].split("|")[0] for one in sends(kitchen)]
+    assert to_crew == ["slot-wake", "rebase"]
+    assert "rebase|alpha|cccccccccccc" in jbus.read_json(kitchen.state / "sent.json", [])
+    logged = [
+        json.loads(line) for line in (kitchen.state / "outbox.jsonl").read_text().splitlines()
+    ]
+    rebase = [
+        (one["at"][11:16], one["went"], one["rule"])
+        for one in logged
+        if one["template"] == "rebase"
+    ]
+    assert rebase == [
+        ("15:00", "held", "slot"),
+        ("15:06", "held", "busy"),
+        ("15:12", "sent", ""),
+    ]

@@ -31,9 +31,10 @@ def github(kitchen, status, conclusion=None, run=RUN):
 
 
 def asked(kitchen):
-    """The runs GitHub was asked about, one line a read."""
-    log = kitchen.stub / "run-view.log"
-    return log.read_text().splitlines() if log.exists() else []
+    """The runs GitHub was asked about, one a read."""
+    log = kitchen.stub / "gh.log"
+    calls = log.read_text().splitlines() if log.exists() else []
+    return [one.split("/actions/runs/")[1].split()[0] for one in calls if "/actions/runs/4" in one]
 
 
 def waiting_crew(kitchen):
