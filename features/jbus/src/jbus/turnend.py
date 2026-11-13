@@ -11,19 +11,29 @@ told once. The status block of the home skill shows its `local` lines until a `c
 them. The verb prints `say: <line>` for each line whose key is new, in its order, or one `silent:`
 line when there is none. A line it cannot read is refused with a `refused:` line that names it, it
 exits 2, and nothing is marked told. The rules are the home skill's "How a turn ends".
+
+`told-at.json` beside it keeps when each key still in `told` was first told (`AT`), so `jbus
+needs` can tell a default taken days ago from a fresh one; `told` itself stays one line an ask,
+which the home skill's status block greps. A line told before the stamps began has none, and
+counts from `SINCE`, never as old.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
+from datetime import UTC, datetime
 from pathlib import Path
 
 import jbus
 from jbus import verbs
 
 FILE = "told"
+AT = "told-at.json"
+SINCE = datetime(2026, 11, 13, tzinfo=UTC)
+"""When `jbus told` began to stamp its lines: what a line with no stamp counts from."""
 REFUSED = 2
 SILENT = "silent: end the turn with no message"
 QUIET = ("merged:", "launched:", "handled:", "parked:", "waits:")
@@ -78,17 +88,48 @@ def _run(args: argparse.Namespace, _: jbus.Config) -> int:
             seen.add(key(line))
             tell.append(line)
     if tell or len(still) < len(kept):
-        new = told.with_name(f"{FILE}.new")
-        new.write_text("".join(f"{line}\n" for line in [*still, *tell]))
-        os.replace(new, told)
+        now = verbs.clock().isoformat()
+        stamps = _stamps(told.parent)
+        kept_at = {k: at for k, at in stamps.items() if k in {key(line) for line in still}}
+        kept_at |= {str(key(line)): now for line in tell}
+        _write(told.with_name(AT), json.dumps(kept_at, indent=1, sort_keys=True) + "\n")
+        _write(told, "".join(f"{line}\n" for line in [*still, *tell]))
     print("\n".join(f"say: {line}" for line in tell) or SILENT)
     return 0
 
 
-def open_asks(home: Path) -> list[str]:
-    """Return each `decision local` or `stop local` line of the home's `told`, in its order: an
-    ask of the home's own that no `cleared local` line has ended."""
-    return [line for line in _lines(home / FILE) if key(line) and _words(line)[1] == "local"]
+def open_asks(home: Path) -> list[tuple[str, datetime]]:
+    """Return each `decision local` or `stop local` line of the home's `told`, in its order, with
+    when it was first told: an ask of the home's own that no `cleared local` line has ended. A
+    line with no stamp counts from `SINCE`."""
+    stamps = _stamps(home)
+    return [
+        (line, _when(stamps.get(at)))
+        for line in _lines(home / FILE)
+        if (at := key(line)) and _words(line)[1] == "local"
+    ]
+
+
+def _stamps(home: Path) -> dict[str, str]:
+    try:
+        read = json.loads((home / AT).read_text())
+    except (FileNotFoundError, ValueError):
+        return {}
+    return {str(k): str(v) for k, v in read.items()} if isinstance(read, dict) else {}
+
+
+def _when(stamp: str | None) -> datetime:
+    try:
+        at = datetime.fromisoformat(stamp or "")
+    except ValueError:
+        return SINCE
+    return at if at.tzinfo else at.replace(tzinfo=UTC)
+
+
+def _write(path: Path, text: str) -> None:
+    new = path.with_name(f"{path.name}.new")
+    new.write_text(text)
+    os.replace(new, path)
 
 
 def _lines(told: Path) -> list[str]:

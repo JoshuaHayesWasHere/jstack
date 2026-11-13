@@ -112,9 +112,15 @@ A refused go is left out too: most refusals are a sha that did not match, and th
 The project-wide list, with no `--home`, also holds every home's open asks: each `decision local <slug>` or `stop local <slug>` line still open in the `told` file of the project's root home and of each of its scopes, named with its home as `--home` prints it below.
 This is the list a thread outside a home and the root home read, so a scope's open ask is never behind its "nothing waits".
 A cleared ask and a `question` line are left out.
-A closed home, a scope whose plan is archived (`plan-archived.md`, no `plan.md`), keeps its open asks on this list and on the root home's `--home` list, since closing a home does not answer them.
-Each prints as `<project> <home> home (closed) decision local <slug>: ...`, with `answer: reply to the root home in your own words: the <home> home is closed`.
-It stays until a `cleared local <slug>` line ends it in the closed home's `told`: `printf 'cleared local <slug>: <why>\n' | jbus told <the closed home's directory>`, which you or the root home runs once the ask no longer waits.
+Two kinds of open ask wait on no one, so the list leaves them out:
+
+- a `decision local` line that says the default the home took (`default taken`, or `default:`), once three days have passed since `jbus told` told it: the home already acted on its default, and the line is only news by then.
+  `jbus told` keeps when it told each line in `told-at.json` beside `told`; a line told before it kept one counts from 2026-11-13, never as old.
+- every ask of a closed home, a scope whose plan is archived (`plan-archived.md`, no `plan.md`), which has no thread left to act on your reply.
+
+A stop never ages out, nor does a question jbus holds or a row that waits on your word.
+`jbus needs --all` lists every open ask as well, these two kinds too, a closed home's as `<project> <home> home (closed) decision local <slug>: ...` with `answer: reply to the root home in your own words: the <home> home is closed`.
+An ask stays open until a `cleared local <slug>` line ends it in its home's `told`: `printf 'cleared local <slug>: <why>\n' | jbus told <the home's directory>`.
 `jbus home status` counts these asks too, in its `elsewhere:` line of what waits in other projects.
 
 With nothing open it prints `nothing waits on <you> in any project`.
@@ -124,7 +130,7 @@ A project no pass has listed yet is a `not known:` line, and the line that follo
 `jbus needs --home <directory>`, with `--project <name>`, keeps one home's items: a scope's directory keeps that scope's, and the root home's keeps its own and every scope's.
 An item is a home's by the slug it is about, by its brief's or request's `Home:` line, and a gate is the home's whose `gates.md` holds it.
 Every home's list also has the items about the whole project, no row and no home: a T3 Code build to install, a setup only you can give, and a hold of GitHub's budget.
-It also has each ask the home made of you itself that is still open: each `decision local <slug>` or `stop local <slug>` line in the home's `told` file, which `jbus told` keeps until a `cleared local <slug>` line ends it.
+It also has each ask the home made of you itself that is still open: each `decision local <slug>` or `stop local <slug>` line in the home's `told` file, which `jbus told` keeps until a `cleared local <slug>` line ends it, less the two kinds that wait on no one, as on the project-wide list: a default taken over three days ago, and a closed home's asks (`--all` keeps them).
 Such a line prints as `<project> <home> home decision local <slug>: ...`, with `answer: reply to the <home> home in your own words`.
 So `nothing waits on <you> in <project>'s <home> home` means that none of these is open either.
 The ketchup skill runs it in a home, so a home's catch-up names no other project's items.

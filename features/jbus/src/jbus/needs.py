@@ -23,9 +23,13 @@ the same lines for its own project (`jbus.homestatus`).
 
 With no `--home` the list also has each ask a home of the project made of the user itself that
 is still open in its `told` file (`asks`), the root's and each scope's, named with its home, so
-the project-wide "nothing waits" means no home has an ask open either. A closed home's asks (a
-scope whose plan is archived) stay on it and on the root home's list until cleared. `jbus home
-status` counts them in its line of what waits in other projects.
+the project-wide "nothing waits" means no home has an ask open either. `jbus home status` counts
+them in its line of what waits in other projects. Two kinds of open ask wait on no one, so the list
+leaves them out (`waits`): a `decision local` line whose default the home took (`TAKEN`), once
+`AGE` has passed since `jbus told` told it, and every ask of a closed home (a scope whose plan is
+archived), which has no thread left to act on a reply. A stop never ages out, nor does a question
+jbus holds or an approval, which are no `told` lines. `--all` lists every open ask, these too,
+until a `cleared local` line ends it.
 
 `--home <directory>` keeps one home's items of its project: a scope's directory keeps that
 scope's, and the root home's keeps its own and every scope's. Every home's list also has each item
@@ -42,8 +46,9 @@ request `jmerge` holds is about the row whose pull request it is.
 from __future__ import annotations
 
 import argparse
+import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import jbus
@@ -77,6 +82,11 @@ MEND = (
     "and the next snapshot that succeeds clears this"
 )
 """The hint a failing backup ends in: the next run that succeeds ends it, and no word does."""
+AGE = timedelta(days=3)
+"""How long a decision whose default was taken stays on the list after it was told."""
+TAKEN = re.compile(r"\bdefault taken\b|\bdefault:", re.IGNORECASE)
+"""A decision that says the default it took: the home skill's `<the question and the default
+taken>`."""
 
 
 @dataclass(frozen=True)
@@ -137,12 +147,16 @@ def home_of(state: Path, root: Path, slug: str) -> Path:
 
 
 def of(
-    config: jbus.Config, project: jbus.Project, now: datetime, home: Path | None = None
+    config: jbus.Config,
+    project: jbus.Project,
+    now: datetime,
+    home: Path | None = None,
+    every: bool = False,
 ) -> list[Need]:
     """Return what waits on the user in one project at `now`, in the list's order, then the asks
     still open in its homes' `told` files (`asks`): with `home`, only that home's, and a root
-    home's scopes' with the root's, and with none, every home's. Raise `Unknown` where nothing is
-    known."""
+    home's scopes' with the root's, and with none, every home's. With `every`, also the asks that
+    wait on no one (`waits`). Raise `Unknown` where nothing is known."""
     run = passes.Pass(config, project, now)
     listed = waiting.read(run.state)
     if listed is None or run.first:
@@ -167,7 +181,7 @@ def of(
         needs.append(("", Need(project.name, f"{said}; its last line: {line}", MEND)))
     root = config.home(project)
     if home is None:
-        return [need for _, need in needs] + asks(project, root, root)
+        return [need for _, need in needs] + asks(project, root, root, now, every)
     kept = [
         need
         for slug, need in needs
@@ -175,7 +189,7 @@ def of(
         or (at := home_of(run.state, root, slug)) == home
         or home == root == at.parent
     ]
-    return kept + asks(project, root, home)
+    return kept + asks(project, root, home, now, every)
 
 
 def machines(config: jbus.Config) -> jbus.Project | None:
@@ -184,20 +198,24 @@ def machines(config: jbus.Config) -> jbus.Project | None:
     return config.owner(alert.MACHINE) or next(iter(config.projects), None)
 
 
-def asks(project: jbus.Project, root: Path, home: Path) -> list[Need]:
-    """Return each ask a home made of the user itself that is still open: a `decision local` or
-    `stop local` line of its `told` file, which `jbus told` keeps until a `cleared local` line ends
-    it (`jbus.turnend`). With the root home, its scopes' too, and none where the root home has no
-    directory yet. A closed scope, whose plan is archived (`plan-archived.md`, no `plan.md`), has
-    no thread to ask, but its open asks still wait on the user: the root home's list keeps them,
-    named with the closed home, until a `cleared local` line in its `told` ends them."""
+def asks(
+    project: jbus.Project, root: Path, home: Path, now: datetime, every: bool = False
+) -> list[Need]:
+    """Return each ask a home made of the user itself that is still open and still waits on them
+    at `now` (`waits`): a `decision local` or `stop local` line of its `told` file, which `jbus
+    told` keeps until a `cleared local` line ends it (`jbus.turnend`). With the root home, its
+    scopes' too, and none where the root home has no directory yet. With `every`, each open one,
+    and a closed scope's (`plan-archived.md`, no `plan.md`), which has no thread to ask, is named
+    with the closed home and answered to the root home."""
     if not root.is_dir():
         return []
     scopes = sorted(one for one in root.iterdir() if (one / "plan.md").is_file() or closed(one))
     found = []
     for at in [root, *scopes] if home == root else [home]:
         name = "root" if at == root else at.name
-        for line in turnend.open_asks(at):
+        for line, told in turnend.open_asks(at):
+            if not every and not waits(line, told, now, closed(at)):
+                continue
             if closed(at):
                 reply = f"reply to the root home in your own words: the {name} home is closed"
                 found.append(Need(project.name, f"{name} home (closed) {line}", reply))
@@ -205,6 +223,15 @@ def asks(project: jbus.Project, root: Path, home: Path) -> list[Need]:
                 reply = f"reply to the {name} home in your own words"
                 found.append(Need(project.name, f"{name} home {line}", reply))
     return found
+
+
+def waits(line: str, told: datetime, now: datetime, shut: bool) -> bool:
+    """Whether an open ask told at `told` still waits on the user at `now`: none of a closed home,
+    and no `decision` whose default was taken (`TAKEN`) once `AGE` has passed. A stop waits at
+    any age."""
+    if shut:
+        return False
+    return not (line.startswith("decision ") and TAKEN.search(line) and now - told > AGE)
 
 
 def closed(scope: Path) -> bool:
@@ -233,16 +260,18 @@ def lines(
     scope: str,
     now: datetime,
     home: Path | None = None,
+    every: bool = False,
 ) -> list[str]:
     """Return the lines `jbus needs` prints for the projects: a head that counts the items, the
     items, and a line for each project nothing is known of. `scope` names the projects in the
-    line that says nothing waits, and `home` keeps one home's items (`of`)."""
+    line that says nothing waits, `home` keeps one home's items, and `every` keeps the asks that
+    wait on no one too (`of`)."""
     user, found, unknown = config.user.user, [], []
     stands = [line for project in projects for line in standing(config, project, home)]
     stands += [line for project in projects for line in waived(config, project, now, home)]
     for project in projects:
         try:
-            found += of(config, project, now, home)
+            found += of(config, project, now, home, every)
         except Unknown as why:
             unknown.append(f"not known: {why}")
     if not found and unknown:
@@ -300,7 +329,15 @@ def waived(
 
 
 def _arguments(parser: argparse.ArgumentParser) -> None:
-    """`jbus --project <name> needs` is one project, and `--home` one home of it."""
+    """`jbus --project <name> needs` is one project, `--home` one home of it, and `--all` lists
+    the asks that wait on no one too."""
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        dest="every",
+        help="also each open ask that waits on no one: a default taken over three days ago, and "
+        "a closed home's",
+    )
     parser.add_argument(
         "--home",
         help="a home's directory: only that home's items, and a root home's scopes' with its own",
@@ -321,7 +358,9 @@ def _needs(args: argparse.Namespace, config: jbus.Config) -> int:
         project = verbs.here(config, args.project)
         home = _home(config, project, args.home)
         where = "root home and its scopes" if home == config.home(project) else f"{home.name} home"
-        said = lines(config, [project], f"{project.name}'s {where}", verbs.clock(), home)
+        said = lines(
+            config, [project], f"{project.name}'s {where}", verbs.clock(), home, args.every
+        )
         print("\n".join(said))
         return 0
     if args.project:
@@ -330,7 +369,7 @@ def _needs(args: argparse.Namespace, config: jbus.Config) -> int:
     else:
         projects = list(config.projects)
         scope = "any project"
-    print("\n".join(lines(config, projects, scope, verbs.clock())))
+    print("\n".join(lines(config, projects, scope, verbs.clock(), every=args.every)))
     return 0
 
 

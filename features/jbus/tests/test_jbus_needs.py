@@ -14,7 +14,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import acts, homestatus, questions, snapshot, verbs, work
+from jbus import acts, homestatus, questions, snapshot, turnend, verbs, work
 from test_jbus_build_behind import machine, patched
 from test_jbus_kitchen import GATE, NOW, RESULT
 from test_jbus_leftover import home
@@ -31,10 +31,12 @@ AFTER = NOW + timedelta(minutes=5)
 """A few minutes after the pass, past a row's grace."""
 
 
-def needs(kitchen, *argv, at=AFTER, home=None):
-    """What `jbus needs` prints at `at`, for the home `home` where it is given."""
+def needs(kitchen, *argv, at=AFTER, home=None, every=False):
+    """What `jbus needs` prints at `at`, for the home `home` where it is given, and with `--all`
+    where `every` says so."""
     kitchen.monkeypatch.setattr(verbs, "clock", lambda: at)
-    code, out = kitchen.main(*argv, "needs", *(["--home", str(home)] if home else []))
+    flags = [*(["--home", str(home)] if home else []), *(["--all"] if every else [])]
+    code, out = kitchen.main(*argv, "needs", *flags)
     assert code == 0, out
     return out.splitlines()
 
@@ -440,25 +442,28 @@ def test_the_project_wide_list_has_every_homes_open_asks_and_home_status_counts_
     assert needs(kitchen) == ["nothing waits on user in any project"]
 
 
-def test_a_closed_homes_open_asks_stay_listed_until_cleared(kitchen):
-    """A scope whose plan is archived is a closed home, with no thread to ask. Each ask it left
-    open in its `told` still waits on the user, so the project-wide list and the root home's list
-    keep it, named with the closed home, until a `cleared local` line in its `told` ends it."""
+def test_a_closed_homes_asks_are_left_out_and_all_lists_them_until_cleared(kitchen):
+    """A scope whose plan is archived is a closed home, with no thread to ask, so `jbus needs`
+    leaves its asks out (on 2026-11-13 two closed Winnifred homes' asks hid the real calls).
+    `--all` still lists each, named with the closed home, until a `cleared local` line in its
+    `told` ends it."""
     sc = scoped(kitchen, "sc")
     turn = "decision local alpha: which way?\nstop local gamma: say which way\n"
     assert kitchen.main("told", str(sc), stdin=turn)[0] == 0
     assert kitchen.main("told", str(sc), stdin="cleared local gamma: answered\n")[0] == 0
     (sc / "plan.md").rename(sc / "plan-archived.md")
     kitchen.poll()
-    listed = [
+    assert needs(kitchen) == ["nothing waits on user in any project"]
+    assert needs(kitchen, "--project", "demo", home=kitchen.home) == [
+        "nothing waits on user in demo's root home and its scopes"
+    ]
+    assert needs(kitchen, every=True) == [
         "waiting on user: 1, in demo",
         "demo sc home (closed) decision local alpha: which way?",
         "  answer: reply to the root home in your own words: the sc home is closed",
     ]
-    assert needs(kitchen) == listed
-    assert needs(kitchen, "--project", "demo", home=kitchen.home) == listed
     assert kitchen.main("told", str(sc), stdin="cleared local alpha: moot\n")[0] == 0
-    assert needs(kitchen) == ["nothing waits on user in any project"]
+    assert needs(kitchen, every=True) == ["nothing waits on user in any project"]
 
 
 FINDS = """#!/bin/sh
@@ -511,3 +516,58 @@ def test_a_failed_snapshot_is_one_item_on_jbus_needs_until_a_run_succeeds(
     ]
     assert take()[0] == 0
     assert needs(kitchen) == ["nothing waits on user in any project"]
+
+
+def test_a_decision_whose_default_was_taken_leaves_the_list_three_days_after_it_was_told(
+    kitchen,
+):
+    """A home that takes a default never clears its own decision, so on 2026-11-13 about 50 such
+    lines buried an approval, a spend and a public stage among 81 items. Three days after `jbus
+    told` told it, a `decision local` line whose default was taken leaves `jbus needs`, and
+    `--all` still lists it. A stop, a question jbus holds and a decision with no default taken
+    wait on the user at any age. A later turn that tells the same line again, or rewrites `told`
+    for another line, keeps when it was first told, so the default still ages out."""
+    sc = scoped(kitchen, "sc")
+    kitchen.brief("alpha")
+    assert kitchen.main("gate", "alpha", stdin=held())[0] == 0
+    turn = (
+        "decision local taken: deploy main? Default taken: prod stays where it is\n"
+        "decision local open: which of the two names should the package take?\n"
+        "stop local stuck: the slice needs your sudo; default taken: nothing runs\n"
+    )
+    kitchen.monkeypatch.setattr(verbs, "clock", lambda: AFTER)
+    assert kitchen.main("told", str(sc), stdin=turn)[0] == 0
+    kitchen.monkeypatch.setattr(verbs, "clock", lambda: AFTER + timedelta(days=2))
+    again = turn + "stop local later: a later turn's own stop\n"
+    assert kitchen.main("told", str(sc), stdin=again)[0] == 0
+    assert kitchen.main("told", str(sc), stdin="cleared local later: done\n")[0] == 0
+    kitchen.poll()
+    asked = [
+        "demo sc home decision local taken: deploy main? Default taken: prod stays where it is",
+        "  answer: reply to the sc home in your own words",
+        "demo sc home decision local open: which of the two names should the package take?",
+        "  answer: reply to the sc home in your own words",
+        "demo sc home stop local stuck: the slice needs your sudo; default taken: nothing runs",
+        "  answer: reply to the sc home in your own words",
+    ]
+    fresh = needs(kitchen, at=AFTER + timedelta(days=3) - timedelta(minutes=1))
+    assert fresh[0] == "waiting on user: 4, in demo"
+    assert fresh[1].startswith("demo question 1: drop the old branch")
+    assert fresh[4:] == asked
+    old = needs(kitchen, at=AFTER + timedelta(days=3, minutes=1))
+    assert old[0] == "waiting on user: 3, in demo"
+    assert old[1].startswith("demo question 1: drop the old branch")
+    assert old[4:] == asked[2:]
+    assert needs(kitchen, every=True, at=AFTER + timedelta(days=3, minutes=1)) == fresh
+
+
+def test_a_line_told_before_jbus_kept_stamps_counts_from_the_day_they_began(kitchen):
+    """A `told` line written before `jbus told` kept when each was told has no stamp. It is
+    never read as old: it counts from the day the stamps began (`turnend.SINCE`), so a default
+    taken long ago still waits three days from then."""
+    sc = scoped(kitchen, "sc")
+    (sc / "told").write_text("decision local taken: deploy main? Default taken: prod stays\n")
+    kitchen.poll()
+    line = "demo sc home decision local taken: deploy main? Default taken: prod stays"
+    assert line in needs(kitchen, at=turnend.SINCE + timedelta(days=3) - timedelta(minutes=1))
+    assert line not in needs(kitchen, at=turnend.SINCE + timedelta(days=3, minutes=1))
