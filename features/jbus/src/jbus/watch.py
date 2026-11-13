@@ -1025,17 +1025,19 @@ def _scouted(
 ) -> tuple[work.Facts, bool]:
     """Return the facts of a scout's row, as `facts` does for a crewmate's. Its thread is the
     one titled `scout: <slug>` in the list of threads out, and what it wrote is its last Report
-    (`owed`). It has no pull request. A launched thread that left the list once its Report was
-    written was settled; one that left it with nothing written is still starting, as far as the
-    pass can tell. A scout whose turn ended on a wait that jbus owns is `quiet`, as a crew is
-    (`facts`): its thread is among the threads out and never `World.thread`, so the wait is looked
-    up by the thread's id there."""
+    (`owed`). It has no pull request. A row the table had at done when the pass began
+    (`Pass.done`) had its Report say done, so it has written clean whatever its request file says
+    now: a closed home can take that file with it, and a hand-written one may hold no Report. A
+    launched thread that left the list once its Report was written was settled; one that left it
+    with nothing written is still starting, as far as the pass can tell. A scout whose turn ended
+    on a wait that jbus owns is `quiet`, as a crew is (`facts`): its thread is among the threads
+    out and never `World.thread`, so the wait is looked up by the thread's id there."""
     slug = row["slug"]
     one = seen.one_out("scout", slug)
     said = thread(one, str((one or {}).get("live", ""))) if one else None
     if one and said in OVER and world is not None and world.awaits({"threadId": one["id"]}):
         said = work.Thread.QUIET
-    written = owed(run, "scout", slug)
+    written = work.Written.CLEAN if slug in run.done else owed(run, "scout", slug)
     if one is None and launched:
         said = work.Thread.STARTING if written == work.Written.NONE else work.Thread.SETTLED
     made = work.Facts(
