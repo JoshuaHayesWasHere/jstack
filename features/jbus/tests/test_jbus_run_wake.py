@@ -8,9 +8,12 @@ of most of an hour, nothing woke it, and its row went stale or stayed not done. 
 fakes, where `run-view.json` is what GitHub says of each run."""
 
 import json
+import subprocess
 from datetime import timedelta
 
-from jbus import runwaiters, watch
+import pytest
+
+from jbus import runwait, runwaiters, watch
 from test_jbus_kitchen import NOW
 from test_jbus_leftover import home
 from test_jbus_row_ends import column, listed
@@ -81,19 +84,65 @@ def test_the_runs_end_wakes_the_crew_once_with_its_conclusion(kitchen):
     assert column(kitchen)[2] != f"waiting on GitHub run {RUN} (macOS nightly)"
 
 
-def test_a_wake_that_t3_code_did_not_take_is_sent_again_under_its_key(kitchen):
+def test_a_crew_that_registers_again_keeps_its_one_wait(kitchen):
+    thread = waiting_crew(kitchen)
+    (first,) = runwaiters.read(runwaiters.where())
+    code, said = kitchen.main("--project", "demo", "run-wait", RUN, "--thread", thread["threadId"])
+    assert code == 0 and said.startswith("waiting:")
+    assert runwaiters.read(runwaiters.where()) == [first]
+
+
+def test_a_run_github_does_not_answer_for_in_a_pass_is_asked_again_on_the_next(kitchen):
+    thread = waiting_crew(kitchen)
+    (kitchen.stub / "run-view.json").write_text("{}")
+    said = kitchen.poll(NOW)
+    assert any(f"GitHub run {RUN} could not be read (gh: Not Found" in line for line in said)
+    assert len(runwaiters.read(runwaiters.where())) == 1
+    github(kitchen, "completed", "success")
+    kitchen.poll(NOW + MIN)
+    assert len(told(kitchen, thread["threadId"])) == 1
+    assert runwaiters.read(runwaiters.where()) == [] and asked(kitchen) == [RUN] * 3
+
+
+@pytest.mark.parametrize("how", ["refuse_send", "lose_send"])
+def test_a_wake_that_t3_code_did_not_take_is_sent_again_under_its_key(kitchen, how):
     thread = waiting_crew(kitchen)
     github(kitchen, "completed", "success")
-    kitchen.t3.refuse_send = True
-    kitchen.poll(NOW)
+    setattr(kitchen.t3, how, True)
+    said = kitchen.poll(NOW)
+    assert any(f"could not be told run {RUN} ended" in line for line in said)
     assert len(runwaiters.read(runwaiters.where())) == 1
-    kitchen.t3.refuse_send = False
+    setattr(kitchen.t3, how, False)
     kitchen.poll(NOW + MIN)
     kitchen.poll(NOW + 2 * MIN)
     tries = told(kitchen, thread["threadId"])
-    assert len(tries) == 2 and len({one["clientRequestId"] for one in tries}) == 1
+    assert len(tries) == 2
+    assert len({one["clientRequestId"] for one in tries}) == 1
     assert "has ended: success" in tries[-1]["message"]
     assert runwaiters.read(runwaiters.where()) == [] and kitchen.lines("run-wake") != []
+
+
+def test_a_wake_held_while_the_thread_has_a_turn_running_goes_once_the_turn_ends(kitchen):
+    thread = waiting_crew(kitchen)
+    github(kitchen, "completed", "success")
+    thread["status"] = "running"
+    kitchen.poll(NOW)
+    assert told(kitchen, thread["threadId"]) == []
+    assert len(runwaiters.read(runwaiters.where())) == 1
+    thread["status"] = "idle"
+    kitchen.poll(NOW + MIN)
+    assert len(told(kitchen, thread["threadId"])) == 1
+    assert runwaiters.read(runwaiters.where()) == []
+
+
+def test_a_wake_t3_code_says_has_no_thread_to_go_to_drops_the_wait(kitchen):
+    thread = waiting_crew(kitchen)
+    github(kitchen, "completed", "success")
+    kitchen.t3.lose_read = True
+    kitchen.t3.forgot.add(thread["threadId"])
+    said = kitchen.poll(NOW)
+    assert any("its run wait is dropped, its thread is gone" in line for line in said)
+    assert runwaiters.read(runwaiters.where()) == [] and kitchen.lines("run-wake") == []
 
 
 def test_a_run_that_has_ended_already_registers_nothing(kitchen):
@@ -111,8 +160,34 @@ def test_a_run_github_does_not_know_is_refused(kitchen):
     assert runwaiters.read(runwaiters.where()) == []
 
 
-def test_the_wait_of_a_thread_that_ended_for_good_is_dropped_unasked(kitchen):
+@pytest.mark.parametrize("how", ["interrupted", "gone"])
+def test_the_wait_of_a_thread_that_ended_for_good_is_dropped_unasked(kitchen, how):
     thread = waiting_crew(kitchen)
-    thread["status"] = "interrupted"
+    if how == "gone":
+        kitchen.t3.threads.remove(thread)
+    else:
+        thread["status"] = how
     kitchen.poll(NOW)
     assert runwaiters.read(runwaiters.where()) == [] and asked(kitchen) == [RUN]
+
+
+def gh(code, out="", error=""):
+    def call(*args, **kwargs):
+        if code is None:
+            raise FileNotFoundError(2, "No such file or directory", "gh")
+        return subprocess.CompletedProcess(args, code, out, error)
+
+    return call
+
+
+@pytest.mark.parametrize(
+    ("call", "why"),
+    [
+        (gh(None), "No such file or directory"),
+        (gh(0, "<html>rate limited</html>"), "gh gave no run: <html>rate limited</html>"),
+        (gh(0, '["a list"]'), 'gh gave no run: ["a list"]'),
+        (gh(1), "gh ended 1"),
+    ],
+)
+def test_a_gh_that_gives_no_run_says_why_and_raises_nothing(call, why):
+    assert why in runwait.ask(RUN, call)
