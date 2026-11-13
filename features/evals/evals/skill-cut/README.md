@@ -4,7 +4,7 @@ Does cutting text out of a skill, a reference or a principle change what an agen
 
 ## What it does
 
-Two families of cases, both committed in `cases/` before the first run.
+Two families of cases, both written in `cases/` before the first run: `steps.json` in git beside this file, and the lead cases, taken from real reviews, in the data folder ("Where runs are kept").
 
 - **`lead`**: a pull request review's lead judgment, from real reviews (`cases/lead/<slug>.md`).
   Each case is one pull request's first review: the intent the reviewer was given and the readers' findings, word for word, as the reviewer thread holds them, with the private patterns of `jleak` taken out.
@@ -55,17 +55,22 @@ uv run python features/evals/evals/skill-cut/eval.py --base main --variant HEAD
 ```
 
 It resolves the two revisions, writes a new run, `run-<the variant's first 12 characters>/` or the name `--name run-<name>` gives, so that two branches that each add a run never write the same directory, in one rename once every answer and the key are written (no kept run is touched), scores it, asks the judge for what the key cannot settle, and writes `results.md`.
-It makes 3 x 3 calls per case (about 530 for the committed cases), six at a time.
+It makes 3 x 3 calls per case (about 530 for the kept cases), six at a time.
 Each answer is kept as it comes in `.<run>.answers.jsonl`, so a call that fails costs only itself: the write ends naming what failed, and the same command again asks only for what is missing.
-A cut branch commits the run it adds.
+A cut branch names the run it adds in its pull request; the run itself stays in the data folder.
 
-`uv run python features/evals/evals/skill-cut/eval.py --run run-1` rescores and reports a kept run with no model call: its `results.md` comes out byte for byte as committed.
+`uv run python features/evals/evals/skill-cut/eval.py --run run-1` rescores and reports a kept run with no model call: its `results.md` comes out byte for byte as kept.
 A run is scored only against the cases it was answered against: its `run.json` holds a hash of `cases/`, and `--run` refuses a run whose cases have changed since.
 A change to a case is a new case set, and a new run from base.
-The kept runs were answered against the `steps.json` kept in `fixture/steps-of-run-1.json`, before three cases followed the skills from Noticed to a queued row: the tests rescore `run-1` against it.
+The kept runs were answered against the `steps.json` kept in the data folder's `fixture/steps-of-run-1.json`, before three cases followed the skills from Noticed to a queued row: the tests rescore `run-1` against it, from `tests/fixtures/skill-cut.tar.xz`.
 
 `uv run python features/evals/evals/skill-cut/eval.py cases <staging dir>` rebuilds `cases/lead/` from the JSON files the extraction wrote (one per pull request, `<slug>.json`), with the private patterns taken out.
-The extraction itself read each reviewer thread with `t3_thread_read`, and the intent from `/tmp/pr-review-<slug>.*/intent`, which a reboot empties: the committed cases are the record.
+The extraction itself read each reviewer thread with `t3_thread_read`, and the intent from `/tmp/pr-review-<slug>.*/intent`, which a reboot empties: the kept cases are the record.
+
+## Where runs are kept
+
+The runs, `run-<name>/` and the `.run-<name>.answers.jsonl` of a write still going, and `cases/lead/` are data, kept out of git in `~/.local/state/home/<repo>/reports/evals/skill-cut/`, or the folder `SKILL_CUT_DIR` names.
+Every run up to commit `bc9eede9d` was in git here and is in that folder now; `features/evals/docs/evals.md` says where each kind is kept and how to restore them on another machine.
 
 ## Limits
 

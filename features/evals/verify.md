@@ -1,6 +1,7 @@
 # The evals
 
-An eval scores a skill's answers against a key, blind, under `features/evals/evals/`: the skill-cut eval, rerunnable on any branch, and the retired eval of the depth questions, kept read-only as a record of its two runs.
+An eval scores a skill's answers against a key, blind, with its code under `features/evals/evals/`: the skill-cut eval, rerunnable on any branch, and the retired eval of the depth questions, whose two runs are kept read-only as its record.
+The runs and the cases taken from real threads are kept out of git, in the home's state folder: `features/evals/docs/evals.md` says where.
 The coordinating benchmark, under `features/evals/benchmark/`, measures what jstack's coordinating layer costs from the raw records and from a replay in a sandbox.
 The lab, under `features/evals/lab/`, reruns the zero-cost measurements against a pinned copy of the telemetry store and writes one dated result directory.
 
