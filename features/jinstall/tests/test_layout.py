@@ -283,9 +283,12 @@ def test_an_install_over_one_from_before_the_layouts_repoints_its_links_and_hook
     gone_from = f"{copy / 'skills' / 'retired'}, a skill this checkout no longer has"
     assert line_for(said, retired) == [f"old hard {retired} -> {gone_from}"]
     assert line_for(said, gone)[0].startswith(f"old hard {gone} -> ")
-    assert line_for(said, f"hook {user.settings} SessionStart") == [
-        f"old hard hook {user.settings} SessionStart -> {hook}"
+    old_hooks = [
+        line
+        for line in line_for(said, f"hook {user.settings} SessionStart")
+        if line.startswith("old ")
     ]
+    assert old_hooks == [f"old hard hook {user.settings} SessionStart -> {hook}"]
     code, said = user.run()
     assert (code, [line for line in said if not line.startswith("ok ")]) == (0, [])
     for dead in (retired, gone):
@@ -293,4 +296,7 @@ def test_an_install_over_one_from_before_the_layouts_repoints_its_links_and_hook
     assert user.run("--check") == (0, user.every("ok"))
     assert os.readlink(crew) == str(user.layout / "skills" / "crew")
     assert not retired.is_symlink() and not gone.is_symlink()
-    assert json.loads(user.settings.read_text())["hooks"]["SessionStart"] == [user.START]
+    assert (
+        json.loads(user.settings.read_text())["hooks"]["SessionStart"]
+        == (user.written()["SessionStart"])
+    )

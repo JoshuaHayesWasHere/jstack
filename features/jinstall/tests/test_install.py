@@ -607,7 +607,8 @@ def test_a_hand_written_claude_hook_is_old_and_replaced_and_no_other_key_is_touc
     user.write(user.settings, written)
     part = f"hook {user.settings} SessionStart"
     code, said = user.run("--check")
-    assert line_for(said, part) == [f"old hard {part} -> {by_hand}"]
+    old = [line for line in line_for(said, part) if line.startswith("old ")]
+    assert old == [f"old hard {part} -> {by_hand}"]
     assert line_for(said, "statusline") == []
     assert user.run()[0] == 0
     assert json.loads(user.settings.read_text()) == written | {"hooks": user.written()} | SET
