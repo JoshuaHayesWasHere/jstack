@@ -297,3 +297,14 @@ A red main files the brief for its fix:
   So if you delete the brief while its row stays, jbus does not write it again.
   It also does not write the brief again once its row is removed.
 - The stand-in `gh` lists no changed files for a commit, so `Where:` names only the failed tests' files in a sandbox.
+
+A merged row's revert, and its redo:
+
+- No drive reaches jbus's own revert yet, so `jbus.reverts.reland`, which opens again only a row whose revert jbus keeps, is not driven.
+  Before a revert, jbus asks `gh api repos/{owner}/{repo}/compare/<green>...<head>`.
+  The stand-in answers that with `gh/commits.json`, which has no `status`, so the pass files `main-red-<sha12>` with `jbus reverts nothing: GitHub did not say what main its own check passed over`.
+  The stand-in also exits 64 on `gh pr revert`.
+  The row `fake-gh-revert-path` teaches the stand-in both.
+- jbus asks GitHub for the merged list only once a base branch moved in git.
+  A merge written to `gh/merged.json` alone, over a main that did not move, makes the pass ask `gh pr view <the Result's address>`, which the stand-in reads from `gh/open.json` only, and the pass prints `wait demo: could not ask GitHub`.
+  Push the merge to the sandbox's origin `main`, with the crew's commit on its branch in the worktree jbus made, `$HOME/.t3/worktrees/demo/<slug>`.
