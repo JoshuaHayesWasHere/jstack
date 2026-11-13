@@ -154,8 +154,9 @@ def test_with_the_budget_held_a_tick_asks_github_as_usual(kitchen, monkeypatch):
 
 def test_a_304_to_the_ticks_conditional_read_is_not_counted_against_the_budget(watched):
     """gh exits 1 on a 304, and GitHub counts none of it against the allowance: `jbus budget
-    --callers` counts the tick's one read of the head's check runs that changed, and the one read
-    of its workflow runs for the suite it had not seen, and its 304s apart, as free."""
+    --callers` counts the tick's one read of the head's check runs that changed, and its 304s
+    apart, as free. Its read of the head's workflow runs for the suite it had not seen is the
+    pass's own path and kept answer, so it is counted with the pass's reads."""
     for _ in range(3):
         assert ticks(watched) == []
     since = NOW - timedelta(days=3650)
@@ -163,7 +164,6 @@ def test_a_304_to_the_ticks_conditional_read_is_not_counted_against_the_budget(w
     tick_lines = [line.split() for line in lines if "< jbus.tick." in line]
     assert tick_lines == [
         ["1", "jbus.conditional.ask", "<", "jbus.tick._read", "(0", "failed)"],
-        ["1", "jbus.conditional.ask", "<", "jbus.tick._suites", "(0", "failed)"],
         ["3", "jbus.conditional.ask", "<", "jbus.tick._read"],
     ]
     assert "and 3 answered 304, which spend nothing:" in lines
@@ -182,7 +182,8 @@ def check_reads(kitchen):
     ref, whoever asked them."""
     return (
         len(costed(kitchen, f"runs?head_sha={HEAD}")),
-        len(costed(kitchen, f"/{HEAD}/check-runs")) + len(costed(kitchen, "/pull/7/head/check-runs")),
+        len(costed(kitchen, f"/{HEAD}/check-runs"))
+        + len(costed(kitchen, "/pull/7/head/check-runs")),
     )
 
 
