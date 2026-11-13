@@ -590,6 +590,23 @@ def test_a_change_to_a_path_a_guards_read_set_names_selects_the_guard(guard, cha
 
 
 @pytest.mark.parametrize(
+    "changed",
+    [
+        "features/jbus/hooks/judge.sh",
+        "features/jbus/spec/GreenMove.tla",
+        "features/jroles/units/jroles-mirror.timer",
+        "testing/shard-times.tsv",
+    ],
+)
+def test_a_rename_of_a_file_a_docstring_names_runs_the_guard_that_resolves_it(changed):
+    """test_names_resolve.py fails where a docstring names a path the tree lacks, so a change to
+    a script, a spec or a list a docstring names, with no docstring edited, runs it too."""
+    tests, _ = select.selection([changed])
+
+    assert f"{GUARDS}test_names_resolve.py" in tests
+
+
+@pytest.mark.parametrize(
     ("changed", "unread"),
     [
         (
