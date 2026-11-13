@@ -24,7 +24,7 @@ NOW = datetime(2026, 10, 12, 15, 0, tzinfo=UTC)
 @pytest.fixture
 def machine(tmp_path, monkeypatch):
     """A temporary home for one test, with lock files that the test can hold. The machine has
-    24 processors and 62 GiB, so it has 3 short slots. The home has no limits file."""
+    24 processors and 62 GiB, so it has 4 short slots. The home has no limits file."""
     monkeypatch.setenv("PROC", str(fake_proc(tmp_path / "proc", 24, 62)))
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
     home = tmp_path / "home"

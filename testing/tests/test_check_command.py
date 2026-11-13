@@ -1,5 +1,5 @@
 """`make check` runs the tests on a number of workers that it counts from the processors the run
-may use: its cgroup's CPU quota where one is set, else the machine's. A desk takes a quarter of
+may use: its cgroup's CPU quota where one is set, else the machine's. A desk takes an eighth of
 them. A runner of GitHub's own, where every jstack CI job runs, takes one for each, and a
 self-hosted runner takes one and a half for each processor of its quota. The count is never under
 two. Each worker takes the next test when it finishes one, and the run
@@ -117,20 +117,20 @@ def pytest_of(*args):
 
 
 def test_make_check_runs_the_tests_on_a_number_of_workers_set_in_one_place():
-    assert pytest_of("check", "CORES=24") == ["-n", "6", *SCHEDULE, *LEAVES_OUT]
+    assert pytest_of("check", "CORES=24") == ["-n", "3", *SCHEDULE, *LEAVES_OUT]
     assert pytest_of("check", "TEST_WORKERS=2") == ["-n", "2", *SCHEDULE, *LEAVES_OUT]
-    reported = ["-n", "6", *SCHEDULE, *LEAVES_OUT, "--junitxml=/x/junit.xml"]
+    reported = ["-n", "3", *SCHEDULE, *LEAVES_OUT, "--junitxml=/x/junit.xml"]
     assert pytest_of("check", "CORES=24", "JUNIT=/x/junit.xml") == reported
 
 
 def test_a_run_in_the_short_lane_takes_the_lanes_worker_count_and_the_full_lane_the_desks():
     """A one-file run in a short slot takes `sizes.SHORT_WORKERS`, whatever the processors; a
-    run in a full slot, and one outside any slot, the desk's quarter."""
+    run in a full slot, and one outside any slot, the desk's eighth."""
     short = pytest_of("test", "TESTS=t.py", "CORES=24", "JGAUGE_TEST_SLOT=short")
     assert short[:2] == ["-n", str(sizes.SHORT_WORKERS)]
     assert pytest_of("test", "TESTS=t.py", "CORES=64", "JGAUGE_TEST_SLOT=short")[:2] == short[:2]
-    assert pytest_of("test", "TESTS=t.py", "CORES=24", "JGAUGE_TEST_SLOT=full")[:2] == ["-n", "6"]
-    assert pytest_of("test", "TESTS=t.py", "CORES=24")[:2] == ["-n", "6"]
+    assert pytest_of("test", "TESTS=t.py", "CORES=24", "JGAUGE_TEST_SLOT=full")[:2] == ["-n", "3"]
+    assert pytest_of("test", "TESTS=t.py", "CORES=24")[:2] == ["-n", "3"]
     hand = pytest_of("test", "TESTS=t.py", "TEST_WORKERS=4", "JGAUGE_TEST_SLOT=short")
     assert hand[:2] == ["-n", "4"]
 
@@ -149,9 +149,9 @@ def test_the_workers_are_counted_from_the_processors_of_the_machine_where_no_quo
     (tmp_path / "getconf").write_text('#!/bin/sh\n[ "$1" = _NPROCESSORS_ONLN ] && echo 32\n')
     (tmp_path / "getconf").chmod(0o755)
     path = f"{tmp_path}:{os.environ['PATH']}"
-    assert (workers(PATH=path), workers(PATH=path, GITHUB_ACTIONS="true")) == (8, 48)
+    assert (workers(PATH=path), workers(PATH=path, GITHUB_ACTIONS="true")) == (4, 48)
     (tmp_path / "cpu.max").write_text("max 100000\n")
-    assert workers(PATH=path, CGROUP=str(tmp_path)) == 8
+    assert workers(PATH=path, CGROUP=str(tmp_path)) == 4
 
 
 def test_a_cgroup_quota_is_the_processors_a_run_counts_from_rounded_down_and_at_least_one(
@@ -167,7 +167,7 @@ def test_a_cgroup_quota_is_the_processors_a_run_counts_from_rounded_down_and_at_
         "400000 100000": (2, 6),
         "250000 100000": (2, 3),
         "50000 100000": (2, 2),
-        "1200000 100000": (3, 18),
+        "1200000 100000": (2, 18),
     }
     assert workers("CORES=8", CGROUP=str(tmp_path), **runner) == 12
 
@@ -197,8 +197,8 @@ def test_the_quota_is_read_from_the_cgroup_the_run_is_in(tmp_path):
     assert made.stdout == f"/sys/fs/cgroup{own[3:]}\n"
 
 
-def test_a_runner_runs_one_and_a_half_workers_a_processor_a_desk_a_quarter_and_none_under_two():
-    for cores, desk, runner in ((1, 2, 2), (4, 2, 6), (12, 3, 18), (24, 6, 36), (64, 16, 96)):
+def test_a_runner_runs_one_and_a_half_workers_a_processor_a_desk_an_eighth_and_none_under_two():
+    for cores, desk, runner in ((1, 2, 2), (4, 2, 6), (12, 2, 18), (24, 3, 36), (64, 8, 96)):
         counted = (workers(f"CORES={cores}"), workers(f"CORES={cores}", GITHUB_ACTIONS="true"))
         assert counted == (desk, runner), cores
 
@@ -209,9 +209,9 @@ def test_a_runner_of_githubs_own_takes_every_processor():
     ours = check("CORES=4", GITHUB_ACTIONS="true", RUNNER_ENVIRONMENT="self-hosted")
     assert "uv run pytest -n 6 " in ours[-1]
     assert workers(CORES="4", GITHUB_ACTIONS="true", RUNNER_ENVIRONMENT="github-hosted") == 4
-    assert "uv run pytest -n 6 " in check("CORES=24")[-1]
+    assert "uv run pytest -n 3 " in check("CORES=24")[-1]
     assert (workers(*hosted, "CORES=1"), workers(*hosted, "CORES=64")) == (2, 64)
-    assert workers("RUNNER_ENVIRONMENT=github-hosted", "CORES=24") == 6
+    assert workers("RUNNER_ENVIRONMENT=github-hosted", "CORES=24") == 3
 
 
 @pytest.mark.parametrize("cores", [1, 2, 4, 8, 12, 24, 64])
@@ -415,7 +415,7 @@ def test_check_fast_runs_the_lint_and_only_the_tests_the_change_reaches(tmp_path
     teed(path, kept)
     check_fast(copy, path)
     *lint, run = asked.read_text().splitlines()
-    pytest_line = " ".join(["run pytest -n 6", *SCHEDULE, *OFF])
+    pytest_line = " ".join(["run pytest -n 3", *SCHEDULE, *OFF])
     assert lint == LINT and run.startswith(f"{pytest_line} ")
     tests = run.removeprefix(pytest_line).split()
     assert (
@@ -451,7 +451,7 @@ def test_a_desk_part_of_check_fast_runs_only_its_own_tests_and_the_rest_no_lint(
     )
     check_fast(copy, path, f"PART={part}")
     assert argv.read_text() == f"--part {part} HEAD^1 HEAD"
-    run = " ".join(["run pytest -n 6", *SCHEDULE, *OFF, *(t for t in tests if t != "all")])
+    run = " ".join(["run pytest -n 3", *SCHEDULE, *OFF, *(t for t in tests if t != "all")])
     said = asked.read_text().splitlines() if asked.exists() else []
     assert said == ([] if lint is None else [*lint, run])
 
@@ -495,7 +495,7 @@ def test_check_fast_is_make_check_when_the_change_is_one_the_whole_suite_rests_o
     copy, path, asked = changed_copy(tmp_path, "pyproject.toml")
     check_fast(copy, path)
     assert selected(copy) == ["all"]
-    assert asked.read_text().splitlines() == [*LINT, " ".join(["run pytest -n 6", *SCHEDULE, *OFF])]
+    assert asked.read_text().splitlines() == [*LINT, " ".join(["run pytest -n 3", *SCHEDULE, *OFF])]
 
 
 def test_check_fast_fails_on_a_base_that_is_not_a_commit_and_runs_nothing(tmp_path):
