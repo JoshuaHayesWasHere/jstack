@@ -198,11 +198,11 @@ def _record(run: Pass, slug: str, lines: list[str]) -> None:
     path.write_text(text + ("" if text.endswith("\n") else "\n") + "".join(lines))
 
 
-def launch(run: Pass, client: Client, world: World) -> None:
+def launch(run: Pass, client: Client, world: World, rows: list[dict[str, Any]]) -> None:
     """Launch the reviewers of each row whose desk proof holds at its pushed head: see the
-    module."""
+    module. `rows` is the queue the pass read, whose `reverted` column `since` reads."""
     sent = run.box.sent()
-    taken = {row["slug"]: str(row.get(queue.REVERTED) or "") for row in queue.load(run.state)}
+    taken = {row["slug"]: str(row.get(queue.REVERTED) or "") for row in rows}
     for slug, thread, brief, result in _rows(run, world):
         own = since(brief, taken.get(slug, ""))
         if reviewers.launched(own) or review.reviewed(own):
@@ -365,7 +365,7 @@ def tell(run: Pass, client: Client, world: World) -> None:
 
 
 def _launch(half: Any) -> None:
-    launch(half.run, half.client, half.seen.world)
+    launch(half.run, half.client, half.seen.world, half.rows or [])
 
 
 def _tell(half: Any) -> None:
