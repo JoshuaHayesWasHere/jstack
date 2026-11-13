@@ -1,8 +1,8 @@
 """Each `path:line` cite in the vision points at the code it names.
 
 Every scout re-derives the Vision from vision.md, so a cite one line off sends it to the wrong
-text. `QUOTED` names, by the path cited, the text its cite's first and last line must hold; a cite whose range
-has moved, or a new cite with no text named here, fails.
+text. `QUOTED` names, by the path cited, the text its cite's first and last line must hold; a
+cite whose range has moved, or a new cite with no text named here, fails.
 """
 
 import re
