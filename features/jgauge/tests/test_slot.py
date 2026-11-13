@@ -450,7 +450,8 @@ def test_a_short_job_whose_group_is_left_with_a_zombie_still_stops_and_says_so(t
         )
     finally:
         if (tmp_path / "pid").exists():
-            os.kill(int((tmp_path / "pid").read_text()), signal.SIGKILL)
+            with contextlib.suppress(ProcessLookupError):
+                os.kill(int((tmp_path / "pid").read_text()), signal.SIGKILL)
     assert (ran.returncode, ran.stderr) == (
         slot.TIMED_OUT,
         f"test-slot: stopped {sys.executable} at 0.5 s, the short lane's limit\n",
