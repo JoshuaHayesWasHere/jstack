@@ -545,6 +545,17 @@ def scouting(state: State) -> Scouting:
     return Scouting.SCOUTING
 
 
+def scouted(state: State, thread: str) -> dict[str, str]:
+    """Return the `scout` a scout's row of `work.json` carries (`scouting`), as every writer of
+    the file gives it. A row at done that names no thread, as one is once its request file went
+    with a closed home and its thread was archived, has none: T3 Code's tree shows any row with a
+    `scout` and lets a scout's go once its thread is archived, and this row has no thread to
+    archive, so with no `scout` it leaves the tree as a done crew row does."""
+    if state.value == "done" and not thread:
+        return {}
+    return {"scout": str(scouting(state))}
+
+
 _THREAD = {
     Thread.NONE: "stale",
     Thread.STARTING: "launched",

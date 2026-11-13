@@ -196,7 +196,7 @@ def keep_work(half: Half) -> None:
         state = states.of(row, dispatch.launched(run, slug, queue.role(row)))
         record = held.get(slug)
         role = "scout" if queue.role(row) == queue.SCOUT else ""
-        scout = {"scout": str(work.scouting(state))} if role else {}
+        scout = work.scouted(state, str(row.get("thread", ""))) if role else {}
         why = str(row.get("why", ""))
         unhomed = leftover.his(record, run.now) if record else ""
         unheld = queue.unheld(run.state, row) if state.facts.row in work.UNHELD else None
@@ -286,7 +286,7 @@ def _since(run: Pass, listed: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 continue
             facet = queue.standing(run.state, row, done)
             go = queue.unheld(run.state, row) if facet in work.UNHELD else None
-            one = restated.restate(one, row=facet, go=go)
+            one = restated.restate(one, row=facet, go=go, scout=queue.role(row) == queue.SCOUT)
         kept.append(one)
     return kept
 
