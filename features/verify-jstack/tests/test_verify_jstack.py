@@ -393,6 +393,75 @@ def test_fake_gh_cancels_and_reruns_a_run_and_lists_its_jobs(tmp_path):
     assert calls[:2] == ["run cancel 7", "run rerun 7"]
 
 
+def test_fake_gh_compares_from_the_origin_and_reverts_a_merged_pull_request(tmp_path):
+    """The compare jbus asks before it reverts, and the revert, as GitHub answers them, read from
+    and written to the sandbox's origin."""
+    gh, origin = tmp_path / "gh", tmp_path / "origin.git"
+    gh.mkdir()
+    env = {**os.environ, "VERIFY_JSTACK_SANDBOX": str(tmp_path)}
+    env |= {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@example.test"}
+    env |= {"GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@example.test"}
+
+    def git(*args, cwd=tmp_path / "demo"):
+        ran = subprocess.run(["git", *args], cwd=cwd, env=env, capture_output=True, text=True)
+        assert ran.returncode == 0, (args, ran.stderr)
+        return ran.stdout.strip()
+
+    def fake_gh(*args, ok=True):
+        ran = subprocess.run([SCRIPTS / "fake-gh", *args], env=env, capture_output=True, text=True)
+        assert (ran.returncode == 0) == ok, (args, ran.stdout, ran.stderr)
+        return ran.stdout
+
+    git("init", "-q", "--bare", "-b", "main", str(origin), cwd=tmp_path)
+    git("init", "-q", "-b", "main", str(tmp_path / "demo"), cwd=tmp_path)
+    git("commit", "-q", "--allow-empty", "-m", "green")
+    green = git("rev-parse", "HEAD")
+    (tmp_path / "demo" / "a.py").write_text("alpha\n")
+    git("add", "a.py")
+    git("commit", "-q", "-m", "feat: alpha (#7)")
+    head = git("rev-parse", "HEAD")
+    other = git("commit-tree", "-p", green, "-m", "other", git("rev-parse", f"{green}^{{tree}}"))
+    git("push", "-q", str(origin), "main", f"{other}:refs/heads/other")
+
+    def compare(base, tip):
+        return json.loads(fake_gh("api", f"repos/{{owner}}/{{repo}}/compare/{base}...{tip}"))
+
+    assert compare(green, head) == {"status": "ahead"}
+    assert compare(green, green) == {"status": "identical"}
+    assert compare(head, green) == {"status": "behind"}
+    assert compare(head, other) == {"status": "diverged"}
+    fake_gh("api", f"repos/{{owner}}/{{repo}}/compare/{green}...{'d' * 40}", ok=False)
+
+    alpha = {"number": 7, "url": "https://example.test/pull/7", "title": "feat: alpha"}
+    alpha |= {"headRefName": "alpha", "headRefOid": head, "baseRefName": "main"}
+    alpha |= {"mergeCommit": {"oid": head}, "mergedAt": "2026-11-13T12:00:00Z"}
+    (gh / "merged.json").write_text(json.dumps([alpha]))
+    (gh / "open.json").write_text("[]")
+
+    assert json.loads(fake_gh("pr", "view", alpha["url"], "--json", "state")) == {
+        **alpha,
+        "state": "MERGED",
+    }
+    said = fake_gh("pr", "revert", alpha["url"], "--body", "jbus reverts this")
+    url = said.strip().splitlines()[-1]
+    assert url == "https://example.test/pull/8"
+
+    [revert] = json.loads((gh / "open.json").read_text())
+    assert (revert["number"], revert["url"]) == (8, url)
+    assert (revert["headRefName"], revert["baseRefName"]) == ("revert-7-alpha", "main")
+    viewed = json.loads(fake_gh("pr", "view", url, "--json", "url,headRefName,headRefOid"))
+    assert (viewed["state"], viewed["headRefName"]) == ("OPEN", "revert-7-alpha")
+    reverted = git("rev-parse", "refs/heads/revert-7-alpha", cwd=origin)
+    assert viewed["headRefOid"] == reverted
+    assert git("rev-parse", f"{reverted}^", cwd=origin) == head
+    assert git("rev-parse", f"{reverted}^{{tree}}", cwd=origin) == git(
+        "rev-parse", f"{green}^{{tree}}"
+    )
+    assert "pr revert https://example.test/pull/7 --body jbus reverts this" in (
+        (gh / "calls.log").read_text().splitlines()
+    )
+
+
 SKILL = REPO / "features" / "verify-jstack" / "project-skill" / "SKILL.md"
 FENCE = re.compile(r"^```sh\n(.*?)^```$", re.M | re.S)
 

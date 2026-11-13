@@ -28,6 +28,12 @@ A sandbox is a stand-in for the machine jstack runs on. Each line below is a set
   The real machine asks GitHub through a signed-in `gh`, gets GitHub's own JSON, and can merge.
 - `fake-gh` answers `gh pr edit <number> --base <branch>` by changing that pull request's `baseRefName` in `gh/open.json`.
   The real machine asks GitHub, which also reruns the pull request's checks against the new base.
+- `fake-gh` answers `gh api repos/{owner}/{repo}/compare/<base>...<head>` with GitHub's `status` alone (`identical`, `ahead`, `behind` or `diverged`), read with git from the sandbox's `origin.git`, and a commit the origin lacks is not found.
+  So a drive that wants a compare answered pushes real commits there, and `gh pr view` of a pull request gives it from `gh/open.json` as `OPEN`, or else from `gh/merged.json` as `MERGED`.
+  The real machine asks GitHub, whose compare also gives the commits and the files between the two.
+- `fake-gh` answers `gh pr revert <address>` of a pull request in `gh/merged.json` by reverting its `mergeCommit` onto its base in `origin.git`, on the branch `revert-<number>-<its branch>`, adding that branch's pull request to `gh/open.json` with the next number and no check yet, and printing its address.
+  It refuses a merge whose revert changes nothing, and a branch already open.
+  The real machine asks GitHub, which makes the revert and its pull request itself, and runs the pull request's checks.
 - `fake_t3.py` is the T3 Code server and takes a token Launch made up and wrote to `config/t3.json`. The real machine signs in with `jbus t3 login`, approved in T3 Code.
 - `fake_t3.py` answers `t3_thread_launch` with a thread id, and makes no worktree and starts no agent. On the real machine T3 Code does both.
 - `fake_t3.py` answers `t3_thread_configure` with what it keeps for the thread: the selection the launch or the last move gave it, or a made-up one, and it moves no run and has no limits of its own.
