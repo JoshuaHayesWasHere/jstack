@@ -223,6 +223,17 @@ def test_a_log_shorter_than_the_mark_is_read_from_its_start(repo):
     assert repo.merge() == [MERGED, WAIT]
 
 
+def test_a_merge_between_two_copies_of_one_wait_line_is_told(repo):
+    """jmerge says the same `wait` line again within a minute, so the log can hold one text twice
+    with a merge between the copies; a home that read up to the first copy is still told it."""
+    (repo.stub / "open").write_text(f"8 {URL}8\n")
+    repo.log(WAIT)
+    assert repo.merge() == [WAIT]
+    repo.log(MERGED, WAIT)
+    assert repo.merge() == [MERGED, WAIT]
+    assert repo.merge() == [WAIT]
+
+
 def test_a_home_is_told_its_own_lines_and_no_other_homes(repo):
     scope = repo.state / "billing"
     scope.mkdir()
