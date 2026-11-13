@@ -10,7 +10,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import clock, stall, work
+from jbus import clock, stall, wakes, work
 from jmerge import judgement, ready
 from test_jbus_expedite import Short, host_unread, later
 from test_jbus_expedite_result import PROVED_MISSING
@@ -256,3 +256,71 @@ def test_a_hold_only_the_users_word_lifts_is_on_jbus_needs_from_its_first_pass_u
         assert needs(kitchen, at=NOW + timedelta(minutes=start + 3)) == [
             "nothing waits on user in any project"
         ]
+
+
+def test_held_wake_once_per_hold_while_its_minutes_count_up(kitchen):
+    """A hold the user's word lifts is on the list of what is open with its minutes, which count
+    up each pass. Its home hears of it once while it stays held, as the wake says, and once more
+    only when it is held anew: it cleared and came back at a new head, or another reason holds
+    it."""
+    short, _ = _twice(kitchen, PROVED_MISSING)
+    short.passes(stall.PASSES)
+
+    def woken():
+        return [
+            line
+            for one in sends(kitchen)
+            if one["clientRequestId"].startswith(f"{wakes.KIND}|")
+            for line in one["message"].splitlines()
+            if line.startswith("- held alpha: ")
+        ]
+
+    def again(reason):
+        """Clear the hold, then hold the row by `reason` at a new head until its crew has had
+        both its tells and the hold is the user's, and a few passes past that."""
+        short.out("")
+        short.passes(2)
+        short.head = short.commit("again")
+        short.out(reason)
+        short.passes(40)
+        for status in ("running", "completed", "running", "completed"):
+            short.thread["status"] = status
+            short.passes(1)
+        short.passes(stall.PASSES + 5)
+
+    first = woken()
+    assert len(first) == 1
+    short.passes(5)
+    assert woken() == first
+    again(PROVED_MISSING)
+    assert len(woken()) == 2 and PROVED_MISSING in woken()[-1]
+    other = ready.PROVED_UNNAMED.format(tests="tests/test_a.py")
+    again(other)
+    assert len(woken()) == 3 and other in woken()[-1]
+
+
+def test_a_held_rows_wake_goes_only_to_the_home_its_brief_names(kitchen):
+    """Alpha's brief says `Home: ui-mockups`, so the hold of its pull request is that home's
+    (`clock.held` files it there), and the wake that names it on the list of what is open goes to
+    that home alone: not to the uncategorized home, nor the root."""
+    short = Short(kitchen)
+    root = home(kitchen)["threadId"]
+    catchall = home(kitchen, "uncategorized")["threadId"]
+    mockups = home(kitchen, "ui-mockups")["threadId"]
+    short.launched = short.launched.replace("Home: uncategorized\n", "Home: ui-mockups\n")
+    assert "Home: ui-mockups\n" in short.launched
+    short.out(PROVED_MISSING)
+    short.passes(40)
+    for status in ("running", "completed"):
+        short.thread["status"] = status
+        short.passes(1)
+    short.passes(stall.PASSES + 3)
+    (hold,) = kept(kitchen)
+    assert (hold["who"], hold["home"]) == ("user", "ui-mockups")
+    to = [
+        one["threadId"]
+        for one in sends(kitchen)
+        if one["clientRequestId"].startswith(f"{wakes.KIND}|")
+        and "\n- held alpha: " in one["message"]
+    ]
+    assert to == [mockups], {"root": root, "uncategorized": catchall, "ui-mockups": mockups}
