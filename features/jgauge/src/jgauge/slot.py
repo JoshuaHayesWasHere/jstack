@@ -45,6 +45,14 @@ The command runs with `JGAUGE_TEST_SLOT` set to its lane, `full` or `short`, so 
 knows a slot is held: a TLC model check in a suite takes no second slot, and cannot wait on the
 one its own suite holds.
 
+It also runs with `PYTEST_XDIST_AUTO_NUM_WORKERS` set to the slot's workers (`workers`), the cores
+its take is capped at. The cap is the take cgroup's `cpu.max` (`jgauge.slotlog`), and the
+command's affinity stays every core of the machine, so `pytest -n auto`, which counts the
+affinity, started 24 workers in a slot of 3 and was throttled in almost every period. A run that
+names its count, as `make test` does with `-n`, keeps it. Nothing else is told the slot's size:
+`PYTHON_CPU_COUNT` or an affinity would change `os.cpu_count` and `nproc`, which code and tests
+under a slot read as the machine's size.
+
 Each slot has a temporary directory of its own on disk, under `/var/tmp` (`SLOTS_ROOT`),
 `jgauge-<uid>/<hash of the lock directory>/test-slot.<n>` (or `test-slot-short.<n>`), and the
 command runs with `TMPDIR` set to it. It is not under `/tmp`, since a suite's basetemp runs to
@@ -97,6 +105,7 @@ STOP_GRACE_SECONDS = 5.0
 TIMED_OUT = 124
 WAITING = 76
 HELD = "JGAUGE_TEST_SLOT"
+AUTO_WORKERS = "PYTEST_XDIST_AUTO_NUM_WORKERS"
 SLOTS_ROOT = Path("/var/tmp")
 
 
@@ -450,7 +459,12 @@ def run(command: list[str], lane: Lane, thread: str = "", wake: list[str] | None
     try:
         child = subprocess.Popen(
             command,
-            env={**os.environ, HELD: name(lane), "TMPDIR": str(own)},
+            env={
+                **os.environ,
+                HELD: name(lane),
+                "TMPDIR": str(own),
+                AUTO_WORKERS: str(workers(lane)),
+            },
             process_group=None if lane.limit is None else 0,
             preexec_fn=watch.announce,
         )

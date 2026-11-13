@@ -40,7 +40,7 @@ def slots(tmp_path):
         "XDG_CONFIG_HOME",
         "JGAUGE_TEST_SLOT",
         "JGAUGE_LOCKS_DIR",
-        "PYTEST_XDIST_AUTO_NUM_WORKERS",
+        slot.AUTO_WORKERS,
     ):
         env.pop(name, None)
     going, taken = [], []
