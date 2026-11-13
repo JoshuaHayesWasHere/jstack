@@ -290,11 +290,11 @@ def test_a_crew_killed_after_its_rebase_landed_leaves_a_record_that_holds_no_lin
     stacked, monkeypatch, left
 ):
     """The crew's push block pushed its rebased head and the crew was killed before
-    `jbus forget`, so `crew-before-rebase` is left in its worktree's git dir. Origin's branch is at
-    that rebased head, so the rebase is done: jbus forgets the record and moves the link. A record
-    whose rebase has not moved the head yet, at the head it names as before the rebase, a rebase
-    git has stopped in, and a record that cannot be read, are a rebase not finished, and hold the
-    link."""
+    `jbus tidy files`, so `crew-before-rebase` is left in its worktree's git dir. Origin's branch is
+    at that rebased head, so the rebase is done: jbus forgets the record and moves the link. A
+    record whose rebase has not moved the head yet, at the head it names as before the rebase, a
+    rebase git has stopped in, and a record that cannot be read, are a rebase not finished, and hold
+    the link."""
     from test_jbus_stack_move import Stack, git, signed
 
     signed(monkeypatch)

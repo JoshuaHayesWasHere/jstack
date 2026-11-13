@@ -205,7 +205,7 @@ def test_a_slug_the_queue_knows_names_no_door_in_a_pass_in_clear_or_in_a_risk(ki
     ]
     (opened,) = second.bodies
     assert [key for key in keys(opened) if key.startswith("gate:")] == ["gate:q2"]
-    code, cleared = kitchen.main("--project", "demo", "clear")
+    code, cleared = kitchen.main("--project", "demo", "tidy", "blockers")
     assert code == 0, cleared
     assert "decision question 2: it names deletes data" in cleared
     assert "decision question 1" not in cleared

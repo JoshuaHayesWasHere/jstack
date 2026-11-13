@@ -39,7 +39,7 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --e
 ```
 
 It writes `PlanScope-statechart/`, labelled by `PlanScope.map.py`, in two regions: the scope, and its entry and fix.
-`PlanScope.chart.cfg` is the chart's scene: one start (each line of the entry as the template writes it), one fix with both head lines, no fix that fails and no run of `jbus clear`, 1443 states where the whole model's are too many to draw.
+`PlanScope.chart.cfg` is the chart's scene: one start (each line of the entry as the template writes it), one fix with both head lines, no fix that fails and no run of `jbus tidy blockers`, 1443 states where the whole model's are too many to draw.
 `states.tsv` and `arrows.tsv` list its 428 states and 1,441 arrows between them, each with its action and its count of model steps.
 They leave out the rest of `PlanScope.cfg`'s 850,500 states: labelling its 1,178,100 before #1791 reached 29.5 GB, more than this machine has free, so `--count-config PlanScope.cfg` has TLC count them, with no graph kept, for the chart's tab, which says the tables leave them out.
 Its one bug story is the one broken rule: the move cut before its carry.

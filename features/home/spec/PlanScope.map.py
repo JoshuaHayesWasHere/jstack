@@ -1,7 +1,7 @@
 # Chart labels for PlanScope: what you see of a plan entry of the scope s, of the scope as its
 # home archives it, and of a fix of one of its blockers, in `jbus plan`, the scope's files and
-# `jbus clear`. The scope's names agree with HomeTreeToday.map.py's: a child is "working" until
-# its plan is archived, then "retired", or "handed to the catch-all" where it had work out.
+# `jbus tidy blockers`. The scope's names agree with HomeTreeToday.map.py's: a child is "working"
+# until its plan is archived, then "retired", or "handed to the catch-all" where it had work out.
 reader_actions = [
     "Restage",
     "BriefEntry",
@@ -35,9 +35,9 @@ BUILDS = {
 }
 CLEAR = {
     "none": "",
-    "fix": "; jbus clear says brief a fix",
-    "wait": "; jbus clear says wait, a fix is at work",
-    "decision": "; jbus clear says it is yours to decide",
+    "fix": "; jbus tidy blockers says brief a fix",
+    "wait": "; jbus tidy blockers says wait, a fix is at work",
+    "decision": "; jbus tidy blockers says it is yours to decide",
 }
 
 
@@ -176,7 +176,7 @@ STEPS = {
     "AddGreen": "the home adds the fix's When green line",
     "Admit": "the home queues the fix, and jbus counts it",
     "FixFails": "the fix's check fails",
-    "Clear": "the home runs jbus clear",
+    "Clear": "the home runs jbus tidy blockers",
     "MoveName": "the home moves the fix to the catch-all: queue move rewrites its Home: line",
     "MoveRead": "the move locks both ledgers and reads them",
     "MoveWriteTo": "the move writes the catch-all's ledger",

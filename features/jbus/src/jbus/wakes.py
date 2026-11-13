@@ -25,7 +25,7 @@ retry of the one before. A home this pass sent `/compact` (`jbus.compact.tell_at
 before this one) is not woken in this pass: the outbox holds the wake (`outbox.busy`), nothing of
 it is recorded as told, and the next pass sends it whole. `wakes.json` is the
 one record of what a home was told, which the view reads too (`state._fixing`). It keeps the line
-of each item open within `KEEP`, with when a pass last had it, which `jbus stale` reads.
+of each item open within `KEEP`, with when a pass last had it, which `jbus tidy stale` reads.
 A fault of a row that the step working the row tells, as a crew's carry-on, is on the list only as
 a cause.
 """

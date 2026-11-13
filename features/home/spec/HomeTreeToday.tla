@@ -105,7 +105,7 @@ GetsStuck(k) ==
 \* work out leaves it with no home.
 Retire(k) ==
     /\ life[k] \in {"working", "stuck"}     \* handoff/SKILL.md `if ! out=$(jbus out --scope "${scope:-.}" 2>&1); then`
-    /\ life' = Set(life, k, IF WorkOut(k) /\ Kept("hand-over") THEN "handed" ELSE "retired")     \* handoff/SKILL.md `! uv run --project "$T/../source" jbus forget "$M/home-id" > /dev/null; then`
+    /\ life' = Set(life, k, IF WorkOut(k) /\ Kept("hand-over") THEN "handed" ELSE "retired")     \* handoff/SKILL.md `! uv run --project "$T/../source" jbus tidy files "$M/home-id" > /dev/null; then`
     /\ Calm(k)
     /\ UNCHANGED <<keeper, starts, failed, launches, work, up, broke, tip, seen, blind, lock, mode>>
 

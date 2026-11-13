@@ -159,7 +159,7 @@ class Retiring:
 
         assert self.does(WHERE, self.child).returncode == 0
         (self.scope / "handoff.next.md").write_text(NOTE)
-        ran = self.does('jbus forget "$M/home-id"', self.child)
+        ran = self.does('jbus tidy files "$M/home-id"', self.child)
         assert (ran.returncode, ran.stderr) == (0, "")
         return [line for line in ran.stdout.splitlines() if not line.startswith("not read:")]
 

@@ -78,9 +78,9 @@ else
         printf 'launch: {"title": "home: %s %s", "workspaceStrategy": {"type": "root"}, "message": "/home %s"}\n' "$(printf '%s' "$R" | sed 's/[\\"]/\\&/g')" "$scope" "$scope"
     else
         if [ -n "$had" ]; then
-            uv run --project "$T/../source" jbus forget "$H/$scope/plan.md" > /dev/null 2>&1
+            uv run --project "$T/../source" jbus tidy files "$H/$scope/plan.md" > /dev/null 2>&1
         else
-            uv run --project "$T/../source" jbus forget --dir "$H/$scope/plan.md" "$H/$scope/prefix" "$H/$scope" > /dev/null 2>&1
+            uv run --project "$T/../source" jbus tidy files --dir "$H/$scope/plan.md" "$H/$scope/prefix" "$H/$scope" > /dev/null 2>&1
         fi
         echo "not made: $H/$scope/plan.md or $H/$scope/prefix could not be written, and what was made is taken back. Nothing is written."
     fi

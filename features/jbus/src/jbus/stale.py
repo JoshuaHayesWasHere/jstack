@@ -1,5 +1,5 @@
-"""`jbus stale --project <p>`: list the state of a project that nothing will act on again. It
-deletes nothing, and writes nothing but its count.
+"""`jbus tidy stale [--project <p>]`: list the state of a project that nothing will act on again.
+It deletes nothing, and writes nothing but its count.
 
 It lists five kinds, a line each, `<kind> <what>: <why>`:
 
@@ -79,8 +79,8 @@ FIELDS = "number,url,headRefName"
 LIMIT = "1000"
 CUT = 100
 LINE = (
-    "jbus stale: {count} stale in {project} ({kinds}): `jbus stale --project {project}` lists "
-    "each, and deletes nothing"
+    "jbus tidy stale: {count} stale in {project} ({kinds}): `jbus tidy stale --project {project}` "
+    "lists each, and deletes nothing"
 )
 NO_GITHUB = "GitHub did not list the open pull requests{why}"
 _TOLD = re.compile(r"^(?:decision|stop) (?:question (\d+)|local ([^ :]+)|jbus): (.+)$")
@@ -484,7 +484,7 @@ def line(project: str, kept: dict[str, Any]) -> str:
 def hourly(half: Half) -> None:
     """Once an hour, remove each stale worktree whose work is saved, run the audit, and keep its
     count. It lists the open pull requests as the verb
-    does, and not the pass's last hundred, so the count is what `jbus stale` prints."""
+    does, and not the pass's last hundred, so the count is what `jbus tidy stale` prints."""
     run, hour = half.run, int(half.run.now.timestamp() // HOUR)
     if read(run.state).get("hour") == hour:
         return
@@ -502,7 +502,8 @@ def hourly(half: Half) -> None:
     write_json(run.state / NAME, kept)
 
 
-def _stale(args: argparse.Namespace, config: jbus.Config) -> int:
+def tidy(args: argparse.Namespace, config: jbus.Config) -> int:
+    """`jbus tidy stale`: print each stale thing, what was not judged, and the count."""
     run = passes.Pass(config, verbs.project(config, args.project), verbs.clock())
     try:
         client = Client(config.server, config.token_path)
@@ -518,20 +519,4 @@ def _stale(args: argparse.Namespace, config: jbus.Config) -> int:
     return 0
 
 
-def _arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "--project",
-        default=argparse.SUPPRESS,
-        help="the project's name in the config, when it has several",
-    )
-
-
-VERBS = (
-    verbs.Verb(
-        "stale",
-        "list the briefs, worktrees, holds, told lines and home-ids nothing will act on again",
-        _arguments,
-        _stale,
-    ),
-)
 STEPS = (verbs.Step("close", 26, "stale.hourly", hourly, ("sight", "client", "budget")),)

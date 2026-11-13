@@ -6,7 +6,7 @@ A blocker is one thing that holds a home's work up, named by a key: an open ques
 changed past its code's bound (`wait:<slug>`, `jbus.aged`), whoever owns the code: the backstop
 for a wait no step has a remedy for, as a run GitHub keeps queued. A check that was only
 cancelled, which jbus runs again and has not yet told the home of (`cancelled.owns`), is no blocker.
-`jbus clear` is what a home runs each time it wakes. It reads only what jbus keeps
+`jbus tidy blockers` is what a home runs each time it wakes. It reads only what jbus keeps
 (`questions.json`, `queue.json`, `waits.jsonl`, `cancelled.json`), asks no service, and prints one
 line for each blocker of that home:
 
@@ -48,10 +48,10 @@ A decision is the one event of the kind `decision`, at `user`, for each key: `de
 the key `decision|<key>`, which names no slug, so whoever raises the same blocker again sends
 nothing. An item of the list of what waits is raised once for each time it is on the list: its key
 holds the item's `since`, so a hold or an approval that leaves the list and comes back is raised
-again. A blocker at its cap is `blocker:<key>`, the same from `admit` and `jbus clear`. Its line
-ends with `Reply: <hint>` (`reply`): the user replies in their own words, which go to the home as
-the user's word (`jbus word`), and the home turns them into a verb. No line gives the user words
-to send. A pass raises one for each item of the list of what waits that the user
+again. A blocker at its cap is `blocker:<key>`, the same from `admit` and `jbus tidy blockers`.
+Its line ends with `Reply: <hint>` (`reply`): the user replies in their own words, which go to
+the home as the user's word (`jbus word`), and the home turns them into a verb. No line gives the
+user words to send. A pass raises one for each item of the list of what waits that the user
 has to decide (`needs`): a question or a gate that holds, has no default or names one of
 `party.PAUSE`, a go gate whose silence starts nothing, a row to approve, a pull request `jmerge`
 holds, and a config item. `jbus decide` raises one by hand, for a scope change. A project's first
@@ -269,9 +269,9 @@ def rehome(home: Path, slug: str, text: str) -> None:
 
 def retire(scope: Path) -> list[str]:
     """Archive a scoped home's plan, `plan.md` to `plan-archived.md`, and carry each try its
-    `blockers.json` counts to the catch-all's ledger, which admit and `jbus clear` read for every
-    brief that named the scope once its plan is archived. It holds both homes' locks from its read
-    to its last write, so no admit counts a fix in the scope between the carry and the archive.
+    `blockers.json` counts to the catch-all's ledger, which admit and `jbus tidy blockers` read for
+    every brief that named the scope once its plan is archived. It holds both homes' locks from its
+    read to its last write, so no admit counts a fix in the scope between the carry and the archive.
     It writes the catch-all's ledger, then archives the plan, then empties the scope's ledger,
     each from what the two ledgers hold: run again after it was cut short anywhere, it carries
     what is left, and each try once, by its sha. Return a line for each key it carried."""
@@ -561,7 +561,7 @@ def _raise(half: Half) -> None:
 
 @dataclass(frozen=True)
 class Directory:
-    """The home whose blockers `jbus clear` reads: its directory, and its own slug."""
+    """The home whose blockers `jbus tidy blockers` reads: its directory, and its own slug."""
 
     root: Path
     path: Path
@@ -679,8 +679,8 @@ def _rows(run: Pass, home: Directory) -> list[str]:
     return said
 
 
-def _clear(args: argparse.Namespace, config: Config) -> int:
-    """`jbus clear`: clear this home's blockers, and say what is left to do with each."""
+def tidy(args: argparse.Namespace, config: Config) -> int:
+    """`jbus tidy blockers`: clear this home's blockers, and say what is left to do with each."""
     project = verbs.here(config, args.project)
     run = Pass(config, project, verbs.clock())
     root = config.home(project)
@@ -706,10 +706,6 @@ def _decide(args: argparse.Namespace, config: Config) -> int:
     return 0
 
 
-def _clears(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--scope", help="the scoped home whose blockers these are")
-
-
 def _decides(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("slug")
     parser.add_argument("--question", required=True, help="what the user has to decide")
@@ -721,7 +717,6 @@ def _decides(parser: argparse.ArgumentParser) -> None:
 
 
 VERBS = (
-    verbs.Verb("clear", "clear this home's blockers, and say what is left", _clears, _clear),
     verbs.Verb("decide", "raise a decision for the user, as a scope change", _decides, _decide),
     verbs.Verb(
         "retire",

@@ -1,5 +1,5 @@
-"""`jbus forget` deletes a file of the homes' state or of the repo's git dir, and refuses any other
-path before it deletes anything. The tests run the command as a skill's step does."""
+"""`jbus tidy files` deletes a file of the homes' state or of the repo's git dir, and refuses any
+other path before it deletes anything. The tests run the command as a skill's step does."""
 
 import os
 import subprocess
@@ -9,14 +9,14 @@ import pytest
 
 @pytest.fixture
 def forget(tmp_path):
-    """Run `jbus forget` in a repo of its own, with the homes' state at `state`."""
+    """Run `jbus tidy files` in a repo of its own, with the homes' state at `state`."""
     state, repo = tmp_path / "state", tmp_path / "repo"
     state.mkdir()
     subprocess.run(["git", "init", "-q", repo], check=True)
 
     def run(*args, cwd=repo):
         ran = subprocess.run(
-            ["jbus", "forget", *map(str, args)],
+            ["jbus", "tidy", "files", *map(str, args)],
             cwd=cwd,
             env={**os.environ, "JBUS_HOME_DIR": str(state)},
             capture_output=True,
@@ -100,3 +100,10 @@ def test_a_directory_goes_only_with_dir_and_only_when_empty(forget):
 def test_outside_a_repo_only_the_state_is_inside(forget):
     (forget.state / "x").write_text("")
     assert forget(forget.state / "x", cwd=forget.outside)[0] == 0
+
+
+def test_no_path_is_a_usage_error_that_ends_2_and_deletes_nothing(forget):
+    (forget.state / "x").write_text("")
+    code, out, err = forget()
+    assert (code, out) == (2, []) and "the following arguments are required: path" in err[-1]
+    assert (forget.state / "x").exists()

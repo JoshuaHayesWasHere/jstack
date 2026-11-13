@@ -21,7 +21,7 @@ def home(tmp_path, monkeypatch):
 
 def hands_off(home, thread):
     """Step 3 of the handoff, archive, run by `thread` with the block at the top."""
-    found = block("handoff", 'jbus forget "$M/home-id"').replace("<threadId>", thread)
+    found = block("handoff", 'jbus tidy files "$M/home-id"').replace("<threadId>", thread)
     return home.sh(f"{paths('handoff')}\n{found}", home.main)
 
 

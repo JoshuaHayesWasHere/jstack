@@ -554,7 +554,7 @@ def test_a_check_told_cancelled_twice_that_then_passes_at_the_same_head_leaves_t
 
 
 def blockers(kitchen):
-    code, said = kitchen.main("--project", "demo", "clear")
+    code, said = kitchen.main("--project", "demo", "tidy", "blockers")
     assert code == 0, said
     return said.strip()
 
@@ -564,7 +564,7 @@ def test_a_cancelled_check_jbus_runs_again_is_no_blocker_jbus_clear_asks_a_fix_f
     launched, conclusion
 ):
     """FlowBlockers' OneOwnerPerCancel: in the pass that runs a cancelled check again, the home's
-    `jbus clear` briefs no fix of it, and spends no try of the retry cap."""
+    `jbus tidy blockers` briefs no fix of it, and spends no try of the retry cap."""
     (launched.home / "home-id").write_text("mcp:home\n")
     ran(launched)
     launched.set("open.json", [pull(launched, [cancelled(conclusion)])])

@@ -21,7 +21,7 @@ Fixes == {"f1", "f2"}
 Briefs == {"b"} \cup Fixes
 
 VARIABLES
-  \* A-168, the kind of the line `jbus clear` last printed for the blocker b: "none" before a
+  \* A-168, the kind of the line `jbus tidy blockers` last printed for the blocker b: "none" before a
   \* run, "fix", "wait" or "decision". It lives in no file: it is what the home read. Written by
   \* jbus/blockers.py `said.append(f"wait {key}: {', '.join(at_work)} is at work on it")`, by
   \* jbus/blockers.py `said.append(f"wait {key}: {merged}, and {slug} has not been judged since")`,
@@ -56,7 +56,7 @@ VARIABLES
   \* C-074, the scope's handoff.next.md, the note the home writes before it archives:
   \* "none" or "written". The archive reads it from handoff/SKILL.md `note=$M/handoff.next.md`
   \* and removes it last, by
-  \* handoff/SKILL.md `if [ -f "$note" ]; then uv run --project "$T/../source" jbus forget "$note" > /dev/null; fi`.
+  \* handoff/SKILL.md `if [ -f "$note" ]; then uv run --project "$T/../source" jbus tidy files "$note" > /dev/null; fi`.
   next,
   \* C-081, each home's blockers.json: the fixes counted for the key check:b, written by
   \* jbus/blockers.py `kept[key] = [*had, {"slug": slug, "sha": sha, "at": at}]` (admit), by
@@ -300,7 +300,7 @@ RetireDies ==
   /\ UNCHANGED <<ledger, plan>> /\ UNCHANGED retireKeeps /\ UNCHANGED archiveKeeps
   /\ UNCHANGED entry
 
-\* handoff/SKILL.md `! uv run --project "$T/../source" jbus forget "$M/home-id" > /dev/null; then`
+\* handoff/SKILL.md `! uv run --project "$T/../source" jbus tidy files "$M/home-id" > /dev/null; then`
 \* It runs once `jbus retire` ended well: the plan is archived and s's ledger is empty.
 ForgetId ==
   /\ Retiring /\ logged = "kept" /\ handoff = "none" /\ plan = "archived" /\ homeId = "me"
@@ -345,7 +345,7 @@ FixFails(t) ==
   /\ UNCHANGED <<clear, ledger, lock, home, fixOf, admitted, mpc, seenTo, seenWas>>
   /\ UNCHANGED entry /\ UNCHANGED scope
 
-\* The home runs `jbus clear`, which counts the tries in the ledger of the blocker's home,
+\* The home runs `jbus tidy blockers`, which counts the tries in the ledger of the blocker's home,
 \* jbus/blockers.py `had = tries(homes.home_of(home.root, texts[slug]), key)`, and says decision
 \* at the cap, jbus/blockers.py `elif len(had) >= cap:`.
 Clear ==
@@ -459,7 +459,7 @@ FixCountedWhereReadOrMoveAgain ==
 
 ----
 \* The chart's scene, PlanScope.chart.cfg: each line of the entry as the template writes it, one
-\* fix f1 with both its head lines, no fix that fails and no run of `jbus clear`, so the chart
+\* fix f1 with both its head lines, no fix that fails and no run of `jbus tidy blockers`, so the chart
 \* shows the entry, the scope and the fix's ledger and stays small enough to read.
 ChartInit ==
   /\ Init /\ stage = "buildable" /\ typed = "absent" /\ buildsOn = "none"

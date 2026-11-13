@@ -94,7 +94,7 @@ The expert's canaries above put each fault back.
    2. The next start finds its own webhook kept and does nothing.
 
    The address can never be had again, so nothing outside the thread can ask the expert.
-   A stop between the write of `webhook` and `jbus forget` instead leaves the address of the webhook that was deleted.
+   A stop between the write of `webhook` and `jbus tidy files` instead leaves the address of the webhook that was deleted.
 4. **A takeover that stops after the rebind leaves a record that names the wrong thread** (`OneWebhook`).
    1. Thread 2 takes over: `update_scheduled_task` binds the webhook to thread 2.
    2. The turn stops before the block that rewrites `webhook` as `<id> thread-2`.

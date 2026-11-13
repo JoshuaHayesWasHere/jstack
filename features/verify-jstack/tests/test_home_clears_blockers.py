@@ -1,8 +1,8 @@
 """A home clears its own blockers, and only what Josh has to decide reaches the home thread.
 
 Each test drives the real commands in a verify-jstack sandbox, as a home types them: `jbus gate`,
-`jbus clear`, `jbus queue add` and `jbus poll`. The stand-in for T3 Code keeps every wake it is
-sent in `t3/wake.jsonl`, and that file is what a test reads to say what reached Josh.
+`jbus tidy blockers`, `jbus queue add` and `jbus poll`. The stand-in for T3 Code keeps every wake it
+is sent in `t3/wake.jsonl`, and that file is what a test reads to say what reached Josh.
 """
 
 import contextlib
@@ -180,7 +180,7 @@ def test_a_gate_the_user_need_not_decide_is_closed_by_the_pass_with_no_event(dem
         run(demo, "jbus gate alpha", GATE).stdout == "asked: queued: question 1\nGate: question 1\n"
     )
 
-    cleared = run(demo, "jbus clear")
+    cleared = run(demo, "jbus tidy blockers")
     polled = run(demo, "jbus poll")
 
     assert cleared.returncode == 0, cleared.stderr
@@ -192,7 +192,7 @@ def test_a_gate_the_user_need_not_decide_is_closed_by_the_pass_with_no_event(dem
     assert record["answer"]["closed_by"] == "silence"
     assert not (demo.parent / "home" / ".local" / "state" / "home" / "demo" / "gates.md").exists()
     assert posted(demo) == []
-    assert "question 1" not in run(demo, "jbus clear").stdout
+    assert "question 1" not in run(demo, "jbus tidy blockers").stdout
 
 
 def test_a_red_check_gets_a_fix_row_with_no_event(demo):
@@ -202,7 +202,7 @@ def test_a_red_check_gets_a_fix_row_with_no_event(demo):
     run(demo, '"$VERIFY_JSTACK_SCRIPTS/open-pull.sh" beta src/beta/a.py FAILURE')
     run(demo, "jbus poll")
 
-    cleared = run(demo, "jbus clear")
+    cleared = run(demo, "jbus tidy blockers")
     added = run(demo, "jbus queue add beta-fix --priority 1", fix("beta-fix", "check:beta"))
     ruled = run(demo, "jbus queue approve beta-fix --rule 1 --follows beta")
     run(demo, "jbus poll")
@@ -222,7 +222,7 @@ def test_a_gate_josh_has_to_decide_reaches_the_home_thread_once_from_the_one_lis
     )
 
     run(demo, "jbus poll")
-    cleared = run(demo, "jbus clear")
+    cleared = run(demo, "jbus tidy blockers")
     run(demo, "jbus gate alpha", HOLDS)
     run(demo, "jbus poll")
 
@@ -314,13 +314,13 @@ def test_a_stuck_row_and_then_its_leftover_each_get_a_fix_line_with_no_event(dem
     launched(demo, "lam")
     end_thread(demo, "lam", "idle")
     run(demo, "jbus poll")
-    stuck = run(demo, "jbus clear").stdout
+    stuck = run(demo, "jbus tidy blockers").stdout
     end_thread(demo, "lam", "completed")
     tasks = demo.parent / "home" / ".local" / "state" / "home" / "demo" / "tasks"
     result = "\n## Result\nStatus: done\nBranch: lam   Pull request: none\nLeft: the docs page\n"
     (tasks / "lam.md").write_text((tasks / "lam.md").read_text() + result)
     run(demo, "jbus poll")
-    left = run(demo, "jbus clear").stdout
+    left = run(demo, "jbus tidy blockers").stdout
 
     assert stuck.startswith(
         'fix row:lam: it was refused or is stuck, brief a fix whose head has "Fix'
@@ -340,10 +340,10 @@ def test_a_fix_at_work_is_waited_on_one_removed_unrun_gives_its_try_back_and_a_c
     for slug in ("mu-fix-1", "mu-fix-2"):
         added = run(demo, f"jbus queue add {slug} --priority 1", fix(slug, "row:mu"))
         assert added.returncode == 0, added.stdout + added.stderr
-    waits = run(demo, "jbus clear").stdout
+    waits = run(demo, "jbus tidy blockers").stdout
     for slug in ("mu-fix-1", "mu-fix-2"):
         assert remove(demo, slug).returncode == 0
-    freed = run(demo, "jbus clear").stdout
+    freed = run(demo, "jbus tidy blockers").stdout
     for slug in ("mu-fix-3", "mu-fix-4"):
         added = run(demo, f"jbus queue add {slug} --priority 1", fix(slug, "row:mu"))
         assert added.returncode == 0, added.stdout + added.stderr
@@ -415,8 +415,8 @@ def test_a_scoped_home_raises_its_own_gates_and_not_the_root_s(demo):
     (state / "tasks" / "alpha.md").write_text("# alpha: a demo task\nHome: s\n")
     run(demo, "jbus gate alpha", HOLDS)
 
-    root = run(demo, "jbus clear").stdout
-    scoped = run(demo, "jbus clear --scope s").stdout
+    root = run(demo, "jbus tidy blockers").stdout
+    scoped = run(demo, "jbus tidy blockers --scope s").stdout
 
     assert "question 1" not in root
     assert scoped.startswith("decision question 1: it holds (deletes data)")
@@ -452,9 +452,9 @@ def test_a_fix_whose_own_check_failed_is_not_at_work_and_the_next_try_then_the_c
     end_thread(demo, "rho", "idle")
 
     red_fix(demo, "rho-fix", "check:rho", "src/rho/b.py")
-    second = run(demo, "jbus clear").stdout
+    second = run(demo, "jbus tidy blockers").stdout
     red_fix(demo, "rho-fix-2", "check:rho", "src/rho/c.py")
-    capped = run(demo, "jbus clear").stdout
+    capped = run(demo, "jbus tidy blockers").stdout
     run(demo, "jbus poll")
 
     assert second.startswith("fix check:rho: its check failed, brief a fix"), second

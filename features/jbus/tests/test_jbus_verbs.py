@@ -207,8 +207,8 @@ def test_help_imports_the_module_of_no_verb_and_a_verb_s_help_imports_its_own():
 
 
 def test_a_verb_that_runs_with_no_error_imports_no_t3(tmp_path):
-    ran = loaded_by(["forget", str(tmp_path / "outside")])
-    assert "jbus.forget" in ran
+    ran = loaded_by(["tidy", "files", str(tmp_path / "outside")])
+    assert "jbus.tidy" in ran
     assert "jbus.t3" not in ran
 
 

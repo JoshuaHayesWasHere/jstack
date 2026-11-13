@@ -19,10 +19,10 @@ said=$(uv run --project "$T/../source" jgauge room --light --wait 540) || [ "$?"
 if [ "$said" != go ]; then
   printf '%s\n' "$said"
   [ "$(command grep -c . "$W")" -lt 6 ] && exit 75
-  uv run --project "$T/../source" jbus forget "$W" > /dev/null
+  uv run --project "$T/../source" jbus tidy files "$W" > /dev/null
   exit 69
 fi
-uv run --project "$T/../source" jbus forget "$W" > /dev/null
+uv run --project "$T/../source" jbus tidy files "$W" > /dev/null
 the_scope() {
     cat <<'SCOPE'
 Scope of this review. It overrides anything above that reads wider.

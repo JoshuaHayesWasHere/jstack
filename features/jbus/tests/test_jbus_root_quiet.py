@@ -107,7 +107,7 @@ def test_the_seven_day_mix_wakes_the_root_of_its_one_way_doors_alone(kitchen):
     every = [line for thread in (root, catchall, pantry) for line in items(kitchen, thread)]
     assert not [line for line in every if line.startswith("- approve ")]
     quiet = json.loads(config.status_path.read_text())["projects"]["demo"]["quiet"]
-    assert [line for line in quiet if line.startswith("jbus stale: ")]
+    assert [line for line in quiet if line.startswith("jbus tidy stale: ")]
 
 
 @pytest.mark.parametrize(

@@ -51,7 +51,7 @@ else
             echo "the rebase stopped: resolve these, then git rebase --continue"
             git diff --name-only --diff-filter=U
         else
-            uv run --project "$T/../source" jbus forget "$G/crew-before-rebase" > /dev/null
+            uv run --project "$T/../source" jbus tidy files "$G/crew-before-rebase" > /dev/null
             echo "the rebase did not start: no rebase"
             echo "$said"
         fi

@@ -32,7 +32,7 @@ Run it in a copy of this folder, since TLC writes `states/` where it runs.
 `-deadlock` is there because a crew at its last head can have no step left.
 Today's code holds `ProofAtHead` and breaks `RebaseRecorded`, and `CrewProof.cfg` keeps the trace TLC prints, `RecordGoes`'s, and the trace of each rule alone:
 
-- `RecordGoes`: the rebase's push lands and the block is killed before `jbus forget`: `crew-before-rebase` stays, and jbus's `_busy` (`jbus/stack.py`) refuses to move the link of a stack over it, "has a rebase of its own not finished", until a run of the push block, which git takes as up to date, removes it.
+- `RecordGoes`: the rebase's push lands and the block is killed before `jbus tidy files`: `crew-before-rebase` stays, and jbus's `_busy` (`jbus/stack.py`) refuses to move the link of a stack over it, "has a rebase of its own not finished", until a run of the push block, which git takes as up to date, removes it.
 
 `ReviewHeld`, `OneScopedReviewer` and `RecordKept` hold over 681,275 distinct states with MaxHead 2: a crew killed between the launch and its `Scoped reviewer:` line finds the reviewer by its mark and writes the line, so no state has a second reviewer for the same round.
 `ProvedAtHead` holds there too, with calls in the background: `proved.sh` runs the head's side in a checkout of the head it began at, as it runs the base's in a copy, and writes no `Proved:` line where HEAD moved or the worktree is dirty at its end.

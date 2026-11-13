@@ -2,9 +2,9 @@
 
 `jbus queue add` counts a fix into the `blockers.json` of the brief's home, and `jbus queue remove`
 of a fix row that never launched gives that try back: the fix did no work. A fix that launched stays
-counted when its row is removed. Once the key had its cap, `jbus clear` raises it to the user as a
-decision whose `Reply:` is a plain hint (`jbus.blockers`), but not while the key's last fix has
-merged and the blocker has not been judged since: the merged fix may be what clears it. Like
+counted when its row is removed. Once the key had its cap, `jbus tidy blockers` raises it to the
+user as a decision whose `Reply:` is a plain hint (`jbus.blockers`), but not while the key's last
+fix has merged and the blocker has not been judged since: the merged fix may be what clears it. Like
 `test_jbus_queue.py`, the tests run the real commands and the real pass
 against a faked T3 Code server, `gh` and `jmerge`, on rows a pass would have written.
 """
@@ -71,7 +71,7 @@ def counted(kitchen, key):
 
 
 def cleared(kitchen):
-    code, said = kitchen.main("--project", "demo", "clear")
+    code, said = kitchen.main("--project", "demo", "tidy", "blockers")
     assert code == 0, said
     return said
 
@@ -129,7 +129,7 @@ def pull(kitchen, slug, number, ran=None, conclusion="FAILURE"):
 
 def merged_after_one_ran(kitchen, launched_first):
     """Through passes: beta's check fails on #7, beta-fix-1 is queued and removed, launched first
-    or not, and beta-fix-2 merges as #8 40 minutes before now. Return what `jbus clear` says
+    or not, and beta-fix-2 merges as #8 40 minutes before now. Return what `jbus tidy blockers` says
     then."""
     add(kitchen, "beta")
     kitchen.t3.thread("beta", "idle", idle=timedelta(hours=2))

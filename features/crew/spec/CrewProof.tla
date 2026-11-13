@@ -83,7 +83,7 @@ VARIABLES
     \* D-126: $G/crew-before-rebase, the head before the rebase and the head the pull request had
     \* at GitHub, at 0 where there is none:
     \* crew/a-conflict.md `echo "$before $base $pushed" > "$G/crew-before-rebase"`, removed by
-    \* crew/a-conflict.md `uv run --project "$T/../source" jbus forget "$G/crew-before-rebase" > /dev/null echo "pushed $(git rev-parse HEAD) over $pushed"`.
+    \* crew/a-conflict.md `uv run --project "$T/../source" jbus tidy files "$G/crew-before-rebase" > /dev/null echo "pushed $(git rev-parse HEAD) over $pushed"`.
     before,
     \* D-127: the heads kept under refs/jstack/pre-rebase/<slug>/<sha12>, never removed by a block:
     \* crew/a-conflict.md `elif ! git update-ref "refs/jstack/pre-rebase/<slug>/$(git rev-parse --short=12 HEAD)" HEAD; then echo "could not keep the head under refs/jstack/pre-rebase: no rebase" else before=$(git rev-parse HEAD)`.
@@ -648,7 +648,7 @@ RebasePush ==
     /\ origin' = head /\ rebased' = FALSE /\ pc' = "pushed"
     /\ UNCHANGED <<before, preRef, head, lost, dropped, conflict>> /\ Unchanged_rebase
 
-\* crew/a-conflict.md `then uv run --project "$T/../source" jbus forget "$G/crew-before-rebase" > /dev/null echo "pushed`
+\* crew/a-conflict.md `then uv run --project "$T/../source" jbus tidy files "$G/crew-before-rebase" > /dev/null echo "pushed`
 Forget ==
     /\ pc = "pushed" /\ before' = None /\ pc' = "idle"
     /\ UNCHANGED <<preRef, head, origin, rebased, lost, dropped, conflict>> /\ Unchanged_rebase

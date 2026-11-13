@@ -345,13 +345,13 @@ def test_nohome_switches_a_repo_off_and_on_before_any_home_has_started_there(sce
     assert not scene.home_dir.exists()
     scene.run("nohome", block("nohome", "touch"))
     assert scene.start() == ""
-    scene.run("nohome", block("nohome", 'jbus forget "$H/off"'))
+    scene.run("nohome", block("nohome", 'jbus tidy files "$H/off"'))
     assert scene.start() == scene.said(first=True)
     scene.run("nohome", block("nohome", "touch"))
     scene.run("nohome", block("nohome", "touch"))
     assert scene.start() == ""
-    scene.run("nohome", block("nohome", 'jbus forget "$H/off"'))
-    scene.run("nohome", block("nohome", 'jbus forget "$H/off"'))
+    scene.run("nohome", block("nohome", 'jbus tidy files "$H/off"'))
+    scene.run("nohome", block("nohome", 'jbus tidy files "$H/off"'))
     assert scene.start() == scene.said(first=True)
 
 

@@ -133,7 +133,7 @@ A reply jbus refuses (not the user's own, said before the ask, or to an ask that
 A row this home would advise against is none: never pass on jbus's `approve` line for it.
 Remove it with `jbus queue remove <slug> --message <thread id>/<message id>` on the user's standing word for such rows (Josh, 2026-11-07), its id from `jbus thread --said 'just drop it in the future'`.
 Then write `handled: dropped <slug>: <why>`, and say the same where you list what waits on the user.
-A blocker `jbus clear` prints as `decision` is jbus's own, and its wake brings it: write no line for it until then.
+A blocker `jbus tidy blockers` prints as `decision` is jbus's own, and its wake brings it: write no line for it until then.
 A wait, a hold and a stalled thread are no stop while jbus or a thread is at work on them: jbus lists each on "Needs you".
 Rows held by one reason that no thread works on for 30 minutes are a stop: jbus wakes their home once with the reason, the rows and the hold's age, and lists the hold on "Needs you" until it clears or a thread takes it up.
 

@@ -15,7 +15,7 @@ if [ "$M" != "$H" ]; then scope="--scope $(basename "$M")"; fi
 if ! command -v jbus > /dev/null; then
     echo "no jbus: jbus is not installed here, so nothing is cleared"
 else
-    jbus clear $scope 2>&1
+    jbus tidy blockers $scope 2>&1
 fi
 ```
 
@@ -46,7 +46,7 @@ A refused or stuck row is fixed and queued again the same way: its fix brief nam
 Each blocker has a retry cap, `retry_cap` in `~/.config/jstack/config.toml` (2 with none).
 jbus counts each fix brief queued for a key in `blockers.json` in this home's directory, and a fix whose own check fails is the same blocker again, not a new one.
 A fix row taken out before it launched, by this home's `jbus queue withdraw` or the user's `jbus queue remove`, gives its try back, and one that launched stays counted.
-When a key has had its cap, `jbus queue add` refuses the next fix and raises the key as a decision instead (`refused: <key> had <n> fixes`), and `jbus clear` prints it as `decision`.
+When a key has had its cap, `jbus queue add` refuses the next fix and raises the key as a decision instead (`refused: <key> had <n> fixes`), and `jbus tidy blockers` prints it as `decision`.
 Then stop: queue no fix of it under another key and another slug. The user's reply says what happens next.
 
 **Raise one by hand** only for what the user has to decide and no line above raises: a scope change, work the plan the user approved does not hold.
