@@ -96,6 +96,13 @@ _TOTAL = re.compile(r"^MemTotal:\s+(\d+)\s+kB", re.M)
 KIB_PER_GIB = 1024 * 1024
 
 
+def online_cores(proc: Path) -> int:
+    """The machine's online processors, the `cpuN` lines of `proc`'s `stat`, or 0 where it
+    cannot be read. Neither a cgroup's CPU quota nor the caller's affinity changes it, as
+    each changes `nproc` and `os.sched_getaffinity`: room.sh counts the same lines."""
+    return len(_CPU.findall(_read(proc / "stat")))
+
+
 class Name(StrEnum):
     """A machine size, by the key it has in its local home."""
 
@@ -143,7 +150,7 @@ class Machine:
             memory = memory // (KIB_PER_GIB * 1024) if memory else None
         else:
             root = proc or Path(os.environ.get("PROC") or "/proc")
-            cores = len(_CPU.findall(_read(root / "stat")))
+            cores = online_cores(root)
             total = _TOTAL.search(_read(root / "meminfo"))
             memory = int(total[1]) // KIB_PER_GIB if total else None
         fell: list[str] = []

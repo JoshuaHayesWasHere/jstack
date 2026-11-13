@@ -53,7 +53,8 @@ Preconditions:
 ## Gotchas
 
 - `jgauge room` exits 0 for `go` and for `wait:`. Read the line.
-- The core count is the real machine's (`nproc`). Use a load no machine has room for, like `999.00`, so the recipe holds everywhere.
+- The core count is the real machine's online processors: the sandbox's `PROC` has no `stat`, so `jgauge room` asks `getconf _NPROCESSORS_ONLN`.
+  Use a load no machine has room for, like `999.00`, so the recipe holds everywhere.
 - Without `PROC` and `LIMITS` set, `jgauge room` reads the real machine and the real plan. Doctor checks both point into the sandbox.
 - A limit whose reset time has passed counts as not known. Write the reset as a time ahead of now, as `launch.sh` does.
 - `record` keeps stdout and stderr together, so the `note:` line is in the evidence beside `go`.
