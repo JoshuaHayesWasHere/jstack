@@ -6,6 +6,10 @@ pushed the redo. The row stayed `merged`, so jbus launched no review of the redo
 #1872 as a row that is over ("its queue row is merged, and a row that is over waits for no merge:
 accept it to merge it") until the root accepted it by hand.
 
+The row's first merge was reviewed, as a row whose brief asks for a review is, so its redo's review
+launches only because `jbus.prereview.since` reads the brief from the Result that names the merge
+taken back on. A redo whose own merge is reverted opens the row again the same way.
+
 Like `test_jbus_prereview.py`, the tests run the real pass against the kitchen's fakes, with a real
 origin, over a row jbus launched, and read the reason jmerge gives a pull request from the queue
 the pass wrote (`jmerge.rows.short`). The row keeps the merge the revert took back in its
