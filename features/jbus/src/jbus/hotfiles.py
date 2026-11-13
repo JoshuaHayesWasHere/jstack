@@ -9,6 +9,14 @@ launches on the first pass after that row merged, ended or was removed. Only the
 changes: no check, review or merge guard does, and no finished work waits on a lock, since a
 pull request that is open already is never held.
 
+When the file frees, the row held on it longest takes it, not the row the queue reaches first:
+the queue launches by priority, so rows queued later at a better priority took robotica's
+src/main.ts each time it freed while its oldest waiters sat 9.6 h (#1834). `HOLDS` keeps when the
+hold first held each row, which a row's `since` cannot, since that moves each time the row it
+waits on changes; `first` names the row that goes ahead, and `keep` writes the ledger at the end of
+the pass. A row keeps its time while it waits on anything, and drops it once it launches, is gated
+or is gone, so an older row that cannot launch for another reason holds no one back.
+
 A file is hot once it was in `TIMES` or more conflicts in the `WINDOW` before the pass. The
 `rebase` event names a head, in the backup ref of its message (`rebase.MESSAGE`), and not the
 files: `conflicted` asks git which files the head conflicted in with main as it was when the event
@@ -49,9 +57,10 @@ from typing import Any
 
 from jbriefs import parse, paths
 from jbus import read_json, wake, write_json
-from jbus.passes import Pass
+from jbus.passes import Hot, Pass
 
 LEDGER = "hot-files.json"
+HOLDS = "hot-holds.json"
 WINDOW = timedelta(days=7)
 TIMES = 3
 MOST = 2000
@@ -104,6 +113,49 @@ def holder(
             if names(where, file):
                 return file, slug
     return None
+
+
+def holds(run: Pass) -> dict[str, datetime]:
+    """When the hold first held each row that still waits, by slug (`HOLDS`)."""
+    kept = read_json(run.state / HOLDS, {})
+    found = {}
+    for slug, at in kept.items() if isinstance(kept, dict) else ():
+        with contextlib.suppress(TypeError, ValueError):
+            found[slug] = datetime.fromisoformat(at)
+    return found
+
+
+def first(
+    run: Pass, slug: str, brief: str, held: Mapping[str, datetime], waiting: Mapping[str, str]
+) -> str | None:
+    """The row of `waiting`, by slug with its brief, that a hot file this brief names was held for
+    since before it held `slug`, the one held longest, or None. `waiting` is the rows the pass
+    has still to read, so one that waits for something else this pass holds no row back."""
+    mine = parse.where(brief)
+    files = [file for file in hot(run) if names(mine, file)]
+    since = held.get(slug)
+    older = [
+        (held[other], other)
+        for other, text in waiting.items()
+        if other in held
+        and other != slug
+        and (since is None or held[other] < since)
+        and any(names(parse.where(text), file) for file in files)
+    ]
+    return min(older)[1] if older else None
+
+
+def keep(run: Pass, held: Mapping[str, datetime]) -> None:
+    """Write `HOLDS` at the end of the pass: each row the hold held this pass, from when it was
+    first held, and each row it held before that waits on anything else this pass."""
+    made = {
+        slug: (held.get(slug) or run.now).isoformat()
+        for slug, reason in sorted(run.reasons.items())
+        if isinstance(reason, Hot) or slug in held
+    }
+    if made != {slug: at.isoformat() for slug, at in held.items()}:
+        with contextlib.suppress(OSError):
+            write_json(run.state / HOLDS, made, indent=None)
 
 
 def _count(run: Pass) -> frozenset[str]:
