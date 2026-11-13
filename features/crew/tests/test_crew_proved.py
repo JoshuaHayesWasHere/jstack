@@ -450,6 +450,10 @@ def test_a_branch_that_changes_tests_with_docs_and_config_runs_them_at_the_head_
             "pyproject.toml": "[project]\n",
             ".github/workflows/ci.yml": "on: push\n",
             ".gitignore": "*.pyc\n",
+            "go.mod": "module calc\n",
+            "go.sum": "",
+            "tools/go.work": "go 1.22\n",
+            "tools/go.work.sum": "",
         },
     )
     said, line = proof(repo)
