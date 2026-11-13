@@ -37,6 +37,7 @@ SENDERS = {
         ["tell", "tell_at_ceiling"],
     ),
     "slotwait.py": ("a thread that waits on a test slot", ["tell", "tell_capped", "tell_ended"]),
+    "runwait.py": ("a thread that waits on a GitHub run it started", ["tell"]),
     "failover.py": ("a thread moved to another provider", ["_go"]),
     "owed.py": ("the thread of an ask that stopped on a usage cap or an auth error", ["_settle"]),
     "questions.py": ("the thread that asked a question", ["carry", "propose"]),

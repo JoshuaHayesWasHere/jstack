@@ -10,7 +10,7 @@ import json
 import os
 
 import jbus
-from jbus import clock, expedite, outbox, passes, queue, reload, slotwait, t3, watch, word
+from jbus import clock, expedite, outbox, passes, queue, reload, runwait, slotwait, t3, watch, word
 from jgauge import slot, waiters
 from test_jbus_github import failed, keys, launched, pull
 from test_jbus_github import passes as at
@@ -163,7 +163,7 @@ def test_a_torn_line_of_the_log_holds_no_send_and_hides_no_hold(launched):
 def test_a_spared_template_is_one_its_sender_sends():
     """Each name a rule spares is the template its sender gives the outbox, so a renamed template
     is not held by accident."""
-    assert set(slotwait.EVENTS) | {clock.CLOCK} == outbox.WAKES
+    assert set(slotwait.EVENTS) | set(runwait.EVENTS) | {clock.CLOCK} == outbox.WAKES
     assert {word.KIND, "item"} == outbox.USERS
     assert clock.RESTARTED in outbox.FIXES
     assert {reload.TEMPLATE} == outbox.STEERS
