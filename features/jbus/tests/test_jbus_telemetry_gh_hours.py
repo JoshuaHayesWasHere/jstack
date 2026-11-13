@@ -60,7 +60,7 @@ def append(machine, *lines):
 
 
 def rotate(machine):
-    """Move the log aside as `proc._log` does once it passes `KEPT`."""
+    """Move the log aside as `proc.log` does once it passes `KEPT`."""
     os.replace(machine.state_dir / CALLS, machine.state_dir / f"{Path(CALLS).stem}.old.jsonl")
 
 

@@ -46,6 +46,8 @@ CALLS = "gh-calls.jsonl"
 KEPT = 16 * 2**20
 """The bytes `CALLS` grows to before it becomes `gh-calls.old.jsonl`, and a new one starts."""
 WAIT = 0.05
+LOGGED = "JSETTINGS_GH_LOGGED"
+"""Set in the environment of each `gh` that `run` starts, whose line `run` writes itself."""
 
 
 class Unrun(subprocess.CompletedProcess[str]):
@@ -76,11 +78,16 @@ def run(
     with _slot(state / SLOTS):
         waited = time.monotonic() - began
         done = _run(
-            command, cwd, timeout, stdin, {**(env or os.environ), "GH_DEBUG": "api"}, errors
+            command,
+            cwd,
+            timeout,
+            stdin,
+            {**(env or os.environ), "GH_DEBUG": "api", LOGGED: "1"},
+            errors,
         )
     said = Debug.parse(done.stderr or "")
     done.stderr = said.stderr
-    _log(state, command, caller, done.returncode, said, waited)
+    log(state, command, caller, done.returncode, said, waited)
     return done
 
 
@@ -192,8 +199,9 @@ class Debug:
     @classmethod
     def parse(cls, stderr: str) -> Debug:
         """Read gh's stderr. Each request's log runs from `* Request at` to `* Request took`;
-        what is outside is gh's own. A log cut off before its end keeps no header and no body,
-        and gives back the lines that are neither, such as why the request failed."""
+        what is outside is gh's own, but for the line the debug log gives each git command gh
+        runs, such as `[git remote -v]`. A log cut off before its end keeps no header and no
+        body, and gives back the lines that are neither, such as why the request failed."""
         kept: list[str] = []
         block: list[str] | None = None
         requests: list[str] = []
@@ -203,7 +211,8 @@ class Debug:
                 block = []
                 continue
             if block is None:
-                kept.append(line)
+                if not (line.startswith("[git ") and line.rstrip("\r\n").endswith("]")):
+                    kept.append(line)
                 continue
             if line.startswith("* Request took "):
                 block = None
@@ -244,8 +253,13 @@ def _endpoint(command: tuple[str, ...], said: Debug) -> str:
     return " ".join(words[:2])
 
 
-def _log(
-    state: Path, command: tuple[str, ...], caller: str, status: int, said: Debug, waited: float
+def log(
+    state: Path,
+    command: tuple[str, ...],
+    caller: str,
+    status: int,
+    said: Debug,
+    waited: float = 0,
 ) -> None:
     """Write the call's line to `CALLS`, in one append, so that lines from many processes never
     mix. A log grown past `KEPT` becomes `gh-calls.old.jsonl` first, with the size checked and

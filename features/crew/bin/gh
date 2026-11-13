@@ -1,0 +1,27 @@
+#!/bin/sh
+# The gh an agent's Bash shell finds first on PATH, which hooks/gh-logged.sh puts there: it runs
+# the real gh, the next one on PATH, through jsettings.agent_gh, which logs the call in jbus's
+# gh-calls.jsonl with the caller `agent`. Where jsettings cannot be loaded, the real gh runs alone.
+
+here=$(cd "$(dirname "$0")" && pwd -P)
+rest=
+set -f
+was=$IFS
+IFS=:
+for dir in $PATH; do
+  [ "$(cd "$dir" 2>/dev/null && pwd -P)" = "$here" ] && continue
+  rest=${rest:+$rest:}$dir
+done
+IFS=$was
+PATH=$rest
+export PATH
+command -v python3 >/dev/null 2>&1 || exec gh "$@"
+exec python3 -I -c '
+import os, sys
+sys.path.insert(0, sys.argv.pop(1))
+try:
+    from jsettings import agent_gh
+except Exception:
+    os.execvp("gh", ["gh", *sys.argv[1:]])
+sys.exit(agent_gh.main(sys.argv[1:]))
+' "${here%/features/crew/bin}/features/jsettings/src" "$@"

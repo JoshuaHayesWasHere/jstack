@@ -7,6 +7,14 @@
   ],
   "hooks": [
     {
+      "event": "SessionStart",
+      "matcher": "startup|resume|clear|compact|fork",
+      "script": "hooks/gh-logged.sh",
+      "harnesses": [
+        "claude-code"
+      ]
+    },
+    {
       "event": "PreToolUse",
       "matcher": "Bash",
       "script": "hooks/check-foreground.sh",

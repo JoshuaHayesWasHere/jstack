@@ -1,7 +1,8 @@
 """The gh calls of each hour, from the machine's call log: the store's `gh_hours`.
 
 Each call `jsettings.proc` makes to GitHub is one line of `gh-calls.jsonl` in jbus's state
-directory (`jsettings.proc.CALLS`), and at 16 MiB the file becomes `gh-calls.old.jsonl` and a new
+directory (`jsettings.proc.CALLS`), and so is each `gh` an agent runs in its own shell, whose
+caller is `agent` (`jsettings.agent_gh`). At 16 MiB the file becomes `gh-calls.old.jsonl` and a new
 one starts, so the two hold about 9 hours. The store keeps them past that as one row for each hour
 (UTC), caller and resource: `calls`, `not_modified` (an `http` of 304), `failed` (a `status` other
 than 0 with no 304) and `least`, the lowest `remaining` a line of the row gave. `caller` is the

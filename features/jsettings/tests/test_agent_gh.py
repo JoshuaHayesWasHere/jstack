@@ -36,7 +36,7 @@ DEBUG = """\
 
 GH = f"""\
 #!/bin/sh
-[ "$GH_DEBUG" = api ] && printf '%s' '{DEBUG}' >&2
+[ "$GH_DEBUG" = api ] && echo "[git remote -v]" >&2 && printf '%s' '{DEBUG}' >&2
 echo "gh's own words" >&2
 cat > "$GH_STDIN"
 echo "out:$*"
