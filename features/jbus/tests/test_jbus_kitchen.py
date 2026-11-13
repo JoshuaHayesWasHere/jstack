@@ -813,11 +813,9 @@ class Kitchen:
         PATH resolves a command to a fake as the kitchen wrote it, this calls that fake's function.
         Anything else starts a process as before: `git`, a command that is missing, a fake that a
         test wrote over or took off PATH, and a call that passes its own `env`, asks for `check`, or
-        does not capture what is printed. An `env` that is this process's own with only `GH_DEBUG`
-        and `proc.LOGGED` added, as `jsettings.proc` gives every `gh`, is not one of its own: no
-        fake reads it. A fake
-        called here ignores `timeout`. One that ends on an exception ends as a Python does: the
-        traceback on stderr, and exit 1.
+        does not capture what is printed. The `env` `jsettings.proc` gives each `gh`, this process's
+        own and `GH_DEBUG` and `proc.LOGGED`, is not its own: no fake reads it. A fake called here
+        ignores `timeout`, and one that ends on an exception ends as a Python does, exit 1.
 
         `git ls-remote origin` answers main's tip from `commits.json` where a test wrote commits
         there, as GitHub's list of main's commits starts at the tip `ls-remote` gives: so
