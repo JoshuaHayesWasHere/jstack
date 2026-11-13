@@ -24,7 +24,7 @@ from jmerge import ready
 from jmerge import reverts as kept
 from jmerge import rows as merge_rows
 from test_jbus_kitchen import NOW
-from test_jbus_prereview import crew_tree, proof, pushed_branch, reviewers
+from test_jbus_prereview import crew_tree, proof, pushed_branch, reviewers, section
 from test_jbus_queue import add, rows
 from test_rowlife_replay import replay
 
@@ -46,15 +46,20 @@ def status(kitchen):
 
 
 def merged_row(kitchen):
-    """alpha, launched, whose crew wrote its Result naming #7 and ended its turn, and #7 merged
-    at `MERGE`. Returns the crew's thread and the brief's path."""
+    """alpha, launched, whose crew was reviewed before its pull request, as a row whose brief
+    asks for a review is, then wrote its follow-up Result naming #7 and ended its turn, and #7
+    merged at `MERGE`. Returns the crew's thread and the brief's path."""
     add(kitchen, "alpha")
     kitchen.poll(NOW - timedelta(minutes=30))
     (thread,) = kitchen.t3.threads
     path = kitchen.home / "tasks" / "alpha.md"
     path.write_text(
-        path.read_text() + "\n## Result\nStatus: done\nDone when: holds\nProof:\n- a test\n"
-        f"Branch: alpha   Pull request: {url(7)}\nChanged: a doc\nSteers: none\nLeft: none\n"
+        path.read_text()
+        + proof("e" * 40)
+        + "Reviewer: mcp:thread-0 #1\n"
+        + section("e" * 40)
+        + "\n## Result, follow-up (2026-11-13, the pull request)\nStatus: done\n"
+        f"Branch: alpha   Pull request: {url(7)}\nLeft: none\n"
     )
     thread.update(status="completed", latestRunId="run-1")
     kitchen.t3.at_work.discard(thread["threadId"])

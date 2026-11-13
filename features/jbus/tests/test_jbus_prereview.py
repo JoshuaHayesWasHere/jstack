@@ -266,6 +266,29 @@ def test_a_follow_up_result_that_opens_its_pull_request_after_the_review_is_not_
     assert not thread.get("settled")
 
 
+def test_a_reviewed_crew_that_pushes_a_new_head_after_the_review_gets_no_first_review_again(
+    kitchen,
+):
+    """A row whose brief holds a reviewer and its review gets no first review again at a later
+    head while no revert took back a merge of it: its second look is the crew's second pass, not
+    a new review before the pull request (`prereview.since`)."""
+    corrected_then_reviewed(kitchen)
+    tree = crew_tree(kitchen, "alpha")
+    (tree / "docs" / "notes.md").write_text("the task, after its review\n")
+    kitchen.git("commit", "-q", "-am", "docs: after the review", cwd=tree)
+    kitchen.git("push", "-q", "origin", "alpha:refs/heads/alpha", cwd=tree)
+    head = kitchen.started(
+        ["git", "rev-parse", "HEAD"], cwd=tree, capture_output=True, text=True
+    ).stdout.strip()
+    path = kitchen.home / "tasks" / "alpha.md"
+    again = proof(head).replace("## Result\n", "## Result, follow-up (2026-11-13, fixed)\n", 1)
+    path.write_text(path.read_text() + again)
+    for minutes in (3, 6):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert len(reviewers(kitchen)) == 1
+    assert len(kitchen.lines("prereview")) == 1
+
+
 def test_a_row_that_depends_on_a_crew_that_owes_its_pull_request_after_the_review_waits(kitchen):
     """Such a row has not ended (`jbus.watch.final`), so a row that depends on it does not
     launch before its pull request merges."""

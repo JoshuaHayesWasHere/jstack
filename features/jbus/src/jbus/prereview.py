@@ -25,6 +25,9 @@ which sends nothing to a crew whose review is awaited: only this pass knows the 
 it refused it. Meanwhile the row runs, waiting on its review (`watch.owes_pull`), whatever its
 Result's `Left:` line names, and the crew's follow-up Result is read like the first.
 
+A brief that holds a reviewer or a review gets no reviewer, unless its row was opened again since
+(`queue.reland`): the redo of a merge a revert took back is new work, and only what the brief
+holds after its last Result that names that merge, the row's `reverted` column, counts (`since`).
 A head that has a review asked for (`reviewlaunch.has`) gets no reviewer. The head is claimed
 (`reviewlaunch.claim`) before the first launch, since a launch has no retry key: a pass that
 crashes after it launches no reviewer twice. A pass that finds every instance of the review pool
@@ -41,6 +44,7 @@ then `threads.resume` and `watch` read the row as waiting on jbus (`review.await
 from __future__ import annotations
 
 import json
+import re
 from collections import deque
 from datetime import datetime
 from pathlib import Path
@@ -49,7 +53,7 @@ from typing import Any
 import jroles
 from jbriefs import below, findings, reviewers
 from jbriefs import proved as jproved
-from jbus import END_TURN, dispatch, mirror, outbox, rebase, review, reviewlaunch, verbs
+from jbus import END_TURN, dispatch, mirror, outbox, queue, rebase, review, reviewlaunch, verbs
 from jbus.passes import Pass
 from jbus.t3 import Client, T3Error, T3Refused
 from jbus.watch import World, _default_branch, at_work, task_brief
@@ -97,6 +101,24 @@ def _rows(run: Pass, world: World) -> list[tuple[str, dict[str, Any], str, str]]
         if review.before_pull(result) and findings.mode_of(brief) != findings.NONE:
             found.append((slug, live[0], brief, result))
     return found
+
+
+def since(brief: str, merge: str) -> str:
+    """The brief as the review of the row's redo reads it: where a revert took back the row's
+    merge `merge` (`queue.REVERTED`), its head and the sections after the last Result that names
+    that merge, so the reviewers and reviews of the merge taken back are none of the redo's.
+    With no such merge, or one no Result names, the whole brief."""
+    taken = merge.rstrip("/")
+    if not taken:
+        return brief
+    parts = re.split(r"(?m)^(?=## )", brief)
+    named = [
+        at
+        for at, part in enumerate(parts)
+        if part.startswith("## Result")
+        and taken in {word.rstrip("/") for word in below.line(part, "Branch:").split()}
+    ]
+    return parts[0] + "".join(parts[named[-1] + 1 :]) if named else brief
 
 
 def pushed(run: Pass, branch: str) -> str:
@@ -180,8 +202,10 @@ def launch(run: Pass, client: Client, world: World) -> None:
     """Launch the reviewers of each row whose desk proof holds at its pushed head: see the
     module."""
     sent = run.box.sent()
+    taken = {row["slug"]: str(row.get(queue.REVERTED) or "") for row in queue.load(run.state)}
     for slug, thread, brief, result in _rows(run, world):
-        if reviewers.launched(brief) or review.reviewed(brief):
+        own = since(brief, taken.get(slug, ""))
+        if reviewers.launched(own) or review.reviewed(own):
             continue
         branch = below.line(result, "Branch:").split()[0]
         head = pushed(run, branch)
