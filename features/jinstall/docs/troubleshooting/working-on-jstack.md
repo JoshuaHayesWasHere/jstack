@@ -30,7 +30,7 @@ The source is the green copy once jbus's config names the checkout as a project 
 
 | Line | Meaning | Do this |
 |---|---|---|
-| `missing hard commands jstack` | The `uv` tool `jstack` is not installed, so the eleven commands are not on `PATH`. | Run `sh install.sh`. If the line stays, read the `install.sh: commands jstack:` line on stderr. |
+| `missing hard commands jstack` | The `uv` tool `jstack` is not installed, so the ten commands are not on `PATH`. | Run `sh install.sh`. If the line stays, read the `install.sh: commands jstack:` line on stderr. |
 | `old hard commands jstack -> lacks <names>` | The tool was installed before those commands were added. | Run `sh install.sh`. |
 | `old hard commands jstack -> an install of <path>` | The tool runs the code of another checkout. | Run `sh install.sh` in the checkout you want live. |
 | `old hard commands jstack -> stale: its entry points differ from pyproject.toml in <groups>` | A group of entry points in the checkout's `pyproject.toml`, such as its scripts, differs from the one the installed tool has. | Run `sh install.sh`. |
