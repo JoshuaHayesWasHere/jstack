@@ -109,9 +109,10 @@ VARIABLES
   \* else <<the set of headings marked>>.
   readseen,
   heads,     \* the Result headings the brief has, each one more Result appended
-  \* C-079, merge-seen, the last line of merge.log this home has read:
-  \* home/merging-a-pull-request-that-is-ready.md `head -n "$lines" "$L" 2> /dev/null | tail -n 1 > "$S"`,
+  \* C-079, merge-seen, the last merged line of merge.log this home has read:
+  \* home/merging-a-pull-request-that-is-ready.md `head -n "$lines" "$L" 2> /dev/null | command grep -E '^.{17}merged ' | tail -n 1 > "$S"`,
   \* 0 for none, an empty file, or Absent. Under the canary "mark-count", the line count read.
+  \* Each line here is a merged line, which names its commit, so no two lines of log are equal.
   mark,
   \* merge.log, the lines jmerge appended and a hand kept: jmerge/cli.py
   \* `with (state / "merge.log").open("a", encoding="utf-8") as log:`.

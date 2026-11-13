@@ -42,7 +42,7 @@ case $seen in
 esac
 seen=${seen:-0}
 if [ "$lines" -gt "$seen" ]; then news "$seen" "$lines"; fi
-head -n "$lines" "$L" 2> /dev/null | tail -n 1 > "$S"
+head -n "$lines" "$L" 2> /dev/null | command grep -E '^.{17}merged ' | tail -n 1 > "$S"
 if open=$(gh pr list --repo "$(git remote get-url origin)" --state open --limit 200 --json number,url --jq '.[] | "\(.number) \(.url)"'); then
     printf '%s\n' "$open" | while read -r n url; do
         if [ -z "$n" ]; then continue; fi
@@ -57,7 +57,8 @@ fi
 ```
 
 It runs no `jmerge`: jbus runs it on each pass, and this block reads what jbus's runs left on disk, for this home's briefs alone, by `whose` (`home_of` in `features/jmerge/src/jmerge/claims.py`, which `jmerge --claims` prints by); a pull request with no brief is the root's.
-First the `merged` lines appended to `$H/merge.log` since this home last read it, without their date: `$M/merge-seen` keeps the last line read, so a cut loses none, and a home with no mark starts at the log's end.
+First the `merged` lines appended to `$H/merge.log` since this home last read it, without their date: `$M/merge-seen` keeps the last `merged` line read, or nothing where none was, so a cut loses none, and a home with no mark starts at the log's end.
+It marks no `wait` or `hold` line: jmerge says one again word for word within a minute, and a mark at the first copy would read on from the last, past a merge between them; a `merged` line names its commit, so it stands in the log once.
 Then, for each pull request GitHub lists as open, the last `wait` or `hold` line `jmerge` said of it (`$H/merge.log.last`), read anew on every run with no mark, so a `hold` is never lost and one merged or closed has none; one with no line yet is `wait <number> <url>: jbus has said nothing of it yet`.
 They are the lines of the table below, and are relayed as a run's own are.
 

@@ -62,7 +62,7 @@ With no new word from the user, a pass may:
 
 - approve a follow-up row with `jbus queue approve <slug> --follows <approved slug>`;
 - give a go again, on the standing word for goes, for a row whose brief changed after its go, once it judged the change: `jbus queue approve <slug> --word <the standing word's id>`;
-- waive a `Done when` line it judged by the root's "Judge a waiver" with `jbus waive --as root`, once that verb exists: today `jbus waive` takes only `--as user` or `--as home`, so a pass asks for the waiver as a Call;
+- waive a `Done when` line it judged by the root's "Judge a waiver" with `jbus waive <slug> <line number>... --as root --from <the root's home-id> --reason <why the line need not hold> --undo <how the merge is undone>`;
 - rerun a failed CI job that step 4 found to be a flake;
 - tell a child home with `jbus tell`, by the root's "Tell a child";
 - remove a dead row, one with nothing left to land, on the user's standing word for such rows, as the home skill's "How a turn ends" does: `jbus queue remove <slug> --message <thread id>/<message id>`;

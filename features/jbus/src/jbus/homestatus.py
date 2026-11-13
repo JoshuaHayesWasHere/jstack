@@ -250,10 +250,10 @@ def _merged(lines: list[str]) -> list[tuple[str, str]]:
 
 def _read_to(lines: list[str], seen: str | None) -> int:
     """How many of merge.log's `lines` the home has read, by its `merge-seen` mark, as the home
-    skill's merge step reads it: the last line it read, so the lines after it where a cut kept it,
-    and none where the cut took it, since each line a cut keeps is newer. An empty mark is none
-    read, and no mark the log's end. A number is a count the step wrote before it marked by a
-    line."""
+    skill's merge step reads it: the last merged line it read, so the lines after it where a cut
+    kept it, and none where the cut took it, since each line a cut keeps is newer. An empty mark
+    is none read, and no mark the log's end. A number is a count the step wrote before it marked
+    by a line."""
     if seen is None:
         return len(lines)
     if seen.isdigit():
