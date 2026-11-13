@@ -23,7 +23,11 @@ a part of that pass again (58 of 97 guard runs from 2026-11-06 to 11-08).
 A pass, a failure, or a stop at the time limit of the guards on a head over a tip is kept in
 `merged-trees.json`, so a held pull request is not run again until its head or the tip moves. A
 stopped tree is kept too, since running it again on the next run spends that run's time on the
-same tree and leaves every other pull request waiting (#1103 on 2026-11-05).
+same tree and leaves every other pull request waiting (#1103 on 2026-11-05). A failure is kept
+for `RETRY_SECONDS` and then run once more on the same head over the same tip, where a second
+failure is kept until one of them moves: a flaky guard otherwise holds a pull request for as long
+as main sits still (#1876 held 45 minutes on a test of the live desk that passed 0.16 s later),
+and a real failure fails again.
 A hold names one guard; its record keeps the last `TAIL` lines the guards printed, which say why.
 """
 
@@ -64,6 +68,9 @@ SHA = 12
 PASSED = "the guards passed on its tree merged over {base} at {tip} in {seconds} s"
 CHECKED = "CI's check passed its tree merged over {base} at {tip} in {run}, so no guards ran"
 IDENTITY = ("-c", "user.name=jmerge", "-c", "user.email=jmerge@localhost")
+RETRY_SECONDS = 1800
+"""How old a failure of the guards on a head over a tip is, by its `at`, before they run once more
+on the same tree."""
 TAIL = 40
 """The lines of what failed or stopped guards printed that their record keeps."""
 PASSED_ON = ("HOME", "USER", "LOGNAME", "LANG", "PATH")
@@ -289,6 +296,22 @@ class Kept:
                 store.write_json(self.path, kept)
 
 
+def due(was: dict) -> bool:
+    """Whether a kept record is a failure of the guards (`ready.MERGED_TREE_FAILS`, not a stop at
+    their limit) older than `RETRY_SECONDS` that was not itself a run again: one the guards run
+    once more. A record whose `at` does not read is not due."""
+    said = was.get("said")
+    if was.get("retried") or not isinstance(said, str) or not said:
+        return False
+    if ready.MERGED_TREE_FAILS.fields(said) is None:
+        return False
+    try:
+        at = datetime.strptime(str(was.get("at")), "%Y-%m-%dT%H:%M:%S%z")
+    except ValueError:
+        return False
+    return (datetime.now().astimezone() - at).total_seconds() >= RETRY_SECONDS
+
+
 class Guards(Kept):
     """The guards of one `jmerge` run, and the record of what they said of each pull request's
     head over a tip (`KEPT`). `run` is False for `--check`, which runs no guards and keeps
@@ -304,11 +327,18 @@ class Guards(Kept):
         self.spent = 0
         self.slotless = False
 
-    def was(self, one: ready.PullRequest, tip: str) -> dict | None:
+    def same(self, one: ready.PullRequest, tip: str) -> dict | None:
+        """The record of the guards on the pull request's head over `tip`, or None."""
         was = self.known().get(str(one.number))
         if isinstance(was, dict) and (was.get("head"), was.get("tip")) == (one.head, tip):
             return was
         return None
+
+    def was(self, one: ready.PullRequest, tip: str) -> dict | None:
+        """The record that stands for the pull request's head over `tip`: none where the guards
+        have not run there, or failed there over `RETRY_SECONDS` ago and have not run again."""
+        was = self.same(one, tip)
+        return None if was is None or due(was) else was
 
     def kept(self, one: ready.PullRequest, tip: str) -> str:
         """Why the pull request waits on the guards a run already ran on its head over `tip`, or
@@ -320,10 +350,15 @@ class Guards(Kept):
         return said if isinstance(said, str) else ""
 
     def keep(self, one: ready.PullRequest, tip: str, said: str, note: str, tail: str = "") -> None:
+        """Keep what the guards said of the head over `tip`. A record of a run on a tree they had
+        run on already says it is that tree's `retried` run, which `due` never runs again."""
         now = datetime.now().astimezone()
-        record = {"head": one.head, "tip": tip, "said": said, "note": note}
+        retried = self.same(one, tip) is not None
+        record: dict[str, object] = {"head": one.head, "tip": tip, "said": said, "note": note}
         if tail:
             record["tail"] = tail
+        if retried:
+            record["retried"] = True
         record["at"] = f"{now:%Y-%m-%dT%H:%M:%S%z}"
         self.put(one.number, record)
 

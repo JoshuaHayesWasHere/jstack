@@ -541,11 +541,34 @@ def test_a_machine_with_no_room_waits_whatever_the_limits_file(tmp_path):
     assert full.stdout.startswith("wait: load ") and full.stderr == ""
 
 
-def test_the_check_reads_the_machine_it_runs_on(tmp_path):
-    here = {**os.environ, "LIMITS": str(tmp_path / "none")}
-    (line,) = ran(here).stdout.splitlines()
-    assert line == "go" or line.startswith("wait: ")
-    assert "could not be read" not in line
+def desk(tmp_path, state):
+    """The environment of a desk in that state, stated whole, with a home of its own, so the
+    verdict never follows the machine the test runs on. A busy desk is past its load, has used
+    its whole five-hour limit in the limits file of its home, and runs two busy processes."""
+    home = tmp_path / "home"
+    if state == "busy":
+        env = machine(tmp_path, **{**IDLE, "load": "24.00"}, plan=CAPPED)
+        processes(tmp_path, ("yes", "/tmp/lwr/c", 99), ("bash -c make", "/home/u", 60))
+    else:
+        env = machine(tmp_path, **IDLE)
+    (home / ".local" / "state" / "claude").mkdir(parents=True)
+    os.replace(env.pop("LIMITS"), home / ".local" / "state" / "claude" / "limits")
+    return {**env, "HOME": str(home)}
+
+
+@pytest.mark.parametrize(
+    ("state", "said"),
+    [
+        (
+            "busy",
+            "wait: load 24.00 is at or over 200% of 12 cores; the busiest: "
+            "yes in /tmp/lwr/c (99%), bash -c make in /home/u (60%)",
+        ),
+        ("idle", "go"),
+    ],
+)
+def test_the_check_reads_the_machine_it_runs_on(tmp_path, state, said):
+    assert ran(desk(tmp_path, state)).stdout.splitlines() == [said]
 
 
 def test_the_check_reads_the_limits_file_of_the_account_it_runs_under(tmp_path):
@@ -1163,17 +1186,19 @@ def test_the_sweep_a_slot_runs_on_a_mac_removes_nothing_unless_given_a_proc(tmp_
 def processes(where, *each, uptime=1000.0):
     """Processes in the machine's /proc: each a command, a working directory, and the seconds
     of CPU it used over its life, all of which began 900 s after the machine booted. With 100
-    ticks a second, its share of a core is its CPU seconds over the 100 s it has run."""
+    ticks a second, its share of a core is its CPU seconds over the 100 s it has run. A command
+    is a line split at its spaces, or a list of its arguments as they are."""
     proc = where / "proc"
     put(proc / "uptime", f"{uptime} 12345.67\n")
     for pid, (command, cwd, seconds) in enumerate(each, start=4000):
         made = proc / str(pid)
         made.mkdir(parents=True, exist_ok=True)
         ticks = int(seconds * 100)
-        name = command.split()[0].rsplit("/", 1)[-1]
+        arguments = command.split() if isinstance(command, str) else command
+        name = arguments[0].rsplit("/", 1)[-1]
         fields = ["S", "1", *["0"] * 9, str(ticks), "0", *["0"] * 6, str(900 * 100), "0"]
         put(made / "stat", f"{pid} ({name}) {' '.join(fields)}\n")
-        put(made / "cmdline", "\0".join(command.split()) + "\0")
+        put(made / "cmdline", "\0".join(arguments) + "\0")
         (made / "cwd").unlink(missing_ok=True)
         (made / "cwd").symlink_to(cwd)
 
@@ -1206,3 +1231,12 @@ def test_a_wait_for_another_reason_or_a_machine_with_room_names_no_process(tmp_p
 def test_a_wait_for_load_on_a_machine_whose_processes_cannot_be_read_says_as_before(tmp_path):
     env = machine(tmp_path, **{**IDLE, "load": "24.00"})
     assert says(env) == "wait: load 24.00 is at or over 200% of 12 cores"
+
+
+def test_a_busy_command_whose_arguments_hold_newlines_is_named_on_the_verdicts_one_line(tmp_path):
+    env = machine(tmp_path, **{**IDLE, "load": "24.00"})
+    processes(tmp_path, (["bash", "-c", "set -e\ncd /x\nmake check"], "/x", 60))
+    assert ran(env).stdout.splitlines() == [
+        "wait: load 24.00 is at or over 200% of 12 cores; the busiest: "
+        "bash -c set -e cd /x make check in /x (60%)"
+    ]

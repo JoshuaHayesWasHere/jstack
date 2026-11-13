@@ -20,7 +20,15 @@
 # `-H 'If-None-Match: <that ETag>'` it is a 304 and nothing more, exit 1, as gh's.
 # A commit asked for by its sha lists no changed files, and has no statuses. The repo's owner is
 # sandbox-owner, and a pull request has no comment, line comment or review.
+# `gh api .../compare/<base>...<head>` gives GitHub's `status` of <head> against <base>, read with
+# git from the sandbox's origin, origin.git: `identical`, `ahead` where <head> holds <base>,
+# `behind` where <base> holds <head>, else `diverged`; a commit the origin lacks is not found.
+# `gh pr view <number, address or branch>` gives the pull request of open.json, `state: OPEN`, or
+# else of merged.json, `state: MERGED`.
 # `gh pr edit <number> --base <branch>` bases that pull request of open.json on the branch.
+# `gh pr revert <number or address>` of a merged pull request reverts its merge commit on its base
+# in the origin, on the branch revert-<number>-<its branch>, adds that branch's pull request to
+# open.json, the next number, open on the same base with no check yet, and prints its address.
 # Every call is one line in $VERIFY_JSTACK_SANDBOX/gh/calls.log. It never merges: `gh pr merge`
 # and anything else it does not know exit 64.
 G=${VERIFY_JSTACK_SANDBOX:?source the sandbox env.sh first}/gh
@@ -35,6 +43,63 @@ arg_after() {
     fi
     shift
   done
+}
+O=$VERIFY_JSTACK_SANDBOX/origin.git
+compared() {
+  base=$(git -C "$O" rev-parse -q --verify "$1^{commit}") &&
+    tip=$(git -C "$O" rev-parse -q --verify "$2^{commit}") || {
+    echo "gh: Not Found (HTTP 404)" >&2
+    return 1
+  }
+  if [ "$base" = "$tip" ]; then
+    status=identical
+  elif git -C "$O" merge-base --is-ancestor "$base" "$tip"; then
+    status=ahead
+  elif git -C "$O" merge-base --is-ancestor "$tip" "$base"; then
+    status=behind
+  else
+    status=diverged
+  fi
+  printf '{"status": "%s"}\n' "$status"
+}
+revert() {
+  pull=$(jq -c --arg pr "$1" 'map(select((.number | tostring) == $pr or .url == $pr)) | .[0] // empty' "$G/merged.json")
+  if [ -z "$pull" ]; then
+    echo "pull request $1 is not merged" >&2
+    return 1
+  fi
+  branch=$(echo "$pull" | jq -r '"revert-\(.number)-\(.headRefName)"')
+  onto=$(echo "$pull" | jq -r '.baseRefName // "main"')
+  merge=$(echo "$pull" | jq -r '.mergeCommit.oid // empty')
+  if jq -e --arg b "$branch" 'any(.[]; .headRefName == $b)' "$G/open.json" >/dev/null; then
+    echo "a pull request for branch \"$branch\" already exists" >&2
+    return 1
+  fi
+  mainline=
+  if [ "$(git -C "$O" rev-list --parents -n 1 "$merge" 2>/dev/null | wc -w)" -gt 2 ]; then
+    mainline="-m 1"
+  fi
+  work=$(mktemp -d) || return 1
+  git -C "$O" worktree add -q --detach "$work/tree" "$onto" 2>/dev/null &&
+    git -C "$work/tree" -c user.name=github -c user.email=noreply@example.test \
+      revert --no-edit $mainline "$merge" >/dev/null 2>&1 &&
+    head=$(git -C "$work/tree" rev-parse HEAD) &&
+    git -C "$O" update-ref "refs/heads/$branch" "$head"
+  made=$?
+  git -C "$O" worktree remove --force "$work/tree" 2>/dev/null
+  rmdir "$work"
+  if [ "$made" -ne 0 ]; then
+    echo "could not revert $1: its merge commit does not revert onto $onto" >&2
+    return 1
+  fi
+  jq -s --argjson pull "$pull" --arg branch "$branch" --arg head "$head" --arg onto "$onto" '
+    ([.[][].number] | max + 1) as $n | .[0] + [{
+      number: $n, url: "\($pull.url | sub("/[0-9]+$"; ""))/\($n)",
+      title: "Revert \"\($pull.title)\"", headRefName: $branch, headRefOid: $head,
+      baseRefName: $onto, mergeable: "MERGEABLE", isDraft: false, statusCheckRollup: []
+    }]' "$G/open.json" "$G/merged.json" >"$G/open.json.new" &&
+    mv "$G/open.json.new" "$G/open.json" &&
+    jq -r '.[-1].url' "$G/open.json"
 }
 api() {
   case $2 in
@@ -58,6 +123,10 @@ api() {
   */check-runs | */check-runs\?*)
     sha=${2%%/check-runs*}
     jq -c --arg sha "${sha##*/}" '{check_runs: (.[$sha] // [])}' "$G/checks.json"
+    ;;
+  */compare/*...*)
+    range=${2##*/compare/}
+    compared "${range%%...*}" "${range#*...}"
     ;;
   */commits/*/status) echo '{"statuses": []}' ;;
   */commits/*) echo '{"files": []}' ;;
@@ -87,10 +156,15 @@ case "$1 $2" in
   ;;
 "pr view")
   case $3 in
-  -* | '') jq -c '.[0] // error("no pull request")' "$G/open.json" ;;
-  *) jq -c --arg pr "$3" 'map(select((.number | tostring) == $pr or .url == $pr or .headRefName == $pr)) | .[0] // error("no pull request")' "$G/open.json" ;;
+  -* | '') jq -c 'map({state: "OPEN"} + .) | .[0] // error("no pull request")' "$G/open.json" ;;
+  *)
+    jq -cs --arg pr "$3" '(.[0] | map({state: "OPEN"} + .)) + (.[1] | map(. + {state: "MERGED"}))
+      | map(select((.number | tostring) == $pr or .url == $pr or .headRefName == $pr))
+      | .[0] // error("no pull request")' "$G/open.json" "$G/merged.json"
+    ;;
   esac
   ;;
+"pr revert") revert "$3" || exit ;;
 "pr edit")
   base=$(arg_after --base "$@")
   [ -n "$base" ] || exit 64

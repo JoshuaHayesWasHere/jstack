@@ -286,3 +286,41 @@ def test_a_pass_asks_git_about_so_many_heads_and_the_next_goes_on_from_there(kit
 
     assert launched(kitchen) == ["gamma"]
     assert rows(kitchen)["alpha"]["why"] == WAITS.replace("alpha", "gamma")
+
+
+def test_hot_file_hold_oldest_first_the_row_held_longest_takes_the_file(kitchen):
+    """When the file frees, the row held on it longest launches, not the row the queue reaches
+    first: robotica's oldest waiters sat 9.6 h while rows of a better priority, queued after them,
+    took src/main.ts each time it freed (#1834)."""
+    conflicts(kitchen, HOT, 3)
+    add(kitchen, "alpha", priority=1, text=naming("alpha", HOT))
+    add(kitchen, "beta", priority=2, text=naming("beta", HOT))
+    kitchen.poll()
+    assert launched(kitchen) == ["alpha"] and rows(kitchen)["beta"]["why"] == WAITS
+    add(kitchen, "gamma", priority=1, text=naming("gamma", HOT))
+    kitchen.poll(NOW + timedelta(minutes=3))
+    assert launched(kitchen) == ["alpha"] and rows(kitchen)["gamma"]["why"] == WAITS
+
+    crew(kitchen, "alpha", "completed")
+    kitchen.set("merged.json", [kitchen.merged("alpha", 7, "a" * 40)])
+    kitchen.poll(NOW + timedelta(minutes=6))
+
+    assert launched(kitchen) == ["alpha", "beta"]
+    assert rows(kitchen)["gamma"]["why"] == WAITS.replace("alpha", "beta")
+
+    crew(kitchen, "beta", "completed")
+    merged = [kitchen.merged("alpha", 7, "a" * 40), kitchen.merged("beta", 8, "b" * 40)]
+    kitchen.set("merged.json", merged)
+    kitchen.poll(NOW + timedelta(minutes=9))
+
+    assert launched(kitchen) == ["alpha", "beta", "gamma"]
+
+
+def test_hot_file_hold_oldest_first_a_row_alone_on_a_hot_file_launches_at_once(kitchen):
+    conflicts(kitchen, HOT, 3)
+    add(kitchen, "alpha", priority=2, text=naming("alpha", HOT))
+    add(kitchen, "beta", priority=1, text=naming("beta", "src/other.py"))
+
+    kitchen.poll()
+
+    assert launched(kitchen) == ["beta", "alpha"]
