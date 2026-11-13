@@ -1319,8 +1319,9 @@ def test_the_block_keeps_each_files_run_on_the_desks_store_and_prints_what_was_s
         "import os\n"
         f"open({str(told)!r}, 'a').write(sys.argv[2] + ' ' + os.environ['CREW_PASSED_RUNS'])\n"
         f"open({str(told)!r}, 'a').write('\\n')\n"
-        "if sys.argv[2] == 'cross':\n"
-        "    print('tests/test_h.py: skipped, its read set is as it was', file=sys.stderr)\n"
+        "if sys.argv[2] in ('cross', 'names'):\n"
+        "    one = 'tests/test_h.py' if sys.argv[2] == 'cross' else 'tests/test_n.py'\n"
+        "    print(one + ': skipped, its read set is as it was', file=sys.stderr)\n"
     )
     repo = stubbed(tmp_path, selector)
     a_brief(tmp_path)
@@ -1329,6 +1330,7 @@ def test_the_block_keeps_each_files_run_on_the_desks_store_and_prints_what_was_s
     store = repo / ".git" / "crew-passed-runs"
     assert code == 1
     assert "tests/test_h.py: skipped, its read set is as it was" in said
+    assert "tests/test_n.py: skipped, its read set is as it was" in said
     assert store.read_text() == f"passed tests/test_a.py {head}\nfailed tests/test_g.py {head}\n"
     assert told.read_text().splitlines() == [
         f"{part} {store}" for part in ("touched", "cross", "names")
