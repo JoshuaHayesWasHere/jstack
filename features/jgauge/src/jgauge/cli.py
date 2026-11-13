@@ -198,6 +198,11 @@ def _list_waiters() -> int:
     return 0
 
 
+def cmd_cap_shell(args: argparse.Namespace) -> int:
+    slotlog.cap_shell(args.pid, slot.workers(slot.full(1)))
+    return 0
+
+
 def cmd_test_slot(args: argparse.Namespace) -> int:
     if args.waiters:
         return _list_waiters()
@@ -470,6 +475,18 @@ def parser() -> argparse.ArgumentParser:
     )
     held.add_argument("argv", nargs=argparse.REMAINDER, help="the command, after `--`")
     held.set_defaults(run=cmd_test_slot, usage=held.error)
+
+    capped = commands.add_parser(
+        "cap-shell",
+        help="move a shell into its cgroup's jgauge-shell, capped at a full slot's workers:"
+        " the crew's SessionStart hook runs it before each Bash command",
+        description="Make jgauge-shell under the cgroup of process PID, with a cpu.max of a full"
+        " slot's workers, and move PID into its leaf `run`. It prints nothing and ends 0, also"
+        " where the shell cannot be capped (cgroup v1, a cgroup it may not write, macOS) or is"
+        " in a cgroup of jgauge's already.",
+    )
+    capped.add_argument("pid", type=int, help="the shell's process id, `$$`")
+    capped.set_defaults(run=cmd_cap_shell)
 
     _waited(
         commands,

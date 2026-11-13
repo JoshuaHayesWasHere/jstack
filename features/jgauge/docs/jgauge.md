@@ -99,6 +99,7 @@ To change how many slots there are, see [The limits and how to change them](jgau
 | `jgauge test-slot --short -- <command>` | The same, in the short lane: one of the slots of its own (`short_slots`, which `jgauge sizes` prints), lock files `~/.local/state/locks/test-slot-short.<n>.lock`, which no full run takes, so a short run never waits behind a full suite. When all are held it prints `test-slot: waiting for one of <n> short slots`. `jgauge` stops a command still running at the lane's time limit (`SHORT_LIMIT_SECONDS`), and the run ends 124 and says so on stderr. It does not take `--slots`. |
 | `jgauge test-slot [--short \| --slots N] --thread <id> -- <command>` | The same, for a thread that must not wait in a call long. In the full lane it tries once, and with no slot registers the thread as a waiter jbus wakes and ends 76; in the short lane it waits up to 300 s in the call, registers nothing, and with no slot by then ends 76 and says to run it again now ([jgauge test-slot --thread](#jgauge-test-slot---thread)). |
 | `jgauge test-slot --waiters` | Prints the registered waiters of the full lane, oldest wait first: the thread, the lane, since when, when it was woken, and its command. |
+| `jgauge cap-shell <pid>` | Caps the shell `<pid>` at a full slot's workers: it makes `jgauge-shell` under the shell's cgroup, with a `cpu.max` of those workers, and moves the shell into its leaf `run`. It prints nothing and ends 0, also where the shell cannot be capped (cgroup v1, a cgroup you may not write, macOS) or is already in a cgroup of jgauge's, a take's or the shell's. The crew's SessionStart hook runs it at the head of each Bash command ([How jstack uses it](#how-jstack-uses-it)). |
 | `jgauge check [--thread <id>] [--wait <seconds>] < <the check command>` | Runs the check command it reads from stdin under a slot of the full lane, and waits on it for up to 540 s ([jgauge check](#jgauge-check)). |
 | `jgauge proof --dir <dir> --kept <head> [--thread <id>] [--wait <seconds>] < <the proof>` | The same for a reviewer's proof, in the short lane, only while the checkout is at `<head>` with no rebase going on (else `unproven:`, exit 1); it runs the proof with `D` set to `<dir>`, prints `exit <n>`, the last 5 lines, `unproven: the head moved under the proof` when the head moved, and `git status --porcelain`, ends 0 on that answer, and keeps `proof.pid`, `proof.out`, `proof.exit`, `proof.key`, `proof.told` and `proof.cmd` in `<dir>`. |
 
@@ -280,6 +281,10 @@ A reviewer's proof runs in the short lane as `jgauge proof`, with the proof on s
 A crewmate's targeted test runs run in the short lane, as `jgauge test-slot --short -- uv run pytest <files>`.
 A thread's step calls `jgauge check` and `jgauge proof` so that it holds no delete and no inner shell, which Claude Code asks the user about before it runs them (`features/repo-guards/tests/test_blocks_ask_nothing.py`).
 `jgauge check` never runs in the short lane.
+Every Bash command a Claude agent runs is capped at a full slot's workers, 3 on yelena, outside any slot: the crew's SessionStart hook writes a line to `CLAUDE_ENV_FILE` that runs `jgauge cap-shell $$`, where cgroup v2 is mounted and `jgauge` is on `PATH`.
+So a run that skips its slot is slowed to one slot's share in every repo.
+A test slot taken from that shell is made beside the shell's cgroup, with its own cap, so heavy work in a slot runs its slot's workers.
+Codex agents do not read `CLAUDE_ENV_FILE` and are not capped ([limits](limits.md)).
 
 ## How it counts tokens
 

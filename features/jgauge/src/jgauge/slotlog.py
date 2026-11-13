@@ -46,6 +46,15 @@ the holder runs in the take's leaf `run`, whose own `cpu.max` stays `max`, so a 
 counts its workers from its cgroup's quota counts them as before. A take that cannot be capped
 runs uncapped, its CPU still counted.
 
+An agent's own shell is capped the same way, outside any slot: the crew's SessionStart hook has
+each Bash command run `jgauge cap-shell $$` first (`cap_shell`), which moves the command's shell
+into the leaf `run` of `jgauge-shell` under the agent's scope, capped at a full slot's workers.
+Every process the command starts is born there, a background one included, so a run that skips
+the slot is slowed to one slot's share. A take from that shell is made beside `jgauge-shell`, in
+the scope, and not under it: the take runs its slot's workers whatever the agent's other commands
+use, and on top of them, and its CPU is its own cgroup's, as for any take. The holder goes back to
+the shell's leaf at the release.
+
 Where the take can have no cgroup of its own (cgroup v1, a cgroup the user cannot write, macOS),
 the CPU is what the command's waited-for tree used, as `getrusage` says, plus what each process
 carrying the take's id in `JGAUGE_TEST_SLOT_TAKE` whose parent is outside the take used, read
@@ -97,7 +106,9 @@ DRAIN_SECONDS = 2.0
 LOOK_SECONDS = 0.05
 SAMPLE_SECONDS = 0.5
 TAKE = "JGAUGE_TEST_SLOT_TAKE"
-PREFIX = "jgauge-take-"
+JGAUGE = "jgauge-"
+PREFIX = f"{JGAUGE}take-"
+SHELL = f"{JGAUGE}shell"
 LEAF = "run"
 PERIOD_USEC = 100_000
 WAKE = re.compile(r"^slot-wake: woke \S+, a (\w+) slot is free for `[^`]*`, after (\d+) min")
@@ -160,37 +171,33 @@ def _append(log: Path, row: dict) -> None:
 
 class _Cgroup:
     """The take's own cgroup, capped at its workers, and in it the leaf `run`, which the holder
-    is in from the take to the release."""
+    is in from the take to the release; `back` is the holder's cgroup before the take."""
 
-    def __init__(self, home: Path, own: Path) -> None:
-        self.home, self.own, self.run = home, own, own / LEAF
+    def __init__(self, back: Path, own: Path) -> None:
+        self.back, self.own, self.run = back, own, own / LEAF
 
     @classmethod
     def make(cls, key: str, workers: int | None) -> _Cgroup | None:
         """Make the take's cgroup under the holder's and move the holder into it, or None where
-        the holder is not in a cgroup v2 one it may write: on cgroup v1 `/proc/self/cgroup` has
-        a line for each hierarchy, and on cgroup v2 it has the one, `0::/<the holder's>`. A cap
-        that cannot be set leaves the take uncapped, and its CPU still counted."""
+        the holder is not in a cgroup v2 one it may write. A holder in an agent's capped shell
+        (`cap_shell`) makes the take beside the shell's cgroup, in the scope, so the take runs
+        its slot's workers and not a share of the shell's. A cap that cannot be set leaves the
+        take uncapped, and its CPU still counted."""
         own: Path | None = None
         try:
-            (line,) = (PROCS / "self" / "cgroup").read_text().splitlines()
-            home = CGROUPS / line.removeprefix("0::/").strip("/")
+            back = _cgroup("self")
+            home = back.parent.parent if _in_shell(back) else back
             for stale in home.glob(f"{PREFIX}*"):
                 _remove_empty(stale)
             own = home / f"{PREFIX}{key}"
-            own.mkdir()
-            if workers is not None:
-                _cap(home, own, workers)
-            (own / LEAF).mkdir()
-            _threaded(own / LEAF)
-            (own / LEAF / "cgroup.procs").write_text(str(os.getpid()))
+            _enter(home, own, workers, os.getpid(), made=False)
         except (OSError, ValueError):
             if own is not None:
                 for empty in (own / LEAF, own):
                     with contextlib.suppress(OSError):
                         empty.rmdir()
             return None
-        return cls(home, own)
+        return cls(back, own)
 
     def _others(self) -> int:
         """How many processes of the take there are besides the holder. The cgroup is there to
@@ -233,10 +240,43 @@ class _Cgroup:
             return int(stat["user_usec"]) / 1e6, int(stat["system_usec"]) / 1e6, left
         finally:
             with contextlib.suppress(OSError):
-                (self.home / "cgroup.procs").write_text(str(os.getpid()))
+                (self.back / "cgroup.procs").write_text(str(os.getpid()))
             for empty in (self.run, self.own):
                 with contextlib.suppress(OSError):
                     empty.rmdir()
+
+
+def _cgroup(pid: str) -> Path:
+    """The cgroup of process `pid`, `self` for this one, raising ValueError on cgroup v1, where
+    `/proc/<pid>/cgroup` has a line for each hierarchy and not the one, `0::/<its cgroup>`."""
+    (line,) = (PROCS / pid / "cgroup").read_text().splitlines()
+    return CGROUPS / line.removeprefix("0::/").strip("/")
+
+
+def _in_shell(group: Path) -> bool:
+    return group.name == LEAF and group.parent.name == SHELL
+
+
+def _enter(home: Path, own: Path, workers: int | None, pid: int, *, made: bool) -> None:
+    """Make `own` under `home`, capped at `workers` cores, and its leaf, and move process `pid`
+    into the leaf. With `made`, either may be there already."""
+    own.mkdir(exist_ok=made)
+    if workers is not None:
+        _cap(home, own, workers)
+    (own / LEAF).mkdir(exist_ok=made)
+    _threaded(own / LEAF)
+    (own / LEAF / "cgroup.procs").write_text(str(pid))
+
+
+def cap_shell(pid: int, workers: int) -> None:
+    """Move process `pid`, an agent's shell, into the leaf of `jgauge-shell` under its cgroup,
+    capped at `workers` cores, making either where it is not there: see the module's doc. A
+    process already in a cgroup of jgauge's, the shell's or a take's, stays where it is, and one
+    that cannot be capped (cgroup v1, a cgroup it may not write, no `/proc`) runs as before."""
+    with contextlib.suppress(OSError, ValueError):
+        home = _cgroup(str(pid))
+        if not any(part.startswith(JGAUGE) for part in home.relative_to(CGROUPS).parts):
+            _enter(home, home / SHELL, workers, pid, made=True)
 
 
 def _remove_empty(group: Path) -> None:
