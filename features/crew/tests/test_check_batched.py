@@ -5,8 +5,11 @@ as one take a file. One take a file cost 272 slot takes a merged pull request on
 
 import re
 
+import pytest
+
 import test_room as room
 from crew_helpers import git
+from jgauge.slot import SHORT_LIMIT_SECONDS
 from test_crew_check_command import (
     a_brief,
     alone,
@@ -330,3 +333,21 @@ def test_a_file_measured_over_the_lanes_limit_runs_in_a_full_slot_which_measures
     git(repo, "commit", "-qam", "a new head")
     said, code, ran, base = selected(tmp_path, repo, junit=junit)
     assert ran == [lint(base), alone(" ".join(TOUCHED[:2]), base)], said
+
+
+@pytest.mark.parametrize(
+    ("took", "lane"),
+    [
+        (SHORT_LIMIT_SECONDS, "short=free full=held"),
+        (SHORT_LIMIT_SECONDS - 0.1, "short=held full=free"),
+    ],
+    ids=["at jgauge's limit", "under it"],
+)
+def test_the_check_blocks_full_slot_first_rule_goes_by_jgauges_short_limit(tmp_path, took, lane):
+    """The block's `limit` is jgauge's `SHORT_LIMIT_SECONDS`: a file measured at it runs in a full
+    slot first, and one measured under it in the short lane."""
+    repo = stubbed(tmp_path, touching(TOUCHED[0]))
+    measured(repo, took, TOUCHED[0])
+    a_brief(tmp_path)
+    said, code, ran, base = selected(tmp_path, repo)
+    assert ran == [lint(base), alone(TOUCHED[0], base, lane)], said

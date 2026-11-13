@@ -2,9 +2,10 @@
 CI's failed jobs name, each alone in the short lane, and never the whole suite."""
 
 import os
-import re
 import shutil
 import subprocess
+
+import pytest
 
 import test_room as room
 from crew_helpers import Failed, block, git, run
@@ -122,10 +123,13 @@ def test_a_file_measured_over_the_short_lanes_limit_runs_in_a_full_slot_first(tm
     assert "tests/test_a.py: exit 0, full lane" in said
 
 
-def test_each_block_that_sends_a_file_to_a_full_slot_reads_jgauges_short_limit():
-    """The check block and this one send a file measured at the short lane's limit or more to a
-    full slot first, each by its own `limit=`: a limit jgauge moved and a block did not would
-    send a file the lane can finish to a full slot, or one it cannot to a 124 each check."""
-    blocks = (block("Do the task", "budget=540"), block("Stay on the pull request", "--log-failed"))
-    limits = [re.findall(r"\blimit=(\d+)", one) for one in blocks]
-    assert limits == [[f"{SHORT_LIMIT_SECONDS:g}"]] * 2, limits
+@pytest.mark.parametrize(
+    ("took", "lane"),
+    [(SHORT_LIMIT_SECONDS, "full"), (SHORT_LIMIT_SECONDS - 0.1, "short")],
+    ids=["at jgauge's limit", "under it"],
+)
+def test_the_full_slot_first_rule_goes_by_jgauges_short_limit(tmp_path, took, lane):
+    """A limit jgauge moved and this block did not would send a file the lane can finish to a
+    full slot, or one it cannot to a 124: the block's line is jgauge's `SHORT_LIMIT_SECONDS`."""
+    said, made = files_block(tmp_path, times=f"tests/test_a.py {took}\n")
+    assert made[0] == f"test TESTS=tests/test_a.py {lane}", made
