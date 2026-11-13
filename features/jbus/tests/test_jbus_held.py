@@ -258,7 +258,6 @@ def test_a_hold_only_the_users_word_lifts_is_on_jbus_needs_from_its_first_pass_u
         ]
 
 
-
 def test_held_wake_once_per_hold_while_its_minutes_count_up(kitchen):
     """A hold the user's word lifts is on the list of what is open with its minutes, which count
     up each pass. Its home hears of it once while it stays held, as the wake says, and once more
