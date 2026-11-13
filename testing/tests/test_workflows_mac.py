@@ -195,19 +195,22 @@ def test_the_macos_nightly_names_each_failed_test_in_its_log_and_summary_after_a
     )
 
 
-MAC_SUITE_SECONDS = 7000
-MAC_PART_SECONDS = 30 * 60
+MAC_SUITE_SECONDS = 7453
+MAC_TLC_LATE_SECONDS = 562
+MAC_PART_SECONDS = 40 * 60
 
 
 def test_the_macos_nightly_runs_its_suite_in_parts_each_stopped_by_pytest_under_its_cap(
     tmp_path,
 ):
-    """The parts are as many as hold the Mac's suite at `MAC_PART_SECONDS` or less each, which
-    leaves a part 10 minutes of room under 40 for a slower runner or tests added since. With two,
-    part 1 met its session stop in 3 of 4 runs and ended red on time alone. `MAC_SUITE_SECONDS`
-    is the whole suite's pytest seconds on macos-15 under `-n 3` from the nightly's two parts on
-    2026-11-12 and 13: 3082 + 2950 s in run 43268346221, and 3150 s for part 1 of run 43465688836,
-    which the session stop cut 5619 tests in, beside 3133 s for its part 2. Each part's
+    """The parts are as many as end the Mac's suite under `MAC_PART_SECONDS` each, the 40 minutes
+    the brief macos-nightly-fits asks for. With two, part 1 met its session stop in 3 of 4 runs
+    and ended red on time alone. `MAC_SUITE_SECONDS` is the whole suite's pytest seconds on
+    macos-15 under `-n 3`, summed over the four parts of run 43483815703 (2026-11-13): 2285, 1739,
+    1702 and 1727 s. The parts split evenly but for the part that holds the merge flow's TLC test,
+    which the split counts at its warm 0.23 s and the nightly runs cold, 1011 s, starting it 21
+    minutes in: that part ran `MAC_TLC_LATE_SECONDS` past the others' mean, 2285 - 1723. So a part
+    ends at the rest's share plus that, 1723 + 562 = 2285 s at four parts. Each part's
     suite step runs `make check` as written, with a `make -n` in place of make, so what it prints
     is the pytest line the Makefile builds from the step's env: its share of the suite,
     `--shard K/N`, and a `--session-timeout` that stops pytest between tests and leaves room under
@@ -222,7 +225,8 @@ def test_the_macos_nightly_runs_its_suite_in_parts_each_stopped_by_pytest_under_
     assert shards
     parts = len(json.loads(shards[1]))
     assert json.loads(shards[1]) == list(range(1, parts + 1))
-    assert MAC_SUITE_SECONDS / parts <= MAC_PART_SECONDS
+    late = MAC_TLC_LATE_SECONDS
+    assert (MAC_SUITE_SECONDS - late) / parts + late <= MAC_PART_SECONDS
     bin = tmp_path / "bin"
     bin.mkdir()
     (bin / "make").write_text(f'#!/bin/sh\nexec {shutil.which("make")} -n "$@"\n')
