@@ -306,6 +306,11 @@ def test_a_makefile_that_changes_a_rule_or_a_define_beside_a_comment_is_no_kind(
         assert capsys.readouterr().out == "no kind: Makefile\n"
 
 
+def test_a_makefile_added_or_deleted_is_not_comments_only():
+    assert not proved.comments_only(None, MAKEFILE)
+    assert not proved.comments_only(MAKEFILE, None)
+
+
 def test_proved_none_of_a_range_git_cannot_read_exits_1(tmp_path, monkeypatch, capsys):
     _changed(tmp_path, DOCS_ONLY)
     monkeypatch.chdir(tmp_path)
