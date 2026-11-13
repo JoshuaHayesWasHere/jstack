@@ -562,7 +562,6 @@ READ_BY_A_GUARD = {
     "test_docs_true.py": "features/jmerge/src/jmerge/cli.py",
     "test_module_size.py": "features/jbus/src/jbus/wake.py",
     "test_names_resolve.py": "features/jbus/src/jbus/stall.py",
-    "test_new_lines_run.py": "features/jbus/src/jbus/queue.py",
     "test_no_comments.py": "features/jleak/hooks/commit-msg.sh",
     "test_one_way.py": "features/crew/SKILL.md",
     "test_playbook_wiring.py": "features/crew/playbooks/bug-fix.md",
@@ -595,7 +594,7 @@ def test_a_change_to_a_path_a_guards_read_set_names_selects_the_guard(guard, cha
     [
         (
             "features/home/docs/flow.md",
-            ["test_module_size.py", "test_new_lines_run.py", "test_test_size.py"],
+            ["test_module_size.py", "test_test_size.py"],
         ),
         (
             "features/jgauge/tests/test_slot.py",

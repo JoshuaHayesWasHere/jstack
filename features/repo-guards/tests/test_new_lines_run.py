@@ -50,14 +50,6 @@ import pytest
 from test_run_not_read import base, git
 from testing.paths import REPO
 
-READ_SET = (
-    "features/*/src/",
-    "features/*/scripts/",
-    "features/*/tests/",
-    "testing/tests/",
-    "features/repo-guards/ran/",
-)
-
 CODE = re.compile(r"features/[^/]+/(src|scripts)/.+\.py")
 HUNK = re.compile(r"^@@ -\S+ \+(\d+)(?:,(\d+))? @@", re.M)
 PRAGMA = re.compile(r"#\s*pragma[:\s]?\s*no\s*cover", re.I)

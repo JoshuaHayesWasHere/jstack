@@ -131,6 +131,7 @@ Cross-cutting:
 - `features/jinstall/tests/test_layout.py`
 - `features/jmerge/tests/test_main_contract.py`
 - `features/skill-library/tests/test_maintain_verification_skill.py`
+- `features/repo-guards/tests/test_new_lines_run.py`
 - `features/repo-standard/tests/test_conform.py`
 - `features/pr-review/tests/test_pr_review_skill.py`
 - `features/principles/tests/test_principles.py`
