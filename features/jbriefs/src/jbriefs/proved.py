@@ -38,8 +38,9 @@ EXEMPT = {
 line, each with the paths it covers: `docs`, prose and the docs directories, and `config`,
 settings, workflows, lockfiles, Go's module files and dotfiles. A pattern with a `/` matches
 from any directory of the path on, one without it matches the file's name. A `.py` file whose
-change is to its docstrings and comments alone is `docs` too (`prose_only`), which no pattern
-can tell: no test can fail over a docstring without pinning its words."""
+change is to its docstrings and comments alone is `docs` too (`prose_only`), and so is a
+`Makefile` or `*.mk` whose change is to its `#` comment lines alone (`comments_only`), which no
+pattern can tell: no test can fail over a docstring or a comment without pinning its words."""
 _PROVED_RUN = re.compile(
     r"Proved: (?P<tests>\S.*?) base exit (?P<base_exit>\d+) at (?P<base>[0-9a-f]{40}), "
     r"head exit (?P<head_exit>\d+) at (?P<head>[0-9a-f]{40})"
@@ -73,6 +74,9 @@ _PROVED_FORK = re.compile(
 )
 _PROVED_NONE = re.compile(r"Proved: none, (?P<kinds>.+)")
 _KIND_SEPARATOR = re.compile(r"\s*,\s*|\s+and\s+")
+_MAKEFILE = re.compile(r"(^|/)([^/]*\.mk|Makefile)$")
+_DEFINE = re.compile(r"^\s*((override|export)\s+)*define\b")
+_ENDEF = re.compile(r"^\s*endef\b")
 
 
 @dataclass(frozen=True)
@@ -104,8 +108,9 @@ def _no_prose(path: str) -> bool:
 
 def of_kind(path: str, kind: str, prose: Callable[[str], bool] = _no_prose) -> bool:
     """Whether `path` is of the `EXEMPT` kind `kind`, or, for `docs`, a `.py` file `prose` says
-    changes only in its docstrings and comments (`prose_in`)."""
-    if kind == "docs" and path.endswith(".py") and prose(path):
+    changes only in its docstrings and comments, or a `Makefile` or `*.mk` it says changes only in
+    its comment lines (`prose_in`)."""
+    if kind == "docs" and (path.endswith(".py") or _MAKEFILE.search(path)) and prose(path):
         return True
     parts = path.split("/")
     return any(
@@ -146,6 +151,34 @@ def prose_only(base: str | None, head: str | None) -> bool:
     return code is not None and code == _code(head)
 
 
+def _make_code(source: str | None) -> list[str] | None:
+    """The lines of a Makefile that are not comments, None where there is no source. A comment is
+    a line that starts with `#` after whitespace, and the lines its trailing backslash carries on
+    to; a `#` line inside a `define` is the variable's text, and so code."""
+    if source is None:
+        return None
+    code: list[str] = []
+    defining = carried = False
+    for line in source.splitlines():
+        comment = carried or (not defining and line.lstrip().startswith("#"))
+        carried = comment and (len(line) - len(line.rstrip("\\"))) % 2 == 1
+        if comment:
+            continue
+        code.append(line)
+        if _DEFINE.match(line):
+            defining = True
+        elif _ENDEF.match(line):
+            defining = False
+    return code
+
+
+def comments_only(base: str | None, head: str | None) -> bool:
+    """Whether a Makefile's text at the base and at the head, None where it has none there, differ
+    only in their comment lines (`_make_code`). A file the change adds or deletes is not."""
+    code = _make_code(base)
+    return code is not None and code == _make_code(head)
+
+
 def _show(root: str, *command: str) -> str | None:
     said = subprocess.run(["git", "-C", root, *command], capture_output=True, text=True)
     return said.stdout if said.returncode == 0 else None
@@ -153,8 +186,9 @@ def _show(root: str, *command: str) -> str | None:
 
 def prose_in(root: str, on: str, head: str) -> Callable[[str], bool]:
     """Whether a path's change in the repo at `root`, from the merge-base of `on` and `head` to
-    `head`, is to its docstrings and comments alone (`prose_only`). git is asked only for the
-    paths asked of, and a path git cannot show at either side is not."""
+    `head`, is to its docstrings and comments alone (`prose_only`), or for a `Makefile` or `*.mk`
+    to its comment lines alone (`comments_only`). git is asked only for the paths asked of, and a
+    path git cannot show at either side is not."""
 
     @functools.cache
     def base() -> str:
@@ -163,9 +197,8 @@ def prose_in(root: str, on: str, head: str) -> Callable[[str], bool]:
     def prose(path: str) -> bool:
         if not base():
             return False
-        return prose_only(
-            _show(root, "show", f"{base()}:{path}"), _show(root, "show", f"{head}:{path}")
-        )
+        same = comments_only if _MAKEFILE.search(path) else prose_only
+        return same(_show(root, "show", f"{base()}:{path}"), _show(root, "show", f"{head}:{path}"))
 
     return prose
 
