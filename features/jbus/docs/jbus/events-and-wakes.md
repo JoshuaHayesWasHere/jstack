@@ -121,6 +121,7 @@ It is in the log, which `jbus events` prints and the view shows.
 - `rebase`
 - `recovered`
 - `refailed`
+- `reland`
 - `report`
 - `rereview`
 - `restack`
