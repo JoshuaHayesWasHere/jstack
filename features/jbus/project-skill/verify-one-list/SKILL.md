@@ -6,9 +6,10 @@ paths: "features/jbus/spec/OneList.tla, features/jbus/src/jbus/__init__.py, feat
 
 # verify-one-list
 
-`features/jbus/spec/OneList.tla` follows what reaches the user and what a home has read, in three scenes that share only the project's passes and `streaks.lock`.
+`features/jbus/spec/OneList.tla` follows what reaches the user and what a home has read, in five scenes that share only the project's passes and `streaks.lock`.
 The gates scene is one gate: the home writes it in gates.md, a thread pipes it to `jbus gate`, a pass closes its question by silence or by the home's Status line, the user answers, and the handoff moves gates.md aside.
-The alerts scene is the streaks of streaks.json (jmerge's, a home's stall from before, the sign-in, a full disk), the budget hold and the kinds a pass rebuilds into waiting-on-user.json, with a pass and `jbus alarm` taking the lock in turn.
+Three scenes hold the streaks of streaks.json and the lock, one cause apart each, since the causes share nothing else: alerts is jmerge's streak and a home's stall from before, machine is a full disk and the sign-in, and rows is the budget hold and the kinds a pass rebuilds into waiting-on-user.json.
+In each, a pass and `jbus alarm` take the lock in turn, and the project may close.
 The marks scene is merge.log with merge-seen, and a brief's Result headings with read-seen.
 `World` picks the acts outside the code a run lets happen ("closes", "cuts", "by-home"), and `Fault` adds a canary.
 
