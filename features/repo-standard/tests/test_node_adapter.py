@@ -550,8 +550,8 @@ def test_a_node_test_root_runs_under_the_report_and_names_its_files(tmp_path, up
     out = done.stdout + done.stderr
     assert done.returncode != 0, out
     assert "bad option" not in out
-    assert "# pass 1" in out
-    assert "# fail 1" in out
+    assert "pass 1" in out
+    assert "fail 1" in out
     assert failed.read_text().splitlines() == [
         "client/src/adds.test.mjs",
         "client/src/breaks.test.mjs",

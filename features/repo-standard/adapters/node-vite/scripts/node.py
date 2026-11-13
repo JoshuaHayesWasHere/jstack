@@ -48,7 +48,9 @@ each a path from the repo's root, `npm test -- <files>` in each root they reach,
 from the root, and nothing in a root they miss. Given `REPO_STANDARD_FAILED=<file>`, it hands
 Vitest its JSON reporter beside the default one and appends to the file each test file the report
 says failed, one a line, as `list` prints it. A run that fails and names no file, such as one whose
-setup throws, appends every file it ran.
+setup throws, appends every file it ran. Only a root whose `test` script runs Vitest is handed the
+reporter: any other, such as one that runs `node --test`, gets its files alone, and when it fails
+appends the files it was given, or every unit test of the root.
 
 `python3 scripts/node.py setup` prints, for `$GITHUB_OUTPUT`, `roots=` and each folder that holds a
 `package-lock.json` git tracks, and `version-file=` and the first such root's `.nvmrc`, or its
@@ -94,6 +96,7 @@ TEST_NAME = re.compile(r"\.test\.[cm]?[jt]sx?$")
 SETUP = re.compile(r"\b(?:setupFiles|globalSetup)\s*:\s*(\[[^\]]*\]|'[^'\n]*'|\"[^\"\n]*\")")
 INCLUDE = re.compile(r"\binclude\s*:\s*(\[[^\]]*\])")
 TEST_BLOCK = re.compile(r"\btest\s*:\s*\{")
+VITEST = re.compile(r"(?<![\w@.-])vitest(?![\w.-])")
 
 
 def git(*args: str) -> list[str]:
@@ -307,6 +310,15 @@ def failed_in(report: Path) -> list[str]:
     ]
 
 
+def runs_vitest(root: str) -> bool:
+    """Whether the root's `test` script runs Vitest, which alone reads Vitest's reporter flags."""
+    try:
+        script = json.loads(read(node_graph.join(root, "package.json")))["scripts"]["test"]
+    except (ValueError, KeyError, TypeError):
+        return False
+    return isinstance(script, str) and VITEST.search(script) is not None
+
+
 def test(roots: list[str], ids: list[str]) -> int:
     report = os.environ.get("REPO_STANDARD_FAILED")
     failed = 0
@@ -317,7 +329,8 @@ def test(roots: list[str], ids: list[str]) -> int:
         with tempfile.TemporaryDirectory() as temp:
             out = Path(temp) / "vitest.json"
             reporters = ["--reporter=default", "--reporter=json", f"--outputFile.json={out}"]
-            rest = [*(reporters if report else []), *(inner(one, root) for one in mine)]
+            vitest = report and runs_vitest(root)
+            rest = [*(reporters if vitest else []), *(inner(one, root) for one in mine)]
             argv = ["npm", "--prefix", root, "test", *(["--", *rest] if rest else [])]
             print(" ".join(argv), flush=True)
             code = subprocess.run(argv).returncode
