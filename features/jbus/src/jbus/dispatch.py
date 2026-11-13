@@ -62,7 +62,7 @@ A row left with work on its branch launches again, a new thread on its slug, bra
 A row waits while another row out names a hot file that its `Where:` names (`jbus.hotfiles`), as
 `waits on <slug>: both name <file>, ...` (`Hot`), unless it resumes its own branch or fixes main,
 and launches on the first pass after that row merged, ended or was removed. When the file frees,
-the row held on it longest launches first (`hotfiles.first`). Any other file two
+the row held on it longest launches first (`hotfiles.ahead`). Any other file two
 briefs share holds back no launch, since each crew has its own worktree and branch: the crew of the
 pull request that merges second rebases it, and `jbus.rebase` tells that crew to.
 """
@@ -499,25 +499,10 @@ class Turns:
                 if found := hotfiles.holder(run, brief, self.out, skip):
                     run.reasons[slug] = Hot(*found)
                     continue
-                if ahead := self._ahead(slug, brief, skip):
+                if ahead := hotfiles.ahead(run, slug, brief, self.left, self.holds, skip):
                     self.left[:0] = [ahead, row]
                     continue
             yield row, brief, on, cause
-
-    def _ahead(self, slug: str, brief: str, skip: tuple[str, ...]) -> queue.Row | None:
-        """Take off `left` and return the row held longer on a hot file this brief names, which
-        the pass reads before this one: if it launches, it holds this row as a row out; if it
-        waits for anything else, it is read no more this pass and this row goes on."""
-        rows = {
-            row["slug"]: row
-            for row in self.left
-            if row["slug"] in self.holds and row["slug"] not in skip
-        }
-        waiting = {other: queue.brief(self.run.state, other) or "" for other in rows}
-        if not (ahead := hotfiles.first(self.run, slug, brief, self.holds, waiting)):
-            return None
-        self.left.remove(rows[ahead])
-        return rows[ahead]
 
     def out(self) -> dict[str, str]:
         """Each row out, by slug, with its queued brief, in the order the queue launches them: a
