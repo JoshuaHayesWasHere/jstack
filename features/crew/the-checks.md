@@ -12,7 +12,7 @@ Its first word is one of four answers:
 - `failed`: a check ran and failed.
   Run the check in this worktree with the block of "Do the task" that runs it, in this turn, as that step says: in a repo whose check selects its tests (`scripts/select_tests.py`) it is the touched check, a step to a short slot, and in any other repo the check command.
   On a full lane's `waiting`, stop as "Do the task" says.
-  In a repo whose check selects its tests, then run each test file CI's failed parts name, alone in the short lane, with the block of "The failed files" below.
+  In a repo whose check selects its tests, then run each test file CI's failed parts name, alone in the short lane, or in a full slot where the check block measured it at the short lane's limit or more, with the block of "The failed files" below.
   Never the whole suite and never the first line of `$H/fresh-check` there: CI's check runs the selection, and `jgauge test-slot --thread` refuses a whole suite in such a repo.
   Then run the block of "A failed check" below, with `failed` where the check or a failed file failed here, and do what its first word says.
 - `wait`: a check is still running, none is reported yet, or GitHub could not be asked.
@@ -54,13 +54,19 @@ else
         { printf '%s\n' "$files"; cat "$kept" 2> /dev/null; } | sort -u > "$kept.new" && mv "$kept.new" "$kept"
     fi
     ran=0
+    times=$(git rev-parse --path-format=absolute --git-common-dir)/crew-check-times
     for file in $files; do
         [ -f "$file" ] || { echo "$file: not in this worktree, so not run"; continue; }
-        lane=short
-        uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- make test TESTS="$file"
-        said=$?
-        if [ "$said" = 124 ]; then
+        if awk -v file="$file" '$1 == file { took = $2 } END { exit !(took != "-" && took + 0 >= 120) }' "$times" 2> /dev/null; then
+            echo "$file: measured at 120 s or more, the short lane's limit: it runs in a full slot"
             lane=full
+        else
+            lane=short
+            uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- make test TESTS="$file"
+            said=$?
+            [ "$said" != 124 ] || lane=full
+        fi
+        if [ "$lane" = full ]; then
             uv run --project "$T/../source" jgauge test-slot --thread '<thread id>' -- make test TESTS="$file"
             said=$?
         fi

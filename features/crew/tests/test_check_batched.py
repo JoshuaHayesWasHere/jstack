@@ -170,7 +170,8 @@ def test_a_step_stopped_at_the_lanes_limit_is_split_and_its_files_run_again_neve
 ):
     """A step of three files the short lane stops at its limit (exit 124) reached no verdict:
     no file of it is kept as passed, its files are measured afresh, and each runs again alone,
-    a file the lane stops again in a full slot, as before. The check's verdict is theirs."""
+    a file the lane stops again in a full slot, as before, kept at the lane's limit. The check's
+    verdict is theirs."""
     repo = stubbed(tmp_path, touching(*TOUCHED[:3]))
     measured(repo, 5, *TOUCHED[:3])
     brief = a_brief(tmp_path)
@@ -195,7 +196,7 @@ def test_a_step_stopped_at_the_lanes_limit_is_split_and_its_files_run_again_neve
     ) in said, said
     assert code == 0, said
     times = (repo / ".git" / "crew-check-times").read_text().splitlines()
-    assert times[-3:] == [f"{one} -" for one in TOUCHED[:3]]
+    assert times[-4:] == [*(f"{one} -" for one in TOUCHED[:3]), f"{TOUCHED[1]} 120"]
     assert brief.read_text().endswith(
         f"Checked: make check-fast BASE={base} PART=touched exit 0 at {head}\n"
     )
