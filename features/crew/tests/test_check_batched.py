@@ -267,3 +267,65 @@ def test_a_call_leaves_one_report_however_many_steps_it_runs(tmp_path, monkeypat
     said, code, ran, base = selected(tmp_path, repo, junit=({}, []))
     assert (len(ran), code) == (10, 0), said
     assert len(list(scratch.glob("code.*.junit*"))) == 1
+
+
+SLOW = "features/repo-guards/tests/test_new_lines_run.py"
+
+
+def test_a_file_the_short_lane_stopped_alone_takes_a_full_slot_first_at_the_next_head(tmp_path):
+    """The reproduction: test_new_lines_run.py ran alone in the short lane, was stopped at its
+    120 s limit and ran again in a full slot, at every head of every crew's check, 130 times over
+    2026-11-12 and 11-13, since a step stopped alone left no time behind. The stop is kept as the
+    lane's limit, so the next head's check, in any worktree of the repo, runs the file in a full
+    slot with no short attempt."""
+    repo = stubbed(tmp_path, touching(TOUCHED[0], cross=(SLOW,)))
+    measured(repo, 5, TOUCHED[0])
+    a_brief(tmp_path)
+    stopped = {f"*{SLOW} BASE=* short=held*": 124}
+    said, code, ran, base = selected(tmp_path, repo, exits=stopped)
+    assert ran == [
+        lint(base),
+        alone(TOUCHED[0], base),
+        alone(SLOW, base),
+        alone(SLOW, base, "short=free full=held"),
+    ]
+    assert code == 0, said
+    (repo / "page.md").write_text("A new head.\n")
+    git(repo, "commit", "-qam", "a new head")
+    said, code, ran, base = selected(tmp_path, repo, exits=stopped)
+    assert ran == [lint(base), alone(TOUCHED[0], base), alone(SLOW, base, "short=free full=held")]
+    assert (
+        f"{SLOW}: measured at 120 s or more, the short lane's limit: it runs in a full slot" in said
+    )
+    assert said[0].endswith(
+        "in 1 steps of the short lane after the lint, and 1 in a full slot; "
+        "CI's check runs the rest of the selection"
+    ), said
+    assert code == 0, said
+
+
+def test_a_file_measured_over_the_lanes_limit_runs_in_a_full_slot_which_measures_it_again(
+    tmp_path,
+):
+    """A file whose last measured time is the short lane's limit or more runs alone in a full
+    slot first, and that run measures it, as a short one does: a full slot runs as many workers
+    as a short one on this desk. Measured under the limit there, the next head packs it into a
+    step of the short lane again."""
+    repo = stubbed(tmp_path, touching(*TOUCHED[:2]))
+    measured(repo, 300, TOUCHED[0])
+    measured(repo, 5, TOUCHED[1])
+    a_brief(tmp_path)
+    junit = ({TOUCHED[0]: 30}, [])
+    said, code, ran, base = selected(tmp_path, repo, junit=junit)
+    assert ran == [
+        lint(base),
+        alone(TOUCHED[0], base, "short=free full=held"),
+        alone(TOUCHED[1], base),
+    ]
+    assert code == 0, said
+    times = (repo / ".git" / "crew-check-times").read_text().splitlines()
+    assert f"{TOUCHED[0]} 30.0" in times, times
+    (repo / "page.md").write_text("A new head.\n")
+    git(repo, "commit", "-qam", "a new head")
+    said, code, ran, base = selected(tmp_path, repo, junit=junit)
+    assert ran == [lint(base), alone(" ".join(TOUCHED[:2]), base)], said

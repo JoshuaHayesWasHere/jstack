@@ -31,10 +31,11 @@ case "$*" in *test_b.py*) exit 1 ;; esac
 """
 
 
-def files_block(tmp_path, selects=True, kept=""):
+def files_block(tmp_path, selects=True, kept="", times=""):
     """Run the block of "The failed files" in a pull request's worktree whose failed check is
     job 2 of run 5, with the log above, and return what it printed and the runs of `make`.
-    `kept` is what the worktree's `crew-failed-files` held before, from an earlier red."""
+    `kept` is what the worktree's `crew-failed-files` held before, from an earlier red, and
+    `times` what the repo's `crew-check-times` held, from the check blocks before."""
     failed = Failed(tmp_path)
     if kept:
         (failed.git_dir / "crew-failed-files").write_text(kept)
@@ -46,6 +47,9 @@ def files_block(tmp_path, selects=True, kept=""):
         (failed.work / "tests" / name).write_text("")
     git(failed.work, "add", "-A")
     git(failed.work, "commit", "-qm", "tests")
+    if times:
+        common = failed.work / git(failed.work, "rev-parse", "--git-common-dir")
+        (common / "crew-check-times").write_text(times)
     failed.push([run("SUCCESS", 1), run("FAILURE", 2)])
     shim = tmp_path / "shim"
     shim.mkdir()
@@ -103,3 +107,14 @@ def test_the_failed_files_are_kept_for_the_check(tmp_path):
         "tests/test_gone.py",
         "tests/test_old.py",
     ]
+
+
+def test_a_file_measured_over_the_short_lanes_limit_runs_in_a_full_slot_first(tmp_path):
+    """A failed file whose last time in the repo's `crew-check-times` is the short lane's limit
+    or more, as a check block keeps a file the lane stopped alone, runs in a full slot with no
+    short attempt; one measured under it before, as later, runs in the short lane."""
+    said, made = files_block(
+        tmp_path, times="tests/test_a.py 300.0\ntests/test_b.py 120\ntests/test_b.py 9.5\n"
+    )
+    assert made == ["test TESTS=tests/test_a.py full", "test TESTS=tests/test_b.py short"]
+    assert "tests/test_a.py: exit 0, full lane" in said
