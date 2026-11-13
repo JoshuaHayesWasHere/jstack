@@ -9,7 +9,9 @@
 # `make check` and CI do, or a `*.test.*` or `*.spec.*` of JavaScript or TypeScript, run on the
 # Vitest of the nearest package.json above it, from the directory of the nearest `vitest.config.*`
 # between it and that package, the package's own the last, or for a `*.spec.*` on Playwright, from
-# the directory of the nearest `playwright.config.*` above it.
+# the directory of the nearest `playwright.config.*` above it. A test whose tree names no Vitest (no
+# `vitest.config.*` and no package.json that names `vitest` above it) runs on `node --test`, from
+# its package's directory, or the root where it has none.
 # features/crew/do-the-task.md says what it proves and how.
 # A crew runs it by its path, `bash "$T/proved.sh" <brief> <thread id>`, from its worktree: the
 # command it sends then holds no `rm`, which Claude Code stops to ask about, even in full access.
@@ -22,7 +24,7 @@
 # and a base exit 1 is what proves the change: each one's JSON report says whether a test failed or
 # a test file did not load, and a run that ends 1 with neither is written 2.
 prove_sides() {
-    local side at more workers code worst said ran runner groups n run pkg files name out bin dir report failed
+    local side at more workers code worst said ran runner groups n run pkg files name out bin dir report failed passed
     for side in $PROOF_SIDES; do
         if [ "$side" = head ]; then at=$PROOF_HEAD more=; else at=$PROOF_BASE more=--continue-on-collection-errors; fi
         cd "$at" || exit
@@ -35,8 +37,12 @@ prove_sides() {
             worst=$?
             said=$(tail -n 1 "$PROOF_BASE/.proof-$side")
         fi
-        for runner in vitest playwright; do
-            if [ "$runner" = vitest ]; then groups=$PROOF_VITEST; else groups=$PROOF_PLAYWRIGHT; fi
+        for runner in vitest playwright node; do
+            case $runner in
+            vitest) groups=$PROOF_VITEST ;;
+            playwright) groups=$PROOF_PLAYWRIGHT ;;
+            node) groups=$PROOF_NODE ;;
+            esac
             n=0
             while IFS=$'\t' read -r -u 3 run pkg files; do
                 [ -n "$run" ] || continue
@@ -45,7 +51,25 @@ prove_sides() {
                 [ "$run" = . ] || name="$runner $run"
                 out=$PROOF_BASE/.proof-$side-$runner-$n
                 : > "$out.json"
-                if [ ! -f "$at/$pkg/package.json" ]; then
+                if [ "$runner" = node ]; then
+                    # Node's own runner needs no package, and its TAP report ends with the counts:
+                    # a file that does not load is a failed test there.
+                    (cd "$at/$run" && node --test --test-reporter=tap $files) > "$out" 2>&1 < /dev/null
+                    code=$?
+                    passed=$(sed -n 's/^# pass \([0-9]*\)$/\1/p' "$out" | tail -n 1)
+                    failed=$(sed -n 's/^# fail \([0-9]*\)$/\1/p' "$out" | tail -n 1)
+                    if [ -n "$failed" ]; then
+                        ran="$name: ${passed:-0} passed, $failed failed"
+                    else
+                        ran="$name: $(tail -n 1 "$out")"
+                        failed=0
+                    fi
+                    if [ "$code" != 0 ] && [ "$failed" -gt 0 ]; then
+                        code=1
+                    elif [ "$code" = 1 ]; then
+                        code=2
+                    fi
+                elif [ ! -f "$at/$pkg/package.json" ]; then
                     # A repo's or a package's first pull request: its base has no project for the
                     # tests to run on.
                     if [ "$side" = base ]; then code=1; else code=2; fi
@@ -313,8 +337,21 @@ else
         [ "$path" != . ] || path=
         git ls-tree --name-only "$head:$path" 2> /dev/null | command grep -qE "^$1\.config\.[cm]?[jt]s$"
     }
+    # Whether a Vitest is named at or above a directory: a `vitest.config.*`, or a package.json that
+    # names `vitest`.
+    vitest_above() {
+        local dir=$1 at
+        while :; do
+            config_in vitest "$dir" && return 0
+            if [ "$dir" = . ]; then at=package.json; else at=$dir/package.json; fi
+            git show "$head:$at" 2> /dev/null | command grep -q vitest && return 0
+            [ "$dir" != . ] || return 1
+            dir=$(dirname "$dir")
+        done
+    }
     vitests=
     specs=
+    nodes=
     while read -r file; do
         [ -n "$file" ] || continue
         pkg=$(package_of "$file")
@@ -330,6 +367,10 @@ else
                 dir=$(dirname "$dir")
             done
         fi
+        if [ -z "$runner" ] && ! vitest_above "$(dirname "$file")"; then
+            runner=nodes
+            dir=$pkg
+        fi
         if [ -z "$runner" ]; then
             runner=vitests
             dir=$(dirname "$file")
@@ -338,6 +379,8 @@ else
         if [ "$dir" = . ]; then rel=$file; else rel=${file#"$dir"/}; fi
         if [ "$runner" = specs ]; then
             specs="$specs$dir"$'\t'"$rel"$'\n'
+        elif [ "$runner" = nodes ]; then
+            nodes="$nodes$dir"$'\t'"$rel"$'\n'
         else
             vitests="$vitests$dir"$'\t'"$rel"$'\n'
         fi
@@ -352,7 +395,8 @@ else
     }
     vitests=$(printf '%s' "$vitests" | sort | by_package | with_package)
     specs=$(printf '%s' "$specs" | sort | by_package | with_package)
-    packages=$(printf '%s\n%s\n' "$vitests" "$specs" | while IFS=$'\t' read -r _ pkg _; do
+    nodes=$(printf '%s' "$nodes" | sort | by_package | with_package)
+    packages=$(printf '%s\n%s\n%s\n' "$vitests" "$specs" "$nodes" | while IFS=$'\t' read -r _ pkg _; do
         [ -z "$pkg" ] || echo "$pkg"
     done | sort -u | paste -sd ' ' -)
     if ! tree=$(mktemp -d "${TMPDIR:-/tmp}/base.XXXXXX"); then
@@ -414,7 +458,7 @@ else
             proof_workers=$(($(getconf _NPROCESSORS_ONLN 2> /dev/null || echo 8) / 4))
             [ "$proof_workers" -ge 2 ] || proof_workers=2
         fi
-        PROOF_WORKERS=$proof_workers PROOF_HEAD=$tip PROOF_BASE=$tree PROOF_SIDES=$owed PROOF_PYTEST=$pytests PROOF_VITEST=$vitests PROOF_PLAYWRIGHT=$specs \
+        PROOF_WORKERS=$proof_workers PROOF_HEAD=$tip PROOF_BASE=$tree PROOF_SIDES=$owed PROOF_PYTEST=$pytests PROOF_VITEST=$vitests PROOF_PLAYWRIGHT=$specs PROOF_NODE=$nodes \
             uv run --project "$T/../source" jgauge test-slot $lane --thread "$thread" -- bash "$0" --sides | tee -a "$tree/.proof-said"
         ran=${PIPESTATUS[0]}
         left=
