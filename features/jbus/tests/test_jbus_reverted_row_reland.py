@@ -24,7 +24,7 @@ from jmerge import ready
 from jmerge import reverts as kept
 from jmerge import rows as merge_rows
 from test_jbus_kitchen import NOW
-from test_jbus_prereview import proof, pushed_branch, reviewers
+from test_jbus_prereview import crew_tree, proof, pushed_branch, reviewers
 from test_jbus_queue import add, rows
 from test_rowlife_replay import replay
 
@@ -32,6 +32,9 @@ MERGE = "a" * 40
 """The merge commit of alpha's first pull request, #7, the red tip its revert reverts."""
 REVERT = "b" * 40
 REDO = "f" * 40
+"""The merge commit of the redo, #10, the red tip the second revert, #12, reverts."""
+SECOND_REVERT = "9" * 40
+SECOND_REDO = "8" * 40
 
 
 def url(number):
@@ -61,34 +64,82 @@ def merged_row(kitchen):
     return thread, path
 
 
-def reverted(kitchen):
-    """The record jbus keeps once it opened the revert of #7 (`reverts._own`): #9 on the branch
-    GitHub names, open."""
-    record = kept.Revert(MERGE, "alpha", "revert-7-alpha", "e" * 40, url(9))
-    jbus.write_json(
-        kitchen.state / kept.NAME, {MERGE: {**kept.record(record), "holders": ["main"]}}
-    )
+def reverted(kitchen, red=MERGE, merge=7, revert=9):
+    """The record jbus keeps once it opened the revert of alpha's merge `merge`, at `red`
+    (`reverts._own`): `revert` on the branch GitHub names, open. It is the one revert on record:
+    `reverts.close` dropped the one before once the row was over again."""
+    branch = f"revert-{merge}-alpha"
+    record = kept.Revert(red, "alpha", branch, "e" * 40, url(revert))
+    jbus.write_json(kitchen.state / kept.NAME, {red: {**kept.record(record), "holders": ["main"]}})
     kitchen.brief(
-        "revert-7-alpha",
+        branch,
         f"Home: uncategorized\n\n## Result\nStatus: done\n"
-        f"Branch: revert-7-alpha   Pull request: {url(9)}\n",
+        f"Branch: {branch}   Pull request: {url(revert)}\n",
     )
-    kitchen.set("open.json", [kitchen.opened("revert-7-alpha", 9)])
+    kitchen.set("open.json", [kitchen.opened(branch, revert)])
 
 
-def revert_merges(kitchen):
+def revert_merges(kitchen, merge=7, revert=9, sha=REVERT):
     kitchen.set("open.json", [])
     merged = json.loads((kitchen.stub / "merged.json").read_text())
-    landed = kitchen.merged("revert-7-alpha", 9, REVERT, ago=timedelta(minutes=5))
+    landed = kitchen.merged(f"revert-{merge}-alpha", revert, sha, ago=timedelta(minutes=5))
     kitchen.set("merged.json", [*merged, landed])
 
 
-def told(kitchen, thread):
-    """The messages jbus sent the crew's thread that name the revert, #9."""
+def told(kitchen, thread, revert=9):
+    """The messages jbus sent the crew's thread that name the revert, `revert`."""
     sent = [given for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
     return [
-        one for one in sent if one["threadId"] == thread["threadId"] and url(9) in one["message"]
+        one
+        for one in sent
+        if one["threadId"] == thread["threadId"] and url(revert) in one["message"]
     ]
+
+
+def redo_merges(kitchen, thread, path, number, sha, at, commit="the task"):
+    """The crew of the reopened row commits its redo and writes its desk proof, jbus launches its
+    review, the redo's pull request `number` opens with nothing of jmerge's holding it, and it
+    merges at `sha`, the passes running from `at` on. Returns the review jbus launched."""
+    tree, head = pushed_branch(kitchen) if commit == "the task" else committed(kitchen, commit)
+    thread.update(
+        settled=False, archived=False, latestRunId=f"run-{number}", worktreePath=str(tree)
+    )
+    path.write_text(path.read_text() + proof(head))
+    before = len(reviewers(kitchen))
+    for minutes in (0, 3):
+        kitchen.poll(at + timedelta(minutes=minutes))
+    (launched,) = reviewers(kitchen)[before:]
+    assert status(kitchen) == "running"
+
+    kitchen.set("open.json", [kitchen.opened("alpha", number)])
+    path.write_text(
+        path.read_text() + "\n## Result, follow-up (2026-11-13, the redo's pull request)\n"
+        f"Status: done\nBranch: alpha   Pull request: {url(number)}\nLeft: none\n"
+    )
+    kitchen.poll(at + timedelta(minutes=6))
+    assert (status(kitchen), rows(kitchen)["alpha"]["pr"]) == ("pr", f"#{number}")
+    said = jmerge_says(kitchen)
+    assert ready.code_of(said) != ready.ROW_OVER.code, said
+    assert said == ""
+
+    kitchen.set("open.json", [])
+    merged = json.loads((kitchen.stub / "merged.json").read_text())
+    kitchen.set("merged.json", [*merged, kitchen.merged("alpha", number, sha, ago=timedelta(0))])
+    kitchen.poll(at + timedelta(minutes=9))
+    assert (status(kitchen), rows(kitchen)["alpha"]["pr"]) == ("merged", f"#{number}")
+    return launched
+
+
+def committed(kitchen, text):
+    """One more commit of the crew's on alpha's branch, pushed: a redo after a redo."""
+    tree = crew_tree(kitchen, "alpha")
+    (tree / "docs" / "notes.md").write_text(f"{text}\n")
+    kitchen.git("commit", "-q", "-am", f"docs: {text}", cwd=tree)
+    kitchen.git("push", "-q", "-f", "origin", "alpha:refs/heads/alpha", cwd=tree)
+    head = kitchen.started(
+        ["git", "rev-parse", "HEAD"], cwd=tree, capture_output=True, text=True
+    ).stdout.strip()
+    return tree, head
 
 
 def jmerge_says(kitchen, slug="alpha"):
@@ -98,11 +149,9 @@ def jmerge_says(kitchen, slug="alpha"):
     return merge_rows.short(list(rows(kitchen).values()), slug, brief=stored)
 
 
-def test_a_row_whose_revert_merged_opens_again_and_its_redo_gets_its_review_and_no_row_over_hold(
-    kitchen,
-):
-    """Once #9 merged, the row keeps #7 in its `reverted` column, and `jbus.watch.unlanded` reads
-    #7 as no merge of the row's, so the redo #10 goes the way of any row's pull request."""
+def redone(kitchen):
+    """alpha merged at #7, jbus reverted it in #9, and once #9 merged its redo #10 was reviewed
+    and merged. Returns the crew's thread and the brief's path."""
     thread, path = merged_row(kitchen)
     reverted(kitchen)
     kitchen.poll(NOW - timedelta(minutes=24))
@@ -119,31 +168,65 @@ def test_a_row_whose_revert_merged_opens_again_and_its_redo_gets_its_review_and_
         f"reland alpha: its revert {url(9)} merged, so the row is open for its redo"
     ]
 
-    tree, head = pushed_branch(kitchen)
-    thread.update(settled=False, archived=False, latestRunId="run-3", worktreePath=str(tree))
-    path.write_text(path.read_text() + proof(head))
-    for minutes in (0, 3):
-        kitchen.poll(NOW + timedelta(minutes=minutes))
-    (launched,) = reviewers(kitchen)
+    launched = redo_merges(kitchen, thread, path, 10, REDO, NOW)
     assert launched["title"] == "review: alpha, 1"
-    assert status(kitchen) == "running"
+    return thread, path
 
-    kitchen.set("open.json", [kitchen.opened("alpha", 10)])
-    path.write_text(
-        path.read_text() + "\n## Result, follow-up (2026-11-13, the redo's pull request)\n"
-        f"Status: done\nBranch: alpha   Pull request: {url(10)}\nLeft: none\n"
-    )
-    kitchen.poll(NOW + timedelta(minutes=6))
-    assert (status(kitchen), rows(kitchen)["alpha"]["pr"]) == ("pr", "#10")
-    said = jmerge_says(kitchen)
-    assert ready.code_of(said) != ready.ROW_OVER.code, said
-    assert said == ""
 
-    kitchen.set("open.json", [])
-    merged = json.loads((kitchen.stub / "merged.json").read_text())
-    kitchen.set("merged.json", [*merged, kitchen.merged("alpha", 10, REDO, ago=timedelta(0))])
-    kitchen.poll(NOW + timedelta(minutes=9))
+def test_a_row_whose_revert_merged_opens_again_and_its_redo_gets_its_review_and_no_row_over_hold(
+    kitchen,
+):
+    """Once #9 merged, the row keeps #7 in its `reverted` column, and `jbus.watch.unlanded` reads
+    #7 as no merge of the row's, so the redo #10 goes the way of any row's pull request."""
+    redone(kitchen)
+
+
+def redone_twice(kitchen):
+    """The redo #10 merged, main went red at it, and jbus reverted it too, in #12: once #12
+    merges the row is open again, though its `reverted` column already names #7, and its second
+    redo, #13, is reviewed and merged by the normal path, with no row-over hold of jmerge's."""
+    thread, path = redone(kitchen)
+    reverted(kitchen, red=REDO, merge=10, revert=12)
+    kitchen.poll(NOW + timedelta(minutes=12))
+    assert told(kitchen, thread, revert=12), "jbus tells the crew of the second revert"
+    thread.update(status="completed", settled=False, archived=False, latestRunId="run-11")
     assert (status(kitchen), rows(kitchen)["alpha"]["pr"]) == ("merged", "#10")
+    assert ready.code_of(jmerge_says(kitchen)) == ready.ROW_OVER.code
+
+    revert_merges(kitchen, merge=10, revert=12, sha=SECOND_REVERT)
+    kitchen.poll(NOW + timedelta(minutes=15))
+    assert status(kitchen) not in ("merged", "done")
+    assert rows(kitchen)["alpha"]["pr"] == ""
+    assert kitchen.lines("reland") == [
+        f"reland alpha: its revert {url(9)} merged, so the row is open for its redo",
+        f"reland alpha: its revert {url(12)} merged, so the row is open for its redo",
+    ]
+
+    launched = redo_merges(
+        kitchen, thread, path, 13, SECOND_REDO, NOW + timedelta(minutes=18), "the second redo"
+    )
+    assert launched["title"].startswith("review: alpha"), launched["title"]
+    for minutes in (30, 33):
+        kitchen.poll(NOW + timedelta(minutes=minutes))
+    assert (status(kitchen), rows(kitchen)["alpha"]["pr"]) == ("merged", "#13")
+    assert len(kitchen.lines("reland")) == 2
+
+
+def test_a_row_reverted_twice_opens_again_each_time_and_its_second_redo_is_reviewed_and_merged(
+    kitchen,
+):
+    redone_twice(kitchen)
+
+
+def test_a_revert_of_a_merge_the_row_already_took_back_opens_nothing(kitchen):
+    """alpha's redo #10 is its merge, and its `reverted` column names #7, the merge #9 took back:
+    #7 taken back again, by a revert on record that names it late, leaves the row merged at #10,
+    while #10's own revert opens it."""
+    redone(kitchen)
+    assert not queue.reland(kitchen.state, "alpha", url(7), url(9))
+    assert (status(kitchen), rows(kitchen)["alpha"]["pr"]) == ("merged", "#10")
+    assert queue.reland(kitchen.state, "alpha", url(10), url(12))
+    assert status(kitchen) == "left"
 
 
 @pytest.mark.parametrize("revert", ["open", "none"], ids=["revert not merged", "never reverted"])
@@ -175,12 +258,23 @@ def test_a_revert_that_merged_after_a_redo_merged_keeps_the_redo(kitchen):
 def test_the_reland_and_the_redo_replay_as_steps_of_rowlife(kitchen, capsys):
     """The row's whole life, its merge, the reland and the redo's merge, is a chain of RowLife's
     steps: the reland's own line reads as `Reland`, and no pass's line misses."""
-    test_a_row_whose_revert_merged_opens_again_and_its_redo_gets_its_review_and_no_row_over_hold(
-        kitchen
-    )
+    redone(kitchen)
     log = kitchen.state / "transitions.jsonl"
     lines = [json.loads(line) for line in log.read_text().splitlines()]
     (moved,) = [line for line in lines if line.get("reverted")]
     assert (moved["from"], moved["to"], moved["reverted"]) == ("merged", "left", url(9))
+    code, said = replay(log, capsys)
+    assert (code, said) == (0, [f"{len(lines)} lines, {len(lines)} matched, 0 matched no step"])
+
+
+def test_both_relands_replay_as_steps_of_rowlife(kitchen, capsys):
+    """A row merged, reverted, redone, merged, reverted again and redone again is a chain of
+    RowLife's steps: each reland's line reads as `Reland`, the second from a merge the first did
+    not take back, and no pass's line misses."""
+    redone_twice(kitchen)
+    log = kitchen.state / "transitions.jsonl"
+    lines = [json.loads(line) for line in log.read_text().splitlines()]
+    moved = [(line["from"], line["to"], line["reverted"]) for line in lines if line.get("reverted")]
+    assert moved == [("merged", "left", url(9)), ("merged", "left", url(12))]
     code, said = replay(log, capsys)
     assert (code, said) == (0, [f"{len(lines)} lines, {len(lines)} matched, 0 matched no step"])
