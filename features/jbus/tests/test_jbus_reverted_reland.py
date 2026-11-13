@@ -83,7 +83,9 @@ def revert_merges(kitchen):
 def told(kitchen, thread):
     """The messages jbus sent the crew's thread that name the revert, #9."""
     sent = [given for tool, given in kitchen.t3.calls if tool == "t3_thread_send"]
-    return [one for one in sent if one["threadId"] == thread["threadId"] and url(9) in one["message"]]
+    return [
+        one for one in sent if one["threadId"] == thread["threadId"] and url(9) in one["message"]
+    ]
 
 
 def jmerge_says(kitchen, slug="alpha"):
@@ -107,7 +109,7 @@ def test_a_row_whose_revert_merged_opens_again_and_its_redo_gets_its_review_and_
 
     assert status(kitchen) not in ("merged", "done")
     assert rows(kitchen)["alpha"]["pr"] == ""
-    assert [line for line in kitchen.lines("reland")] == [
+    assert kitchen.lines("reland") == [
         f"reland alpha: its revert {url(9)} merged, so the row is open for its redo"
     ]
 

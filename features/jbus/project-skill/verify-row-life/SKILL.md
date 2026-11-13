@@ -1,7 +1,7 @@
 ---
 name: verify-row-life
 description: Check RowLife.tla, a queue row's status and go; use when changing work.status, queue.MOVES, queue.derive or the go verbs.
-paths: "features/jbus/spec/RowLife.tla, features/jbus/src/jbus/work.py, features/jbus/src/jbus/queue.py, features/jbus/src/jbus/restated.py, features/jbus/src/jbus/dispatch.py, features/jbus/src/jbus/watch.py, features/jbus/src/jbus/asks.py"
+paths: "features/jbus/spec/RowLife.tla, features/jbus/src/jbus/work.py, features/jbus/src/jbus/queue.py, features/jbus/src/jbus/restated.py, features/jbus/src/jbus/dispatch.py, features/jbus/src/jbus/watch.py, features/jbus/src/jbus/asks.py, features/jbus/src/jbus/reverts.py"
 ---
 
 # verify-row-life
@@ -20,11 +20,12 @@ Model: `features/jbus/spec/RowLife.tla`
 Sync: `d3f642c80a2c52ebbf134aa981d95894e892201a`
 Covers:
 - `features/jbus/src/jbus/work.py`: `status`, `kept`, `over`, `FINAL`, `PATTERNS`, `VALUES`
-- `features/jbus/src/jbus/queue.py`: `MOVES`, `derive`, `_grant`, `_hold`, `_lift`, `_void`, `_take_out`, `_launching`
+- `features/jbus/src/jbus/queue.py`: `MOVES`, `derive`, `_grant`, `_hold`, `_lift`, `_void`, `_take_out`, `_launching`, `reland`
 - `features/jbus/src/jbus/asks.py`: `_asks`
 - `features/jbus/src/jbus/restated.py`: `restate`
 - `features/jbus/src/jbus/dispatch.py`: `Turns.take`
-- `features/jbus/src/jbus/watch.py`: `gone`, `unwritten`, `KNOWN`
+- `features/jbus/src/jbus/watch.py`: `gone`, `unwritten`, `KNOWN`, `unlanded`
+- `features/jbus/src/jbus/reverts.py`: `reland`
 
 The first sync, 228c1436c, read the model against each of these, step by step: every pattern of `ValueOf` against `work.PATTERNS` in order, `StatusOf` against `work.status`, `Kept` against `work.kept`, the go verbs, `remove`'s guard (`out` in `asks._asks`, `_launching`), and the launch's `approved` and depends guards in `Turns.take`.
 At this sync, main's tip when this branch last took main in, the four covered changes since were read against the model.
@@ -49,7 +50,7 @@ uv run pytest features/jbus/tests/test_rowlife_spec.py -q
 It runs TLC in a copy of the spec folder and prints `7 passed` in a few seconds; it skips where no Java runs TLC.
 The bare TLC command is in `features/jbus/spec/RowLife.md`, "Check the rule"; run it in a copy of the folder, since TLC writes `states/` where it runs.
 
-- **Bounds:** one row, a scout's or a crewmate's, `Fault = "none"`, 6184 distinct states, `TypeOK` and `FinalStays`.
+- **Bounds:** one row, a scout's or a crewmate's, `Fault = "none"`, 13256 distinct states, `TypeOK` and `FinalStays`.
 - **The canaries:** `Fault = "no-latch"` takes `work.kept` out, and `FinalStays` breaks (`test_a_derive_that_writes_over_a_final_status_breaks_the_rule`); `Fault = "any-hand-over"` lets the hand-over take a crewmate's done row, and `FinalStays` breaks (`test_a_hand_over_of_a_crewmates_done_row_breaks_the_rule`); `Fault = "settled-queued"` gives a settled thread's row `queued` again, and its graph has status edges `queue.MOVES` lacks.
 - **Assumptions:** a fact's change and the pass that sees it are one step (no restate drift between passes, no one-source pass); the facts are folded (an open pull request's eight steps are `check`, `quiet` is `working`); no clock, so `watch.unwritten`'s stale to left is out; a scout's row only as far as its role and the hand-over, and no `merge_after`.
   The rest is in the README's "What the model leaves out".
@@ -96,3 +97,7 @@ So `Remove` guards on `status \notin Final \cup {"removed"}` alone, and `FinalSt
 
 st-hand-over-line then gave the row a `role`, scout or crew, and a `HandOver` step, the add of a crewmate's brief over a scout's done row, which `queue._hand_over` writes as a line marked `handed`.
 `FinalStays` lets a scout's done row leave only by it (`status' \in Final \/ (role = "scout" /\ role' = "crew")`), and holds over 6184 distinct states with each canary breaking its check.
+
+reverted-row-reland then gave the row a `reverted` fact and a `Reland` step: once the revert jbus opened of a merged row's merge merges, `reverts.reland` moves the row from `merged` to `left` with a line marked `reverted`, and `watch.unlanded` reads that merge as no merge of the row's, so its pull request reads as closed or none and the row's redo goes the normal path.
+`FinalStays` lets a merged row leave only by it, once (`Reopened == ~reverted /\ reverted'`), `queue.MOVES` holds `merged` to `left`, and the rule holds over 13256 distinct states with each canary breaking its check.
+The Sync line stays where it was: this row read only its own change against the model.

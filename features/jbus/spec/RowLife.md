@@ -3,7 +3,7 @@
 One row of jbus's queue, from `jbus queue add` to its end, in two regions at the same time.
 
 - The status, which a pass moves: each pass works it out again from the facts (`work.status`), and `queue.derive` writes it, but over a row that is over (`work.over`), whose status it keeps (`work.kept`).
-  Two verbs move it too, each with a line of its own: `remove`, and the add of a crewmate's brief over a scout's done row (`HandOver`), which makes the row a crewmate's, queued again with no go and none of the scout's facts.
+  Three writes move it too, each with a line of its own: `remove`, the add of a crewmate's brief over a scout's done row (`HandOver`), which makes the row a crewmate's, queued again with no go and none of the scout's facts, and the merge of the revert jbus opened of a merged row's merge (`Reland`, `reverts.reland`), which moves the row to `left` once and makes its merge no merge of the row's (`reverted`), so its redo goes the normal path.
   The row's role, scout or crew, is fixed when it is added, and only the hand-over changes it.
   The spec models the facts `work.status` reads, folded to what it tells apart: the thread (none, starting, at work, hung, waiting, failed, ended, settled, missing), the Result (none, clean, leaving work), the pull request (none, opening, open, merged, closed), a question, and the launch record.
   Each step changes one fact, and the pass derives from them the line's value in `work.json` (`value`, the first of `work.PATTERNS` they match) and the status that value gives, as `work.status` reads it.
@@ -30,16 +30,16 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --e
     statechart replay RowLife.tla --trace RowLife.trace.py --log "$L"
 ```
 
-A pass's line matches a path of steps that are no verb's, a hand-over's line (`handed`) one `HandOver` step, a removal one `Remove` step, and a line that moves the go (`queue._go`) one step of `Grant`, `Hold`, `Lift` or `Void`.
+A pass's line matches a path of steps that are no verb's, a hand-over's line (`handed`) one `HandOver` step, a reland's line (`reverted`) one `Reland` step, a removal one `Remove` step, and a line that moves the go (`queue._go`) one step of `Grant`, `Hold`, `Lift` or `Void`.
 `features/jbus/tests/test_rowlife_replay.py` replays a fixture of 138 of jstack's own lines, and skips where no Java runs TLC.
 
 ## Check the rule
 
 The rule is `FinalStays`: a crewmate's row that is over stays over, so the queue, `watch.final` and jmerge, which all read `work.over`, never see it over and then not.
-A `done` row may only become `merged`, and a `merged` one stays so.
+A `done` row may only become `merged`, and a `merged` one stays so but for one `Reland`.
 The facts can still leave a final row: a pull request opens after a `done`, or a question opens on a `merged` row.
 The rule holds because `queue.derive` keeps the status (`work.kept`), and so checks the code's derive and not only the table.
-`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where the rule holds over 6184 distinct states, on two canaries where it breaks, one that takes `work.kept` out (`Fault = "no-latch"`) and one that lets the hand-over take a crewmate's done row too (`Fault = "any-hand-over"`), and on one that gives a settled thread's row `queued` again (`Fault = "settled-queued"`), whose graph has status edges `queue.MOVES` lacks.
+`test_rowlife_spec.py` runs TLC on `RowLife.cfg`, where the rule holds over 13256 distinct states, on two canaries where it breaks, one that takes `work.kept` out (`Fault = "no-latch"`) and one that lets the hand-over take a crewmate's done row too (`Fault = "any-hand-over"`), and on one that gives a settled thread's row `queued` again (`Fault = "settled-queued"`), whose graph has status edges `queue.MOVES` lacks.
 A scout's done row leaves `done` only by the hand-over, which makes it a crewmate's, and a crewmate's row never leaves.
 Its TLC runs skip where no Java runs TLC.
 By hand, in a copy of this folder:
@@ -61,7 +61,7 @@ UV_PROJECT_ENVIRONMENT="$HOME/.cache/jstack/statechart-venv" uv run --frozen --e
 It writes `RowLife-statechart/`: `chart.mmd`, `stories.md` and `summary.json`, labelled by `RowLife.map.py`.
 No chart's PNG or Excalidraw scenes, nor the charts page, is committed: `make charts`, at the repo's root, draws them from each committed `chart.mmd` into a folder git ignores, and prints the page's path.
 Each status on the chart says what in `work.py` sets it, and each step that moves the status is labelled by its row of `queue.MOVES`.
-The regions draw 85 of their 111 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
+The regions draw 87 of their 119 arrows: a step whose next status turns on a fact the chart does not show, such as a pull request that merges from a row at `gate`, is left out, and `tlc/regions-all.mmd` has every one.
 Its `tlc/` folder holds TLC's output, which is not committed.
 
 ## What the model leaves out

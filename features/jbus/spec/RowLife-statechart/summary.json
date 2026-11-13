@@ -1,12 +1,11 @@
 {
   "view": "customer",
-  "modelStates": 6184,
-  "modelTransitions": 77846,
+  "modelStates": 13256,
+  "modelTransitions": 172517,
   "chartStates": 17,
-  "chartTransitions": 85,
-  "allTransitions": 111,
+  "chartTransitions": 87,
+  "allTransitions": 119,
   "final": [
-    "merged (its pull request merged)",
     "removed (queue.py `remove`, no pass sets it)"
   ],
   "chartStatus": {
@@ -43,11 +42,11 @@
       5,
       12
     ],
-    "transitions": 85,
-    "all": 111,
+    "transitions": 87,
+    "all": 119,
     "flat": {
       "states": 60,
-      "transitions": 659
+      "transitions": 699
     }
   },
   "classes": [],
@@ -57,19 +56,19 @@
       "RowLife.cfg"
     ],
     "states": 60,
-    "arrows": 739
+    "arrows": 859
   },
   "drawnFrom": {
     "command": "statechart from-spec RowLife.tla --title 'A row'\"'\"'s life'",
     "inputs": {
       "RowLife.cfg": "1819e4c8fae1e0d9875b294adc7ebec3fbc964eb7a520a1db5f5ef13b857f04e",
-      "RowLife.map.py": "8fd6e59d8367ec66ff6aea118bbaf299b1ca58da00abeac40d17765b73153e11",
-      "RowLife.tla": "741b922b6ba1eae21b5de048702b88e55e8c67acc51911bb3089fd8c73a8cfe9"
+      "RowLife.map.py": "a4b38414aff08d4aa7a008c1440d11e5cd05e8fee2d6a1bbdd1bf33bc82ea033",
+      "RowLife.tla": "5d6e349d92518b81fede27c1fc71d9200bbfa6c5beeb3b30c2677d874ee313bf"
     },
-    "chart": "911b1e3a7a3645db66982801dae6b9fced3c113753a6e0d6d7bf4f09e43bc2e1",
+    "chart": "b91f90389a043970f918048bfdd6600511a191a33dd4c16c462341b0d7b44359",
     "tables": {
-      "states.tsv": "d0eca11561ba21fdc456468111d59809b9ecd53614cc47a803af918752cabae6",
-      "arrows.tsv": "c0b10dd8d6b828b40b621950519c931a34da8cdfcce62e4d5a452d32284c1524"
+      "states.tsv": "43e5aa8c423ac54174f7f803bc9fcef5df9e2f4147a8f88b6686257a34750387",
+      "arrows.tsv": "d5d0c06082e3c3e22e65d0590e14acc8cc01b2c624b0b622f5e01f02ccb976e7"
     }
   }
 }

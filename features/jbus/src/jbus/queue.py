@@ -300,15 +300,15 @@ No verb moves a row but `remove`, and the add of a crewmate's brief over a scout
 takes it from `done` to `queued` with a line of its own marked `handed` (`_hand_over`): the table
 leaves that move out, so `derive` still marks a pass that writes it. The one move out of `merged`
 is `reland`'s, with a line of its own marked `reverted`: the revert jbus opened of the row's merge
-merged, so the merge is undone and the row is open again for its redo. Each pass works the status out
-again from the facts (`work.status`), so the table cannot drive a row as `item.MOVES` drives an
-item. It judges a move after the facts made it:
+merged, so the merge is undone and the row is open again for its redo. Each pass works the
+status out again from the facts (`work.status`), so the table cannot drive a row as `item.MOVES`
+drives an item. It judges a move after the facts made it:
 `derive` marks each line of `transitions.jsonl` whose move it does not hold, and writes the
 status all the same, since the status is what the facts say, but for a row that is over: `derive`
 keeps it (`work.kept`), so no pass's move leaves `merged` or `done` but `done` to `merged`, and
-`remove` refuses such a row. A thread that ends, settles or leaves T3 Code's list with nothing written
-makes a launched row `stale`, so no launched row goes back to `queued`. So a mark is a status
-the table does not know, or a change of the code the model has not taken in, and
+`remove` refuses such a row. A thread that ends, settles or leaves T3 Code's list with nothing
+written makes a launched row `stale`, so no launched row goes back to `queued`. So a mark is a
+status the table does not know, or a change of the code the model has not taken in, and
 `statechart replay` with `RowLife.trace.py` names the line.
 `features/jbus/docs/jbus/row-moves.md` lists it."""
 

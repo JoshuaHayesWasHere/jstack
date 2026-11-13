@@ -3,9 +3,10 @@
 \* status each pass works out again from them (work.py `def status(state: State) -> str:`) and
 \* writes (queue.py `new["status"] = work.kept(was, new["status"])`), and its go, beside it.
 \* A pass sees one fact change and writes the status the facts give, unless the row is over
-\* (work.py `def over(row: Mapping[str, Any]) -> bool:`): then it keeps it. Two verbs move the
-\* status too, each with a line of its own: `remove`, and the add of a crewmate's brief over a
-\* scout's done row (`HandOver`). Each status edge of this spec's state graph but the hand-over's
+\* (work.py `def over(row: Mapping[str, Any]) -> bool:`): then it keeps it. Three writes move the
+\* status too, each with a line of its own: `remove`, the add of a crewmate's brief over a
+\* scout's done row (`HandOver`), and the merge of the revert jbus opened of a merged row's merge
+\* (`Reland`). Each status edge of this spec's state graph but the hand-over's
 \* is a move of queue.py `MOVES: dict[tuple[str, str], str] = {`, and test_rowlife_spec.py fails
 \* when the two differ. The go is moved by verbs
 \* and rules of queue.py, each its own action. `statechart replay` walks jbus's
@@ -89,17 +90,19 @@ VARIABLES
                \* keeps the last value unconfirmed (work.py
                \* `return _state(BY_VALUE.get(facts.last, UNKNOWN), facts, False)`).
     thread, written, pull,
+    reverted,  \* the row's merge was taken back by a revert jbus opened, which merged (queue.py
+               \* `row.update(status="left", **{REVERTED: merge})`): the row's `reverted` column.
     question,  \* a question of jbus's is open on the row. How it closed (`closed_by`: an answer,
                \* gates.md, silence, cleared) is the question's record and moves no status: each
                \* is the question closing here.
     launched
-vars == <<status, role, go, value, thread, written, pull, question, launched>>
-facts == <<thread, written, pull, question, launched>>
+vars == <<status, role, go, value, thread, written, pull, question, launched, reverted>>
+facts == <<thread, written, pull, question, launched, reverted>>
 
 TypeOK ==
   /\ status \in Statuses /\ role \in Roles /\ go \in Gos /\ value \in Values
   /\ thread \in Threads /\ written \in Writtens /\ pull \in Pulls
-  /\ question \in BOOLEAN /\ launched \in BOOLEAN
+  /\ question \in BOOLEAN /\ launched \in BOOLEAN /\ reverted \in BOOLEAN
 
 \* The thread sets of work.py: `STILL = frozenset(Thread) - {Thread.HUNG, Thread.WAITING}`,
 \* `THERE = STILL - {Thread.NONE, Thread.STARTING}` and `ENDED_THREAD = THERE - AT_WORK`, the
@@ -173,6 +176,7 @@ Derive(t, w, p, q, l) ==
   /\ value' = ValueOf(go, t, w, p, q, l)  \* states.py `line = work.entry(`
   /\ status' = Kept(status, StatusOf(value', t, w, p, q, l))  \* queue.py `new["status"] = work.kept(was, new["status"])`
   /\ thread' = t /\ written' = w /\ pull' = p /\ question' = q /\ launched' = l
+  /\ reverted' = reverted
 
 \* A write of the queue that moves the go restates the row's line at once (restated.py
 \* `def queued(`); a removed row keeps the line `removed`.
@@ -185,6 +189,7 @@ Restated(g) ==
 Init ==
   /\ status = "queued" /\ go = "waiting" /\ value = "unapproved" /\ role \in Roles
   /\ thread = "none" /\ written = "none" /\ pull = "none" /\ question = FALSE /\ launched = FALSE
+  /\ reverted = FALSE
 
 \* The status region: one fact changes, and the pass derives.
 
@@ -250,7 +255,23 @@ HandOver ==
   /\ status = "done"
   /\ status' = "queued" /\ go' = "waiting" /\ role' = "crew" /\ value' = "unapproved"
   /\ thread' = "none" /\ written' = "none" /\ pull' = "none" /\ question' = FALSE
-  /\ launched' = FALSE
+  /\ launched' = FALSE /\ reverted' = reverted
+
+\* The revert jbus opened of the row's merge merges (reverts.py `def reland(run: Pass, world: World) -> bool:`),
+\* and the row is open again: it goes from `merged` to `left` with a line of its own, the one move
+\* out of `merged`, and its merge is no merge of the row's for any reader of the world (watch.py
+\* `def unlanded(world: World, rows: list[dict[str, Any]]) -> None:`). Its pull request then reads
+\* as closed where the Result names its address, and as none otherwise (`watch.pull`), and the
+\* passes after derive the row's status from its facts as any row's, so a redo's pull request
+\* opens, is reviewed and merges with no accept. jbus reverts a row once (`Keep.TWICE`), so
+\* a row whose redo merged is never taken back again; nor is one that merged on the user's accept
+\* of a done row, which no revert of jbus's names here, since the model has no red main.
+Reland ==
+  /\ status = "merged" /\ pull = "merged" /\ ~reverted
+  /\ status' = "left" /\ reverted' = TRUE  \* queue.py `if row is None or row.get("status") != "merged" or row.get(REVERTED):`
+  /\ pull' \in {"none", "closed"}
+  /\ value' = ValueOf(go, thread, written, pull', question, launched)
+  /\ UNCHANGED <<go, role, thread, written, question, launched>>
 
 \* A pass with no fact changed writes the line and the status again, as every pass does.
 Pass ==
@@ -308,16 +329,18 @@ Void ==
   /\ Restated(go')
   /\ UNCHANGED <<status, role, facts>>
 
-Next == Launch \/ Thread \/ Write \/ Pull \/ Ask \/ Remove \/ HandOver \/ Pass \/ Grant \/ Depends
-        \/ Ahead \/ Hold \/ Lift \/ Void
+Next == Launch \/ Thread \/ Write \/ Pull \/ Ask \/ Remove \/ HandOver \/ Reland \/ Pass \/ Grant
+        \/ Depends \/ Ahead \/ Hold \/ Lift \/ Void
 
 Spec == Init /\ [][Next]_vars
 
 \* A row that is over stays over: once `merged` or `done`, every reader of `work.over` (the queue,
 \* `watch.final`, jmerge) reads it over for good, and a `done` row may only become `merged`. The
-\* one step out is a scout's done row that its crewmate's brief takes over, which makes it a
-\* crewmate's: a crewmate's row never leaves.
+\* two steps out are a scout's done row that its crewmate's brief takes over, which makes it a
+\* crewmate's, and a merged row whose merge a revert took back, once: a row that merged again
+\* never leaves.
+Reopened == ~reverted /\ reverted'
 FinalStays ==
-  [][ /\ (status \in Final => status' \in Final \/ (role = "scout" /\ role' = "crew"))
-      /\ (status = "merged" => status' = "merged") ]_vars
+  [][ /\ (status \in Final => status' \in Final \/ (role = "scout" /\ role' = "crew") \/ Reopened)
+      /\ (status = "merged" => status' = "merged" \/ Reopened) ]_vars
 ====

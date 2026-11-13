@@ -118,10 +118,14 @@ def moved(store, slug: str, line: dict, at: datetime) -> None:
 
 def test_a_scouts_row_handed_to_its_crewmate_is_no_backward_move(store):
     """RowLife's `HandOver` is the one move out of `done` it allows, and `jbus.queue._hand_over`
-    marks its line `"handed": true`: `backward-moves` leaves that line out, and still counts a
-    `done` to `removed`, a `done` to `queued` with no mark and a move out of `merged`."""
+    marks its line `"handed": true`; its `Reland` the one move out of `merged`, which
+    `jbus.queue.reland` marks with the revert under `reverted`: `backward-moves` leaves both lines
+    out, and still counts a `done` to `removed`, a `done` to `queued` with no mark and a move out
+    of `merged` with none."""
     at = MONDAY - timedelta(hours=2)
     moved(store, "handed", {"from": "done", "to": "queued", "handed": True}, at)
+    relanded = {"from": "merged", "to": "left", "reverted": "https://example.test/pull/9"}
+    moved(store, "relanded", relanded, at)
     moved(store, "removed", {"from": "done", "to": "removed"}, at)
     moved(store, "requeued", {"from": "done", "to": "queued"}, at)
     moved(store, "unmerged", {"from": "merged", "to": "launched"}, at)
