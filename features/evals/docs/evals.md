@@ -1,6 +1,7 @@
 # Where the evals' runs are kept
 
-The evals feature holds its code, its tests and their fixtures in git. What an eval records, its runs and the cases taken from real threads, is data: it grows with every run, so it is kept out of git, in the home's state folder beside the lab's reports.
+The evals feature holds its code, its tests and their fixtures in git.
+What an eval records, its runs and the cases taken from real threads, is data: it grows with every run, so it is kept out of git, in the home's state folder beside the lab's reports.
 
 | What | Where |
 |---|---|
