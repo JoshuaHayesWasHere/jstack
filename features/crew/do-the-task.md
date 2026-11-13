@@ -318,7 +318,7 @@
   The block prints that line itself, and appends it once the brief has a Result, where every file is of a kind (`jbriefs --proved-none`).
   The kinds that are exempt, and the files each covers (`jbriefs.proved.EXEMPT`), are these:
   - `docs`: `*.md`, `*.txt`, `*.rst`, anything under a `docs/` directory, and a `.py` file whose change is to its docstrings and comments alone: its base and its head parse to the same code once docstrings are dropped (`jbriefs.proved.prose_only`), since no test can fail over a docstring without pinning its words.
-  - `config`: `*.toml`, `*.json`, `*.yml`, `*.yaml`, `*.cfg`, `*.ini`, `*.conf`, `*.lock`, a dotfile such as `.gitignore`, and anything under `.github/`.
+  - `config`: `*.toml`, `*.json`, `*.yml`, `*.yaml`, `*.cfg`, `*.ini`, `*.conf`, `*.lock`, Go's `go.mod`, `go.sum`, `go.work` and `go.work.sum`, a dotfile such as `.gitignore`, and anything under `.github/`.
 
   `jmerge` waits on a `none` line where the pull request changes a test or a file of no kind the line names.
   A change to code is none of these: it adds or changes a test that fails without it.

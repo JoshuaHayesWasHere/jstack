@@ -129,7 +129,7 @@ fi
 B=$1
 thread=$2
 T=$(dirname "$0")
-exempt='(^|/)(docs|\.github)/|(^|/)\.[^/]*$|\.(md|txt|rst|toml|json|yml|yaml|cfg|ini|lock)$'
+exempt='(^|/)(docs|\.github)/|(^|/)\.[^/]*$|(^|/)go\.(mod|sum|work|work\.sum)$|\.(md|txt|rst|toml|json|yml|yaml|cfg|ini|conf|lock)$'
 fork='^features/[^/]+/packaging/'
 py_test='(^|/)(test_[^/]*|[^/]*_test)\.py$'
 js_test='(^|/)[^/]*\.(test|spec)\.[cm]?[jt]sx?$'

@@ -26,16 +26,20 @@ EXEMPT = {
         "*.ini",
         "*.conf",
         "*.lock",
+        "go.mod",
+        "go.sum",
+        "go.work",
+        "go.work.sum",
         ".*",
         ".github/*",
     ),
 }
 """The kinds of change a pull request that changes no test names on its `Proved: none, <kind>`
 line, each with the paths it covers: `docs`, prose and the docs directories, and `config`,
-settings, workflows, lockfiles and dotfiles. A pattern with a `/` matches from any directory
-of the path on, one without it matches the file's name. A `.py` file whose change is to its
-docstrings and comments alone is `docs` too (`prose_only`), which no pattern can tell: no test
-can fail over a docstring without pinning its words."""
+settings, workflows, lockfiles, Go's module files and dotfiles. A pattern with a `/` matches
+from any directory of the path on, one without it matches the file's name. A `.py` file whose
+change is to its docstrings and comments alone is `docs` too (`prose_only`), which no pattern
+can tell: no test can fail over a docstring without pinning its words."""
 _PROVED_RUN = re.compile(
     r"Proved: (?P<tests>\S.*?) base exit (?P<base_exit>\d+) at (?P<base>[0-9a-f]{40}), "
     r"head exit (?P<head_exit>\d+) at (?P<head>[0-9a-f]{40})"
