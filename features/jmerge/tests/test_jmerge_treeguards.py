@@ -10,6 +10,7 @@ import subprocess
 import sys
 import threading
 import time
+from datetime import datetime, timedelta
 from types import SimpleNamespace
 
 import pytest
@@ -236,6 +237,84 @@ def test_merged_tree_guards_past_their_limit_are_kept_until_the_head_or_the_tip_
     (tree.state / treeguards.KEPT).write_text(json.dumps({"7": kept}))
     said, note = tree.guards(f"touch {marker}").of(tree.one, tip)
     assert said == "" and note and marker.exists()
+
+
+def later(monkeypatch, minutes):
+    """Move `treeguards`' clock `minutes` past the real one."""
+
+    class Later(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.now(tz) + timedelta(minutes=minutes)
+
+    monkeypatch.setattr(treeguards, "datetime", Later)
+
+
+def runs(tree, then):
+    """Guards that count each run of theirs in a file beside the tree, then run `then`."""
+    count = tree.state.parent / "runs"
+    return f"echo >> {count} && {then}", lambda: len(count.read_text().splitlines())
+
+
+def test_merged_tree_guards_that_failed_run_once_more_after_30_minutes(tmp_path, monkeypatch):
+    """A failure of the guards on a head over a tip stands for 30 minutes, then they run once more
+    on the same tree, and a second failure stands until the head or the tip moves: #1876 waited
+    45 minutes with main still on a guard of the live desk that passed 0.16 s later, and a real
+    failure fails again."""
+    tree = Tree(tmp_path)
+    command, ran = runs(tree, "false")
+    held, _ = tree.guards(command).of(tree.one, tree.tip)
+    assert ready.MERGED_TREE_FAILS.fields(held), held
+    later(monkeypatch, 29)
+    assert tree.guards(command).of(tree.one, tree.tip) == (held, "")
+    assert ran() == 1
+
+    later(monkeypatch, 31)
+    again = tree.guards(command)
+    assert again.kept(tree.one, tree.tip) == ""
+    assert again.of(tree.one, tree.tip) == (held, "")
+    assert ran() == 2
+
+    later(monkeypatch, 31 + 31)
+    last = tree.guards(command)
+    assert last.kept(tree.one, tree.tip) == held
+    assert last.of(tree.one, tree.tip) == (held, "")
+    assert ran() == 2, "the guards ran a third time on the same head and tip"
+
+
+def test_merged_tree_guards_that_failed_once_and_pass_on_their_rerun_let_it_merge(
+    tmp_path, monkeypatch
+):
+    tree = Tree(tmp_path)
+    held, _ = tree.guards("false").of(tree.one, tree.tip)
+    assert held
+    later(monkeypatch, 31)
+    said, note = tree.guards("true").of(tree.one, tree.tip)
+    assert said == "" and note.startswith(treeguards.PASSED.format(**values(tree), seconds="")[:-3])
+
+
+def test_merged_tree_guards_that_passed_or_were_stopped_are_not_run_after_30_minutes(
+    tmp_path, monkeypatch
+):
+    """Only a failure runs once more: a pass stands, and a stop at the time limit stays kept, since
+    a rerun of the same tree spends that run's time (#1103)."""
+    tree = Tree(tmp_path)
+    passed = tree.guards("true").of(tree.one, tree.tip)
+    later(monkeypatch, 31)
+    command, ran = runs(tree, "false")
+    assert tree.guards(command).of(tree.one, tree.tip) == passed
+    assert not (tree.state.parent / "runs").exists()
+
+    monkeypatch.setattr(treeguards, "LIMIT_SECONDS", 1)
+    other = SimpleNamespace(number=8, head=tree.head, base="main")
+    later(monkeypatch, 0)
+    unended = ready.MERGED_TREE_UNENDED.format(**values(tree), minutes=0)
+    assert tree.guards("sleep 20").of(other, tree.tip) == (unended, "")
+    later(monkeypatch, 31)
+    again = tree.guards(command)
+    assert again.kept(other, tree.tip) == unended
+    assert again.of(other, tree.tip) == (unended, "")
+    assert not (tree.state.parent / "runs").exists(), "a stopped tree ran again"
 
 
 def test_merged_tree_that_passed_while_main_moved_waits_for_the_next_run(tmp_path):
