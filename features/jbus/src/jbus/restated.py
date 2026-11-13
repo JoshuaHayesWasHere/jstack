@@ -28,6 +28,7 @@ from pathlib import Path
 from typing import Any
 
 from jbus import locked, read_json, write_json
+from jbus.scouted import scouted
 from jbus.work import (
     APPROVED,
     LOCK,
@@ -48,7 +49,6 @@ from jbus.work import (
     lift,
     path,
     read,
-    scouted,
     stored,
     unforeseen,
 )

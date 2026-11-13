@@ -38,6 +38,7 @@ from jbus import (
     watch,
     work,
 )
+from jbus.scouted import scouted
 
 if TYPE_CHECKING:
     from jbus.passes import Pass
@@ -196,7 +197,7 @@ def keep_work(half: Half) -> None:
         state = states.of(row, dispatch.launched(run, slug, queue.role(row)))
         record = held.get(slug)
         role = "scout" if queue.role(row) == queue.SCOUT else ""
-        scout = work.scouted(state, str(row.get("thread", ""))) if role else {}
+        scout = scouted(state, str(row.get("thread", ""))) if role else {}
         why = str(row.get("why", ""))
         unhomed = leftover.his(record, run.now) if record else ""
         unheld = queue.unheld(run.state, row) if state.facts.row in work.UNHELD else None
