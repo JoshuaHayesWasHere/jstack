@@ -1,6 +1,6 @@
 ---
 name: engine
-description: "Run one engine pass in a repo's root home: read the queue, what waits on the user and the open pull requests, clear what stalls where a fix is reversible, and end in one verdict, Quiet, Moving or Call. Use for /engine, \"run the engine\", \"engine pass\", and the root home's scheduled task, and /engine schedule or /engine stop to make or delete that task."
+description: "Run one engine pass in a repo's root home: read the queue, what waits on the user and the open pull requests, clear what stalls where a fix is reversible, and end in one verdict, Quiet, Moving or Call. Use for /engine, \"run the engine\", \"engine pass\", /engine schedule and /engine stop."
 card: "Run the pipeline | 1 | Runs one engine pass in a root home: it reads the queue, what waits on the operator and the open pull requests, clears what stalls where a fix is reversible, and ends in a verdict, Quiet, Moving or Call. | Reach for it as the root's scheduled task, or to run one pass by hand, and /engine schedule to set the root's schedule. | op: the operator; cmd: /engine"
 ---
 
