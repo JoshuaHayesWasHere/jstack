@@ -1,8 +1,10 @@
 """The `gh` an agent runs in its own shell, logged in `proc.CALLS` with the caller `agent`.
 
-An agent's Bash shell finds the crew's `gh` (`features/crew/bin/gh`) first on PATH, which the
-crew's SessionStart hook puts there, and that script runs this module with the rest of PATH, so
-the `gh` this module starts is the real one. gh runs as the agent asked: its input and output are
+An agent's Bash shell finds the crew's `gh` (`features/crew/bin/gh`) first on PATH: the crew's
+SessionStart hook (`features/crew/hooks/gh-logged.sh`) puts it there through the file Claude Code
+sources before each Bash command (`CLAUDE_ENV_FILE`). That script runs this module with its own
+directory taken off PATH, so the `gh` this module starts is the real one, and runs the real one
+alone where this module cannot be loaded. gh runs as the agent asked: its input and output are
 the agent's own, and what it says on stderr reaches the agent once it ends, without the debug log
 (`GH_DEBUG=api`) this module asks for to read the call's `X-Ratelimit-*` headers. The line is
 written as `proc.run` writes its own, so `jbus budget --callers` and the store's `gh_hours` count

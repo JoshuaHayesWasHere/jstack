@@ -1,8 +1,4 @@
 #!/bin/sh
-# The gh an agent's Bash shell finds first on PATH, which hooks/gh-logged.sh puts there: it runs
-# the real gh, the next one on PATH, through jsettings.agent_gh, which logs the call in jbus's
-# gh-calls.jsonl with the caller `agent`. Where jsettings cannot be loaded, the real gh runs alone.
-
 here=$(cd "$(dirname "$0")" && pwd -P)
 rest=
 set -f
