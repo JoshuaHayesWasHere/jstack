@@ -23,7 +23,7 @@ Each feature keeps a folder of its own, in the tree and on the machine.
 The move to folders is first for fewer collisions between crews working at once (2026-10-20).
 A home plans new work inside one feature's folder where it can, and briefs a change that spans two only when the work does.
 
-Code holds the rest: `scripts/lint-borders.py` warns on a path with no owner or two, a path outside the layout, and a diff that touches two features with no `cross-cutting` label, and CI runs it with `--hard` (`.github/workflows/borders.yml:37`).
+Code holds the rest: `scripts/lint-borders.py` warns on a path with no owner or two, a path outside the layout, and a diff that touches two features with no `cross-cutting` label, and CI runs it with `--hard` (`.github/workflows/borders.yml:36`).
 
 ## Act on the word given
 
@@ -39,7 +39,7 @@ A fix goes to the cause, not around it: real fixes, not band-aids.
 The work runs fast and in parallel.
 Testing is lean: targeted tests while building, then the check command once.
 
-Code holds the pacing: `features/jbus/src/jbus/dispatch.py:14-24` hands out launches up to the machine's `max_running` cap and holds a row until `jgauge room` says there is room.
+Code holds the pacing: `features/jbus/src/jbus/dispatch.py:15-25` hands out launches up to the machine's `max_running` cap and holds a row until `jgauge room` says there is room.
 
 ## Quiet unless something is wrong
 
