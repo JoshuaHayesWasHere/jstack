@@ -5,8 +5,11 @@ as one take a file. One take a file cost 272 slot takes a merged pull request on
 
 import re
 
+import pytest
+
 import test_room as room
 from crew_helpers import git
+from jgauge.slot import SHORT_LIMIT_SECONDS
 from test_crew_check_command import (
     a_brief,
     alone,
@@ -170,7 +173,8 @@ def test_a_step_stopped_at_the_lanes_limit_is_split_and_its_files_run_again_neve
 ):
     """A step of three files the short lane stops at its limit (exit 124) reached no verdict:
     no file of it is kept as passed, its files are measured afresh, and each runs again alone,
-    a file the lane stops again in a full slot, as before. The check's verdict is theirs."""
+    a file the lane stops again in a full slot, as before, kept at the lane's limit. The check's
+    verdict is theirs."""
     repo = stubbed(tmp_path, touching(*TOUCHED[:3]))
     measured(repo, 5, *TOUCHED[:3])
     brief = a_brief(tmp_path)
@@ -195,7 +199,7 @@ def test_a_step_stopped_at_the_lanes_limit_is_split_and_its_files_run_again_neve
     ) in said, said
     assert code == 0, said
     times = (repo / ".git" / "crew-check-times").read_text().splitlines()
-    assert times[-3:] == [f"{one} -" for one in TOUCHED[:3]]
+    assert times[-4:] == [*(f"{one} -" for one in TOUCHED[:3]), f"{TOUCHED[1]} 120"]
     assert brief.read_text().endswith(
         f"Checked: make check-fast BASE={base} PART=touched exit 0 at {head}\n"
     )
@@ -267,3 +271,83 @@ def test_a_call_leaves_one_report_however_many_steps_it_runs(tmp_path, monkeypat
     said, code, ran, base = selected(tmp_path, repo, junit=({}, []))
     assert (len(ran), code) == (10, 0), said
     assert len(list(scratch.glob("code.*.junit*"))) == 1
+
+
+SLOW = "features/repo-guards/tests/test_new_lines_run.py"
+
+
+def test_a_file_the_short_lane_stopped_alone_takes_a_full_slot_first_at_the_next_head(tmp_path):
+    """The reproduction: test_new_lines_run.py ran alone in the short lane, was stopped at its
+    120 s limit and ran again in a full slot, at every head of every crew's check, 130 times over
+    2026-11-12 and 11-13, since a step stopped alone left no time behind. The stop is kept as the
+    lane's limit, so the next head's check, in any worktree of the repo, runs the file in a full
+    slot with no short attempt."""
+    repo = stubbed(tmp_path, touching(TOUCHED[0], cross=(SLOW,)))
+    measured(repo, 5, TOUCHED[0])
+    a_brief(tmp_path)
+    stopped = {f"*{SLOW} BASE=* short=held*": 124}
+    said, code, ran, base = selected(tmp_path, repo, exits=stopped)
+    assert ran == [
+        lint(base),
+        alone(TOUCHED[0], base),
+        alone(SLOW, base),
+        alone(SLOW, base, "short=free full=held"),
+    ]
+    assert code == 0, said
+    (repo / "page.md").write_text("A new head.\n")
+    git(repo, "commit", "-qam", "a new head")
+    said, code, ran, base = selected(tmp_path, repo, exits=stopped)
+    assert ran == [lint(base), alone(TOUCHED[0], base), alone(SLOW, base, "short=free full=held")]
+    assert (
+        f"{SLOW}: measured at 120 s or more, the short lane's limit: it runs in a full slot" in said
+    )
+    assert said[0].endswith(
+        "in 1 steps of the short lane after the lint, and 1 in a full slot; "
+        "CI's check runs the rest of the selection"
+    ), said
+    assert code == 0, said
+
+
+def test_a_file_measured_over_the_lanes_limit_runs_in_a_full_slot_which_measures_it_again(
+    tmp_path,
+):
+    """A file whose last measured time is the short lane's limit or more runs alone in a full
+    slot first, and that run measures it, as a short one does: a full slot runs as many workers
+    as a short one on this desk. Measured under the limit there, the next head packs it into a
+    step of the short lane again."""
+    repo = stubbed(tmp_path, touching(*TOUCHED[:2]))
+    measured(repo, 300, TOUCHED[0])
+    measured(repo, 5, TOUCHED[1])
+    a_brief(tmp_path)
+    junit = ({TOUCHED[0]: 30}, [])
+    said, code, ran, base = selected(tmp_path, repo, junit=junit)
+    assert ran == [
+        lint(base),
+        alone(TOUCHED[0], base, "short=free full=held"),
+        alone(TOUCHED[1], base),
+    ]
+    assert code == 0, said
+    times = (repo / ".git" / "crew-check-times").read_text().splitlines()
+    assert f"{TOUCHED[0]} 30.0" in times, times
+    (repo / "page.md").write_text("A new head.\n")
+    git(repo, "commit", "-qam", "a new head")
+    said, code, ran, base = selected(tmp_path, repo, junit=junit)
+    assert ran == [lint(base), alone(" ".join(TOUCHED[:2]), base)], said
+
+
+@pytest.mark.parametrize(
+    ("took", "lane"),
+    [
+        (SHORT_LIMIT_SECONDS, "short=free full=held"),
+        (SHORT_LIMIT_SECONDS - 0.1, "short=held full=free"),
+    ],
+    ids=["at jgauge's limit", "under it"],
+)
+def test_the_check_blocks_full_slot_first_rule_goes_by_jgauges_short_limit(tmp_path, took, lane):
+    """The block's `limit` is jgauge's `SHORT_LIMIT_SECONDS`: a file measured at it runs in a full
+    slot first, and one measured under it in the short lane."""
+    repo = stubbed(tmp_path, touching(TOUCHED[0]))
+    measured(repo, took, TOUCHED[0])
+    a_brief(tmp_path)
+    said, code, ran, base = selected(tmp_path, repo)
+    assert ran == [lint(base), alone(TOUCHED[0], base, lane)], said

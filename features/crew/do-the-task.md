@@ -7,10 +7,12 @@
   The check is `make check-fast BASE=<base> PART=touched`, run in steps, each its own call of `jgauge test-slot --short`: the lint first, then the touched test files, then the guard test files, then the test files CI failed on (below), then the files of the names part, each kind in steps of as many files as fit 60 s of measured time, half the short lane's limit.
   So a test that reads an edited skill file, as test_status_line_readers.py reads features/crew/no-pr-end.md, fails at the desk and not first on the pull request, as it failed twice on #1691.
   Over main's last 20 merges the names part added a median of 98 test files to the desk's 48 (6 to 256), in 20 steps (1 to 59), so a check takes several calls of the block more often than before.
-  A file's measured time is its share of the pytest session's seconds in the report (`JUNIT=`) of the last step that ran it in the short lane, by its tests' seconds, so it counts the lane's workers and the session's start, kept in the repo's `crew-check-times`, in the git dir every worktree shares (`git rev-parse --git-common-dir`), beside each worktree's `crew-check-steps`, so one crew's check measures the files for the next.
+  A file's measured time is its share of the pytest session's seconds in the report (`JUNIT=`) of the last step that ran it, by its tests' seconds, so it counts the lane's workers and the session's start (a full slot runs as many workers as a short one on a desk of 24 processors, `features/jgauge/src/jgauge/sizes.py`), kept in the repo's `crew-check-times`, in the git dir every worktree shares (`git rev-parse --git-common-dir`), beside each worktree's `crew-check-steps`, so one crew's check measures the files for the next.
   A file no step has measured runs alone, and a line of the names part with such a file runs as the selector gave it, as each did when every file was its own take: on 2026-11-12 that cost 272 slot takes a merged pull request.
   A step of several files the short lane stops at its time limit (exit 124) reached no verdict: the block forgets their times (`<file> -`) and runs each again alone in the short lane.
-  A step of one file it stops runs again alone in a full test slot, which has no time limit, so every step reaches a verdict however loaded the machine is.
+  A step of one file it stops runs again alone in a full test slot, which has no time limit, so every step reaches a verdict however loaded the machine is, and the stop is kept as the file's time, the lane's limit (`limit`, 120 s), until that run measures it.
+  A step with a file measured at the lane's limit or more runs alone in a full slot first, with no short attempt, and prints `<step>: measured at 120 s or more, the short lane's limit: it runs in a full slot`; measured under it there, the next head runs it in the short lane again.
+  Before that, test_new_lines_run.py was stopped alone in the short lane 130 times over 2026-11-12 and 11-13, each 120 s of a short slot for no verdict, and its runs in a full slot took 104 to 903 s.
   A 124 is never a pass and never a failure: it is no verdict.
   Each test file a step passed at a committed head, and each one a step failed on, goes on the desk's store of runs, `crew-passed-runs` in the git dir every worktree shares, as `passed <file> <head>` or `failed <file> <head>`, and the block hands the store to the selector (`CREW_PASSED_RUNS`) for the guard tests and the tests that read the change.
   The selector leaves out a file whose last run on the store passed at a head this checkout holds, where the diff from that head to this one changes nothing the pull request's own selection would run the file for, its read set: it prints `<file>: skipped, its read set is as it was when it passed on this desk at <head>`.
@@ -26,7 +28,7 @@
   Every run of the check this skill asks for, after a failed check, a rebase or a fix, is this block:
 
   ```sh
-  budget=540 reserve=120
+  budget=540 reserve=120 limit=120
   began=$(date +%s)
   B="$H/tasks/<slug>.md"
   head=$(git rev-parse HEAD)
@@ -75,20 +77,21 @@
           [ "$(sed -n 1p "$steps" 2> /dev/null)" = "$head $base" ] || printf '%s %s\n' "$head" "$base" > "$steps"
           times=$(git rev-parse --path-format=absolute --git-common-dir)/crew-check-times
           plan() {
-              awk -v steps="$steps" -v times="$times" -v most=60 '
+              awk -v steps="$steps" -v times="$times" -v most=60 -v limit="$limit" '
                   BEGIN {
                       while ((getline line < times) > 0) { split(line, word, " "); took[word[1]] = word[2] }
                       while ((getline line < steps) > 0) if (line ~ /^passed /) passed[substr(line, 8)] = 1
                   }
                   NF {
-                      unit = ""; sum = 0; known = 1
+                      unit = ""; sum = 0; known = 1; over = 0
                       for (i = 1; i <= NF; i++) {
                           if ($i in passed) continue
                           unit = unit (unit == "" ? "" : ",") $i
                           if (!($i in took) || took[$i] == "-") known = 0
-                          else sum += took[$i]
+                          else { sum += took[$i]; if (took[$i] + 0 >= limit) over = 1 }
                       }
                       if (unit == "") next
+                      if (over) { print "full:" unit; next }
                       if (!known) { print unit; next }
                       if (held != "" && heldsum + sum > most) { print held; held = ""; heldsum = 0 }
                       held = held (held == "" ? "" : ",") unit
@@ -100,7 +103,7 @@
               command grep -qxF 'passed lint' "$steps" || echo lint
               for kind in "$touched" "$guards" "$failed" "$names"; do printf '%s\n' "$kind" | plan; done
           )
-          echo "touched: $(printf '%s' "$touched" | command grep -c .) test files, then $(printf '%s' "$guards" | command grep -c .) cross-cutting guard tests, then $(printf '%s' "$failed" | command grep -c .) test files CI failed on, then $(printf '%s\n' $names | command grep -c .) test files that read the change, in $(printf '%s' "$todo" | command grep -cvx -e lint -e '') steps of the short lane after the lint; CI's check runs the rest of the selection"
+          echo "touched: $(printf '%s' "$touched" | command grep -c .) test files, then $(printf '%s' "$guards" | command grep -c .) cross-cutting guard tests, then $(printf '%s' "$failed" | command grep -c .) test files CI failed on, then $(printf '%s\n' $names | command grep -c .) test files that read the change, in $(printf '%s' "$todo" | command grep -cvx -e lint -e '' -e 'full:.*') steps of the short lane after the lint$(n=$(printf '%s' "$todo" | command grep -cx 'full:.*'); [ "$n" = 0 ] || echo ", and $n in a full slot"); CI's check runs the rest of the selection"
           for one in lint $touched $guards $failed $names; do
               ! command grep -qxF "passed $one" "$steps" || echo "$one: passed at this head already"
           done
@@ -111,6 +114,8 @@
           while [ -n "$todo" ]; do
               step=$(printf '%s\n' "$todo" | sed -n 1p)
               todo=$(printf '%s\n' "$todo" | sed 1d)
+              lane=short
+              case $step in full:*) step=${step#full:} lane=full ;; esac
               have=$((budget - $(date +%s) + began))
               if [ "$have" -lt "$reserve" ]; then
                   left=$(printf '%s\n' "$step" "$todo" | command grep -c .)
@@ -125,26 +130,33 @@
                   set -- make test TESTS="$files" BASE="$base" JUNIT="$junit"
               fi
               started=$(date +%s)
-              lane=short
-              JGAUGE_SHORT_WAIT_SECONDS=$wait uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- "$@"
-              said=$?
-              if [ "$said" = 124 ] && [ "$files" != "${files#* }" ]; then
-                  echo "$step: stopped at the short lane's limit, no verdict: its $(printf '%s\n' $files | command grep -c .) files run again, each alone"
-                  printf '%s -\n' $files >> "$times"
-                  todo=$(printf '%s\n' $files "$todo" | sed '/^$/d')
-                  continue
-              fi
-              if [ "$said" = 124 ]; then
-                  echo "$step: stopped at the short lane's limit, no verdict: it runs again alone in a full slot"
-                  lane=full
+              : > "$junit"
+              if [ "$lane" = full ]; then
+                  echo "$step: measured at $limit s or more, the short lane's limit: it runs in a full slot"
                   uv run --project "$T/../source" jgauge test-slot --thread '<thread id>' -- "$@"
                   said=$?
+              else
+                  JGAUGE_SHORT_WAIT_SECONDS=$wait uv run --project "$T/../source" jgauge test-slot --short --thread '<thread id>' -- "$@"
+                  said=$?
+                  if [ "$said" = 124 ] && [ "$files" != "${files#* }" ]; then
+                      echo "$step: stopped at the short lane's limit, no verdict: its $(printf '%s\n' $files | command grep -c .) files run again, each alone"
+                      printf '%s -\n' $files >> "$times"
+                      todo=$(printf '%s\n' $files "$todo" | sed '/^$/d')
+                      continue
+                  fi
+                  if [ "$said" = 124 ]; then
+                      echo "$step: stopped at the short lane's limit, no verdict: it runs again alone in a full slot"
+                      [ "$step" = lint ] || printf '%s %s\n' "$files" "$limit" >> "$times"
+                      lane=full
+                      uv run --project "$T/../source" jgauge test-slot --thread '<thread id>' -- "$@"
+                      said=$?
+                  fi
               fi
               echo "$step: exit $said in $(($(date +%s) - started)) s, $lane lane"
               bad=
               if [ "$step" != lint ] && [ "$said" != 124 ] && [ "$said" != 76 ]; then
                   bad=$(python3 -c 'import os, sys, xml.etree.ElementTree as tree
-  report, step, times, lane = sys.argv[1:]
+  report, step, times = sys.argv[1:]
   try:
       root = tree.parse(report).getroot()
   except (OSError, tree.ParseError):
@@ -162,7 +174,7 @@
               failed.add(one)
   summed = sum(took.values())
   wall = float(suite.get("time") or 0) if suite is not None else 0
-  if lane == "short" and took:
+  if took:
       with open(times, "a") as kept:
           kept.write("".join(f"{one} {(wall * spent / summed if wall and summed else spent):.1f}\n" for one, spent in sorted(took.items())))
   if os.path.exists(times) and os.path.getsize(times) > 1 << 20:
@@ -173,7 +185,7 @@
       with open(f"{times}.{os.getpid()}", "w") as new:
           new.write("".join(f"{one} {spent}\n" for one, spent in last.items()))
       os.replace(f"{times}.{os.getpid()}", times)
-  print("\n".join(sorted(failed)))' "$junit" "$step" "$times" "$lane")
+  print("\n".join(sorted(failed)))' "$junit" "$step" "$times")
               fi
               case $said in
               0)
