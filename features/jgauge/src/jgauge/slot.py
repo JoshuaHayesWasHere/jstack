@@ -144,6 +144,15 @@ def name(lane: Lane) -> str:
     return "short" if lane.limit is not None else "full"
 
 
+def workers(lane: Lane) -> int:
+    """The workers a slot of the lane is sized for, and the cores its take is capped at: the
+    Makefile's `SHORT_WORKERS` in the short lane, and a desk run's share of the machine in the
+    full one, as `jgauge.sizes` counts them."""
+    if lane.limit is not None:
+        return sizes.SHORT_WORKERS
+    return sizes.desk_workers(sizes.Machine.here().cores)
+
+
 def lane_of(kind: str, slots: int) -> Lane:
     return short() if kind == "short" else full(slots)
 
@@ -406,6 +415,7 @@ def run(command: list[str], lane: Lane, thread: str = "", wake: list[str] | None
         thread,
         command,
         time.monotonic() - asked,
+        workers(lane),
     )
     own = _temporary(lock)
     child: subprocess.Popen | None = None

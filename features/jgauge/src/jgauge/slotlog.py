@@ -38,6 +38,14 @@ removes the cgroup once it is empty. The holder's cgroup is an agent's scope, wh
 delegates to the user, so the take's cgroup also counts toward the scope and the slices above it,
 as before.
 
+The take's cgroup is also capped at the slot's workers: its `cpu.max` is the workers times the
+period, `300000 100000` for 3, so a take that starts browsers or a pool of its own runs no more
+cores than its slot is sized for; it is slowed, and skips nothing. For the cap the holder's cgroup
+turns the cpu controller on for its children, which makes the take's cgroup a threaded one, and
+the holder runs in the take's leaf `run`, whose own `cpu.max` stays `max`, so a Makefile that
+counts its workers from its cgroup's quota counts them as before. A take that cannot be capped
+runs uncapped, its CPU still counted.
+
 Where the take can have no cgroup of its own (cgroup v1, a cgroup the user cannot write, macOS),
 the CPU is what the command's waited-for tree used, as `getrusage` says, plus what each process
 carrying the take's id in `JGAUGE_TEST_SLOT_TAKE` whose parent is outside the take used, read
@@ -63,6 +71,7 @@ sees every holder, and a low one says some holder takes slots this log does not 
 from __future__ import annotations
 
 import contextlib
+import errno
 import fcntl
 import json
 import os
@@ -89,6 +98,8 @@ LOOK_SECONDS = 0.05
 SAMPLE_SECONDS = 0.5
 TAKE = "JGAUGE_TEST_SLOT_TAKE"
 PREFIX = "jgauge-take-"
+LEAF = "run"
+PERIOD_USEC = 100_000
 WAKE = re.compile(r"^slot-wake: woke \S+, a (\w+) slot is free for `[^`]*`, after (\d+) min")
 
 
@@ -148,38 +159,60 @@ def _append(log: Path, row: dict) -> None:
 
 
 class _Cgroup:
-    """The take's own cgroup, which the holder is in from the take to the release."""
+    """The take's own cgroup, capped at its workers, and in it the leaf `run`, which the holder
+    is in from the take to the release."""
 
     def __init__(self, home: Path, own: Path) -> None:
-        self.home, self.own = home, own
+        self.home, self.own, self.run = home, own, own / LEAF
 
     @classmethod
-    def make(cls, key: str) -> _Cgroup | None:
+    def make(cls, key: str, workers: int | None) -> _Cgroup | None:
         """Make the take's cgroup under the holder's and move the holder into it, or None where
         the holder is not in a cgroup v2 one it may write: on cgroup v1 `/proc/self/cgroup` has
-        a line for each hierarchy, and on cgroup v2 it has the one, `0::/<the holder's>`."""
+        a line for each hierarchy, and on cgroup v2 it has the one, `0::/<the holder's>`. A cap
+        that cannot be set leaves the take uncapped, and its CPU still counted."""
         own: Path | None = None
         try:
             (line,) = (PROCS / "self" / "cgroup").read_text().splitlines()
             home = CGROUPS / line.removeprefix("0::/").strip("/")
             for stale in home.glob(f"{PREFIX}*"):
-                with contextlib.suppress(OSError):
-                    stale.rmdir()
+                _remove_empty(stale)
             own = home / f"{PREFIX}{key}"
             own.mkdir()
-            (own / "cgroup.procs").write_text(str(os.getpid()))
+            if workers is not None:
+                _cap(home, own, workers)
+            (own / LEAF).mkdir()
+            _threaded(own / LEAF)
+            (own / LEAF / "cgroup.procs").write_text(str(os.getpid()))
         except (OSError, ValueError):
-            with contextlib.suppress(OSError):
-                if own is not None:
-                    own.rmdir()
+            if own is not None:
+                for empty in (own / LEAF, own):
+                    with contextlib.suppress(OSError):
+                        empty.rmdir()
             return None
         return cls(home, own)
 
     def _others(self) -> int:
         """How many processes of the take there are besides the holder. The cgroup is there to
         read until the release removes it, since the holder is in it till then."""
-        listed = (self.own / "cgroup.procs").read_text().split()
-        return sum(pid != str(os.getpid()) for pid in listed)
+        return len(self._processes() - {str(os.getpid())})
+
+    def _processes(self) -> set[str]:
+        """The pids in the leaf. A threaded cgroup, as a capped take's is under a holder's
+        cgroup that has processes of its own, cannot list them (EOPNOTSUPP), so they are then
+        the thread group of each thread it lists."""
+        try:
+            return set((self.run / "cgroup.procs").read_text().split())
+        except OSError as error:
+            if error.errno != errno.EOPNOTSUPP:
+                raise
+        found: set[str] = set()
+        for thread in (self.run / "cgroup.threads").read_text().split():
+            with contextlib.suppress(OSError):
+                status = (PROCS / thread / "status").read_text()
+                if group := re.search(r"^Tgid:\s*(\d+)", status, re.MULTILINE):
+                    found.add(group[1])
+        return found
 
     def end(self) -> tuple[float, float, int]:
         """The take's CPU and how many of its processes are left, raising OSError or ValueError
@@ -201,8 +234,43 @@ class _Cgroup:
         finally:
             with contextlib.suppress(OSError):
                 (self.home / "cgroup.procs").write_text(str(os.getpid()))
-            with contextlib.suppress(OSError):
-                self.own.rmdir()
+            for empty in (self.run, self.own):
+                with contextlib.suppress(OSError):
+                    empty.rmdir()
+
+
+def _remove_empty(group: Path) -> None:
+    """Remove `group` and each cgroup under it that no process is in, the deepest first: a take
+    made inside a take, as a test of jgauge makes, leaves its cgroup in the outer one's."""
+    for under, _dirs, _files in sorted(os.walk(group), key=lambda one: -one[0].count(os.sep)):
+        with contextlib.suppress(OSError):
+            os.rmdir(under)
+
+
+def _threaded(group: Path) -> None:
+    """Make `group` a threaded cgroup where it was born invalid as a domain: under a parent
+    that has processes and the cpu controller on for its children, a child may hold processes
+    only as a threaded one."""
+    with contextlib.suppress(OSError):
+        if (group / "cgroup.type").read_text().strip() == "domain invalid":
+            (group / "cgroup.type").write_text("threaded")
+
+
+def _cap(home: Path, own: Path, workers: int) -> None:
+    """Cap `own` at `workers` cores: its `cpu.max` is `workers` periods of CPU a period. The
+    holder's cgroup turns the cpu controller on for its children first, where it may, and `own`
+    passes it on to its leaf, so a take made inside this one, as a test of jgauge makes, may be
+    capped too: the leaf's own `cpu.max` stays `max`, which a Makefile that counts its workers
+    from its cgroup's quota reads as no quota. Each step that fails leaves the take uncapped."""
+    with contextlib.suppress(OSError):
+        control = home / "cgroup.subtree_control"
+        if "cpu" not in control.read_text().split():
+            control.write_text("+cpu")
+    _threaded(own)
+    with contextlib.suppress(OSError):
+        (own / "cpu.max").write_text(f"{workers * PERIOD_USEC} {PERIOD_USEC}")
+    with contextlib.suppress(OSError):
+        (own / "cgroup.subtree_control").write_text("+cpu")
 
 
 class _Carriers:
@@ -294,8 +362,17 @@ def _repo(cwd: str) -> str:
 
 
 def take(
-    log: Path, lane: str, slot: int, slots: int, thread: str, command: list[str], waited: float
+    log: Path,
+    lane: str,
+    slot: int,
+    slots: int,
+    thread: str,
+    command: list[str],
+    waited: float,
+    workers: int | None = None,
 ) -> Taken:
+    """Write the take row and make the take's cgroup, capped at `workers` cores, or count its
+    CPU from the processes that carry it where it can have no cgroup, and then it runs uncapped."""
     now = datetime.now(UTC)
     try:
         cwd = os.getcwd()
@@ -313,7 +390,7 @@ def take(
     }
     row = {"at": _stamp(now), "event": "take", **fields, "waited": round(waited, 3)}
     _append(log, {**row, "repo": _repo(cwd)})
-    return Taken(log, now, fields, _Cgroup.make(fields["id"]) or _Carriers(fields["id"]))
+    return Taken(log, now, fields, _Cgroup.make(fields["id"], workers) or _Carriers(fields["id"]))
 
 
 def release(taken: Taken, code: int) -> None:
