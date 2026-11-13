@@ -511,3 +511,48 @@ def test_vitests_report_names_the_failed_test_file_from_the_repos_root(hello_rep
     assert "1 failed" in out
     assert "1 passed" in out
     assert failed.read_text().splitlines() == [broken]
+
+
+NODE_TEST = {
+    "client/package.json": json.dumps(
+        {
+            "name": "client",
+            "private": True,
+            "type": "module",
+            "scripts": {"check": "node tools/check.mjs", "test": "node --test"},
+        }
+    )
+    + "\n",
+    "client/package-lock.json": LOCK,
+    "client/.nvmrc": "24\n",
+    "client/tools/check.mjs": CHECK,
+    "client/src/adds.test.mjs": (
+        "import assert from 'node:assert/strict';\nimport test from 'node:test';\n\n"
+        "test('adds', () => assert.equal(1 + 1, 2));\n"
+    ),
+    "client/src/breaks.test.mjs": (
+        "import assert from 'node:assert/strict';\nimport test from 'node:test';\n\n"
+        "test('breaks', () => assert.equal(1, 2));\n"
+    ),
+}
+
+
+def test_a_node_test_root_runs_under_the_report_and_names_its_files(tmp_path, upstream):
+    root, env = new_repo(tmp_path, upstream, NODE_TEST)
+    failed = tmp_path / "failed.txt"
+    done = subprocess.run(
+        ["make", "--no-print-directory", "-C", str(root), "test"],
+        env={**env, "REPO_STANDARD_FAILED": str(failed)},
+        capture_output=True,
+        text=True,
+        timeout=300,
+    )
+    out = done.stdout + done.stderr
+    assert done.returncode != 0, out
+    assert "bad option" not in out
+    assert "# pass 1" in out
+    assert "# fail 1" in out
+    assert failed.read_text().splitlines() == [
+        "client/src/adds.test.mjs",
+        "client/src/breaks.test.mjs",
+    ]
