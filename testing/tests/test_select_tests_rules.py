@@ -891,16 +891,18 @@ def test_the_guards_on_a_merged_tree_keep_each_repo_guard_the_selection_names(
     merge over it unless `test_module_size.py` runs there. Off the `Cross-cutting:` list, the
     selection names it only where its read set, a feature's `src/`, reaches the change, and the
     guards part holds it then as it does on the list; where the selection does not name it, as
-    for a change to a feature's docs, the guards part does not add it."""
+    for a change to a feature's docs, the guards part does not add it. On the list, every change
+    names it. The row sets the list either way, so it holds before the guard leaves the list and
+    after."""
     tests, _ = select.selection([changed])
-    if not on_list:
-        listed = [one for one in select.cross_cutting() if one != MODULE_SIZE]
-        monkeypatch.setattr(select, "cross_cutting", lambda: listed)
-        tests = sorted(set(tests) - {MODULE_SIZE} | ({MODULE_SIZE} if reaches else set()))
+    named = on_list or reaches
+    listed = set(select.cross_cutting()) - {MODULE_SIZE} | ({MODULE_SIZE} if on_list else set())
+    monkeypatch.setattr(select, "cross_cutting", lambda: sorted(listed))
+    tests = sorted(set(tests) - {MODULE_SIZE} | ({MODULE_SIZE} if named else set()))
 
     guards = select.desk_part("guards", [changed], tests)
 
-    if reaches or on_list:
+    if named:
         assert MODULE_SIZE in guards
         assert MODULE_SIZE not in select.desk_part("rest", [changed], tests)
     else:
