@@ -10,7 +10,7 @@ from datetime import timedelta
 import pytest
 
 import jbus
-from jbus import clock, stall, work
+from jbus import clock, stall, wakes, work
 from jmerge import judgement, ready
 from test_jbus_expedite import Short, host_unread, later
 from test_jbus_expedite_result import PROVED_MISSING
@@ -266,11 +266,11 @@ def test_held_wake_once_per_hold_while_its_minutes_count_up(kitchen):
     short, _ = _twice(kitchen, PROVED_MISSING)
     short.passes(stall.PASSES)
 
-    def wakes():
+    def woken():
         return [
             line
             for one in sends(kitchen)
-            if "from the list of what is open" in one["message"]
+            if one["clientRequestId"].startswith(f"{wakes.KIND}|")
             for line in one["message"].splitlines()
             if line.startswith("- held alpha: ")
         ]
@@ -288,12 +288,12 @@ def test_held_wake_once_per_hold_while_its_minutes_count_up(kitchen):
             short.passes(1)
         short.passes(stall.PASSES + 5)
 
-    first = wakes()
+    first = woken()
     assert len(first) == 1
     short.passes(5)
-    assert wakes() == first
+    assert woken() == first
     again(PROVED_MISSING)
-    assert len(wakes()) == 2 and PROVED_MISSING in wakes()[-1]
+    assert len(woken()) == 2 and PROVED_MISSING in woken()[-1]
     other = ready.PROVED_UNNAMED.format(tests="tests/test_a.py")
     again(other)
-    assert len(wakes()) == 3 and other in wakes()[-1]
+    assert len(woken()) == 3 and other in woken()[-1]
