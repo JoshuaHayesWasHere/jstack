@@ -2,7 +2,7 @@
 
 **You own the skill's voice.**
 
-1. Use the **skill-creator** skill. In jstack, a new skill goes in `~/repos/jstack/skills/<name>/`, then run `~/repos/jstack/install`.
+1. Use the harness's skill-authoring skill: `anthropic-skills:skill-creator` in Claude Code, `skill-creator` in Codex, `create-skill` in Cursor. In jstack, a new skill goes in `~/repos/jstack/skills/<name>/`, then run `~/repos/jstack/install`.
 2. Validate the skill: frontmatter has `name` and `description`, referenced files exist, cross-skill links resolve.
 3. Test cases if structural. Skip if subjective.
 4. Run **Opening a PR**.

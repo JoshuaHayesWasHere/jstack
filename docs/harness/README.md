@@ -5,7 +5,7 @@ pstack names to this install. Then read the file for your harness:
 
 - Claude Code: [claude-code.md](claude-code.md)
 - Codex: [codex.md](codex.md)
-- Cursor: no extra file. pstack skills already use Cursor names.
+- Cursor: [cursor.md](cursor.md). pstack skills already use Cursor names, so it only covers models.
 
 `<jstack>` is `~/repos/jstack`. Every skill lives flat in `<jstack>/skills/<name>/`.
 
@@ -22,14 +22,11 @@ pstack names to this install. Then read the file for your harness:
 | `subagent_type: "comment-sicko"` | The `comment-sicko` agent, installed from `<jstack>/agents/comment-sicko.md`. |
 | `/deslop` | Not installed. Use **unslop** for prose and **no-comments** for code, and say so in one line. |
 | `control-ui`, `control-cli`, or "the control skill" | The project's `verify-*` skill when it has one, otherwise the harness's browser, computer-use, or shell tools. |
-| Cursor's `/loop` command | A watcher or timer: **babysit-pr**'s watcher, T3 Code's `watch_pull_request`, or the harness's scheduled wake-up. |
+| Cursor's `/loop` command | On a PR, **babysit-pr**'s watcher. Otherwise a background command or monitor the harness offers, never a sleep loop. |
 | Anything else from `cursor-team-kit` | Not installed. Skip the step and say so in one line. |
 | **figure-it-out** | Write a short playbook of your own, as [`rules.md`](../rules.md) says. |
 | **automate-me**, **typescript-best-practices**, **poteto-help** | Not installed. Skip the reference and say so in one line. |
 
 ## Models from other vendors
 
-A model on another vendor (Gemini, GPT) runs through T3 Code: call
-`orchestrator_capabilities` once, then `delegate_task` with the provider and
-model from [`docs/models.md`](../models.md). Outside T3 Code, run that seat on
-the session model and say so.
+See "Running a seat" in [`docs/models.md`](../models.md).

@@ -17,19 +17,25 @@ example before computer use. Use those methods directly. Its merge
 permission does not apply. The overrides below take precedence.
 
 full-send's first instruction, reading `~/repos/jstack/docs/rules.md` in
-full, applies here too. Run its playbook step as written.
+full, applies here too. Run its playbook step as written. Wherever full-send
+says merged, read ready: done is every PR verified, green, and ready for the
+user, never merged.
 
 ## Several PRs
 
 Follow full-send's "Several PRs", with these changes:
 
+- Owner briefs grant push and PR rights for their PR, never merge.
 - Every owner stops at verified and green at its current head. After the
   handoff, nobody pushes without the user's go.
 - Stack a PR only when it builds on another PR. Base it on that PR's branch
   instead of the default branch. Each stacked PR rebases onto its parent's
-  branch, and the stack root rebases onto the default branch. A new head on a
-  lower PR restacks the PRs above it. A PR whose `git patch-id` the restack
-  leaves unchanged keeps its verdict.
+  branch, and the stack root rebases onto the default branch. For a stacked
+  PR, "up to date" in the merge gate means up to date with its parent's
+  branch.
+- A new head on a lower PR restacks the PRs above it. An unchanged
+  `git patch-id` keeps only the review verdict on that PR's own diff. Rerun
+  its behavior checks whenever its parent changed behavior.
 - Report each PR with its verdict, in place of what merged.
 
 ## No merging

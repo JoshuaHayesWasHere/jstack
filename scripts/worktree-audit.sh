@@ -72,7 +72,7 @@ fi
 # Transcripts dir. Claude Code keeps one folder per working directory, and a
 # worktree's chats live under the worktree's own slug, so search them all.
 # Override with TRANSCRIPTS=<dir> (for Cursor: ~/.cursor/projects/<slug>/agent-transcripts).
-transcripts="${TRANSCRIPTS:-$HOME/.claude/projects}"
+transcripts="${TRANSCRIPTS:-$HOME/.claude/projects $HOME/.codex/sessions $HOME/.cursor/projects}"
 now=$(date +%s)
 
 echo "# base: $base"
@@ -88,14 +88,18 @@ git worktree list --porcelain | awk '/^worktree /{print $2}' | while read -r wt;
 
 	# Squash-merged branches are not ancestors of the base, so PR state is the
 	# real signal; merge-base only catches fast-forward/rebase merges.
-	git merge-base --is-ancestor "$head" "$base" 2>/dev/null && merged=YES || merged=no
+	# A branch sitting on the base tip has no commits of its own: new or unused,
+	# not merged.
+	if [ "$(git rev-parse "$base" 2>/dev/null)" = "$head" ]; then merged=no-commits
+	elif git merge-base --is-ancestor "$head" "$base" 2>/dev/null; then merged=YES
+	else merged=no; fi
 
-	# Distinguish real WIP (tracked edits) from disposable untracked scratch.
+	# Tracked edits are WIP. Untracked files may be new source, so they hold too.
 	porcelain=$(git -C "$wt" status --porcelain 2>/dev/null)
 	if [ -z "$porcelain" ]; then dirty=clean
 	elif printf '%s\n' "$porcelain" | grep -qv '^??'; then
 		dirty="wip:$(printf '%s\n' "$porcelain" | grep -cv '^??')"
-	else dirty="scratch:$(printf '%s\n' "$porcelain" | grep -c '^??')"; fi
+	else dirty="untracked:$(printf '%s\n' "$porcelain" | grep -c '^??')"; fi
 
 	branch=$(git -C "$wt" symbolic-ref --quiet --short HEAD 2>/dev/null || echo "")
 	if [ -z "$branch" ]; then remote=detached
@@ -112,18 +116,21 @@ git worktree list --porcelain | awk '/^worktree /{print $2}' | while read -r wt;
 	# Most recent chat whose transcript operated in this worktree. Match path
 	# followed by "/" or a quote so glint-482 does not match glint-482-r37.
 	last="-"; last_ts=0
-	if [ -d "$transcripts" ]; then
-		f=$(rg -l -e "${wt}/" -e "${wt}\"" "$transcripts" 2>/dev/null \
+	dirs=(); for d in $transcripts; do [ -d "$d" ] && dirs+=("$d"); done
+	if [ "${#dirs[@]}" -gt 0 ]; then
+		f=$(rg -l -e "${wt}/" -e "${wt}\"" "${dirs[@]}" 2>/dev/null \
 			| xargs stat "${stat_fmt[@]}" 2>/dev/null | sort -rn | head -1)
 		if [ -n "$f" ]; then last_ts=$(echo "$f" | awk '{print $1}')
 			last=$(fmt_day "$last_ts" 2>/dev/null); fi
 	fi
 	recent=$([ "$last_ts" -gt 0 ] 2>/dev/null && [ $(( (now - last_ts) / 86400 )) -le 4 ] && echo yes || echo no)
 
-	case "$dirty" in wip:*) bucket=hold-wip ;; *)
+	# safe means merged and idle: merged into the base, or its PR merged.
+	# A closed-unmerged PR or a branch with no commits is review, never safe.
+	case "$dirty" in wip:*) bucket=hold-wip ;; untracked:*) bucket=hold-untracked ;; *)
 		case "$pr" in */open|*/draft) bucket=hold-open-pr ;; *)
 			if [ "$recent" = yes ]; then bucket=verify-recent-chat
-			elif [ "$merged" = YES ] || [ "$pr" != "-" ]; then bucket=safe
+			elif [ "$merged" = YES ] || [[ "$pr" == */merged ]]; then bucket=safe
 			else bucket=review; fi ;;
 		esac ;;
 	esac

@@ -23,7 +23,8 @@ disagree, this file wins.
 You may, without asking:
 
 - Create branches named `proto/<slug>/<route>` and worktrees for them.
-- Commit freely on those branches. Code quality, tests, and polish do not
+- Commit freely on those branches, production source included, so a route
+  can be harvested or promoted later. Code quality, tests, and polish do not
   matter. The observation is the test.
 - Run the app, dev servers, scripts, browsers, and other test methods the
   routes need.
@@ -55,7 +56,7 @@ Never, in this mode:
    mechanism, data shape, or architecture, not a parameter tweak. Include one
    route the user didn't ask for when you see one worth trying.
 4. **Run the routes in parallel.** One worktree and one `proto/<slug>/<route>`
-   branch per route, off the current default branch (the
+   branch per route, off the branch the user is on (the
    **principle-separate-before-serializing-shared-state** skill). Give each
    route to its own subagent per `docs/subagents.md`, or use **arena** when
    the routes are the same task on different models. Supervise. Read every
@@ -74,7 +75,9 @@ Never, in this mode:
      branch for the real build.
    - **Promote.** Continue that route with **full-stop** or **full-send** on
      its branch.
-   Put your recommendation first. Act only on the answer.
+   Put your recommendation first. Act only on the answer. If no question tool
+   is available, or it returns no answer, leave every branch and worktree in
+   place and open your final message with the question.
 
 ## Report
 

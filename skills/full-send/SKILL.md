@@ -19,7 +19,8 @@ and this file disagree, this file wins.
 
 The user grants you permission to:
 
-- Merge the PR once the merge gate passes.
+- Merge this task's PRs once the merge gate passes. Any other PR you open
+  (an out-of-band fix found mid-run) stops at ready for the user.
 - Force-push the PR's own branch with `--force-with-lease` after a rebase.
 - Use the test methods that Proof needs, without asking first.
 
@@ -50,8 +51,9 @@ one appears.
    it. Match the task to a full-send playbook in `rules.md` (bug-fix,
    feature, refactoring, perf-issue, hillclimb, visual-parity,
    authoring-a-skill) and copy its steps into your todo list. If the task is
-   really an investigation or an open design question, say so and suggest
-   **prototype** instead of building. If you are on the default branch,
+   really an investigation or an open design question, ask with the question
+   tool (see "Asking the user") and recommend **prototype** instead of
+   building. If you are on the default branch,
    create a branch first.
 2. **Finish the change** by running the playbook's steps up to its
    **Opening a PR** step. Fix the case that happened, not every case that
@@ -89,7 +91,11 @@ Full send is unattended by definition. Hold these for the whole run:
   genuine dead end rather than spinning.
 - **Mid-run discoveries that serve the goal are yours.** Fix broken skills,
   flaky verifiers, related bugs, and tooling failures yourself, in their own
-  PR when they are out of band, then return to the predicate.
+  PR when they are out of band, then return to the predicate. Those PRs stop
+  at ready. They are not this task's PRs.
+- **Wait without polling.** On a PR, use `babysit-pr`'s watcher. On anything
+  else (a long build, a benchmark, a deploy preview), use a background command
+  or monitor the harness offers, with a long timer as a fallback.
 - **Keep a trail** with **show-me-your-work**: a row per iteration for what
   changed and whether the predicate moved.
 
@@ -98,8 +104,10 @@ Full send is unattended by definition. Hold these for the whole run:
 When the work splits into independent PRs:
 
 - **One owner per PR.** Spawn a subagent per PR that builds it, opens it with
-  `file-pr`, proves it, and babysits it. You own the verdicts, not the PRs.
-  Owners run in parallel off the default branch, never stacked.
+  `file-pr`, proves it, and babysits it with `babysit-pr`'s `pr-wait` script.
+  Its brief grants push, PR, and merge rights for that PR only. You own the
+  verdicts and any T3 Code PR watches. Owners run in parallel off the default
+  branch, never stacked.
 - **Verify before merge with agents that never wrote the code.** Once a PR is
   code-ready, fan out independent verifiers with **swarm**: rerun the gates,
   prove the load-bearing behavior live, audit the diff. Run a full swarm once.
@@ -111,8 +119,9 @@ When the work splits into independent PRs:
 - **Merge only what you verified**, on the base it lands on. Right before
   merging, fetch the default branch and rebase when its changes can affect
   the patch. Green CI alone never authorizes a merge.
-- **Anything that loosens a gate** (a raised budget, an allowlist entry, a
-  disabled check) needs a verifier's proof first. Never bypass an approval the
+- **Anything that loosens a gate** (a raised budget, an allowlist entry)
+  needs a verifier's proof first. A disabled or soft-failed check always comes
+  out, because it stops guarding every case. Never bypass an approval the
   forge enforces.
 - **Audit the owners on a timer** until no delegated work is left. Judge each
   by its side effects, not its status text. Replace a stuck owner at once.

@@ -24,7 +24,7 @@ pstack skills use Cursor names. In Claude Code, read [README.md](README.md) and 
 | `environment: "cloud"` | `isolation: "worktree"`. Name the branch or commit the worker checks out. |
 | `environment: "local"` | Omit. |
 | `cloud_base_branch: <b>` | Tell the worker to check out `<b>` first. |
-| `run_in_background: true` | Omit. Subagents run in the background by default and notify you when they finish. |
+| `run_in_background: true` | Follow the session's own rule for waiting. In T3 Code, spawn a native `Agent` with `run_in_background: false`, and use `delegate_task` for background work. |
 | `resume` | Spawn a new agent and paste the earlier result into its brief. |
 | `file_attachments` | List the paths in the brief. |
 

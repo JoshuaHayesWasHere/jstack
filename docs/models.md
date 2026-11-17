@@ -4,10 +4,20 @@ One line per role. Skills that read `pstack-models.mdc` read this file
 instead. Delete a line to fall back to the skill's default. Edit by hand.
 
 A value is `<provider>/<model> <effort>`. Providers are the T3 Code provider
-instances: `claude` (Claude Code), `codex` (Codex), `cursor` (Cursor). A
-`claude/` value can run as a native subagent with `model` and `effort`. Any
-other provider runs through T3 Code's `delegate_task`. `inherit-parent` runs
-the role on the parent chat's model.
+instances: `claude` (Claude Code), `codex` (Codex), `cursor` (Cursor).
+`inherit-parent` runs the role on the parent chat's model.
+
+## Running a seat
+
+1. If the seat's provider is the harness you are running in (`claude/` in
+   Claude Code, `codex/` in Codex, `cursor/` in Cursor), spawn a native
+   subagent with that model and effort, mapped by your harness file in
+   `docs/harness/`.
+2. Otherwise, in T3 Code, call `orchestrator_capabilities` once, then
+   `delegate_task` with that provider instance, model, and effort.
+3. Outside T3 Code, run the seat on the session model and say so.
+4. If a model or effort is rejected, use the nearest valid one of the same
+   family, or drop the seat, and say so. A panel keeps at least two seats.
 
 No role runs above `xhigh`. Gemini tops out at `high`.
 

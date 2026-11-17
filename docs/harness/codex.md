@@ -26,9 +26,10 @@ value the tool schema rejects.
 
 ## Models
 
-Codex subagents run on Codex models. For a `claude/` or `cursor/` seat in
-[`docs/models.md`](../models.md), use T3 Code's `delegate_task`. Outside T3
-Code, run the seat on the session model and say so.
+Codex subagents run on Codex models. Run seats from
+[`docs/models.md`](../models.md) as its "Running a seat" section says: a
+`codex/` seat is a native `spawn_agent`, and any other seat goes through T3
+Code's `delegate_task`.
 
 ## Paths
 

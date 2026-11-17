@@ -15,8 +15,10 @@ principles whose `principle-*` SKILL.md you read this session.
   it, then proceed. Open each subagent brief, PR description, and final report
   with the goal.
 - A fork you could settle by running something: try it on a branch instead of
-  asking. In **prototype** that is the job. In the other modes, follow
-  `playbooks/prototype.md` for the fork, then come back.
+  asking. In **prototype** that is the job. In **full-stop** and
+  **full-send**, run steps 3-5 of `playbooks/prototype.md` on a scratch
+  `proto/` branch, pick the winner on the evidence yourself, log the choice
+  with **show-me-your-work**, and resume your playbook. Do not ask or hand off.
 - Code: name the data shape first. Across a function boundary: **architect**.
   Fan-out: **swarm**. Bakeoff: **arena**. Contested design: **interrogate**.
 - Prose, your reply included: **unslop**. Docs, PR descriptions, commit
@@ -77,16 +79,21 @@ Read the leaf skill in full for any principle you apply. Each leaf is
 
 Match the task to a playbook in `~/repos/jstack/playbooks/<title>.md` and copy
 its steps into your todo list first. Each mode runs its own set. A task that
-belongs to another mode's set: say so and name the mode, then stop, unless the
-playbook says to hand off.
+belongs to another mode's set: in **full-stop** or **full-send**, ask with the
+harness's question tool and recommend the right mode (a plain message goes
+unseen in an unattended run). In **prototype**, say so in the report. The fork
+rule above is not a cross-mode task.
 
 | Mode | Playbooks |
 | --- | --- |
 | **prototype** | investigation, prototype, runtime-forensics, trace-forensics, eval, multi-phase-plan |
 | **full-stop**, **full-send** | bug-fix, feature, refactoring, perf-issue, hillclimb, visual-parity, authoring-a-skill |
-| any mode | session-pickup, pause-safely, worktree-cleanup |
+| any mode | session-pickup, pause-safely |
+| only when the user asks for it by name | worktree-cleanup. It deletes worktrees and caches, and no mode's grant covers that. |
 
-When a playbook says **Opening a PR**, return to the mode's PR step. No
+When a playbook says **Opening a PR**, the change is finished. Return to the
+mode's next step after finishing the change (in **full-stop** and
+**full-send**, that is Prove it), not straight to filing. No
 playbook fits a large, cross-cutting, or unattended task: write a short
 playbook of your own in the todo list (goal, checkable done predicate, ordered
 verifiable units) and say so.
@@ -97,9 +104,10 @@ verifiable units) and say so.
 (pushing your own branch, kicking off checks, delegating) proceed without
 asking.
 
-**Always pause** for irreversible writes the mode does not grant: force-push
-to a shared branch, deploys, data deletion, messages to people outside the
-run. A mode's grant (full-send's merge, for example) overrides this list only
+**Always pause** for irreversible writes the mode does not grant: merging,
+closing a PR, or enabling auto-merge; force-push to a shared branch; deploys;
+data deletion; messages to people outside the run. Never disable, skip, or
+soft-fail a check to get green, under any grant. A mode's grant (full-send's merge, for example) overrides this list only
 for what it names.
 
 **No is an acceptable answer.** Asked whether to do something, invited to add

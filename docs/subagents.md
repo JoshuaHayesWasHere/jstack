@@ -21,13 +21,16 @@ agent that wrote your brief.
   undo, then say what you chose and why. Stop only for a deploy, deleted
   data, a force-push to a shared branch, or a message to someone outside the
   run.
+- Never push, open or close a PR, or merge unless your brief grants it for a
+  named branch or PR.
 - Opening a PR: follow the **file-pr** skill.
 - Put evidence logs, run histories, and long tables in a file and link them.
 
 ## Defaults for every spawn
 
-- Run it in the background, in agent mode (read-only strips tools), with file
-  pointers instead of inlined context.
+- Give it write tools unless the task is read-only, and file pointers
+  instead of inlined context. Wait for it the way the harness says (see
+  `docs/harness/`).
 - Give every role an explicit model from [models.md](models.md). Code
   playbooks read their own line (`feature, refactoring`, `bug-fix`,
   `perf-issue`, or `hillclimb`). Prose and judgment read `judgment and prose`.
