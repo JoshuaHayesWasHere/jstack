@@ -1,0 +1,58 @@
+#!/usr/bin/env bash
+# Link jstack's settings, skills, and agents into every harness. Safe to rerun.
+# Usage: ./install [--dry-run]
+set -euo pipefail
+
+repo=$(cd "$(dirname "$0")" && pwd -P)
+dry=0
+[ "${1:-}" = "--dry-run" ] && dry=1
+
+skill_dirs=("$HOME/.claude/skills" "$HOME/.agents/skills")
+agent_dirs=("$HOME/.claude/agents" "$HOME/.cursor/agents")
+profiles=("$HOME/.claude_prime" "$HOME/.claude_agent")
+
+run() { if [ "$dry" -eq 1 ]; then echo "would: $*"; else "$@"; fi; }
+
+link() { # link <source> <destination>
+    local src=$1 dst=$2
+    if [ -L "$dst" ] && [ "$(readlink -f "$dst")" = "$(readlink -f "$src")" ]; then return; fi
+    if [ -e "$dst" ] && [ ! -L "$dst" ]; then
+        echo "conflict: $dst exists and is not a link (skipped)" >&2
+        return
+    fi
+    run mkdir -p "$(dirname "$dst")"
+    run ln -sfn "$src" "$dst"
+    echo "linked  $dst"
+}
+
+prune() { # remove dead links in <dir>
+    local dir=$1
+    [ -d "$dir" ] || return 0
+    for l in "$dir"/*; do
+        [ -L "$l" ] || continue
+        if [ ! -e "$l" ]; then run rm "$l"; echo "pruned  $l (dead)"; fi
+    done
+}
+
+link "$repo/settings.json" "$HOME/.claude/settings.json"
+for p in "${profiles[@]}"; do
+    [ -d "$p" ] || continue
+    link "$HOME/.claude/settings.json" "$p/settings.json"
+    link "$HOME/.claude/skills" "$p/skills"
+    link "$HOME/.claude/agents" "$p/agents"
+done
+
+for d in "${skill_dirs[@]}"; do
+    prune "$d"
+    for s in "$repo"/skills/*/; do
+        s=${s%/}
+        link "$s" "$d/$(basename "$s")"
+    done
+done
+
+for d in "${agent_dirs[@]}"; do
+    prune "$d"
+    for a in "$repo"/agents/*.md; do
+        link "$a" "$d/$(basename "$a")"
+    done
+done
