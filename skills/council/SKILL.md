@@ -13,7 +13,8 @@ and explore new ideas, skip fixes to code being replaced.
 Bring in three delegates to help with the user's request, usually for review
 or feedback. Use one strong model from each of three different providers, at
 high reasoning effort. If the user's instructions name council members, use
-those. Otherwise pick the latest flagship model from each provider, for
+those. Otherwise use the `council` line in `~/repos/jstack/docs/models.md`.
+If that file is missing, pick the latest flagship model from each provider, for
 example Claude Opus, GPT Sol, and Gemini Pro.
 
 In T3 Code, use `orchestrator_capabilities` to resolve the models, then

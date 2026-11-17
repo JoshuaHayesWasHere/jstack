@@ -16,12 +16,16 @@ pstack names to this install. Then read the file for your harness:
 | `<pstack>`, or a path under the pstack plugin | `<jstack>` |
 | `~/.cursor/rules/pstack-models.mdc`, or `/setup-pstack` | [`<jstack>/docs/models.md`](../models.md). Read it before you pick a model. Edit it by hand to change a role. There is no setup skill. |
 | The Subagents section of the **poteto-mode** skill | [`<jstack>/docs/subagents.md`](../subagents.md) |
-| **poteto-mode**, as the mode that runs playbooks | **full-send** or **full-stop** for work that ends in a PR. The **prototype** mode is planned and not built yet. Until then, follow the playbook directly. |
-| A playbook, such as `session-pickup` or `bug-fix` | `<jstack>/playbooks/<title>.md`. Babysit, Shipping, and Opening a PR are not here. Use **babysit-pr**, **full-send**, and **file-pr**. |
-| `subagent_type: "poteto-agent"` | A general subagent whose brief opens with `Read <jstack>/docs/harness/README.md and <jstack>/docs/subagents.md before anything else.` |
+| **poteto-mode**, as the mode that runs playbooks | One of jstack's three modes: **prototype** (explore on throwaway branches), **full-stop** (PR, never merged), or **full-send** (PR, merged). Their shared rules are [`<jstack>/docs/rules.md`](../rules.md). |
+| A playbook, such as `session-pickup` or `bug-fix` | `<jstack>/playbooks/<title>.md`. [`rules.md`](../rules.md) says which mode runs it. Babysit, Shipping, and Opening a PR are not here: use **babysit-pr**, **full-send**, and **file-pr**. Autonomous run, Autopilot-full, and Autopilot-stack are folded into **full-send** and **full-stop**. |
+| `subagent_type: "poteto-agent"`, or a brief that starts with `Read <path>/worker.md` | A general subagent whose brief opens with `Read <jstack>/docs/subagents.md before anything else.` |
 | `subagent_type: "comment-sicko"` | The `comment-sicko` agent, installed from `<jstack>/agents/comment-sicko.md`. |
-| `/deslop`, `control-ui`, `control-cli`, or anything from `cursor-team-kit` | Not installed. Skip the step and say so in one line. |
-| **automate-me**, **typescript-best-practices**, **figure-it-out**, **poteto-help** | Not installed. Skip the reference and say so in one line. |
+| `/deslop` | Not installed. Use **unslop** for prose and **no-comments** for code, and say so in one line. |
+| `control-ui`, `control-cli`, or "the control skill" | The project's `verify-*` skill when it has one, otherwise the harness's browser, computer-use, or shell tools. |
+| Cursor's `/loop` command | A watcher or timer: **babysit-pr**'s watcher, T3 Code's `watch_pull_request`, or the harness's scheduled wake-up. |
+| Anything else from `cursor-team-kit` | Not installed. Skip the step and say so in one line. |
+| **figure-it-out** | Write a short playbook of your own, as [`rules.md`](../rules.md) says. |
+| **automate-me**, **typescript-best-practices**, **poteto-help** | Not installed. Skip the reference and say so in one line. |
 
 ## Models from other vendors
 

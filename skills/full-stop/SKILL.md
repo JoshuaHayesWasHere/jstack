@@ -16,6 +16,22 @@ methods Proof needs, even when a project file says to ask first, for
 example before computer use. Use those methods directly. Its merge
 permission does not apply. The overrides below take precedence.
 
+full-send's first instruction, reading `~/repos/jstack/docs/rules.md` in
+full, applies here too. Run its playbook step as written.
+
+## Several PRs
+
+Follow full-send's "Several PRs", with these changes:
+
+- Every owner stops at verified and green at its current head. After the
+  handoff, nobody pushes without the user's go.
+- Stack a PR only when it builds on another PR. Base it on that PR's branch
+  instead of the default branch. Each stacked PR rebases onto its parent's
+  branch, and the stack root rebases onto the default branch. A new head on a
+  lower PR restacks the PRs above it. A PR whose `git patch-id` the restack
+  leaves unchanged keeps its verdict.
+- Report each PR with its verdict, in place of what merged.
+
 ## No merging
 
 You may commit, push, rebase, fix conflicts, and use `--force-with-lease` on

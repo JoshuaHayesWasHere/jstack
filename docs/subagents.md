@@ -3,6 +3,27 @@
 Shared rules for every subagent a jstack skill spawns. Adapted from the
 Subagents section of pstack's `poteto-mode`.
 
+## Worker rules
+
+If you are a subagent reading this, these hold for every task, even where your
+brief does not repeat them. Your brief overrides one only when it says so in
+so many words. The operator is the person the whole run works for, not the
+agent that wrote your brief.
+
+- If you start an agent, the first line of its brief is
+  `Read ~/repos/jstack/docs/subagents.md before anything else.`
+- The bar in your brief is the whole bar. Add no check, gate, sign-off, or
+  review round above it. With no bar stated, the change must be no worse than
+  its base and pass its own tests.
+- Hold or block only for a failing run at this head or a bug a user would
+  hit. Report a problem the base already has in one line.
+- Never call a tool that shows a person a question. Make any choice you can
+  undo, then say what you chose and why. Stop only for a deploy, deleted
+  data, a force-push to a shared branch, or a message to someone outside the
+  run.
+- Opening a PR: follow the **file-pr** skill.
+- Put evidence logs, run histories, and long tables in a file and link them.
+
 ## Defaults for every spawn
 
 - Run it in the background, in agent mode (read-only strips tools), with file

@@ -27,15 +27,17 @@ skills also fire when you say their phrase ("full send", "babysit").
 
 | Skill | Use it when |
 | --- | --- |
-| `/prototype` | Planned (phase 2). Explore a vague request on its own branch, try several routes, report back. |
+| `prototype` | Explore a vague or open request on throwaway `proto/` branches, try several routes, and report back with evidence. Never opens a PR. |
 | `/in-your-own-words` | You want the agent to play back your goal and the problem before it starts. |
 | `/architect` | You're about to cross a function boundary and want the caller's usage, types, and module shape settled first. |
 
 ### Building
 
+**prototype**, **full-stop**, and **full-send** are jstack's three modes. Each reads [`docs/rules.md`](docs/rules.md) first (pstack's poteto-mode rules and principles index) and runs the playbooks that fit it.
+
 | Skill | Use it when |
 | --- | --- |
-| `full-send` | Take a change all the way to a merged PR, unattended. |
+| `full-send` | Take a change all the way to a merged PR, unattended. Runs a playbook, proves it, sol-loop review, files, babysits, merges. |
 | `full-stop` | Same as full-send, but stop with the PR ready for you to merge. |
 | `file-pr` | Open a short PR that leads with the problem. |
 | `babysit-pr` | Watch a PR through CI and review bots and fix real findings. |
@@ -60,7 +62,7 @@ skills also fire when you say their phrase ("full send", "babysit").
 
 | Skill | Use it when |
 | --- | --- |
-| Playbooks | `playbooks/`: 19 step lists (bug fix, feature, perf, forensics, autopilot, and more) that the modes follow. Merged into the modes in phase 2. |
+| Playbooks | `playbooks/`: 16 step lists the modes follow. **prototype**: investigation, prototype, runtime and trace forensics, eval, multi-phase plan. **full-stop** and **full-send**: bug fix, feature, refactoring, perf, hillclimb, visual parity, authoring a skill. Any mode: session pickup, pause safely, worktree cleanup. |
 | `/blast-radius` | A small-looking change: what else could it break? |
 | `/show-me-your-work` | Keep a reviewable decision trail on long or unattended runs. |
 | `principle-*` | 24 one-rule skills (laziness protocol, prove it works, fix root causes, and more) that other skills cite. |
@@ -84,8 +86,12 @@ skills also fire when you say their phrase ("full send", "babysit").
 - [`docs/models.md`](docs/models.md): which model fills each role and panel
   seat. Edit it by hand. Non-Claude seats run through T3 Code's
   `delegate_task`.
+- [`docs/rules.md`](docs/rules.md): the modes' shared rules, principles
+  index, and which playbooks each mode runs.
 - [`docs/subagents.md`](docs/subagents.md): shared rules for spawning
-  subagents.
+  subagents, and the worker rules every subagent reads.
+- [`scripts/worktree-audit.sh`](scripts/worktree-audit.sh): used by the
+  worktree-cleanup playbook.
 - [`docs/harness/`](docs/harness/): maps pstack's Cursor names to this
   install, Claude Code, and Codex.
 

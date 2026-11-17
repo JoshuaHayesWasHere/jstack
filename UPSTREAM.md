@@ -17,7 +17,9 @@ commit here.
 | `skills/<name>/`, 26 skills plus 24 `principle-*` | `pstack/skills/<name>/` |
 | `skills/{full-send,full-stop,file-pr,babysit-pr,leaving-pr-comments,council,sol-loop}/` | `tstack/skills/<name>/` |
 | `agents/comment-sicko.md` | `pstack/agents/comment-sicko.md` |
-| `playbooks/*.md`, 19 playbooks | `pstack/skills/poteto-mode/playbooks/` (not `babysit`, `shipping`, `opening-a-pr`) |
+| `playbooks/*.md`, 16 playbooks | `pstack/skills/poteto-mode/playbooks/` (not `babysit`, `shipping`, `opening-a-pr`, `autonomous-run`, `autopilot-full`, `autopilot-stack`) |
+| `scripts/worktree-audit.sh` | `pstack/skills/poteto-mode/scripts/worktree-audit.sh` |
+| `docs/rules.md`, `docs/subagents.md` (Worker rules) | `pstack/skills/poteto-mode/SKILL.md` and `worker.md`, adapted |
 | `docs/harness/claude-code.md` | `harness/pstack/claude-code/docs/harness/claude-code.md` |
 
 ## Local changes
@@ -32,7 +34,22 @@ commit here.
   Subagents section of `poteto-mode`.
 - Em dashes are replaced in `create-verification-skill` and
   `maintain-verification-skill`.
-- Not brought over: `poteto-mode` (to be merged into `full-send` and
-  `full-stop`), `poteto-help`, `setup-pstack`, `automate-me`, `figure-it-out`,
+- `poteto-mode` is merged into the modes. Its rules, principles index,
+  autonomy, and reply style are `docs/rules.md`. Its Subagents section and
+  `worker.md` are `docs/subagents.md`. `full-send` and `full-stop` (tstack)
+  read `docs/rules.md` and route to playbooks. `full-send` gains "Unattended
+  runs" (from `autonomous-run`) and "Several PRs" (from `autopilot-full`).
+  `full-stop` gains the stacking rules from `autopilot-stack`.
+- `skills/prototype/` is jstack's own: a third mode for exploration on
+  `proto/` branches.
+- Playbooks: Cursor names replaced (`/loop`, the control skill, model slugs,
+  transcript paths, `create-skill`, `figure-it-out`), and mode handoffs added.
+- `arena`, `swarm`, `interrogate` (through arena), `council`, and `sol-loop`
+  read their seats from `docs/models.md`, with non-Claude seats through T3
+  Code's `delegate_task`. `no-comments`, `recall`, and `show-me-your-work`
+  point at `docs/subagents.md`.
+- `scripts/worktree-audit.sh` searches Claude Code transcripts by default.
+- Not brought over: the rest of `poteto-mode` (`references/bugbot-triage.md`,
+  `scripts/watch-pr`, `bootstrap.ts`), `poteto-help`, `setup-pstack`, `automate-me`, `figure-it-out`,
   `ketchup-video`, `make-bot-ui`, `typescript-best-practices`, `poteto-agent`,
   the benny automations, tstack's `takeover` and `modernize`.
