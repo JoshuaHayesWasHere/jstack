@@ -104,9 +104,13 @@ skills also fire when you say their phrase ("full send", "babysit").
 
 | Here | Linked as |
 | --- | --- |
-| `settings.json` | `~/.claude/settings.json`; the prime and agent profiles link to that |
+| `settings.json` (untracked, seeded from `settings.example.json`) | `~/.claude/settings.json`; the prime and agent profiles link to that |
 | `skills/<name>/` | `~/.claude/skills/<name>` (Claude Code) and `~/.agents/skills/<name>` (Codex) |
 | `agents/<name>.md` | `~/.claude/agents/<name>.md` and `~/.cursor/agents/<name>.md` |
+
+The live `settings.json` is gitignored because it names private config paths.
+`settings.example.json` is the published template. Mirror any setting worth
+sharing into it by hand.
 
 Cursor reads both `~/.claude/skills` and `~/.agents/skills`. `CLAUDE.md` and
 `statusline.sh` stay in the public dotfiles repo (`~/dotfiles/claude/`).

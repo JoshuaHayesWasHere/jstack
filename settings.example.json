@@ -1,0 +1,126 @@
+{
+  "cleanupPeriodDays": 30,
+  "env": {
+    "_ZO_DOCTOR": "0",
+    "CLAUDE_CODE_SHELL": "/usr/bin/bash",
+    "SLASH_COMMAND_TOOL_CHAR_BUDGET": "32000"
+  },
+  "attribution": {
+    "commit": "",
+    "pr": ""
+  },
+  "permissions": {
+    "allow": [
+      "Bash(hyprctl -j *)",
+      "Bash(hyprctl monitors *)",
+      "Bash(hyprctl monitors)",
+      "Bash(hyprctl configerrors)",
+      "Bash(pacman -Q*)",
+      "Bash(lsblk *)",
+      "Bash(lsblk)",
+      "Bash(fc-list *)",
+      "Bash(unzip -l *)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git diff:*)",
+      "Bash(git status:*)",
+      "Bash(git branch:*)",
+      "Bash(git ls-files:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git rev-list:*)",
+      "Bash(git fetch:*)",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh run list:*)"
+    ],
+    "deny": [
+      "Read(~/.aws/**)",
+      "Read(~/.claude.json)",
+      "Read(~/.claude/.credentials.json)",
+      "Read(~/.config/<private-app>/**)",
+      "Read(~/.config/chromium/**)",
+      "Read(~/.config/gcloud/**)",
+      "Read(~/.config/gh/**)",
+      "Read(~/.config/git/credentials)",
+      "Read(~/.config/rclone/**)",
+      "Read(~/.docker/config.json)",
+      "Read(~/.git-credentials)",
+      "Read(~/.gnupg/**)",
+      "Read(~/.kube/**)",
+      "Read(~/.local/share/keyrings/**)",
+      "Read(~/.local/state/zsh/**)",
+      "Read(~/.mozilla/**)",
+      "Read(~/.netrc)",
+      "Read(~/.npmrc)",
+      "Read(~/.password-store/**)",
+      "Read(~/.pgpass)",
+      "Read(~/.ssh/**)",
+      "Read(~/.terraform.d/**)",
+      "Read(~/.zsh_history)",
+      "ReportFindings",
+      "ScheduleWakeup",
+      "Workflow"
+    ],
+    "defaultMode": "auto",
+    "additionalDirectories": [
+      "~/Downloads",
+      "~/dotfiles",
+      "~/.claude"
+    ]
+  },
+  "model": "opus[1m]",
+  "statusLine": {
+    "type": "command",
+    "command": "bash ~/.claude/statusline.sh",
+    "refreshInterval": 5
+  },
+  "enabledPlugins": {
+    "typesafe@typesafe-ai": false,
+    "skill-creator@claude-plugins-official": false
+  },
+  "extraKnownMarketplaces": {
+    "typesafe-ai": {
+      "source": {
+        "source": "github",
+        "repo": "typesafe-ai/skills"
+      }
+    }
+  },
+  "modelSettings": {
+    "claude-sonnet-5": {
+      "effortLevel": "high"
+    },
+    "claude-opus-5": {
+      "effortLevel": "medium"
+    },
+    "claude-opus-5-5": {
+      "effortLevel": "medium"
+    }
+  },
+  "tui": "fullscreen",
+  "theme": "dark",
+  "verbose": false,
+  "autoCompactEnabled": true,
+  "switchModelsOnFlag": false,
+  "remoteControlAtStartup": false,
+  "agentPushNotifEnabled": true,
+  "includeCoAuthoredBy": false,
+  "disableBundledSkills": true,
+  "skillOverrides": {
+    "anthropic-skills:built-in-browser": "off",
+    "anthropic-skills:docs": "off",
+    "anthropic-skills:docx": "off",
+    "anthropic-skills:google-workspace": "off",
+    "anthropic-skills:import-memory": "off",
+    "anthropic-skills:morning": "off",
+    "anthropic-skills:pdf": "off",
+    "anthropic-skills:pptx": "off",
+    "anthropic-skills:prime-project-chef": "off",
+    "anthropic-skills:xlsx": "off",
+    "plugin-authoring": "off"
+  },
+  "autoMemoryEnabled": false,
+  "autoDreamEnabled": false
+}

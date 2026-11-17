@@ -34,6 +34,11 @@ prune() { # remove dead links in <dir>
     done
 }
 
+# The live settings are untracked. A machine without them starts from the template.
+if [ ! -e "$repo/settings.json" ]; then
+    run cp "$repo/settings.example.json" "$repo/settings.json"
+    echo "copied  settings.example.json to settings.json (edit it)"
+fi
 link "$repo/settings.json" "$HOME/.claude/settings.json"
 for p in "${profiles[@]}"; do
     [ -d "$p" ] || continue
