@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Copy wiki/ to the GitHub wiki. The pages in wiki/ are the source.
+# Usage: scripts/publish-wiki [--dry-run]
+set -euo pipefail
+
+repo=$(cd "$(dirname "$0")/.." && pwd -P)
+dry=0
+[ "${1:-}" = "--dry-run" ] && dry=1
+
+origin=$(git -C "$repo" remote get-url origin)
+wiki_url=${origin%.git}.wiki.git
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+if ! git clone --quiet "$wiki_url" "$tmp/wiki" 2>/dev/null; then
+	echo "cannot clone $wiki_url" >&2
+	echo "open the repository's Wiki tab on GitHub, save a first page, then run this again" >&2
+	exit 1
+fi
+
+# Mirror wiki/ into the clone: drop pages that no longer exist, copy the rest.
+find "$tmp/wiki" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+cp -R "$repo/wiki/." "$tmp/wiki/"
+
+cd "$tmp/wiki"
+git add -A
+if git diff --cached --quiet; then
+	echo "wiki is up to date"
+	exit 0
+fi
+
+git diff --cached --stat
+if [ "$dry" -eq 1 ]; then
+	echo "dry run: nothing pushed"
+	exit 0
+fi
+
+source_rev=$(git -C "$repo" rev-parse --short HEAD)
+git commit --quiet -m "Publish wiki from jstack $source_rev"
+git push --quiet
+echo "published wiki from jstack $source_rev"

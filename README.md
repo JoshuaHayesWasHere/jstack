@@ -5,6 +5,13 @@ shares: Claude Code (all three profiles), Codex, and Cursor. Skills come from
 [pstack](https://github.com/cursor/plugins/tree/main/pstack) and
 [tstack](https://github.com/t3dotgg/tstack); see [UPSTREAM.md](UPSTREAM.md).
 
+## Documentation
+
+The [jstack wiki](https://github.com/JoshuaHayesWasHere/jstack/wiki) has a
+tutorial, how-to guides, reference for every skill and mode, and the reasons
+behind the design. Its source is [`wiki/`](wiki/). To publish changes, run
+`scripts/publish-wiki`.
+
 ## Skills
 
 Skills live flat in `skills/<name>/`, because they open each other by
