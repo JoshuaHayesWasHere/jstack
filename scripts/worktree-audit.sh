@@ -89,18 +89,17 @@ git worktree list --porcelain | awk '/^worktree /{print $2}' | while read -r wt;
 	# Squash-merged branches are not ancestors of the base, so PR state is the
 	# real signal; merge-base only catches fast-forward/rebase merges.
 	# Reachable from the base is not proof of a merge: a branch that never had
-	# a commit of its own is also reachable, from any base it was cut from. Its
-	# reflog tells them apart. With no reflog to read, say unknown, never YES.
+	# a commit of its own is also reachable, from any base it was cut from.
+	# Count it merged only with positive proof in its reflog that a commit was
+	# made on it. Renames, resets, fast-forwards, and rebases prove nothing. A
+	# detached HEAD or a missing reflog is unknown, never YES.
 	merged=no
 	if git merge-base --is-ancestor "$head" "$base" 2>/dev/null; then
 		br=$(git -C "$wt" symbolic-ref --quiet --short HEAD 2>/dev/null || echo "")
-		if [ -z "$br" ]; then merged=YES
-		else
-			log=$(git -C "$wt" reflog show --format=%gs "refs/heads/$br" 2>/dev/null)
-			if [ -z "$log" ]; then merged=unknown
-			elif printf '%s\n' "$log" | grep -qvE '^branch: (Created from|Reset to)'; then merged=YES
-			else merged=no-commits; fi
-		fi
+		log=$([ -n "$br" ] && git -C "$wt" reflog show --format=%gs "refs/heads/$br" 2>/dev/null)
+		if [ -z "$log" ]; then merged=unknown
+		elif printf '%s\n' "$log" | grep -qE '^(commit( \((amend|merge|initial)\))?|cherry-pick|merge [^:]*: Merge made)'; then merged=YES
+		else merged=no-commits; fi
 	fi
 
 	# Tracked edits are WIP. Untracked files may be new source, so they hold too.

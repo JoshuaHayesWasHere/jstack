@@ -26,8 +26,9 @@ user, never merged.
 Follow full-send's "Several PRs", with these changes:
 
 - Owner briefs grant push and PR rights for their PR, never merge.
-- Every owner stops at verified and green at its current head. After the
-  handoff, nobody pushes without the user's go.
+- Owners stop at code-ready, as in full-send. You hold each PR from there
+  and stop it at verified and green at its current head. After the handoff,
+  nobody pushes without the user's go.
 - Stack a PR only when it builds on another PR. Base it on that PR's branch
   instead of the default branch. Each stacked PR rebases onto its parent's
   branch, and the stack root rebases onto the default branch. For a stacked
