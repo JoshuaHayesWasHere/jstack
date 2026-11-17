@@ -1,6 +1,6 @@
 # jstack
 
-Private Claude Code config and the skill set every agent on this machine
+Claude Code config and the skill set every agent on this machine
 shares: Claude Code (all three profiles), Codex, and Cursor. Skills come from
 [pstack](https://github.com/cursor/plugins/tree/main/pstack) and
 [tstack](https://github.com/t3dotgg/tstack); see [UPSTREAM.md](UPSTREAM.md).
