@@ -104,10 +104,13 @@ Full send is unattended by definition. Hold these for the whole run:
 When the work splits into independent PRs:
 
 - **One owner per PR.** Spawn a subagent per PR that builds it, opens it with
-  `file-pr`, proves it, and babysits it with `babysit-pr`'s `pr-wait` script.
-  Its brief grants push, PR, and merge rights for that PR only. You own the
-  verdicts and any T3 Code PR watches. Owners run in parallel off the default
+  `file-pr`, proves it, and stops at code-ready. Its brief grants push and PR
+  rights for that PR only, never merge. Owners run in parallel off the default
   branch, never stacked.
+- **You hold each PR from code-ready on.** Babysit it with `babysit-pr`, one
+  watcher per PR, held by you (a delegated child never watches a PR). Give
+  each fix round to a fresh owner with the same push and PR grant. You merge,
+  and only after the steps below clear it.
 - **Verify before merge with agents that never wrote the code.** Once a PR is
   code-ready, fan out independent verifiers with **swarm**: rerun the gates,
   prove the load-bearing behavior live, audit the diff. Run a full swarm once.

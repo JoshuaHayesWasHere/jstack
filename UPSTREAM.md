@@ -50,8 +50,8 @@ commit here.
   point at `docs/subagents.md`.
 - `scripts/worktree-audit.sh` searches Claude Code, Codex, and Cursor
   transcripts. It holds untracked files (`hold-untracked`), marks only merged
-  branches or merged PRs `safe`, and calls a branch on the base tip
-  `no-commits`. The worktree-cleanup playbook runs only when the user asks.
+  branches or merged PRs `safe`, and reads the branch reflog so a branch
+  that never had a commit of its own is `no-commits`, not merged. The worktree-cleanup playbook runs only when the user asks.
 - `docs/harness/cursor.md` is jstack's own. `docs/models.md` has one
   "Running a seat" rule that arena, swarm, and the adapters point at.
 - `full-send`'s condensed autopilot section keeps upstream's rule that a

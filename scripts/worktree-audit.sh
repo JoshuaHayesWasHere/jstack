@@ -88,11 +88,20 @@ git worktree list --porcelain | awk '/^worktree /{print $2}' | while read -r wt;
 
 	# Squash-merged branches are not ancestors of the base, so PR state is the
 	# real signal; merge-base only catches fast-forward/rebase merges.
-	# A branch sitting on the base tip has no commits of its own: new or unused,
-	# not merged.
-	if [ "$(git rev-parse "$base" 2>/dev/null)" = "$head" ]; then merged=no-commits
-	elif git merge-base --is-ancestor "$head" "$base" 2>/dev/null; then merged=YES
-	else merged=no; fi
+	# Reachable from the base is not proof of a merge: a branch that never had
+	# a commit of its own is also reachable, from any base it was cut from. Its
+	# reflog tells them apart. With no reflog to read, say unknown, never YES.
+	merged=no
+	if git merge-base --is-ancestor "$head" "$base" 2>/dev/null; then
+		br=$(git -C "$wt" symbolic-ref --quiet --short HEAD 2>/dev/null || echo "")
+		if [ -z "$br" ]; then merged=YES
+		else
+			log=$(git -C "$wt" reflog show --format=%gs "refs/heads/$br" 2>/dev/null)
+			if [ -z "$log" ]; then merged=unknown
+			elif printf '%s\n' "$log" | grep -qvE '^branch: (Created from|Reset to)'; then merged=YES
+			else merged=no-commits; fi
+		fi
+	fi
 
 	# Tracked edits are WIP. Untracked files may be new source, so they hold too.
 	porcelain=$(git -C "$wt" status --porcelain 2>/dev/null)
