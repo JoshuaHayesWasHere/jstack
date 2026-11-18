@@ -97,8 +97,9 @@ In this order:
 - Capture from the real app at the final head. If a later push changes what
   the evidence shows, capture it again and update the description.
 - Upload images and videos to hosting that GitHub can reach. Never commit
-  them to the repo. A secret gist works. Run `gh gist create --secret` with a
-  README, clone the gist, add the files, commit, and push. Link each file at
+  them to the repo. A secret gist works, and `gh gist create` makes one by
+  default. Create it with a README, clone the gist, add the files, commit,
+  and push. Link each file at
   `https://gist.githubusercontent.com/<user>/<id>/raw/<sha>/<file>`, pinned to
   that commit.
 - When the harness's preview window cannot be captured, use headless

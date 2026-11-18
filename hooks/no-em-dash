@@ -10,19 +10,25 @@ if [ "$harness" = claude ] && jq -e '.cursor_version' <<<"$payload" >/dev/null 2
     exit 0
 fi
 
+vcs_re='(^|[^[:alnum:]_-])(git[[:space:]]([^;&|]*[[:space:]])?(commit|tag)|gh[[:space:]]([^;&|]*[[:space:]])?(pr|issue|release|api))([[:space:]]|$)'
+
 body_file_text() { # <command> <cwd>
-    local flags='--body-file|--notes-file|--file|--field|-F' arg path
-    while read -r arg; do
-        arg=${arg//[\"\']/}
-        case "$arg" in
-        *=@*) path=${arg#*=@} ;; # gh api -F body=@file
-        *=* | -) continue ;;     # a plain field, or stdin
-        *) path=$arg ;;
-        esac
-        [[ "$path" == \~/* ]] && path="$HOME/${path#\~/}"
-        [[ "$path" == /* ]] || path="$2/$path"
-        [ -f "$path" ] && cat -- "$path"
-    done < <(grep -oE -- "($flags)(=|[[:space:]]+)[^[:space:];&|]+" <<<"$1" | sed -E "s/^($flags)(=|[[:space:]]+)//")
+    local long='--body-file|--notes-file|--file|--field' arg path segment
+    while IFS= read -r segment; do
+        grep -Eq "$vcs_re" <<<"$segment" || continue
+        while IFS= read -r arg; do
+            arg=${arg//[\"\']/}
+            case "$arg" in
+            *=@*) path=${arg#*=@} ;; # gh api -F body=@file
+            *=* | -) continue ;;     # a plain field, or stdin
+            *) path=$arg ;;
+            esac
+            [[ "$path" == \~/* ]] && path="$HOME/${path#\~/}"
+            [[ "$path" == /* ]] || path="$2/$path"
+            [ -f "$path" ] && cat -- "$path"
+        done < <(grep -oE -- "(^|[[:space:]])(-F|($long)(=|[[:space:]]))[[:space:]]*(\"[^\"]*\"|'[^']*'|[^[:space:]\"']+)" <<<"$segment" |
+            sed -E "s/^[[:space:]]*(-F|$long)=?[[:space:]]*//")
+    done < <(tr ';&|' '\n' <<<"$1")
 }
 
 event=$(jq -r '.hook_event_name // empty' <<<"$payload")
@@ -31,7 +37,7 @@ tool=$(jq -r '.tool_name // empty' <<<"$payload")
 case "$event" in
 PreToolUse | preToolUse)
     command=$(jq -r '.tool_input.command // empty' <<<"$payload")
-    grep -Eq '(^|[^[:alnum:]_-])(git[[:space:]]([^;&|]*[[:space:]])?(commit|tag)|gh[[:space:]]([^;&|]*[[:space:]])?(pr|issue|release|api))([[:space:]]|$)' <<<"$command" || exit 0
+    grep -Eq "$vcs_re" <<<"$command" || exit 0
     cwd=$(jq -r '.cwd // empty' <<<"$payload")
     sent=$command$'\n'$(body_file_text "$command" "${cwd:-$PWD}")
     [[ "$sent" == *"$dash"* ]] || exit 0
