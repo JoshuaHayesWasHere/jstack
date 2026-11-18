@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# Runs ./install and the hooks against a throwaway $HOME, so nothing real changes.
-# Usage: bash tests/install.test.sh
 set -u
 
 repo=$(cd "$(dirname "$0")/.." && pwd -P)
@@ -14,7 +12,7 @@ touch "$HOME/.codex/config.toml"
 echo '{"version": 1, "hooks": {"stop": [{"command": "mine"}]}}' >"$HOME/.cursor/hooks.json"
 
 fails=0
-check() { # check <description> <command...>
+check() {
     local desc=$1; shift
     if "$@" >/dev/null 2>&1; then echo "ok   $desc"; else echo "FAIL $desc"; fails=$((fails + 1)); fi
 }

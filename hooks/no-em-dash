@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-# Catches em dashes an agent writes into a file, a commit message, or GitHub
-# text, and tells it to reword. One script for every harness; ./install
-# registers it with each, naming the harness as the only argument:
-#
-#   no-em-dash claude|codex|cursor   (hook JSON on stdin)
-#
-# Before a shell command it blocks git commit/tag and gh commands whose text
-# holds one. After a file edit it reports the new text's em dashes so the agent
-# fixes them in the next step.
 set -uo pipefail
 
 harness=${1:?usage: no-em-dash claude|codex|cursor}

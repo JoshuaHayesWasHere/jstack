@@ -1,14 +1,7 @@
 #!/usr/bin/env node
-// Trusts the Codex hooks that ./install wrote, the way Codex's /hooks screen
-// does: ask a private `codex app-server` for each hook's key and hash, then
-// save the hash under hooks.state in ~/.codex/config.toml. Codex skips an
-// untrusted hook without a word, so without this a T3 Codex thread would run
-// none of them.
-//
-//   codex-trust-hooks.mjs <command regex> [--dry-run]
-//
-// Only hooks whose command matches the regex are touched. Prints one line per
-// hook it trusts (or would), and exits 1 if any stays untrusted.
+// Codex silently skips any hook without a trusted_hash under hooks.state in
+// ~/.codex/config.toml. This mirrors what Codex's /hooks screen does through
+// `codex app-server` (hooks/list, config/batchWrite).
 import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 
