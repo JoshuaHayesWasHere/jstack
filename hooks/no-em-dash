@@ -10,6 +10,21 @@ if [ "$harness" = claude ] && jq -e '.cursor_version' <<<"$payload" >/dev/null 2
     exit 0
 fi
 
+body_file_text() { # <command> <cwd>
+    local flags='--body-file|--notes-file|--file|--field|-F' arg path
+    while read -r arg; do
+        arg=${arg//[\"\']/}
+        case "$arg" in
+        *=@*) path=${arg#*=@} ;; # gh api -F body=@file
+        *=* | -) continue ;;     # a plain field, or stdin
+        *) path=$arg ;;
+        esac
+        [[ "$path" == \~/* ]] && path="$HOME/${path#\~/}"
+        [[ "$path" == /* ]] || path="$2/$path"
+        [ -f "$path" ] && cat -- "$path"
+    done < <(grep -oE -- "($flags)(=|[[:space:]]+)[^[:space:];&|]+" <<<"$1" | sed -E "s/^($flags)(=|[[:space:]]+)//")
+}
+
 event=$(jq -r '.hook_event_name // empty' <<<"$payload")
 tool=$(jq -r '.tool_name // empty' <<<"$payload")
 
@@ -17,17 +32,8 @@ case "$event" in
 PreToolUse | preToolUse)
     command=$(jq -r '.tool_input.command // empty' <<<"$payload")
     grep -Eq '(^|[^[:alnum:]_-])(git[[:space:]]([^;&|]*[[:space:]])?(commit|tag)|gh[[:space:]]([^;&|]*[[:space:]])?(pr|issue|release|api))([[:space:]]|$)' <<<"$command" || exit 0
-    # Text sent from a file: --body-file, --notes-file, git's -F/--file, gh api's -F body=@file.
     cwd=$(jq -r '.cwd // empty' <<<"$payload")
-    sent=$command
-    while read -r value; do
-        value=${value//[\"\']/}
-        if [[ "$value" == *=@* ]]; then value=${value#*=@}; elif [[ "$value" == *=* || "$value" == - ]]; then continue; fi
-        [[ "$value" == \~/* ]] && value="$HOME/${value#\~/}"
-        [[ "$value" == /* ]] || value="${cwd:-$PWD}/$value"
-        [ -f "$value" ] && sent+=$'\n'$(cat -- "$value")
-    done < <(grep -oE -- '(--body-file|--notes-file|--file|--field|-F)(=|[[:space:]]+)[^[:space:];&|]+' <<<"$command" |
-        sed -E 's/^(--body-file|--notes-file|--file|--field|-F)(=|[[:space:]]+)//')
+    sent=$command$'\n'$(body_file_text "$command" "${cwd:-$PWD}")
     [[ "$sent" == *"$dash"* ]] || exit 0
     reason="This command sends an em dash (U+2014) into git or GitHub text, in the command or a file it reads. Use a period or a comma instead, then run it again."
     if [ "$harness" = cursor ]; then
