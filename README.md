@@ -137,10 +137,12 @@ entry steps aside when the payload comes from Cursor.
 | --- | --- |
 | `no-em-dash` | Blocks `git commit`, `git tag`, and `gh` commands whose text holds an em dash, and tells the agent to reword any em dash a file edit writes. |
 
-Codex skips a hook until someone trusts it, and has no command for that. When
-install finds an untrusted entry it prints its key: run `codex`, open `/hooks`,
-and trust it. Moving or adding entries changes the keys, so check again after
-editing `hooks/hooks.json`.
+Codex skips a hook nobody has trusted, without any warning, and that includes
+every Codex thread in T3 Code. Install trusts its own hooks for you through
+[`scripts/codex-trust-hooks.mjs`](scripts/codex-trust-hooks.mjs), which asks a
+private `codex app-server` for each hook's hash, the same way Codex's `/hooks`
+screen does. A changed entry in `hooks/hooks.json` needs trusting again, so rerun
+install after editing it. Editing a hook script needs nothing.
 
 Skills synced from claude.ai land in `~/.claude/skills/synced/` and are
 re-downloaded, so turn them off with `skillOverrides` in `settings.json`

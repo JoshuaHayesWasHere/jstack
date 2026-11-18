@@ -100,18 +100,9 @@ write_json "$HOME/.claude/settings.json" "$nested" claude
 write_json "$HOME/.codex/hooks.json" "$nested" codex
 write_json "$HOME/.cursor/hooks.json" "$flat" cursor
 
-# Codex runs a hook only once someone trusts it; there is no command for that.
-codex_hooks="$HOME/.codex/hooks.json"
-if [ -e "$codex_hooks" ]; then
-    untrusted=$(jq -r --arg f "$(readlink -f "$codex_hooks")" --arg ours "$ours" '
-        .hooks // {} | to_entries[] | .key as $e | .value | to_entries[] | .key as $g
-        | .value.hooks | to_entries[] | select(.value.command | test($ours))
-        | "\($f):\($e | gsub("(?<a>[a-z])(?<b>[A-Z])"; "\(.a)_\(.b)") | ascii_downcase):\($g):\(.key)"' "$codex_hooks" |
-        while read -r key; do
-            grep -qF "[hooks.state.\"$key\"]" "$HOME/.codex/config.toml" 2>/dev/null || echo "$key"
-        done)
-    if [ -n "$untrusted" ]; then
-        echo "codex   these hooks are not trusted yet, so Codex skips them. Run \`codex\`, then /hooks, and trust them:"
-        printf '        %s\n' $untrusted
-    fi
+# Codex skips a hook nobody has trusted, without a word, so trust our own.
+if [ -e "$HOME/.codex/hooks.json" ] && command -v codex >/dev/null; then
+    flag=(); [ "$dry" -eq 1 ] && flag=(--dry-run)
+    node "$repo/scripts/codex-trust-hooks.mjs" "$ours" "${flag[@]}" | sed 's/^/codex   /' ||
+        echo "codex   could not trust its hooks; Codex will skip them until you trust them in codex /hooks" >&2
 fi
