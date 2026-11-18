@@ -27,8 +27,8 @@ To count the skills, run `ls ~/repos/jstack/skills | wc -l`. The count at this c
 | Source | Link |
 | --- | --- |
 | `settings.json` | `~/.claude/settings.json` |
-| `~/.claude/settings.json` | `settings.json` in `~/.claude_prime` and `~/.claude_agent` |
-| `~/.claude/skills`, `~/.claude/agents` | `skills` and `agents` in `~/.claude_prime` and `~/.claude_agent` |
+| `~/.claude/settings.json` | `settings.json` in `~/.claude_prime` |
+| `~/.claude/skills`, `~/.claude/agents` | `skills` and `agents` in `~/.claude_prime` |
 | `skills/<name>/` | `~/.claude/skills/<name>` for Claude Code, and `~/.agents/skills/<name>` for Codex |
 | `agents/<name>.md` | `~/.claude/agents/<name>.md` and `~/.cursor/agents/<name>.md` |
 | `hooks/hooks.json` | Hook entries in `~/.claude/settings.json`, `~/.codex/hooks.json`, and `~/.cursor/hooks.json` |

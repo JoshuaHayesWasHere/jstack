@@ -8,7 +8,7 @@ dry=0
 
 skill_dirs=("$HOME/.claude/skills" "$HOME/.agents/skills")
 agent_dirs=("$HOME/.claude/agents" "$HOME/.cursor/agents")
-profiles=("$HOME/.claude_prime" "$HOME/.claude_agent")
+profiles=("$HOME/.claude_prime")
 
 run() { [ "$dry" -eq 1 ] || "$@"; }
 say() { if [ "$dry" -eq 1 ]; then echo "would: $*"; else echo "$*"; fi; }
