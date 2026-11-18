@@ -28,4 +28,4 @@ Use this guide to add your own skill to jstack so every agent gets it.
 
 4. Start a new agent session and check that the skill loads.
 
-5. Add the skill to its category page in the wiki, such as [[Utility skills]]. Then commit and push.
+5. Add the skill to its group on the [[Skills]] page in the wiki. Then commit and push.

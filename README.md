@@ -15,78 +15,27 @@ behind the design. Its source is [`wiki/`](wiki/). To publish changes, run
 ## Skills
 
 Skills live flat in `skills/<name>/`, because they open each other by
-relative path. The groups below are how to think about them.
+relative path. jstack has three layers:
 
-Most pstack skills run only when you type them (`/how`, `/arena`). The tstack
-skills also fire when you say their phrase ("full send", "babysit").
+- **Modes**: `prototype`, `full-stop`, and `full-send` take a request from
+  start to finish. Each reads [`docs/rules.md`](docs/rules.md) first.
+- **Library**: `playbooks/` (step lists) and `principle-*` skills (one rule
+  each). The modes read these, and you can ask for a playbook by name.
+- **Skills**: the rest, grouped by the step of the work they serve. The
+  [Skills page](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills)
+  on the wiki lists each one with how it starts and where it came from.
 
-### Researching
-
-| Skill | Use it when |
+| Group | Skills |
 | --- | --- |
-| `/sharpen` | You want a prompt made deeper, not bigger, before you send it. |
-| `/how` | You want a walkthrough of how a subsystem works. |
-| `/why` | You want to know why something was built this way, from the commits and PR record. |
-| `/swarm` | You want N parallel workers across slices, then one report. |
-| `/arena` | You want N parallel attempts at one task, then the best parts of each. |
-
-### Prototyping
-
-| Skill | Use it when |
-| --- | --- |
-| `prototype` | Explore a vague or open request on throwaway `proto/` branches, try several routes, and report back with evidence. Never opens a PR. |
-| `/in-your-own-words` | You want the agent to play back your goal and the problem before it starts. |
-| `/architect` | You're about to cross a function boundary and want the caller's usage, types, and module shape settled first. |
-
-### Building
-
-**prototype**, **full-stop**, and **full-send** are jstack's three modes. Each reads [`docs/rules.md`](docs/rules.md) first (pstack's poteto-mode rules and principles index) and runs the playbooks that fit it.
-
-| Skill | Use it when |
-| --- | --- |
-| `full-send` | Take a change all the way to a merged PR, unattended. Runs a playbook, proves it, sol-loop review, files, babysits, merges. |
-| `full-stop` | Same as full-send, but stop with the PR ready for you to merge. |
-| `file-pr` | Open a short PR that leads with the problem. |
-| `babysit-pr` | Watch a PR through CI and review bots and fix real findings. |
-| `leaving-pr-comments` | Automatic. Formats comments an agent posts for you. |
-| `/tdd` | Fix a bug with a cheap local test path: failing test first. |
-
-### Utility
-
-| Skill | Use it when |
-| --- | --- |
-| `/reflect` | A long task landed and you want the recipe captured as a skill edit. |
-| `/correct` | You keep correcting agents for the same mistakes. |
-| `/teach` | You want to actually understand a change or subsystem. |
-| `/no-comments` | Strip comments before review (runs the `comment-sicko` agent). |
-| `/statechart` | Someone needs to see a behavior as a checked statechart, not a spec. |
-| `/ketchup` | Catch up on what changed in this chat since your last message. |
-| `/recall` | Rebuild your recent context on a topic from your chat history. |
-| `/unslop` | Remove AI tells from writing. |
-| `/bro` | Restate the last message in plain words. |
-
-### Agent driven
-
-| Skill | Use it when |
-| --- | --- |
-| Playbooks | `playbooks/`: 16 step lists the modes follow. **prototype**: investigation, prototype, runtime and trace forensics, eval, multi-phase plan. **full-stop** and **full-send**: bug fix, feature, refactoring, perf, hillclimb, visual parity, authoring a skill. Any mode: session pickup, pause safely, worktree cleanup. |
-| `/blast-radius` | A small-looking change: what else could it break? |
-| `/show-me-your-work` | Keep a reviewable decision trail on long or unattended runs. |
-| `principle-*` | 24 one-rule skills (laziness protocol, prove it works, fix root causes, and more) that other skills cite. |
-
-### Verification and Validation
-
-| Skill | Use it when |
-| --- | --- |
-| `/create-verification-skill` | Your project has no scripted way to prove app behavior. |
-| `/maintain-verification-skill` | That verify skill's feature map has drifted from the app. |
-| `/create-formal-verification-skill` | Tests can't reach the case that breaks a race, retry, or state machine. |
-| `/maintain-formal-verification-skill` | Code your formal verification covers has changed. |
-| `/technical-writing` | Docs, RFCs, READMEs, PR descriptions, commit messages. |
-| `council` | Review from three models on three providers, looped until they agree. |
-| `sol-loop` | Review with GPT Sol in a loop until both agents agree. |
-| `/interrogate` | Different models try to break a diff; keep only findings a run proves. |
-| `/benchmark-checklist` | Vet a measured number before you trust it. |
+| [Understand](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#understand) | `how`, `why`, `teach`, `recall`, `ketchup` |
+| [Triage](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#triage) | `tdd` |
+| [Design](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#design) | `sharpen`, `in-your-own-words`, `architect`, `statechart` |
+| [Hypothesize](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#hypothesize) | `swarm`, `arena` |
+| [Prove](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#prove) | `blast-radius`, `benchmark-checklist`, `create-verification-skill`, `maintain-verification-skill`, `create-formal-verification-skill`, `maintain-formal-verification-skill` |
+| [Review](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#review) | `sol-loop`, `council`, `interrogate`, `no-comments` |
+| [Ship](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#ship) | `file-pr`, `babysit-pr`, `leaving-pr-comments`, `show-me-your-work` |
+| [Write](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#write) | `technical-writing`, `unslop`, `bro` |
+| [Learn](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#learn) | `reflect`, `correct` |
 
 ## Models and harnesses
 

@@ -17,13 +17,16 @@
 **Reference**
 
 - [[Modes]]
-- Skills
-  - [[Researching|Researching skills]]
-  - [[Prototyping|Prototyping skills]]
-  - [[Building|Building skills]]
-  - [[Utility|Utility skills]]
-  - [[Agent driven|Agent driven skills]]
-  - [[Verification and validation|Verification and validation skills]]
+- [[Skills]]
+  - [Understand](Skills#understand)
+  - [Triage](Skills#triage)
+  - [Design](Skills#design)
+  - [Hypothesize](Skills#hypothesize)
+  - [Prove](Skills#prove)
+  - [Review](Skills#review)
+  - [Ship](Skills#ship)
+  - [Write](Skills#write)
+  - [Learn](Skills#learn)
 - [[Playbooks]]
 - [[Principles]]
 - [[Models and seats]]
