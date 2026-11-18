@@ -17,7 +17,7 @@ Use this guide to bring changes from pstack and tstack into jstack.
 	```
 
 3. For each changed file that jstack also has, read the upstream diff. Port the change by hand. Keep the local changes that `UPSTREAM.md` lists.
-4. If a skill was added upstream and you want it, copy it in and add it to its category page in the wiki.
+4. If a skill was added upstream and you want it, copy it in and add it to its group on the [[Skills]] page in the wiki.
 5. Record the new commits in `UPSTREAM.md`.
 6. Run `~/repos/jstack/install`, then commit and push.
 

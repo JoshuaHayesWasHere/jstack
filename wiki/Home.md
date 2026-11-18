@@ -14,7 +14,7 @@ Every other skill supports those three modes. You can also run any skill on its 
 
 - New to jstack: follow [[Your first prototype]].
 - Setting up a machine: [[Install jstack]].
-- Looking for a skill: start at [[Modes]], then the skill pages in the sidebar.
+- Looking for a skill: start at [[Modes]], then [[Skills]].
 - Want the reasons behind the design: [[Why jstack exists]].
 
 ## Where things come from

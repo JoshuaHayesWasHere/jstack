@@ -19,17 +19,22 @@ principles whose `principle-*` SKILL.md you read this session.
   **full-send**, run steps 3-5 of `playbooks/prototype.md` on a scratch
   `proto/` branch, pick the winner on the evidence yourself, log the choice
   with **show-me-your-work**, and resume your playbook. Do not ask or hand off.
-- Code: name the data shape first. Across a function boundary: **architect**.
-  Fan-out: **swarm**. Bakeoff: **arena**. Contested design: **interrogate**.
-- Prose, your reply included: **unslop**. Docs, PR descriptions, commit
-  messages: **technical-writing**.
-- Before review: **no-comments**.
-- Driving a UI, CLI, or app to prove a change: the project's `verify-*` skill
-  when it has one (**create-verification-skill** makes one), otherwise the
-  browser, computer-use, or shell tools the harness has.
-- A number you measured: **benchmark-checklist**.
-- PR status: **babysit-pr**. Bot review comments: judge each on its merits.
-- Long or unattended work: **show-me-your-work**.
+
+The rest follow the skill groups in the README, in work order.
+
+- **Design.** Code: name the data shape first. Across a function boundary:
+  **architect**.
+- **Hypothesize.** Fan-out: **swarm**. Bakeoff: **arena**.
+- **Prove.** Driving a UI, CLI, or app to prove a change: the project's
+  `verify-*` skill when it has one (**create-verification-skill** makes one),
+  otherwise the browser, computer-use, or shell tools the harness has. A
+  number you measured: **benchmark-checklist**.
+- **Review.** Before review: **no-comments**. Contested design:
+  **interrogate**.
+- **Ship.** PR status: **babysit-pr**. Bot review comments: judge each on its
+  merits. Long or unattended work: **show-me-your-work**.
+- **Write.** Prose, your reply included: **unslop**. Docs, PR descriptions,
+  commit messages: **technical-writing**.
 
 ## Principles
 
