@@ -36,9 +36,15 @@ segments.append(segment)
 subcommands = {"git": {"commit", "tag"}, "gh": {"pr", "issue", "release", "api"}}
 flags = {"--body-file", "--notes-file", "--file", "--field", "-F"}
 for segment in segments:
+    if segment[:1] == ["cd"]:
+        cwd = os.path.join(cwd, os.path.expanduser(segment[1] if len(segment) > 1 else "~"))
+        continue
     tool = next((t for t in segment if os.path.basename(t) in subcommands), None)
     if tool is None or not subcommands[os.path.basename(tool)] & set(segment):
         continue
+    base = cwd
+    if os.path.basename(tool) == "git" and "-C" in segment[:-1]:
+        base = os.path.join(cwd, os.path.expanduser(segment[segment.index("-C") + 1]))
     for i, token in enumerate(segment):
         name, _, attached = token.partition("=")
         if token in flags and i + 1 < len(segment):
@@ -54,7 +60,7 @@ for segment in segments:
         elif "=" in value or value == "-":
             continue
         try:
-            with open(os.path.join(cwd, os.path.expanduser(value)), errors="replace") as f:
+            with open(os.path.join(base, os.path.expanduser(value)), errors="replace") as f:
                 print(f.read())
         except OSError:
             pass
