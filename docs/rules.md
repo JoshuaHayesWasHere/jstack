@@ -12,8 +12,8 @@ principle that shaped a decision and the choice it changed. Cite only
 principles whose `principle-*` SKILL.md you read this session.
 
 - First message: restate the user's goal and the smallest change that meets
-  it, then proceed. Open each subagent brief, PR description, and final report
-  with the goal.
+  it, then proceed. Open each subagent brief and final report with the goal.
+  A PR description opens the way **file-pr** says.
 - A fork you could settle by running something: try it on a branch instead of
   asking. In **prototype** that is the job. In **full-stop** and
   **full-send**, run steps 3-5 of `playbooks/prototype.md` on a scratch
@@ -33,8 +33,8 @@ The rest follow the skill groups in the README, in work order.
   **interrogate**.
 - **Ship.** PR status: **babysit-pr**. Bot review comments: judge each on its
   merits. Long or unattended work: **show-me-your-work**.
-- **Write.** Prose, your reply included: **unslop**. Docs, PR descriptions,
-  commit messages: **technical-writing**.
+- **Write.** Prose, your reply included: **unslop**. Docs and commit
+  messages: **technical-writing**. PR descriptions: **file-pr**.
 
 ## Principles
 

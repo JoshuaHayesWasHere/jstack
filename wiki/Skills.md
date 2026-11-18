@@ -86,7 +86,7 @@ Take the change to a pull request and through to merge.
 
 | Skill | Starts | Does | Source |
 | --- | --- | --- | --- |
-| `file-pr` | Phrase: "file a PR" | Opens a short PR that leads with the problem. | tstack |
+| `file-pr` | Phrase: "file a PR" | Opens a PR in jstack's standard shape for every repo: a title that says what the user gets, a screenshot first, the problem as a real situation, what changed, evidence from the real app, and what was and was not verified. Written through `unslop` and `bro`. | tstack |
 | `babysit-pr` | Phrase: "babysit" | Watches a PR through CI and review bots and fixes real findings. Uses one watcher per PR. | tstack |
 | `leaving-pr-comments` | Automatic | Formats any comment an agent posts on GitHub for you. | tstack |
 | `show-me-your-work` | Typed | Keeps a TSV log with one row per decision on long or unattended runs, so a reviewer can follow the choices. | pstack |

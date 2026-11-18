@@ -55,8 +55,9 @@ cannot prevent automatic merging, report the blocker before proceeding.
 ## Stop at the gate
 
 Use full-send's merge gate as the readiness check. Replace its merge and
-final report steps with a handoff. Proof and review must cover the final diff;
-recheck behavior changes and meaningful conflict fixes before handoff.
+final report steps with a handoff. Proof, review, and the PR description's
+evidence must cover the final diff. Recheck behavior changes and meaningful
+conflict fixes before handoff.
 
 Fetch the target branch and check the live PR's head, base, checks, reviews,
 and mergeability. Confirm it is open, not a draft, and not set to merge

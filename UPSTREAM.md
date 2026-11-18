@@ -34,6 +34,12 @@ commit here.
 - `docs/harness/README.md`, `docs/harness/codex.md`, `docs/models.md`, and
   `docs/subagents.md` are jstack's own. `docs/subagents.md` adapts the
   Subagents section of `poteto-mode`.
+- `file-pr` holds the PR description standard for every repo, modeled on T3
+  Code maintainer PRs: title, hero image, problem, solution, what changed,
+  evidence and where to host it, verification, notes, not verified, and the
+  footer. It applies `unslop` and `bro` by path. `full-send`, `full-stop`,
+  `babysit-pr`, `sol-loop`, `technical-writing`, and `docs/rules.md` point at
+  it instead of restating parts of it.
 - Em dashes are replaced in `create-verification-skill` and
   `maintain-verification-skill`.
 - `poteto-mode` is merged into the modes. Its rules, principles index,

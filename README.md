@@ -89,7 +89,7 @@ entry steps aside when the payload comes from Cursor.
 
 | Hook | What it does |
 | --- | --- |
-| `no-em-dash` | Blocks `git commit`, `git tag`, and `gh` commands whose text holds an em dash, and tells the agent to reword any em dash a file edit writes. |
+| `no-em-dash` | Blocks `git commit`, `git tag`, and `gh` commands that send an em dash, in their text or in a body file they read (`--body-file`, `-F body=@file`, `git commit -F`). Tells the agent to reword any em dash a file edit writes. `tests/no-em-dash.test.sh` covers it. |
 
 Codex skips a hook nobody has trusted, without any warning, and that includes
 every Codex thread in T3 Code. Install trusts its own hooks for you through
