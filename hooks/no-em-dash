@@ -16,11 +16,17 @@ body_file_text() { # <command> <cwd>
 import os, shlex, sys
 
 command, cwd = sys.argv[1].replace("\\\n", " "), sys.argv[2]
-lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|")
-lexer.whitespace_split, lexer.commenters = True, ""
+lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|\n")
+lexer.whitespace_split, lexer.whitespace, lexer.commenters = True, " \t\r", ""
+tokens = []
+try:
+    for token in lexer:
+        tokens.append(token)
+except ValueError:
+    pass
 segments, segment = [], []
-for token in lexer:
-    if set(token) <= set(";&|"):
+for token in tokens:
+    if set(token) <= set(";&|\n"):
         segments.append(segment)
         segment = []
     else:

@@ -32,10 +32,16 @@ blocks "a dash in a body file after a line continuation" "gh pr create --title t
 	--body-file dashed.md"
 blocks "a dash in a body file after a quoted ampersand" "gh pr create --title 'Fix A & B' --body-file dashed.md"
 blocks "a dash in a quoted gh api body=@file" "gh api repos/o/r/pulls -F body=@'body file.md'"
+blocks "a dash in a body file on the line after another command" "git push
+gh pr create --body-file dashed.md"
+blocks "a dash in a body file before a comment with an apostrophe" "gh pr create --body-file dashed.md # Create Bob's PR"
+blocks "a dash in a body file with a # inside a title" "gh pr create --title fix#1 --body-file dashed.md"
 allows "a clean --body-file" "gh pr create --title t --body-file clean.md"
 allows "a gh api field that is not a file" "gh api repos/o/r/pulls -F draft=false -F body=@clean.md"
 allows "a dash outside git and gh" "echo 'a $dash b'"
 allows "a file named by a command after a pipe" "gh pr view 12 --json body | grep -F dashed.md"
+allows "a file named by a command on the next line" "gh pr view 12
+grep -F dashed.md clean.md"
 allows "a flag name inside another argument" "gh pr create --title 'Document --file dashed.md usage' --body-file clean.md"
 allows "a missing body file" "gh pr create --body-file nowhere.md"
 
