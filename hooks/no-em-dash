@@ -23,7 +23,7 @@ PreToolUse | preToolUse)
     while read -r value; do
         value=${value//[\"\']/}
         if [[ "$value" == *=@* ]]; then value=${value#*=@}; elif [[ "$value" == *=* || "$value" == - ]]; then continue; fi
-        [[ "$value" == "~/"* ]] && value="$HOME/${value#\~/}"
+        [[ "$value" == \~/* ]] && value="$HOME/${value#\~/}"
         [[ "$value" == /* ]] || value="${cwd:-$PWD}/$value"
         [ -f "$value" ] && sent+=$'\n'$(cat -- "$value")
     done < <(grep -oE -- '(--body-file|--notes-file|--file|--field|-F)(=|[[:space:]]+)[^[:space:];&|]+' <<<"$command" |
