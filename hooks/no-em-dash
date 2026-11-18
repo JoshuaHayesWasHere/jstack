@@ -10,25 +10,49 @@ if [ "$harness" = claude ] && jq -e '.cursor_version' <<<"$payload" >/dev/null 2
     exit 0
 fi
 
-vcs_re='(^|[^[:alnum:]_-])(git[[:space:]]([^;&|]*[[:space:]])?(commit|tag)|gh[[:space:]]([^;&|]*[[:space:]])?(pr|issue|release|api))([[:space:]]|$)'
-
 body_file_text() { # <command> <cwd>
-    local long='--body-file|--notes-file|--file|--field' arg path segment
-    while IFS= read -r segment; do
-        grep -Eq "$vcs_re" <<<"$segment" || continue
-        while IFS= read -r arg; do
-            arg=${arg//[\"\']/}
-            case "$arg" in
-            *=@*) path=${arg#*=@} ;; # gh api -F body=@file
-            *=* | -) continue ;;     # a plain field, or stdin
-            *) path=$arg ;;
-            esac
-            [[ "$path" == \~/* ]] && path="$HOME/${path#\~/}"
-            [[ "$path" == /* ]] || path="$2/$path"
-            [ -f "$path" ] && cat -- "$path"
-        done < <(grep -oE -- "(^|[[:space:]])(-F|($long)(=|[[:space:]]))[[:space:]]*(\"[^\"]*\"|'[^']*'|[^[:space:]\"']+)" <<<"$segment" |
-            sed -E "s/^[[:space:]]*(-F|$long)=?[[:space:]]*//")
-    done < <(tr ';&|' '\n' <<<"$1")
+    command -v python3 >/dev/null || return 0
+    python3 -I - "$1" "$2" 2>/dev/null <<'PY'
+import os, shlex, sys
+
+command, cwd = sys.argv[1].replace("\\\n", " "), sys.argv[2]
+lexer = shlex.shlex(command, posix=True, punctuation_chars=";&|")
+lexer.whitespace_split, lexer.commenters = True, ""
+segments, segment = [], []
+for token in lexer:
+    if set(token) <= set(";&|"):
+        segments.append(segment)
+        segment = []
+    else:
+        segment.append(token)
+segments.append(segment)
+
+subcommands = {"git": {"commit", "tag"}, "gh": {"pr", "issue", "release", "api"}}
+flags = {"--body-file", "--notes-file", "--file", "--field", "-F"}
+for segment in segments:
+    tool = next((t for t in segment if os.path.basename(t) in subcommands), None)
+    if tool is None or not subcommands[os.path.basename(tool)] & set(segment):
+        continue
+    for i, token in enumerate(segment):
+        name, _, attached = token.partition("=")
+        if token in flags and i + 1 < len(segment):
+            value = segment[i + 1]
+        elif name in flags and attached:
+            value = attached
+        elif token.startswith("-F") and len(token) > 2:
+            value = token[2:]
+        else:
+            continue
+        if "=@" in value:
+            value = value.partition("=@")[2]
+        elif "=" in value or value == "-":
+            continue
+        try:
+            with open(os.path.join(cwd, os.path.expanduser(value)), errors="replace") as f:
+                print(f.read())
+        except OSError:
+            pass
+PY
 }
 
 event=$(jq -r '.hook_event_name // empty' <<<"$payload")
@@ -37,7 +61,7 @@ tool=$(jq -r '.tool_name // empty' <<<"$payload")
 case "$event" in
 PreToolUse | preToolUse)
     command=$(jq -r '.tool_input.command // empty' <<<"$payload")
-    grep -Eq "$vcs_re" <<<"$command" || exit 0
+    grep -Eq '(^|[^[:alnum:]_-])(git[[:space:]]([^;&|]*[[:space:]])?(commit|tag)|gh[[:space:]]([^;&|]*[[:space:]])?(pr|issue|release|api))([[:space:]]|$)' <<<"$command" || exit 0
     cwd=$(jq -r '.cwd // empty' <<<"$payload")
     sent=$command$'\n'$(body_file_text "$command" "${cwd:-$PWD}")
     [[ "$sent" == *"$dash"* ]] || exit 0
