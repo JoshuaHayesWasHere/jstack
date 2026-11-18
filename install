@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Link jstack's settings, skills, and agents into every harness. Safe to rerun.
 # Usage: ./install [--dry-run]
 set -euo pipefail
 
@@ -11,7 +10,8 @@ skill_dirs=("$HOME/.claude/skills" "$HOME/.agents/skills")
 agent_dirs=("$HOME/.claude/agents" "$HOME/.cursor/agents")
 profiles=("$HOME/.claude_prime" "$HOME/.claude_agent")
 
-run() { if [ "$dry" -eq 1 ]; then echo "would: $*"; else "$@"; fi; }
+run() { [ "$dry" -eq 1 ] || "$@"; }
+say() { if [ "$dry" -eq 1 ]; then echo "would: $*"; else echo "$*"; fi; }
 
 link() { # link <source> <destination>
     local src=$1 dst=$2
@@ -22,7 +22,7 @@ link() { # link <source> <destination>
     fi
     run mkdir -p "$(dirname "$dst")"
     run ln -sfn "$src" "$dst"
-    echo "linked  $dst"
+    say "linked  $dst"
 }
 
 prune() { # remove dead links in <dir>
@@ -30,14 +30,14 @@ prune() { # remove dead links in <dir>
     [ -d "$dir" ] || return 0
     for l in "$dir"/*; do
         [ -L "$l" ] || continue
-        if [ ! -e "$l" ]; then run rm "$l"; echo "pruned  $l (dead)"; fi
+        if [ ! -e "$l" ]; then run rm "$l"; say "pruned  $l (dead)"; fi
     done
 }
 
 # The live settings are untracked. A machine without them starts from the template.
 if [ ! -e "$repo/settings.json" ]; then
     run cp "$repo/settings.example.json" "$repo/settings.json"
-    echo "copied  settings.example.json to settings.json (edit it)"
+    say "copied  settings.example.json to settings.json (edit it)"
 fi
 link "$repo/settings.json" "$HOME/.claude/settings.json"
 for p in "${profiles[@]}"; do
@@ -61,3 +61,47 @@ for d in "${agent_dirs[@]}"; do
         link "$a" "$d/$(basename "$a")"
     done
 done
+
+jstack_hook_re='/hooks/[^/ ]+ (claude|codex|cursor)$'
+
+write_json() {
+    local file=$1 filter=$2 harness=$3 target new
+    target=$(readlink -f "$file" 2>/dev/null || echo "$file")
+    local input=("$target")
+    [ -e "$target" ] || { input=(-n); filter="{} | $filter"; }
+    if ! new=$(jq --arg dir "$repo/hooks" --arg h "$harness" --arg ours "$jstack_hook_re" \
+        --slurpfile specs "$repo/hooks/hooks.json" "$filter" "${input[@]}"); then
+        echo "error: could not update the hooks in $file; it is left as it was" >&2
+        exit 1
+    fi
+    if [ -e "$target" ] && [ "$new" = "$(jq . "$target")" ]; then return; fi
+    run mkdir -p "$(dirname "$target")"
+    [ "$dry" -eq 1 ] || printf '%s\n' "$new" >"$target"
+    say "hooks   $file"
+}
+
+# shellcheck disable=SC2016
+claude_codex_filter='.hooks = ((.hooks // {})
+        | with_entries(.value |= (map(.hooks = ((.hooks // []) | map(select((.command // "") | test($ours) | not))))
+            | map(select(.hooks | length > 0))))
+        | with_entries(select(.value | length > 0)))
+    | reduce $specs[0][] as $s (.; .hooks[$s[$h].event] += [{matcher: $s[$h].matcher,
+        hooks: [{type: "command", command: "\($dir)/\($s.script) \($h)", timeout: 10}]}])'
+# shellcheck disable=SC2016
+cursor_filter='.version = 1
+    | .hooks = ((.hooks // {})
+        | with_entries(.value |= map(select((.command // "") | test($ours) | not)))
+        | with_entries(select(.value | length > 0)))
+    | reduce $specs[0][] as $s (.; .hooks[$s[$h].event] += [{command: "\($dir)/\($s.script) \($h)",
+        matcher: $s[$h].matcher, timeout: 10}])'
+
+write_json "$HOME/.claude/settings.json" "$claude_codex_filter" claude
+write_json "$HOME/.codex/hooks.json" "$claude_codex_filter" codex
+write_json "$HOME/.cursor/hooks.json" "$cursor_filter" cursor
+
+if [ -e "$HOME/.codex/hooks.json" ] && command -v codex >/dev/null; then
+    flag=() prefix="codex   "
+    [ "$dry" -eq 1 ] && flag=(--dry-run) prefix="would: codex   "
+    node "$repo/scripts/codex-trust-hooks.mjs" "$jstack_hook_re" "${flag[@]}" | sed "s/^/$prefix/" ||
+        echo "codex   could not trust its hooks; Codex will skip them until you trust them in codex /hooks" >&2
+fi

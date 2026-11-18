@@ -114,13 +114,35 @@ skills also fire when you say their phrase ("full send", "babysit").
 | `settings.json` (untracked, seeded from `settings.example.json`) | `~/.claude/settings.json`; the prime and agent profiles link to that |
 | `skills/<name>/` | `~/.claude/skills/<name>` (Claude Code) and `~/.agents/skills/<name>` (Codex) |
 | `agents/<name>.md` | `~/.claude/agents/<name>.md` and `~/.cursor/agents/<name>.md` |
+| `hooks/<script>`, listed in `hooks/hooks.json` | Hook entries in `~/.claude/settings.json`, `~/.codex/hooks.json`, and `~/.cursor/hooks.json` |
 
 The live `settings.json` is gitignored because it names private config paths.
 `settings.example.json` is the published template. Mirror any setting worth
 sharing into it by hand.
 
-Cursor reads both `~/.claude/skills` and `~/.agents/skills`. `CLAUDE.md` and
-`statusline.sh` stay in the public dotfiles repo (`~/dotfiles/claude/`).
+Cursor reads both `~/.claude/skills` and `~/.agents/skills`. The global
+`AGENTS.md` (linked as `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`) and
+`statusline.sh` stay in the public dotfiles repo.
+
+### Hooks
+
+`hooks/hooks.json` names each hook script and the event and matcher it runs on
+in each harness. Install rewrites only the entries it owns (commands ending in
+`hooks/<script> <harness>`), so other hooks in those files are left alone. The
+script gets the harness name as its argument and answers in that harness's
+format. Cursor also runs hooks from `~/.claude/settings.json`, so the `claude`
+entry steps aside when the payload comes from Cursor.
+
+| Hook | What it does |
+| --- | --- |
+| `no-em-dash` | Blocks `git commit`, `git tag`, and `gh` commands whose text holds an em dash, and tells the agent to reword any em dash a file edit writes. |
+
+Codex skips a hook nobody has trusted, without any warning, and that includes
+every Codex thread in T3 Code. Install trusts its own hooks for you through
+[`scripts/codex-trust-hooks.mjs`](scripts/codex-trust-hooks.mjs), which asks a
+private `codex app-server` for each hook's hash, the same way Codex's `/hooks`
+screen does. A changed entry in `hooks/hooks.json` needs trusting again, so rerun
+install after editing it. Editing a hook script needs nothing.
 
 Skills synced from claude.ai land in `~/.claude/skills/synced/` and are
 re-downloaded, so turn them off with `skillOverrides` in `settings.json`

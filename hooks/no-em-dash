@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+harness=${1:?usage: no-em-dash claude|codex|cursor}
+payload=$(cat)
+dash=$'\u2014'
+
+# Cursor also runs hooks from ~/.claude/settings.json; its own entry covers it.
+if [ "$harness" = claude ] && jq -e '.cursor_version' <<<"$payload" >/dev/null 2>&1; then
+    exit 0
+fi
+
+event=$(jq -r '.hook_event_name // empty' <<<"$payload")
+tool=$(jq -r '.tool_name // empty' <<<"$payload")
+
+case "$event" in
+PreToolUse | preToolUse)
+    command=$(jq -r '.tool_input.command // empty' <<<"$payload")
+    [[ "$command" == *"$dash"* ]] || exit 0
+    grep -Eq '(^|[^[:alnum:]_-])(git[[:space:]]([^;&|]*[[:space:]])?(commit|tag)|gh[[:space:]]([^;&|]*[[:space:]])?(pr|issue|release|api))([[:space:]]|$)' <<<"$command" || exit 0
+    reason="This command writes an em dash (U+2014) into git or GitHub text. Reword with a comma, parenthesis, colon, or a new sentence, then run it again."
+    if [ "$harness" = cursor ]; then
+        jq -n --arg r "$reason" '{permission: "deny", user_message: $r, agent_message: $r}'
+        exit 0
+    fi
+    echo "$reason" >&2
+    exit 2
+    ;;
+PostToolUse | postToolUse)
+    if [ "$tool" = apply_patch ] || [ "$tool" = ApplyPatch ]; then
+        text=$(jq -r '.tool_input.command // .tool_input.patch // .tool_input.input // empty' <<<"$payload" |
+            grep -E '^\+' | grep -Ev '^\+\+\+ ')
+    else
+        text=$(jq -r '[.tool_input | .. | objects | to_entries[]
+            | select(.key | test("^(content|contents|new_string|new_source|code_edit|streamContent)$"))
+            | .value | strings] | join("\n")' <<<"$payload")
+    fi
+    ;;
+*) exit 0 ;;
+esac
+
+[[ "$text" == *"$dash"* ]] || exit 0
+
+file=$(jq -r '.tool_input.file_path // .tool_input.path // .tool_input.notebook_path // empty' <<<"$payload")
+lines=$(grep -F -- "$dash" <<<"$text" | head -5 | cut -c1-160)
+reason="That edit${file:+ to $file} wrote an em dash (U+2014). Replace each with a comma, parenthesis, colon, or a reworded sentence:
+$lines"
+
+if [ "$harness" = cursor ]; then
+    jq -n --arg r "$reason" '{additional_context: $r}'
+    exit 0
+fi
+echo "$reason" >&2
+exit 2
