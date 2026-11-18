@@ -1,0 +1,14 @@
+[
+  {
+    "script": "no-em-dash",
+    "claude": { "event": "PreToolUse", "matcher": "Bash" },
+    "codex": { "event": "PreToolUse", "matcher": "Bash" },
+    "cursor": { "event": "preToolUse", "matcher": "Shell" }
+  },
+  {
+    "script": "no-em-dash",
+    "claude": { "event": "PostToolUse", "matcher": "Write|Edit|MultiEdit|NotebookEdit" },
+    "codex": { "event": "PostToolUse", "matcher": "apply_patch|Edit|Write" },
+    "cursor": { "event": "postToolUse", "matcher": "Write|StrReplace|MultiEdit|ApplyPatch|Edit" }
+  }
+]

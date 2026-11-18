@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Link jstack's settings, skills, and agents into every harness. Safe to rerun.
+# Link jstack's settings, skills, agents, and hooks into every harness. Safe to rerun.
 # Usage: ./install [--dry-run]
 set -euo pipefail
 
@@ -61,3 +61,57 @@ for d in "${agent_dirs[@]}"; do
         link "$a" "$d/$(basename "$a")"
     done
 done
+
+# Hooks: hooks/hooks.json names each script and its event per harness. Every
+# run drops the entries a previous run wrote (commands ending in
+# "hooks/<script> <harness>") and writes the current set, leaving other hooks alone.
+ours='/hooks/[^/ ]+ (claude|codex|cursor)$'
+
+write_json() { # write_json <file> <jq filter> <harness>: rewrite <file> through the filter
+    local file=$1 filter=$2 harness=$3 target new
+    target=$(readlink -f "$file" 2>/dev/null || echo "$file")
+    new=$(jq --arg dir "$repo/hooks" --arg h "$harness" --arg ours "$ours" \
+        --slurpfile specs "$repo/hooks/hooks.json" "$filter" "$target" 2>/dev/null ||
+        jq -n --arg dir "$repo/hooks" --arg h "$harness" --arg ours "$ours" \
+            --slurpfile specs "$repo/hooks/hooks.json" "{} | $filter")
+    if [ -e "$target" ] && [ "$new" = "$(jq . "$target")" ]; then return; fi
+    if [ "$dry" -eq 1 ]; then echo "would: write hooks into $file"; return; fi
+    mkdir -p "$(dirname "$target")"
+    printf '%s\n' "$new" >"$target"
+    echo "hooks   $file"
+}
+
+# Claude Code and Codex share one schema: {hooks: {Event: [{matcher, hooks: [{type, command}]}]}}.
+nested='.hooks = ((.hooks // {})
+        | with_entries(.value |= (map(.hooks |= map(select(.command | test($ours) | not)))
+            | map(select(.hooks | length > 0))))
+        | with_entries(select(.value | length > 0)))
+    | reduce $specs[0][] as $s (.; .hooks[$s[$h].event] += [{matcher: $s[$h].matcher,
+        hooks: [{type: "command", command: "\($dir)/\($s.script) \($h)", timeout: 10}]}])'
+# Cursor: {version: 1, hooks: {event: [{command, matcher}]}}.
+flat='.version = 1
+    | .hooks = ((.hooks // {})
+        | with_entries(.value |= map(select(.command | test($ours) | not)))
+        | with_entries(select(.value | length > 0)))
+    | reduce $specs[0][] as $s (.; .hooks[$s[$h].event] += [{command: "\($dir)/\($s.script) \($h)",
+        matcher: $s[$h].matcher, timeout: 10}])'
+
+write_json "$HOME/.claude/settings.json" "$nested" claude
+write_json "$HOME/.codex/hooks.json" "$nested" codex
+write_json "$HOME/.cursor/hooks.json" "$flat" cursor
+
+# Codex runs a hook only once someone trusts it; there is no command for that.
+codex_hooks="$HOME/.codex/hooks.json"
+if [ -e "$codex_hooks" ]; then
+    untrusted=$(jq -r --arg f "$(readlink -f "$codex_hooks")" --arg ours "$ours" '
+        .hooks // {} | to_entries[] | .key as $e | .value | to_entries[] | .key as $g
+        | .value.hooks | to_entries[] | select(.value.command | test($ours))
+        | "\($f):\($e | gsub("(?<a>[a-z])(?<b>[A-Z])"; "\(.a)_\(.b)") | ascii_downcase):\($g):\(.key)"' "$codex_hooks" |
+        while read -r key; do
+            grep -qF "[hooks.state.\"$key\"]" "$HOME/.codex/config.toml" 2>/dev/null || echo "$key"
+        done)
+    if [ -n "$untrusted" ]; then
+        echo "codex   these hooks are not trusted yet, so Codex skips them. Run \`codex\`, then /hooks, and trust them:"
+        printf '        %s\n' $untrusted
+    fi
+fi
