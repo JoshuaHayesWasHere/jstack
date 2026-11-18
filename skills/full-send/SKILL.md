@@ -65,8 +65,8 @@ one appears.
 4. **Get feedback.** Use the `sol-loop` skill to verify changes. For a
    contested design, or when the playbook calls for it, also run `council`.
 5. **File the PR** with the `file-pr` skill. Rebase onto the latest default
-   branch first. Add one short line to the description that says how you proved
-   the change, and name the playbook you followed.
+   branch first. Your proof goes in its Verification section. Name the
+   playbook you followed there.
 6. **Babysit the PR** with the `babysit-pr` skill. Fix real findings and CI
    failures. Get proof for each fix before you push it.
 7. **Merge** when the merge gate passes.
@@ -143,8 +143,8 @@ reproduction, a screenshot. Use the most direct proof the change allows:
 - Add one focused test that fails without the fix, when the behavior has none
   and the repo has a test setup.
 - For UI and runtime behavior, run the app and look at the change. Green mocked
-  tests do not prove that the user experience works. Attach screenshots to the
-  PR when they help and you have a way to upload them.
+  tests do not prove that the user experience works. Capture the evidence
+  `file-pr` asks for at the final head.
 
 When you cannot find a way to prove a change, you do not have full confidence.
 Ask the user.

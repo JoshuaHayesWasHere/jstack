@@ -16,9 +16,20 @@ tool=$(jq -r '.tool_name // empty' <<<"$payload")
 case "$event" in
 PreToolUse | preToolUse)
     command=$(jq -r '.tool_input.command // empty' <<<"$payload")
-    [[ "$command" == *"$dash"* ]] || exit 0
     grep -Eq '(^|[^[:alnum:]_-])(git[[:space:]]([^;&|]*[[:space:]])?(commit|tag)|gh[[:space:]]([^;&|]*[[:space:]])?(pr|issue|release|api))([[:space:]]|$)' <<<"$command" || exit 0
-    reason="This command writes an em dash (U+2014) into git or GitHub text. Reword with a comma, parenthesis, colon, or a new sentence, then run it again."
+    # Text sent from a file: --body-file, --notes-file, git's -F/--file, gh api's -F body=@file.
+    cwd=$(jq -r '.cwd // empty' <<<"$payload")
+    sent=$command
+    while read -r value; do
+        value=${value//[\"\']/}
+        if [[ "$value" == *=@* ]]; then value=${value#*=@}; elif [[ "$value" == *=* || "$value" == - ]]; then continue; fi
+        [[ "$value" == "~/"* ]] && value="$HOME/${value#\~/}"
+        [[ "$value" == /* ]] || value="${cwd:-$PWD}/$value"
+        [ -f "$value" ] && sent+=$'\n'$(cat -- "$value")
+    done < <(grep -oE -- '(--body-file|--notes-file|--file|--field|-F)(=|[[:space:]]+)[^[:space:];&|]+' <<<"$command" |
+        sed -E 's/^(--body-file|--notes-file|--file|--field|-F)(=|[[:space:]]+)//')
+    [[ "$sent" == *"$dash"* ]] || exit 0
+    reason="This command sends an em dash (U+2014) into git or GitHub text, in the command or a file it reads. Use a period or a comma instead, then run it again."
     if [ "$harness" = cursor ]; then
         jq -n --arg r "$reason" '{permission: "deny", user_message: $r, agent_message: $r}'
         exit 0
@@ -43,7 +54,7 @@ esac
 
 file=$(jq -r '.tool_input.file_path // .tool_input.path // .tool_input.notebook_path // empty' <<<"$payload")
 lines=$(grep -F -- "$dash" <<<"$text" | head -5 | cut -c1-160)
-reason="That edit${file:+ to $file} wrote an em dash (U+2014). Replace each with a comma, parenthesis, colon, or a reworded sentence:
+reason="That edit${file:+ to $file} wrote an em dash (U+2014). Replace each with a period or a comma:
 $lines"
 
 if [ "$harness" = cursor ]; then
