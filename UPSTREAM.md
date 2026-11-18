@@ -26,6 +26,8 @@ commit here.
 
 - Every pstack skill gets one line after its frontmatter pointing at
   `docs/harness/README.md`, in place of the Claude Code harness's line.
+- Every skill's frontmatter gets `metadata.group` and `metadata.group-order`,
+  its group from the README's skill table, for T3 Code's `/` menu.
 - `docs/harness/claude-code.md` maps to this install: paths, no `pstack:`
   prefix, `docs/models.md` in place of `setup-pstack`, and cross-provider seats
   through T3 Code.

@@ -1,6 +1,9 @@
 ---
 name: council
 description: Trigger this if the user says 'council'.
+metadata:
+  group: Review
+  group-order: "7"
 ---
 
 # Council

@@ -1,6 +1,9 @@
 ---
 name: full-send
 description: Trigger this if the user says 'full send'.
+metadata:
+  group: Modes
+  group-order: "1"
 ---
 
 # Full Send

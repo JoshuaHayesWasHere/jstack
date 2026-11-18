@@ -1,6 +1,9 @@
 ---
 name: leaving-pr-comments
 description: Use whenever leaving comments on GitHub.
+metadata:
+  group: Ship
+  group-order: "8"
 ---
 
 # Leaving PR Comments

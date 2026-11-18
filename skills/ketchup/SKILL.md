@@ -2,6 +2,9 @@
 name: ketchup
 description: "Catch the user up on what changed in this chat since their last message, in plain words and small visuals. List every item waiting on them with what they need to decide it from the reply alone. Use for /ketchup."
 disable-model-invocation: true
+metadata:
+  group: Understand
+  group-order: "2"
 ---
 
 Before you follow this skill, read `~/repos/jstack/docs/harness/README.md` once per session. It maps pstack names to this install and points to the adapter for your harness.
