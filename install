@@ -67,10 +67,13 @@ jstack_hook_re='/hooks/[^/ ]+ (claude|codex|cursor)$'
 write_json() {
     local file=$1 filter=$2 harness=$3 target new
     target=$(readlink -f "$file" 2>/dev/null || echo "$file")
-    new=$(jq --arg dir "$repo/hooks" --arg h "$harness" --arg ours "$jstack_hook_re" \
-        --slurpfile specs "$repo/hooks/hooks.json" "$filter" "$target" 2>/dev/null ||
-        jq -n --arg dir "$repo/hooks" --arg h "$harness" --arg ours "$jstack_hook_re" \
-            --slurpfile specs "$repo/hooks/hooks.json" "{} | $filter")
+    local input=("$target")
+    [ -e "$target" ] || { input=(-n); filter="{} | $filter"; }
+    if ! new=$(jq --arg dir "$repo/hooks" --arg h "$harness" --arg ours "$jstack_hook_re" \
+        --slurpfile specs "$repo/hooks/hooks.json" "$filter" "${input[@]}"); then
+        echo "error: could not update the hooks in $file; it is left as it was" >&2
+        exit 1
+    fi
     if [ -e "$target" ] && [ "$new" = "$(jq . "$target")" ]; then return; fi
     run mkdir -p "$(dirname "$target")"
     [ "$dry" -eq 1 ] || printf '%s\n' "$new" >"$target"
@@ -79,7 +82,7 @@ write_json() {
 
 # shellcheck disable=SC2016
 claude_codex_filter='.hooks = ((.hooks // {})
-        | with_entries(.value |= (map(.hooks |= map(select(.command | test($ours) | not)))
+        | with_entries(.value |= (map(.hooks = ((.hooks // []) | map(select((.command // "") | test($ours) | not))))
             | map(select(.hooks | length > 0))))
         | with_entries(select(.value | length > 0)))
     | reduce $specs[0][] as $s (.; .hooks[$s[$h].event] += [{matcher: $s[$h].matcher,
@@ -87,7 +90,7 @@ claude_codex_filter='.hooks = ((.hooks // {})
 # shellcheck disable=SC2016
 cursor_filter='.version = 1
     | .hooks = ((.hooks // {})
-        | with_entries(.value |= map(select(.command | test($ours) | not)))
+        | with_entries(.value |= map(select((.command // "") | test($ours) | not)))
         | with_entries(select(.value | length > 0)))
     | reduce $specs[0][] as $s (.; .hooks[$s[$h].event] += [{command: "\($dir)/\($s.script) \($h)",
         matcher: $s[$h].matcher, timeout: 10}])'
@@ -97,7 +100,8 @@ write_json "$HOME/.codex/hooks.json" "$claude_codex_filter" codex
 write_json "$HOME/.cursor/hooks.json" "$cursor_filter" cursor
 
 if [ -e "$HOME/.codex/hooks.json" ] && command -v codex >/dev/null; then
-    flag=(); [ "$dry" -eq 1 ] && flag=(--dry-run)
-    node "$repo/scripts/codex-trust-hooks.mjs" "$jstack_hook_re" "${flag[@]}" | sed 's/^/codex   /' ||
+    flag=() prefix="codex   "
+    [ "$dry" -eq 1 ] && flag=(--dry-run) prefix="would: codex   "
+    node "$repo/scripts/codex-trust-hooks.mjs" "$jstack_hook_re" "${flag[@]}" | sed "s/^/$prefix/" ||
         echo "codex   could not trust its hooks; Codex will skip them until you trust them in codex /hooks" >&2
 fi

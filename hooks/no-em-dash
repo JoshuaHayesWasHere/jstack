@@ -17,7 +17,7 @@ case "$event" in
 PreToolUse | preToolUse)
     command=$(jq -r '.tool_input.command // empty' <<<"$payload")
     [[ "$command" == *"$dash"* ]] || exit 0
-    grep -Eq '(^|[^[:alnum:]_-])(git[[:space:]]+(commit|tag)|gh[[:space:]]+(pr|issue|release|api))([^[:alnum:]_-]|$)' <<<"$command" || exit 0
+    grep -Eq '(^|[^[:alnum:]_-])(git[[:space:]]([^;&|]*[[:space:]])?(commit|tag)|gh[[:space:]]([^;&|]*[[:space:]])?(pr|issue|release|api))([[:space:]]|$)' <<<"$command" || exit 0
     reason="This command writes an em dash (U+2014) into git or GitHub text. Reword with a comma, parenthesis, colon, or a new sentence, then run it again."
     if [ "$harness" = cursor ]; then
         jq -n --arg r "$reason" '{permission: "deny", user_message: $r, agent_message: $r}'

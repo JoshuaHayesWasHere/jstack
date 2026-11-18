@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -u
 
-repo=$(cd "$(dirname "$0")/.." && pwd -P)
-home=$(mktemp -d)
-had_settings=0; [ -e "$repo/settings.json" ] && had_settings=1
-cleanup() { rm -rf "$home"; [ "$had_settings" -eq 1 ] || rm -f "$repo/settings.json"; }
-trap cleanup EXIT
-export HOME="$home"
+work=$(mktemp -d)
+trap 'rm -rf "$work"' EXIT
+repo="$work/repo"
+mkdir -p "$repo"
+tar -C "$(dirname "$0")/.." --exclude=.git --exclude=./settings.json -cf - . | tar -C "$repo" -xf -
+export HOME="$work/home"
 mkdir -p "$HOME/.codex" "$HOME/.cursor"
 touch "$HOME/.codex/config.toml"
 echo '{"version": 1, "hooks": {"stop": [{"command": "mine"}]}}' >"$HOME/.cursor/hooks.json"
@@ -25,7 +25,7 @@ has_codex() { command -v codex >/dev/null; }
 out=$(install --dry-run)
 check "a dry run only says what it would do" only_would "$out"
 check "a dry run creates nothing" not test -e "$HOME/.claude"
-[ "$had_settings" -eq 1 ] || check "a dry run copies no settings" not test -e "$repo/settings.json"
+check "a dry run copies no settings" not test -e "$repo/settings.json"
 
 install >/dev/null
 check "skills are linked" test -L "$HOME/.claude/skills/full-send"
@@ -38,8 +38,21 @@ if has_codex; then
 fi
 check "a second run prints nothing" test -z "$(install)"
 
+settings="$repo/settings.json"
+jq '.permissions.allow = ["Bash(ls)"] | .hooks.Stop = [{hooks: [{type: "prompt", prompt: "p"}]}]' "$settings" >"$work/s"
+cat "$work/s" >"$settings"
+install >/dev/null
+check "Claude permissions survive a hook without a command" jq -e '.permissions.allow == ["Bash(ls)"]' "$settings"
+check "a prompt hook survives" jq -e '.hooks.Stop[0].hooks[0].prompt == "p"' "$settings"
+echo '{not json' >"$HOME/.cursor/hooks.json"
+check "a file jq cannot read stops install" not install
+check "and is left as it was" grep -q '^{not json$' "$HOME/.cursor/hooks.json"
+echo '{"version": 1, "hooks": {"stop": [{"command": "mine"}]}}' >"$HOME/.cursor/hooks.json"
+install >/dev/null
+
 if has_codex; then
     sed -i '0,/trusted_hash = "[^"]*"/s//trusted_hash = "sha256:0"/' "$HOME/.codex/config.toml"
+    check "a dry run says it would renew a stale trust" only_would "$(install --dry-run)"
     check "a stale Codex trust is renewed" grep -q '^codex   trusted ' <<<"$(install)"
     check "and the run after is quiet again" test -z "$(install)"
 fi
@@ -56,6 +69,8 @@ patch() { jq -nc --arg p "$1" '{hook_event_name: "PostToolUse", tool_name: "appl
 check "an edit that writes an em dash is flagged" blocked claude "$(edit PostToolUse Edit a "a $dash b")"
 check "an edit that removes one passes" hook claude "$(edit PostToolUse Edit "a $dash b" "a, b")"
 check "a commit message with one is blocked" blocked claude "$(shell PreToolUse "git commit -m 'a $dash b'")"
+check "git -C before commit is still blocked" blocked claude "$(shell PreToolUse "git -C /r commit -m '$dash'")"
+check "git -c before tag is still blocked" blocked claude "$(shell PreToolUse "git -c a=b tag -m '$dash' v1")"
 check "a search for one is allowed" hook claude "$(shell PreToolUse "grep '$dash' f")"
 check "a Codex patch adding one is flagged" blocked codex "$(patch "*** Begin Patch
 +a $dash b
