@@ -62,7 +62,10 @@ Never, in this mode:
    the routes are the same task on different models. Supervise. Read every
    diff yourself.
 5. **Observe each route on the real surface.** Run it, drive it, log it,
-   screenshot it, measure it. Record what you observed, not what you expect.
+   screenshot it, measure it. When the route has motion, interaction, or
+   timing a still image can't show, also record a short video if the
+   harness can (a preview or browser recording, or a screen recorder).
+   Record what you observed, not what you expect.
    Vet any number with **benchmark-checklist**. A route that cannot be run is
    a sketch. Label it so.
 6. **Refine the question.** Use what the routes showed to sharpen the request.
@@ -84,8 +87,9 @@ Never, in this mode:
 - The restated goal and the question the prototype settled, or still can't.
 - A table with one row per route: branch, approach, what you observed, and a
   verdict (works, partly works, fails, untested).
-- Evidence for each row: paths to screenshots, logs, timings, or command
-  output.
+- Evidence for each row: paths to screenshots, video recordings, logs,
+  timings, or command output. When a row's behavior would have suited a
+  video but you couldn't record one, say why.
 - The tradeoffs between the best routes.
 - Your recommendation: throw away, harvest, or promote, and which route.
 - Name the principles that shaped your choices.
