@@ -2,6 +2,9 @@
 name: technical-writing
 description: "Layered technical-writing standard: Diátaxis structure, Google developer style sentences, STE instruction rules, Global English syntax. Use for /technical-writing or when writing or reviewing docs, RFCs, readmes, PR descriptions, or commit messages."
 disable-model-invocation: true
+metadata:
+  group: Write
+  group-order: "9"
 ---
 
 Before you follow this skill, read `~/repos/jstack/docs/harness/README.md` once per session. It maps pstack names to this install and points to the adapter for your harness.

@@ -2,6 +2,9 @@
 name: blast-radius
 description: "Find what a change could break somewhere else before it ships, beyond the diff, and prove the one fact it's safe because of by running real code instead of writing it up. Use for 'blast radius of X', 'what could this break', or reviewing a small diff you don't trust."
 disable-model-invocation: true
+metadata:
+  group: Prove
+  group-order: "6"
 ---
 
 Before you follow this skill, read `~/repos/jstack/docs/harness/README.md` once per session. It maps pstack names to this install and points to the adapter for your harness.

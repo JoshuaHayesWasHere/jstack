@@ -2,6 +2,9 @@
 name: tdd
 description: "Use only when the user explicitly asks for TDD, a failing test, or a regression test, OR when the bug has an obvious cheap local test target. Skip when the test path is unclear, expensive, integration-heavy, or not requested."
 disable-model-invocation: true
+metadata:
+  group: Triage
+  group-order: "3"
 ---
 
 Before you follow this skill, read `~/repos/jstack/docs/harness/README.md` once per session. It maps pstack names to this install and points to the adapter for your harness.

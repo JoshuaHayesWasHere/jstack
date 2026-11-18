@@ -2,6 +2,9 @@
 name: create-verification-skill
 description: "Generate a project-local verification skill that drives your app the way a user does, in any language, framework, or platform. Use for /create-verification-skill, \"make a control skill for this repo\", or when a project has no scripted way to prove UI/CLI/service behavior."
 disable-model-invocation: true
+metadata:
+  group: Prove
+  group-order: "6"
 ---
 
 Before you follow this skill, read `~/repos/jstack/docs/harness/README.md` once per session. It maps pstack names to this install and points to the adapter for your harness.

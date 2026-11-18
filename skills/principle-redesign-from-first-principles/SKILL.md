@@ -2,6 +2,9 @@
 name: principle-redesign-from-first-principles
 description: "Apply when integrating a new requirement into an existing design."
 disable-model-invocation: true
+metadata:
+  group: Principles
+  group-order: "11"
 ---
 
 Before you follow this skill, read `~/repos/jstack/docs/harness/README.md` once per session. It maps pstack names to this install and points to the adapter for your harness.

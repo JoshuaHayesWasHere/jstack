@@ -37,6 +37,11 @@ relative path. jstack has three layers:
 | [Write](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#write) | `technical-writing`, `unslop`, `bro` |
 | [Learn](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#learn) | `reflect`, `correct` |
 
+Each `SKILL.md` names its group in `metadata.group` and `metadata.group-order`,
+and T3 Code's `/` menu shows one heading per group in that order: Modes, the
+groups above, then Principles. `tests/skill-groups.test.sh` checks the
+frontmatter against this table.
+
 ## Models and harnesses
 
 - [`docs/models.md`](docs/models.md): which model fills each role and panel

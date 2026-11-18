@@ -1,6 +1,9 @@
 ---
 name: sol-loop
 description: Use when the user says "sol loop".
+metadata:
+  group: Review
+  group-order: "7"
 ---
 
 # sol-loop

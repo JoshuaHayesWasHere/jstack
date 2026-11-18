@@ -1,6 +1,9 @@
 ---
 name: full-stop
 description: Trigger this if the user says 'full stop', even as a closing "Full stop." that reads like emphasis.
+metadata:
+  group: Modes
+  group-order: "1"
 ---
 
 # Full Stop

@@ -1,6 +1,9 @@
 ---
 name: file-pr
 description: File a concise pull request. Use when the user asks to file, open, or create a PR.
+metadata:
+  group: Ship
+  group-order: "8"
 ---
 
 # File PR

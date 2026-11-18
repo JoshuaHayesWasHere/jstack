@@ -1,6 +1,9 @@
 ---
 name: prototype
 description: Trigger this if the user says 'prototype' or '/prototype'. Explores a vague or open request on throwaway branches, tries several routes, and reports back with evidence and a recommendation. Never opens a PR.
+metadata:
+  group: Modes
+  group-order: "1"
 ---
 
 # Prototype

@@ -2,6 +2,9 @@
 name: reflect
 description: Mine the active transcript for durable learnings and route each to a concrete edit on an existing skill. Use when the user says reflect.
 disable-model-invocation: true
+metadata:
+  group: Learn
+  group-order: "10"
 ---
 
 Before you follow this skill, read `~/repos/jstack/docs/harness/README.md` once per session. It maps pstack names to this install and points to the adapter for your harness.
