@@ -11,7 +11,8 @@ skill_dirs=("$HOME/.claude/skills" "$HOME/.agents/skills")
 agent_dirs=("$HOME/.claude/agents" "$HOME/.cursor/agents")
 profiles=("$HOME/.claude_prime" "$HOME/.claude_agent")
 
-run() { if [ "$dry" -eq 1 ]; then echo "would: $*"; else "$@"; fi; }
+run() { [ "$dry" -eq 1 ] || "$@"; }
+say() { if [ "$dry" -eq 1 ]; then echo "would: $*"; else echo "$*"; fi; }
 
 link() { # link <source> <destination>
     local src=$1 dst=$2
@@ -22,7 +23,7 @@ link() { # link <source> <destination>
     fi
     run mkdir -p "$(dirname "$dst")"
     run ln -sfn "$src" "$dst"
-    echo "linked  $dst"
+    say "linked  $dst"
 }
 
 prune() { # remove dead links in <dir>
@@ -30,14 +31,14 @@ prune() { # remove dead links in <dir>
     [ -d "$dir" ] || return 0
     for l in "$dir"/*; do
         [ -L "$l" ] || continue
-        if [ ! -e "$l" ]; then run rm "$l"; echo "pruned  $l (dead)"; fi
+        if [ ! -e "$l" ]; then run rm "$l"; say "pruned  $l (dead)"; fi
     done
 }
 
 # The live settings are untracked. A machine without them starts from the template.
 if [ ! -e "$repo/settings.json" ]; then
     run cp "$repo/settings.example.json" "$repo/settings.json"
-    echo "copied  settings.example.json to settings.json (edit it)"
+    say "copied  settings.example.json to settings.json (edit it)"
 fi
 link "$repo/settings.json" "$HOME/.claude/settings.json"
 for p in "${profiles[@]}"; do
@@ -75,13 +76,13 @@ write_json() { # write_json <file> <jq filter> <harness>: rewrite <file> through
         jq -n --arg dir "$repo/hooks" --arg h "$harness" --arg ours "$ours" \
             --slurpfile specs "$repo/hooks/hooks.json" "{} | $filter")
     if [ -e "$target" ] && [ "$new" = "$(jq . "$target")" ]; then return; fi
-    if [ "$dry" -eq 1 ]; then echo "would: write hooks into $file"; return; fi
-    mkdir -p "$(dirname "$target")"
-    printf '%s\n' "$new" >"$target"
-    echo "hooks   $file"
+    run mkdir -p "$(dirname "$target")"
+    [ "$dry" -eq 1 ] || printf '%s\n' "$new" >"$target"
+    say "hooks   $file"
 }
 
 # Claude Code and Codex share one schema: {hooks: {Event: [{matcher, hooks: [{type, command}]}]}}.
+# shellcheck disable=SC2016 # $names are jq variables
 nested='.hooks = ((.hooks // {})
         | with_entries(.value |= (map(.hooks |= map(select(.command | test($ours) | not)))
             | map(select(.hooks | length > 0))))
@@ -89,6 +90,7 @@ nested='.hooks = ((.hooks // {})
     | reduce $specs[0][] as $s (.; .hooks[$s[$h].event] += [{matcher: $s[$h].matcher,
         hooks: [{type: "command", command: "\($dir)/\($s.script) \($h)", timeout: 10}]}])'
 # Cursor: {version: 1, hooks: {event: [{command, matcher}]}}.
+# shellcheck disable=SC2016
 flat='.version = 1
     | .hooks = ((.hooks // {})
         | with_entries(.value |= map(select(.command | test($ours) | not)))
