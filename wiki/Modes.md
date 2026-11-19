@@ -31,7 +31,7 @@ The session-pickup and pause-safely playbooks run in any mode. The worktree-clea
 1. Pick the playbook.
 2. Finish the change with the playbook's steps. Run `no-comments` on the diff.
 3. Prove every change.
-4. Get review from `sol-loop`. Add `council` for a contested design.
+4. Get review from `neon-loop`. Add `council` for a contested design.
 5. File the PR with `file-pr`.
 6. Babysit the PR with `babysit-pr`.
 7. Merge, in `full-send` only.

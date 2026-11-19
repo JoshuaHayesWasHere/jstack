@@ -62,7 +62,7 @@ one appears.
    **Opening a PR** step. Fix the case that happened, not every case that
    could. Run **no-comments** on the diff before review.
 3. **Prove it.** Get proof for every change you made. See "Proof".
-4. **Get feedback.** Use the `sol-loop` skill to verify changes. For a
+4. **Get feedback.** Use the `neon-loop` skill to verify changes. For a
    contested design, or when the playbook calls for it, also run `council`.
 5. **File the PR** with the `file-pr` skill. Rebase onto the latest default
    branch first. Your proof goes in its Verification section. Name the

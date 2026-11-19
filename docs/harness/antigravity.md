@@ -33,7 +33,7 @@ value the tool schema rejects.
 
 | models.md value | Antigravity |
 | --- | --- |
-| `antigravity/<model> <effort>` naming the session's own model | `invoke_subagent` with `Model: "inherit"`. |
+| `antigravity/<model> <effort>` naming the session's own model and effort | `invoke_subagent` with `Model: "inherit"`. |
 | Any other `antigravity/` seat, or a `claude/`, `codex/`, or `cursor/` seat | T3 Code's `delegate_task` with that provider. Outside T3 Code, the session model, and say so. |
 | `inherit-parent` | `Model: "inherit"`. |
 
