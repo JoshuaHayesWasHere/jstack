@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -u
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/.." || exit 1
 
 declare -A want
 for name in prototype full-stop full-send; do want[$name]="Modes 1"; done
