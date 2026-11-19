@@ -100,6 +100,9 @@ check "Antigravity may edit one away" \
     not says antigravity "$(agy edit_file "$(jq -nc --arg t "a $dash b" '{Path: "/f", Target: $t, Replacement: "a, b"}')")" deny
 check "Antigravity is denied a commit with one" \
     says antigravity "$(agy run_command "$(jq -nc --arg c "git commit -m '$dash'" '{CommandLine: $c}')")" '"deny"'
+mkdir -p "$work/wt" && printf 'a %s b\n' "$dash" >"$work/wt/body.md"
+check "Antigravity reads a body file from the command's own Cwd" \
+    says antigravity "$(agy run_command "$(jq -nc --arg w "$work/wt" '{CommandLine: "gh pr create --body-file body.md", Cwd: $w}')")" '"deny"'
 check "Antigravity runs other commands untouched" \
     test -z "$("$repo/hooks/no-em-dash" antigravity <<<"$(agy run_command '{"CommandLine": "echo ok"}')")"
 

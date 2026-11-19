@@ -11,7 +11,7 @@ if [ "$harness" = claude ] && jq -e '.cursor_version' <<<"$payload" >/dev/null 2
 fi
 
 if [ "$harness" = antigravity ]; then
-    payload=$(jq -c '{tool_name: .toolCall.name, cwd,
+    payload=$(jq -c '{tool_name: .toolCall.name, cwd: (.toolCall.args.Cwd // .cwd),
         tool_input: (.toolCall.args // {} | {command: .CommandLine, file_path: .Path,
             content: .Content, new_string: .Replacement})}' <<<"$payload")
 fi
