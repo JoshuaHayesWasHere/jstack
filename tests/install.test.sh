@@ -7,9 +7,10 @@ repo="$work/repo"
 mkdir -p "$repo"
 tar -C "$(dirname "$0")/.." --exclude=.git --exclude=./settings.json -cf - . | tar -C "$repo" -xf -
 export HOME="$work/home"
-mkdir -p "$HOME/.codex" "$HOME/.cursor"
+mkdir -p "$HOME/.codex" "$HOME/.cursor" "$HOME/.gemini/config"
 touch "$HOME/.codex/config.toml"
 echo '{"version": 1, "hooks": {"stop": [{"command": "mine"}]}}' >"$HOME/.cursor/hooks.json"
+echo '{"mine": {"Stop": [{"command": "mine"}]}}' >"$HOME/.gemini/config/hooks.json"
 
 fails=0
 check() {
@@ -29,10 +30,14 @@ check "a dry run copies no settings" not test -e "$repo/settings.json"
 
 install >/dev/null
 check "skills are linked" test -L "$HOME/.claude/skills/full-send"
+check "Antigravity gets the skills" test -L "$HOME/.gemini/config/skills/full-send"
 check "Claude gets both hooks" test "$(hook_count "$HOME/.claude/settings.json")" = 2
 check "Codex gets both hooks" test "$(hook_count "$HOME/.codex/hooks.json")" = 2
 check "Cursor gets both hooks" test "$(hook_count "$HOME/.cursor/hooks.json")" = 2
 check "a Cursor hook that is not ours survives" grep -q '"mine"' "$HOME/.cursor/hooks.json"
+check "Antigravity gets both hooks" test "$(hook_count "$HOME/.gemini/config/hooks.json")" = 2
+check "under one jstack name" jq -e 'keys == ["jstack-no-em-dash", "mine"]' "$HOME/.gemini/config/hooks.json"
+check "an Antigravity hook that is not ours survives" jq -e '.mine.Stop[0].command == "mine"' "$HOME/.gemini/config/hooks.json"
 if has_codex; then
     check "Codex trusts both hooks" test "$(grep -c trusted_hash "$HOME/.codex/config.toml")" = 2
 fi
@@ -82,9 +87,24 @@ check "a Codex patch removing one passes" hook codex "$(patch "*** Begin Patch
 check "Cursor hears about an edit through additional_context" \
     says cursor "$(edit postToolUse StrReplace a "a $dash b" | jq -c '.cursor_version = "3"')" additional_context
 check "Cursor is denied a commit with one" \
-    says cursor "$(shell preToolUse "git commit -m '$dash'" | jq -c '.cursor_version = "3"')" '"deny"'
+    says cursor "$(shell preToolUse "git commit -m '$dash'" | jq -c '.cursor_version = "3" | .tool_name = "Shell"')" '"deny"'
 check "the Claude entry steps aside inside Cursor" \
     hook claude "$(edit postToolUse Write a "a $dash b" | jq -c '.cursor_version = "3"')"
+
+agy() { jq -nc --arg t "$1" --argjson a "$2" '{hookEventName: "PreToolUse", cwd: "/", toolCall: {name: $t, args: $a}}'; }
+check "Antigravity is denied a write with one" \
+    says antigravity "$(agy write_file "$(jq -nc --arg c "a $dash b" '{Path: "/f", Content: $c}')")" '"deny"'
+check "Antigravity is denied an edit that adds one" \
+    says antigravity "$(agy edit_file "$(jq -nc --arg r "a $dash b" '{Path: "/f", Target: "a", Replacement: $r}')")" '"deny"'
+check "Antigravity may edit one away" \
+    not says antigravity "$(agy edit_file "$(jq -nc --arg t "a $dash b" '{Path: "/f", Target: $t, Replacement: "a, b"}')")" deny
+check "Antigravity is denied a commit with one" \
+    says antigravity "$(agy run_command "$(jq -nc --arg c "git commit -m '$dash'" '{CommandLine: $c}')")" '"deny"'
+mkdir -p "$work/wt" && printf 'a %s b\n' "$dash" >"$work/wt/body.md"
+check "Antigravity reads a body file from the command's own Cwd" \
+    says antigravity "$(agy run_command "$(jq -nc --arg w "$work/wt" '{CommandLine: "gh pr create --body-file body.md", Cwd: $w}')")" '"deny"'
+check "Antigravity runs other commands untouched" \
+    test -z "$("$repo/hooks/no-em-dash" antigravity <<<"$(agy run_command '{"CommandLine": "echo ok"}')")"
 
 if [ "$fails" -ne 0 ]; then echo "$fails failed"; exit 1; fi
 echo "all passed"

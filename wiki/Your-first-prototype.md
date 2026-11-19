@@ -21,7 +21,7 @@ Run `python3 when.py`. You see a timestamp such as `2026-11-17 14:03:11.482193`.
 claude
 ```
 
-You see the Claude Code prompt. Codex and Cursor work the same way.
+You see the Claude Code prompt. Codex, Cursor, and Antigravity work the same way.
 
 ## 3. Ask for a prototype
 

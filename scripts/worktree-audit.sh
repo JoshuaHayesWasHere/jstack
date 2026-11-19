@@ -71,8 +71,9 @@ fi
 
 # Transcripts dir. Claude Code keeps one folder per working directory, and a
 # worktree's chats live under the worktree's own slug, so search them all.
+# Antigravity keeps each conversation in a SQLite file, which rg reads only with --binary.
 # Override with TRANSCRIPTS=<dir> (for Cursor: ~/.cursor/projects/<slug>/agent-transcripts).
-transcripts="${TRANSCRIPTS:-$HOME/.claude/projects $HOME/.codex/sessions $HOME/.cursor/projects}"
+transcripts="${TRANSCRIPTS:-$HOME/.claude/projects $HOME/.codex/sessions $HOME/.cursor/projects $HOME/.gemini/antigravity-cli/conversations}"
 now=$(date +%s)
 
 echo "# base: $base"
@@ -126,7 +127,7 @@ git worktree list --porcelain | awk '/^worktree /{print $2}' | while read -r wt;
 	last="-"; last_ts=0
 	dirs=(); for d in $transcripts; do [ -d "$d" ] && dirs+=("$d"); done
 	if [ "${#dirs[@]}" -gt 0 ]; then
-		f=$(rg -l -e "${wt}/" -e "${wt}\"" "${dirs[@]}" 2>/dev/null \
+		f=$(rg -l --binary -e "${wt}/" -e "${wt}\"" "${dirs[@]}" 2>/dev/null \
 			| xargs stat "${stat_fmt[@]}" 2>/dev/null | sort -rn | head -1)
 		if [ -n "$f" ]; then last_ts=$(echo "$f" | awk '{print $1}')
 			last=$(fmt_day "$last_ts" 2>/dev/null); fi

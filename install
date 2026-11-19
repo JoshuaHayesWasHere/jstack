@@ -6,7 +6,7 @@ repo=$(cd "$(dirname "$0")" && pwd -P)
 dry=0
 [ "${1:-}" = "--dry-run" ] && dry=1
 
-skill_dirs=("$HOME/.claude/skills" "$HOME/.agents/skills")
+skill_dirs=("$HOME/.claude/skills" "$HOME/.agents/skills" "$HOME/.gemini/config/skills")
 agent_dirs=("$HOME/.claude/agents" "$HOME/.cursor/agents")
 profiles=("$HOME/.claude_prime")
 
@@ -95,9 +95,15 @@ cursor_filter='.version = 1
     | reduce $specs[0][] as $s (.; .hooks[$s[$h].event] += [{command: "\($dir)/\($s.script) \($h)",
         matcher: $s[$h].matcher, timeout: 10}])'
 
+# shellcheck disable=SC2016
+antigravity_filter='with_entries(select(.key | startswith("jstack-") | not))
+    | reduce $specs[0][] as $s (.; .["jstack-\($s.script)"][$s[$h].event] += [{matcher: $s[$h].matcher,
+        hooks: [{type: "command", command: "\($dir)/\($s.script) \($h)", timeout: 10}]}])'
+
 write_json "$HOME/.claude/settings.json" "$claude_codex_filter" claude
 write_json "$HOME/.codex/hooks.json" "$claude_codex_filter" codex
 write_json "$HOME/.cursor/hooks.json" "$cursor_filter" cursor
+write_json "$HOME/.gemini/config/hooks.json" "$antigravity_filter" antigravity
 
 if [ -e "$HOME/.codex/hooks.json" ] && command -v codex >/dev/null; then
     flag=() prefix="codex   "

@@ -1,6 +1,6 @@
 ## One source for every agent
 
-This machine runs three coding agents: Claude Code, Codex, and Cursor. T3 Code starts all of them, and Claude Code runs under three profiles. Before jstack, each one had its own config folder with its own skills, backups, and leftovers. A skill improved in one place stayed stale in the others.
+This machine runs four coding agents: Claude Code, Codex, Cursor, and Antigravity. T3 Code starts all of them, and Claude Code runs under three profiles. Before jstack, each one had its own config folder with its own skills, backups, and leftovers. A skill improved in one place stayed stale in the others.
 
 jstack fixes that with one repository and links. Each skill exists once, in `skills/<name>/`. The installer links that folder into the place each agent reads. An edit in jstack reaches every agent at its next session.
 

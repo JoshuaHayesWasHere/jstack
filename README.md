@@ -1,7 +1,7 @@
 # jstack
 
 Claude Code config and the skill set every agent on this machine
-shares: Claude Code (all three profiles), Codex, and Cursor. Skills come from
+shares: Claude Code (all three profiles), Codex, Cursor, and Antigravity. Skills come from
 [pstack](https://github.com/cursor/plugins/tree/main/pstack) and
 [tstack](https://github.com/t3dotgg/tstack); see [UPSTREAM.md](UPSTREAM.md).
 
@@ -54,7 +54,7 @@ frontmatter against this table.
 - [`scripts/worktree-audit.sh`](scripts/worktree-audit.sh): used by the
   worktree-cleanup playbook.
 - [`docs/harness/`](docs/harness/): maps pstack's Cursor names to this
-  install, Claude Code, and Codex.
+  install, Claude Code, Codex, Cursor, and Antigravity.
 
 ## Install
 
@@ -66,15 +66,18 @@ frontmatter against this table.
 | Here | Linked as |
 | --- | --- |
 | `settings.json` (untracked, seeded from `settings.example.json`) | `~/.claude/settings.json`; the prime and agent profiles link to that |
-| `skills/<name>/` | `~/.claude/skills/<name>` (Claude Code) and `~/.agents/skills/<name>` (Codex) |
+| `skills/<name>/` | `~/.claude/skills/<name>` (Claude Code), `~/.agents/skills/<name>` (Codex), and `~/.gemini/config/skills/<name>` (Antigravity) |
 | `agents/<name>.md` | `~/.claude/agents/<name>.md` and `~/.cursor/agents/<name>.md` |
-| `hooks/<script>`, listed in `hooks/hooks.json` | Hook entries in `~/.claude/settings.json`, `~/.codex/hooks.json`, and `~/.cursor/hooks.json` |
+| `hooks/<script>`, listed in `hooks/hooks.json` | Hook entries in `~/.claude/settings.json`, `~/.codex/hooks.json`, `~/.cursor/hooks.json`, and `~/.gemini/config/hooks.json` |
 
 The live `settings.json` is gitignored because it names private config paths.
 `settings.example.json` is the published template. Mirror any setting worth
 sharing into it by hand.
 
-Cursor reads both `~/.claude/skills` and `~/.agents/skills`. The global
+Cursor reads both `~/.claude/skills` and `~/.agents/skills`. Antigravity has
+no custom agent folder that Claude Code's agent files fit, so
+[`docs/harness/antigravity.md`](docs/harness/antigravity.md) briefs
+`comment-sicko` by path, as Codex does. The global
 `AGENTS.md` (linked as `~/.claude/CLAUDE.md` and `~/.codex/AGENTS.md`) and
 `statusline.sh` stay in the public dotfiles repo.
 
@@ -82,14 +85,17 @@ Cursor reads both `~/.claude/skills` and `~/.agents/skills`. The global
 
 `hooks/hooks.json` names each hook script and the event and matcher it runs on
 in each harness. Install rewrites only the entries it owns (commands ending in
-`hooks/<script> <harness>`), so other hooks in those files are left alone. The
+`hooks/<script> <harness>`, or Antigravity hooks named `jstack-<script>`), so
+other hooks in those files are left alone. The
 script gets the harness name as its argument and answers in that harness's
 format. Cursor also runs hooks from `~/.claude/settings.json`, so the `claude`
-entry steps aside when the payload comes from Cursor.
+entry steps aside when the payload comes from Cursor. Antigravity reads nothing
+a `PostToolUse` hook prints, so its edit check runs at `PreToolUse` and refuses
+the edit.
 
 | Hook | What it does |
 | --- | --- |
-| `no-em-dash` | Blocks `git commit`, `git tag`, and `gh` commands that send an em dash, in their text or in a body file they read (`--body-file`, `-F body=@file`, `git commit -F`). Tells the agent to reword any em dash a file edit writes. `tests/no-em-dash.test.sh` covers it. |
+| `no-em-dash` | Blocks `git commit`, `git tag`, and `gh` commands that send an em dash, in their text or in a body file they read (`--body-file`, `-F body=@file`, `git commit -F`). Tells the agent to reword any em dash a file edit writes (Antigravity refuses the edit instead). `tests/no-em-dash.test.sh` covers it. |
 
 Codex skips a hook nobody has trusted, without any warning, and that includes
 every Codex thread in T3 Code. Install trusts its own hooks for you through

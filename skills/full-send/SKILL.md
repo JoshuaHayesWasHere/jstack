@@ -172,7 +172,7 @@ review" if you have high confidence in your changes.
 A question in a normal message goes unseen, and the thread looks done. To ask
 the user something, use the harness's question tool so the thread shows that
 it is waiting: `AskUserQuestion` in Claude Code, `request_user_input` in Codex,
-or the question tool your harness has. Put all the context in the question:
+`ask_question` in Antigravity, or the question tool your harness has. Put all the context in the question:
 the PR link, what blocks you, and the options with your recommendation first.
 
 Ask only when you cannot continue alone:

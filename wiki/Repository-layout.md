@@ -9,7 +9,7 @@
 | `docs/rules.md` | Shared rules that the three modes read first. |
 | `docs/subagents.md` | Rules for starting subagents, and the rules every subagent reads. |
 | `docs/models.md` | The model for each role. See [[Models and seats]]. |
-| `docs/harness/` | Maps pstack's Cursor names to Claude Code, Codex, and Cursor. |
+| `docs/harness/` | Maps pstack's Cursor names to Claude Code, Codex, Cursor, and Antigravity. |
 | `scripts/worktree-audit.sh` | Sorts worktrees into cleanup buckets. |
 | `scripts/publish-wiki` | Copies `wiki/` to the GitHub wiki. |
 | `scripts/codex-trust-hooks.mjs` | Trusts the Codex hooks that `install` wrote. |
@@ -29,9 +29,9 @@ To count the skills, run `ls ~/repos/jstack/skills | wc -l`. The count at this c
 | `settings.json` | `~/.claude/settings.json` |
 | `~/.claude/settings.json` | `settings.json` in `~/.claude_prime` |
 | `~/.claude/skills`, `~/.claude/agents` | `skills` and `agents` in `~/.claude_prime` |
-| `skills/<name>/` | `~/.claude/skills/<name>` for Claude Code, and `~/.agents/skills/<name>` for Codex |
+| `skills/<name>/` | `~/.claude/skills/<name>` for Claude Code, `~/.agents/skills/<name>` for Codex, and `~/.gemini/config/skills/<name>` for Antigravity |
 | `agents/<name>.md` | `~/.claude/agents/<name>.md` and `~/.cursor/agents/<name>.md` |
-| `hooks/hooks.json` | Hook entries in `~/.claude/settings.json`, `~/.codex/hooks.json`, and `~/.cursor/hooks.json` |
+| `hooks/hooks.json` | Hook entries in `~/.claude/settings.json`, `~/.codex/hooks.json`, `~/.cursor/hooks.json`, and `~/.gemini/config/hooks.json` |
 
 Cursor reads both `~/.claude/skills` and `~/.agents/skills`.
 
