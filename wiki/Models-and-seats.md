@@ -6,7 +6,7 @@ Each value is `<provider>/<model> <effort>`.
 
 - The provider is a T3 Code provider instance: `claude`, `codex`, `cursor`, or `antigravity`.
 - `inherit-parent` runs the role on the model of the chat that started it.
-- No role runs above `xhigh`. Gemini 4 Carbon through `cursor/` goes up to `high`.
+- No role runs above `xhigh`. Gemini 4 Carbon goes up to `high`.
 
 ## How a seat runs
 
@@ -21,14 +21,14 @@ Each value is `<provider>/<model> <effort>`.
 | --- | --- | --- |
 | `feature, refactoring` | `claude/claude-opus-5-5 medium` | Feature and Refactoring playbooks |
 | `bug-fix` | `claude/claude-opus-5-5 medium` | Bug fix playbook |
-| `perf-issue` | `claude/claude-opus-5-5 medium` | Perf issue playbook |
-| `hillclimb` | `claude/claude-opus-5-5 medium` | Hillclimb playbook |
-| `judgment and prose` | `claude/claude-opus-5-5 medium` | Writing and judgment calls |
-| `arena runners` | Sonnet 5.5 high, Opus 5.5 medium, Gemini 4 Carbon medium | `arena`, `eval` |
+| `perf-issue` | `claude/claude-opus-5-5 high` | Perf issue playbook |
+| `hillclimb` | `claude/claude-opus-5-5 high` | Hillclimb playbook |
+| `judgment and prose` | `antigravity/gemini-4-neon medium` | Writing and judgment calls |
+| `arena runners` | Opus 5.5 high, GPT-6.2 Sol medium, Gemini 4 Carbon medium | `arena`, `eval` |
 | `arena cross-judge pool` | Gemini 4 Neon medium, GPT-6.2 Sol medium, Opus 5.5 medium | `arena` judge |
 | `swarm workers` | `antigravity/gemini-4-neon medium` | `swarm`, verification, trivial edits |
 | `interrogate reviewers` | Sonnet 5.5 high, Gemini 4 Carbon medium, Gemini 4 Neon medium | `interrogate` |
-| `council` | Gemini 4 Neon high, GPT-6.2 Sol high, Sonnet 5.5 high | `council` |
+| `council` | Gemini 4 Neon high, GPT-6.2 Sol high, Gemini 4 Carbon medium | `council` |
 | `neon-loop reviewer` | `antigravity/gemini-4-neon high` | `neon-loop` |
 
 The arena judge never comes from the same vendor as the chat that started it. Fable counts as Claude for that rule.

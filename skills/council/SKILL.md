@@ -14,16 +14,17 @@ fixes until reviews return. If the user wants to discard the implementation
 and explore new ideas, skip fixes to code being replaced.
 
 Bring in three delegates to help with the user's request, usually for review
-or feedback. Use one strong model from each of three different providers, at
-high reasoning effort. If the user's instructions name council members, use
-those. Otherwise use the `council` line in `~/repos/jstack/docs/models.md`.
-If that file is missing, pick the latest flagship model from each provider, for
-example Claude Opus, GPT Sol, and Gemini Pro.
+or feedback. If the user's instructions name council members, use those.
+Otherwise use the models and efforts on the `council` line in
+`~/repos/jstack/docs/models.md` (routed by steps 1 and 2 of "Running a seat" in
+that file). If that file is missing, pick three strong models across available
+providers at high reasoning effort, for example Claude Opus, GPT Sol, and
+Gemini Pro.
 
 In T3 Code, use `orchestrator_capabilities` to resolve the models, then
 `delegate_task` to start one delegate per model in parallel. Elsewhere, use
-the harness's subagent tools. If you cannot reach three providers, or a named
-member is unavailable, report it instead of substituting.
+the harness's subagent tools. If a configured provider or named member is
+unavailable, report it instead of substituting.
 
 Give each delegate the request and relevant context. For review or feedback,
 keep their work read-only. Collect their responses and summarize the useful
