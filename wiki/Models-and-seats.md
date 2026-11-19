@@ -4,13 +4,13 @@
 
 Each value is `<provider>/<model> <effort>`.
 
-- The provider is a T3 Code provider instance: `claude`, `codex`, or `cursor`.
+- The provider is a T3 Code provider instance: `claude`, `codex`, `cursor`, or `antigravity`.
 - `inherit-parent` runs the role on the model of the chat that started it.
 - No role runs above `xhigh`. Gemini models go up to `high`.
 
 ## How a seat runs
 
-1. If the seat's provider matches the tool you are in, the skill starts a native subagent. A `claude/` seat runs natively in Claude Code, a `codex/` seat in Codex, and a `cursor/` seat in Cursor.
+1. If the seat's provider matches the tool you are in, the skill starts a native subagent. A `claude/` seat runs natively in Claude Code, a `codex/` seat in Codex, and a `cursor/` seat in Cursor. In Antigravity, only a seat on the session's own model runs natively, since its subagents cannot pick a model.
 2. Otherwise, in T3 Code, the skill starts the seat with `delegate_task`.
 3. Outside T3 Code, the seat runs on the current model, and the skill says so.
 4. If a model is rejected, the skill uses the nearest model of the same family or drops the seat. A panel keeps at least two seats.

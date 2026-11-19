@@ -8,7 +8,7 @@ Use this guide to change which model a skill uses for a role, such as an arena r
 	```
 
 3. Change the value. Each entry is `<provider>/<model> <effort>`.
-	- The provider is a T3 Code provider instance: `claude`, `codex`, or `cursor`.
+	- The provider is a T3 Code provider instance: `claude`, `codex`, `cursor`, or `antigravity`.
 	- To list the models a provider offers, ask an agent in T3 Code to call `orchestrator_capabilities`.
 	- Keep the effort at `xhigh` or below. Gemini models go up to `high`.
 4. To fall back to the skill's default, delete the line.

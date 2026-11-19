@@ -1,4 +1,4 @@
-jstack is one repository that decides how every coding agent on this machine works. Claude Code, Codex, and Cursor all read the same skills, rules, and playbooks from it.
+jstack is one repository that decides how every coding agent on this machine works. Claude Code, Codex, Cursor, and Antigravity all read the same skills, rules, and playbooks from it.
 
 You pick how far an agent goes by the phrase you use:
 

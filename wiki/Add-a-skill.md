@@ -20,7 +20,7 @@ Use this guide to add your own skill to jstack so every agent gets it.
 
 	- Set `group` and `group-order` to the skill's group and that group's place in the README's skill table, counting Modes as 1. T3 Code's `/` menu lists the skill under that heading.
 	- To make the skill run only when you type `/my-skill`, add `disable-model-invocation: true`.
-	- To get help writing it, ask the agent for the "authoring a skill" playbook. It uses `anthropic-skills:skill-creator` in Claude Code, `skill-creator` in Codex, and `create-skill` in Cursor.
+	- To get help writing it, ask the agent for the "authoring a skill" playbook. It uses `anthropic-skills:skill-creator` in Claude Code, `skill-creator` in Codex, `create-skill` in Cursor, and `agy-customizations` in Antigravity.
 
 3. Link the skill into every harness:
 

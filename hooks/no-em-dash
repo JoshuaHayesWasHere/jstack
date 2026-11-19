@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-harness=${1:?usage: no-em-dash claude|codex|cursor}
+harness=${1:?usage: no-em-dash claude|codex|cursor|antigravity}
 payload=$(cat)
 dash=$'\u2014'
 
@@ -9,6 +9,22 @@ dash=$'\u2014'
 if [ "$harness" = claude ] && jq -e '.cursor_version' <<<"$payload" >/dev/null 2>&1; then
     exit 0
 fi
+
+# Antigravity sends camelCase fields and its own argument names; read them as Claude's.
+if [ "$harness" = antigravity ]; then
+    payload=$(jq -c '{hook_event_name: .hookEventName, tool_name: .toolCall.name, cwd,
+        tool_input: (.toolCall.args // {} | {command: .CommandLine, file_path: .Path,
+            content: .Content, new_string: .Replacement})}' <<<"$payload")
+fi
+
+deny() { # deny <reason>: refuse the tool call in this harness's format
+    case "$harness" in
+    cursor) jq -n --arg r "$1" '{permission: "deny", user_message: $r, agent_message: $r}' ;;
+    antigravity) jq -n --arg r "$1" '{decision: "deny", reason: $r}' ;;
+    *) echo "$1" >&2; exit 2 ;;
+    esac
+    exit 0
+}
 
 body_file_text() { # <command> <cwd>
     command -v python3 >/dev/null || return 0
@@ -72,43 +88,40 @@ event=$(jq -r '.hook_event_name // empty' <<<"$payload")
 tool=$(jq -r '.tool_name // empty' <<<"$payload")
 
 case "$event" in
-PreToolUse | preToolUse)
+PreToolUse | preToolUse) check=shell ;;
+PostToolUse | postToolUse) check=edit ;;
+*) exit 0 ;;
+esac
+# Antigravity ignores what a PostToolUse hook prints, so it checks an edit before it lands.
+[ "$harness" = antigravity ] && [ "$tool" != run_command ] && check=edit
+
+if [ "$check" = shell ]; then
     command=$(jq -r '.tool_input.command // empty' <<<"$payload")
     grep -Eq '(^|[^[:alnum:]_-])(git[[:space:]]([^;&|]*[[:space:]])?(commit|tag)|gh[[:space:]]([^;&|]*[[:space:]])?(pr|issue|release|api))([[:space:]]|$)' <<<"$command" || exit 0
     cwd=$(jq -r '.cwd // empty' <<<"$payload")
     sent=$command$'\n'$(body_file_text "$command" "${cwd:-$PWD}")
     [[ "$sent" == *"$dash"* ]] || exit 0
-    reason="This command sends an em dash (U+2014) into git or GitHub text, in the command or a file it reads. Use a period or a comma instead, then run it again."
-    if [ "$harness" = cursor ]; then
-        jq -n --arg r "$reason" '{permission: "deny", user_message: $r, agent_message: $r}'
-        exit 0
-    fi
-    echo "$reason" >&2
-    exit 2
-    ;;
-PostToolUse | postToolUse)
-    if [ "$tool" = apply_patch ] || [ "$tool" = ApplyPatch ]; then
-        text=$(jq -r '.tool_input.command // .tool_input.patch // .tool_input.input // empty' <<<"$payload" |
-            grep -E '^\+' | grep -Ev '^\+\+\+ ')
-    else
-        text=$(jq -r '[.tool_input | .. | objects | to_entries[]
-            | select(.key | test("^(content|contents|new_string|new_source|code_edit|streamContent)$"))
-            | .value | strings] | join("\n")' <<<"$payload")
-    fi
-    ;;
-*) exit 0 ;;
-esac
+    deny "This command sends an em dash (U+2014) into git or GitHub text, in the command or a file it reads. Use a period or a comma instead, then run it again."
+fi
+
+if [ "$tool" = apply_patch ] || [ "$tool" = ApplyPatch ]; then
+    text=$(jq -r '.tool_input.command // .tool_input.patch // .tool_input.input // empty' <<<"$payload" |
+        grep -E '^\+' | grep -Ev '^\+\+\+ ')
+else
+    text=$(jq -r '[.tool_input | .. | objects | to_entries[]
+        | select(.key | test("^(content|contents|new_string|new_source|code_edit|streamContent)$"))
+        | .value | strings] | join("\n")' <<<"$payload")
+fi
 
 [[ "$text" == *"$dash"* ]] || exit 0
 
 file=$(jq -r '.tool_input.file_path // .tool_input.path // .tool_input.notebook_path // empty' <<<"$payload")
 lines=$(grep -F -- "$dash" <<<"$text" | head -5 | cut -c1-160)
-reason="That edit${file:+ to $file} wrote an em dash (U+2014). Replace each with a period or a comma:
+reason="That edit${file:+ to $file} writes an em dash (U+2014). Replace each with a period or a comma:
 $lines"
 
-if [ "$harness" = cursor ]; then
-    jq -n --arg r "$reason" '{additional_context: $r}'
-    exit 0
-fi
-echo "$reason" >&2
-exit 2
+case "$harness" in
+cursor) jq -n --arg r "$reason" '{additional_context: $r}' ;;
+antigravity) deny "$reason" ;;
+*) echo "$reason" >&2; exit 2 ;;
+esac

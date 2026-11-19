@@ -56,11 +56,11 @@ commit here.
   read their seats from `docs/models.md`, with non-Claude seats through T3
   Code's `delegate_task`. `no-comments`, `recall`, and `show-me-your-work`
   point at `docs/subagents.md`.
-- `scripts/worktree-audit.sh` searches Claude Code, Codex, and Cursor
-  transcripts. It holds untracked files (`hold-untracked`), marks only merged
+- `scripts/worktree-audit.sh` searches Claude Code, Codex, Cursor, and
+  Antigravity transcripts. It holds untracked files (`hold-untracked`), marks only merged
   branches or merged PRs `safe`, and reads the branch reflog so a branch
   that never had a commit of its own is `no-commits`, not merged. The worktree-cleanup playbook runs only when the user asks.
-- `docs/harness/cursor.md` is jstack's own. `docs/models.md` has one
+- `docs/harness/cursor.md` and `docs/harness/antigravity.md` are jstack's own. `docs/models.md` has one
   "Running a seat" rule that arena, swarm, and the adapters point at.
 - `full-send`'s condensed autopilot section keeps upstream's rule that a
   disabled or soft-failed check always comes out.

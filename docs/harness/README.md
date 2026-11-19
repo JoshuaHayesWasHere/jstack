@@ -6,6 +6,7 @@ pstack names to this install. Then read the file for your harness:
 - Claude Code: [claude-code.md](claude-code.md)
 - Codex: [codex.md](codex.md)
 - Cursor: [cursor.md](cursor.md). pstack skills already use Cursor names, so it only covers models.
+- Antigravity: [antigravity.md](antigravity.md)
 
 `<jstack>` is `~/repos/jstack`. Every skill lives flat in `<jstack>/skills/<name>/`.
 
