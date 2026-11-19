@@ -95,7 +95,6 @@ cursor_filter='.version = 1
     | reduce $specs[0][] as $s (.; .hooks[$s[$h].event] += [{command: "\($dir)/\($s.script) \($h)",
         matcher: $s[$h].matcher, timeout: 10}])'
 
-# Antigravity keys each hook by name, so jstack owns every name that starts with "jstack-".
 # shellcheck disable=SC2016
 antigravity_filter='with_entries(select(.key | startswith("jstack-") | not))
     | reduce $specs[0][] as $s (.; .["jstack-\($s.script)"][$s[$h].event] += [{matcher: $s[$h].matcher,

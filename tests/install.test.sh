@@ -87,7 +87,7 @@ check "a Codex patch removing one passes" hook codex "$(patch "*** Begin Patch
 check "Cursor hears about an edit through additional_context" \
     says cursor "$(edit postToolUse StrReplace a "a $dash b" | jq -c '.cursor_version = "3"')" additional_context
 check "Cursor is denied a commit with one" \
-    says cursor "$(shell preToolUse "git commit -m '$dash'" | jq -c '.cursor_version = "3"')" '"deny"'
+    says cursor "$(shell preToolUse "git commit -m '$dash'" | jq -c '.cursor_version = "3" | .tool_name = "Shell"')" '"deny"'
 check "the Claude entry steps aside inside Cursor" \
     hook claude "$(edit postToolUse Write a "a $dash b" | jq -c '.cursor_version = "3"')"
 
