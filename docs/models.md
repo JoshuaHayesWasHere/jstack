@@ -15,7 +15,8 @@ instances: `claude` (Claude Code), `codex` (Codex), `cursor` (Cursor),
    Antigravity), spawn a native
    subagent with that model and effort, mapped by your harness file in
    `docs/harness/`. Antigravity's native subagents cannot pick a model and
-   effort, so there only a seat on the session's own model runs natively.
+   effort, so there only a seat on the session's own model and effort runs
+   natively.
 2. Otherwise, in T3 Code, call `orchestrator_capabilities` once, then
    `delegate_task` with that provider instance, model, and effort.
 3. Outside T3 Code, run the seat on the session model and say so.

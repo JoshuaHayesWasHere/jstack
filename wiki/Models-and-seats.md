@@ -10,7 +10,7 @@ Each value is `<provider>/<model> <effort>`.
 
 ## How a seat runs
 
-1. If the seat's provider matches the tool you are in, the skill starts a native subagent. A `claude/` seat runs natively in Claude Code, a `codex/` seat in Codex, and a `cursor/` seat in Cursor. In Antigravity, only a seat on the session's own model runs natively, since its subagents cannot pick a model.
+1. If the seat's provider matches the tool you are in, the skill starts a native subagent. A `claude/` seat runs natively in Claude Code, a `codex/` seat in Codex, and a `cursor/` seat in Cursor. In Antigravity, only a seat on the session's own model and effort runs natively, since its subagents cannot pick either.
 2. Otherwise, in T3 Code, the skill starts the seat with `delegate_task`.
 3. Outside T3 Code, the seat runs on the current model, and the skill says so.
 4. If a model is rejected, the skill uses the nearest model of the same family or drops the seat. A panel keeps at least two seats.

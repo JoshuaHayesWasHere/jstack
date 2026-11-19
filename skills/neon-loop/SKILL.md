@@ -52,15 +52,15 @@ missing or pre-failing checks in the brief.
 Resolve the reviewer seat in this order:
 
 1. A model or version the user named for this run.
-2. The `neon-loop reviewer` line in `~/repos/jstack/docs/models.md` (run per
-   "Running a seat" in that file).
+2. The `neon-loop reviewer` line in `~/repos/jstack/docs/models.md` (routed
+   by steps 1 and 2 of "Running a seat" in that file).
 3. If that line is missing, call `orchestrator_capabilities` in T3 and pick
    the latest Gemini 4 Neon.
 
 Do not hardcode an ID. Record provider, model, and effort only if exposed.
 In T3, use `delegate_task` every round (`role: "review"`, `mode: "async"`)
-unless the seat matches your current native harness. Save `taskId`. New
-`clientRequestId` per round. `childThreadId` is storage, not the next target.
+unless "Running a seat" runs that exact model and effort natively. Save
+`taskId`. New `clientRequestId` per round. `childThreadId` is storage, not the next target.
 Do not use `t3_thread_send`, `create_threads`, or `t3_thread_launch` for review.
 
 If T3 tools are not listed, try one direct capability call. Outside T3, use

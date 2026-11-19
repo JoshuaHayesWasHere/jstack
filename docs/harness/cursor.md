@@ -11,7 +11,7 @@ seat" section says.
 | models.md value | Cursor |
 | --- | --- |
 | `cursor/<model> <effort>`, such as `cursor/gemini-4-carbon high` | `Task` with `model: "<model>-<effort>"`, such as `gemini-4-carbon-high`. |
-| `claude/...` or `codex/...` | T3 Code's `delegate_task` with that provider. Outside T3 Code, the session model, and say so. |
+| `claude/...`, `codex/...`, or `antigravity/...` | T3 Code's `delegate_task` with that provider. Outside T3 Code, the session model, and say so. |
 | `inherit-parent` | Omit `model` and spawn `generalPurpose`. |
 
 ## Paths
