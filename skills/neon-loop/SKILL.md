@@ -1,18 +1,19 @@
 ---
-name: sol-loop
-description: Use when the user says "sol loop".
+name: neon-loop
+description: Use when the user says "neon loop".
 metadata:
   group: Review
   group-order: "7"
 ---
 
-# sol-loop
+# neon-loop
 
 This is a workflow for making your code changes more correct before (or
-sometimes after) filing a pull request. tl;dr - use OpenAI's GPT Sol to review
-your code in a loop.
+sometimes after) filing a pull request. tl;dr - use Google's Gemini 4 Neon (or
+whichever reviewer the `neon-loop reviewer` seat in `docs/models.md` names) to
+review your code in a loop.
 
-Make the most minimal possible changes to appease the Sol reviewers. Be careful
+Make the most minimal possible changes to appease the Neon reviewer. Be careful
 of scope creep and don't be scared to push back.
 
 ## Budget
@@ -24,7 +25,7 @@ of scope creep and don't be scared to push back.
   the user asks.
 - Stop early if a round returns only nits. Declined nits and comment,
   doc, or format-only fixes need no new round.
-- One reviewer only. Sol must not start subagents or reviewers.
+- One reviewer only. The reviewer must not start subagents or reviewers.
 - Keep a ledger: id, severity, outcome, usage if returned. Never guess it.
 
 ## 1. Scope
@@ -46,20 +47,26 @@ Use one diff command all rounds. State intent and out-of-scope in 1-2
 sentences. Run covering checks. Do not send code this change breaks. Note
 missing or pre-failing checks in the brief.
 
-## 2. Start Sol
+## 2. Start Neon
 
-In T3, call `orchestrator_capabilities`. Pick the latest Sol unless the user
-named a version or the `sol-loop reviewer` line in
-`~/repos/jstack/docs/models.md` names one. Do not hardcode an ID. Record provider, model, and effort
-only if exposed. Use `delegate_task` every round (`role: "review"`,
-`mode: "async"`). Save `taskId`. New `clientRequestId` per round.
-`childThreadId` is storage, not the next target. Do not use
-`t3_thread_send`, `create_threads`, or `t3_thread_launch` for review.
+Resolve the reviewer seat in this order:
+
+1. A model or version the user named for this run.
+2. The `neon-loop reviewer` line in `~/repos/jstack/docs/models.md` (run per
+   "Running a seat" in that file).
+3. If that line is missing, call `orchestrator_capabilities` in T3 and pick
+   the latest Gemini 4 Neon.
+
+Do not hardcode an ID. Record provider, model, and effort only if exposed.
+In T3, use `delegate_task` every round (`role: "review"`, `mode: "async"`)
+unless the seat matches your current native harness. Save `taskId`. New
+`clientRequestId` per round. `childThreadId` is storage, not the next target.
+Do not use `t3_thread_send`, `create_threads`, or `t3_thread_launch` for review.
 
 If T3 tools are not listed, try one direct capability call. Outside T3, use
-a native Sol subagent and keep its ID. In Claude Code, use a custom subagent
-only if it is set up to run Sol. If no route runs Sol, report the blocker. Do
-not substitute a model.
+a native subagent for the configured reviewer and keep its ID. In Claude Code,
+use a custom subagent only if it is set up to run that reviewer. If no route
+runs the configured reviewer, report the blocker. Do not substitute a model.
 
 Do not edit scoped files while review runs. Wait for the notice. Do not
 poll or start a second reviewer. Timeout, error, or no reply is not
@@ -101,7 +108,7 @@ Start one only if budget remains and a blocker or should is open, behavior code
 changed, or approval does not cover the current behavior diff. Use a fresh
 `delegate_task` in T3, or follow up the saved native ID. Send the round 1 brief,
 the ledger (`fixed:` / `disagree:` / `declined:` + evidence), the same base
-diff, and the change since last round. Tell Sol: open ids and changed code only.
+diff, and the change since last round. Tell Neon: open ids and changed code only.
 Mark each old id `resolved` or `still open: <reason>`.
 
 ## 5. Stop and ship
@@ -112,8 +119,9 @@ or budget ends. Show both sides in 2-3 lines each. The user decides.
 Budget end is not approval.
 
 Do not push during the loop. Push after agreement only if the user asked
-to push, ship, or update the PR. If you push to a PR, add the sol-loop line
+to push, ship, or update the PR. If you push to a PR, add the neon-loop line
 from the footer in `file-pr`.
 
-Report: rounds, model, what Sol changed, diff size before/after, fixed and
-declined findings with reasons, usage if exposed (else say not), pushed or not.
+Report: rounds, model, what the reviewer changed, diff size before/after,
+fixed and declined findings with reasons, usage if exposed (else say not),
+pushed or not.

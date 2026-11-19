@@ -3,7 +3,7 @@ A model that reviews its own work tends to agree with itself. It shares the same
 jstack's review skills mix vendors on purpose:
 
 - `council` asks one model each from Anthropic, OpenAI, and Google.
-- `sol-loop` asks GPT Sol, from OpenAI, to review work that a Claude model usually wrote.
+- `neon-loop` asks Gemini 4 Neon, from Google, to review work that a Claude model usually wrote.
 - `arena` picks its judge from a vendor other than the one running the chat.
 - `interrogate` gives the same diff to models from different vendors and keeps only the findings that a run proves.
 

@@ -107,9 +107,9 @@ In this order:
 
 ## Footer
 
-When the change went through `sol-loop`, add its line first:
+When the change went through `neon-loop`, add its line first:
 
-`Reviewed with sol-loop: <N> rounds with <model> at <effort>. Sol verdict: <verdict>.`
+`Reviewed with neon-loop: <N> rounds with <model> at <effort>. Neon verdict: <verdict>.`
 
 Drop `at <effort>` when the effort was not reported to you. A `council`
 section goes above both lines.

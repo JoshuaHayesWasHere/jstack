@@ -73,12 +73,12 @@ Get a second opinion before the change ships.
 
 | Skill | Starts | Does | Source |
 | --- | --- | --- | --- |
-| `sol-loop` | Phrase: "sol loop" | Gets review from GPT Sol in a loop until both agents agree. | tstack |
+| `neon-loop` | Phrase: "neon loop" | Gets review from Gemini 4 Neon (or the `neon-loop reviewer` seat) in a loop until both agents agree. | tstack |
 | `council` | Phrase: "council" | Gets review from three models on three providers. Loops until all three agree. | tstack |
 | `interrogate` | Typed | Has models from different vendors try to break a diff. Keeps only the findings a run proves. | pstack |
 | `no-comments` | Typed | Starts the `comment-sicko` agent to strip comments from a diff, then fixes the findings you accept. | pstack |
 
-`sol-loop`, `council`, and `interrogate` take their models from `docs/models.md`. See [[Models and seats]].
+`neon-loop`, `council`, and `interrogate` take their models from `docs/models.md`. See [[Models and seats]].
 
 ## Ship
 

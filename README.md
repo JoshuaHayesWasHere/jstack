@@ -32,7 +32,7 @@ relative path. jstack has three layers:
 | [Design](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#design) | `sharpen`, `in-your-own-words`, `architect`, `statechart` |
 | [Hypothesize](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#hypothesize) | `swarm`, `arena` |
 | [Prove](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#prove) | `blast-radius`, `benchmark-checklist`, `create-verification-skill`, `maintain-verification-skill`, `create-formal-verification-skill`, `maintain-formal-verification-skill` |
-| [Review](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#review) | `sol-loop`, `council`, `interrogate`, `no-comments` |
+| [Review](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#review) | `neon-loop`, `council`, `interrogate`, `no-comments` |
 | [Ship](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#ship) | `file-pr`, `babysit-pr`, `leaving-pr-comments`, `show-me-your-work` |
 | [Write](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#write) | `technical-writing`, `unslop`, `bro` |
 | [Learn](https://github.com/JoshuaHayesWasHere/jstack/wiki/Skills#learn) | `reflect`, `correct` |
