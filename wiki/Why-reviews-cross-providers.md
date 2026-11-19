@@ -2,7 +2,7 @@ A model that reviews its own work tends to agree with itself. It shares the same
 
 jstack's review skills mix vendors on purpose:
 
-- `council` asks one model each from Anthropic, OpenAI, and Google.
+- `council` asks three models across providers.
 - `neon-loop` asks Gemini 4 Neon, from Google, to review work that a Claude model usually wrote.
 - `arena` picks its judge from a vendor other than the one running the chat.
 - `interrogate` gives the same diff to models from different vendors and keeps only the findings that a run proves.
@@ -13,6 +13,6 @@ The council review of jstack itself is an example. All three reviewers caught a 
 
 ## What it costs
 
-Cross-provider review needs access to all three providers. T3 Code gives that access through `delegate_task`. Outside T3 Code, a seat from another provider runs on the current model, and the skill says so. The review still runs, but with less disagreement to learn from.
+Cross-provider review needs access to each configured provider. T3 Code gives that access through `delegate_task`. Outside T3 Code, a seat from another provider runs on the current model, and the skill says so. The review still runs, but with less disagreement to learn from.
 
 Where each seat runs is set in one place, `docs/models.md`. See [[Models and seats]].

@@ -23,21 +23,21 @@ instances: `claude` (Claude Code), `codex` (Codex), `cursor` (Cursor),
 4. If a model or effort is rejected, use the nearest valid one of the same
    family, or drop the seat, and say so. A panel keeps at least two seats.
 
-No role runs above `xhigh`. Gemini 4 Carbon through `cursor/` tops out at `high`.
+No role runs above `xhigh`. Gemini 4 Carbon tops out at `high`.
 
 ```
 # defaults: 3
 # budget: standard (high)
 feature, refactoring: claude/claude-opus-5-5 medium
 bug-fix: claude/claude-opus-5-5 medium
-perf-issue: claude/claude-opus-5-5 medium
-hillclimb: claude/claude-opus-5-5 medium
-judgment and prose: claude/claude-opus-5-5 medium
-arena runners: claude/claude-sonnet-5-5 high, claude/claude-opus-5-5 medium, antigravity/gemini-4-carbon medium
+perf-issue: claude/claude-opus-5-5 high
+hillclimb: claude/claude-opus-5-5 high
+judgment and prose: antigravity/gemini-4-neon medium
+arena runners: claude/claude-opus-5-5 high, codex/gpt-6.2-sol medium, antigravity/gemini-4-carbon medium
 arena cross-judge pool: antigravity/gemini-4-neon medium, codex/gpt-6.2-sol medium, claude/claude-opus-5-5 medium
 swarm workers: antigravity/gemini-4-neon medium
 interrogate reviewers: claude/claude-sonnet-5-5 high, antigravity/gemini-4-carbon medium, antigravity/gemini-4-neon medium
-council: antigravity/gemini-4-neon high, codex/gpt-6.2-sol high, claude/claude-sonnet-5-5 high
+council: antigravity/gemini-4-neon high, codex/gpt-6.2-sol high, antigravity/gemini-4-carbon medium
 neon-loop reviewer: antigravity/gemini-4-neon high
 ```
 
