@@ -1,6 +1,6 @@
 ---
 name: review-loop
-description: Use when the user asks for a review loop or "<model> loop" (such as "neon loop", "sol loop", "opus loop", "fable loop", or "review loop"). Defaults to Neon.
+description: Use when the user asks for a "review loop", "<model> loop", or "<model> loop review" (such as "neon loop", "sol loop", "opus loop", "fable loop", or "sol loop review"). Defaults to Neon. Do not trigger on generic mentions of loops (for loop, event loop, feedback loop, /loop) or ordinary review requests that do not ask for a review loop or name a model loop.
 metadata:
   group: Review
   group-order: "7"
@@ -10,8 +10,9 @@ metadata:
 
 This is a workflow for making your code changes more correct before (or
 sometimes after) filing a pull request. tl;dr - use a second model (Gemini 4
-Neon by default, whichever model the user names in `<model> loop`, or the
-`review-loop reviewer` seat in `docs/models.md`) to review your code in a loop.
+Neon by default, whichever model the user names in `<model> loop` or
+`<model> loop review`, or the `review-loop reviewer` seat in `docs/models.md`)
+to review your code in a loop.
 
 Make the most minimal possible changes to appease the reviewer. Be careful
 of scope creep and don't be scared to push back.
@@ -52,12 +53,12 @@ missing or pre-failing checks in the brief.
 Resolve the reviewer seat in this order:
 
 1. A model, family, or version the user named for this run (including the
-   prefix of `<model> loop`, such as `neon loop`, `sol loop`, `opus loop`,
-   `fable loop`, or `carbon loop`). Call `orchestrator_capabilities` in T3
-   (or match the harness's provider) to pick the latest model in that family.
-   Use the effort from the `review-loop reviewer` seat (default `high`)
-   unless the user named an effort, respecting any model cap in
-   `~/repos/jstack/docs/models.md`.
+   prefix of `<model> loop` or `<model> loop review`, such as `neon loop`,
+   `sol loop`, `sol loop review`, `opus loop`, `fable loop`, or `carbon loop`).
+   Call `orchestrator_capabilities` in T3 (or match the harness's provider) to
+   pick the latest model in that family. Use the effort from the `review-loop
+   reviewer` seat (default `high`) unless the user named an effort, respecting
+   any model cap in `~/repos/jstack/docs/models.md`.
 2. Otherwise, use the `review-loop reviewer` line in
    `~/repos/jstack/docs/models.md` (routed by steps 1 and 2 of "Running a
    seat" in that file).
