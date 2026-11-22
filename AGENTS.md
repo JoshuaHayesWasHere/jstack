@@ -39,4 +39,4 @@ Skills open each other by relative path, so `skills/` stays flat.
 
 ## Done means
 
-End every task by saying: committed, pushed, merged, whether `./install` ran on the main checkout, and whether the wiki was published. Remove worktrees and branches you created once their work has merged.
+In `full send` and `full stop`, include pulling `main` and running `./install` from `~/repos/jstack` once the change lands on `main` so installed skills and hooks stay up to date. End every task by saying: committed, pushed, merged, whether `./install` ran on the main checkout, and whether the wiki was published. Remove worktrees and branches you created once their work has merged.
