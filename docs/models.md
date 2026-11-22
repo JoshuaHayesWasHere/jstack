@@ -38,7 +38,7 @@ arena cross-judge pool: antigravity/gemini-4-neon medium, codex/gpt-6.2-sol medi
 swarm workers: antigravity/gemini-4-neon medium
 interrogate reviewers: claude/claude-sonnet-5-5 high, antigravity/gemini-4-carbon medium, antigravity/gemini-4-neon medium
 council: antigravity/gemini-4-neon high, codex/gpt-6.2-sol high, antigravity/gemini-4-carbon medium
-neon-loop reviewer: antigravity/gemini-4-neon high
+review-loop reviewer: antigravity/gemini-4-neon high
 ```
 
 The cross-judge pool lists a non-Claude seat first, because Arena's judge
