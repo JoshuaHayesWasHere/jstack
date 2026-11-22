@@ -15,7 +15,7 @@ commit here.
 | Here | Upstream |
 | --- | --- |
 | `skills/<name>/`, 26 skills plus 24 `principle-*` | `pstack/skills/<name>/` |
-| `skills/{full-send,full-stop,file-pr,babysit-pr,leaving-pr-comments,council,neon-loop}/` | `tstack/skills/<name>/` (`neon-loop` adapted from `sol-loop`) |
+| `skills/{full-send,full-stop,file-pr,babysit-pr,leaving-pr-comments,council,review-loop}/` | `tstack/skills/<name>/` (`review-loop` adapted from `sol-loop`) |
 | `agents/comment-sicko.md` | `pstack/agents/comment-sicko.md` |
 | `playbooks/*.md`, 16 playbooks | `pstack/skills/poteto-mode/playbooks/` (not `babysit`, `shipping`, `opening-a-pr`, `autonomous-run`, `autopilot-full`, `autopilot-stack`) |
 | `scripts/worktree-audit.sh` | `pstack/skills/poteto-mode/scripts/worktree-audit.sh` |
@@ -38,7 +38,7 @@ commit here.
   Code maintainer PRs: title, hero image, problem, solution, what changed,
   evidence and where to host it, verification, notes, not verified, and the
   footer. It applies `unslop` and `bro` by path. `full-send`, `full-stop`,
-  `babysit-pr`, `neon-loop`, `technical-writing`, and `docs/rules.md` point at
+  `babysit-pr`, `review-loop`, `technical-writing`, and `docs/rules.md` point at
   it instead of restating parts of it.
 - Em dashes are replaced in `create-verification-skill` and
   `maintain-verification-skill`.
@@ -52,8 +52,9 @@ commit here.
   `proto/` branches.
 - Playbooks: Cursor names replaced (`/loop`, the control skill, model slugs,
   transcript paths, `create-skill`, `figure-it-out`), and mode handoffs added.
-- `arena`, `swarm`, `interrogate` (through arena), `council`, and `neon-loop`
-  (renamed from upstream `sol-loop` to use Gemini 4 Neon via `docs/models.md`)
+- `arena`, `swarm`, `interrogate` (through arena), `council`, and `review-loop`
+  (adapted from upstream `sol-loop` to be model-agnostic, defaulting to Gemini 4
+  Neon via `docs/models.md`)
   read their seats from `docs/models.md`, with cross-provider seats through T3
   Code's `delegate_task`. `no-comments`, `recall`, and `show-me-your-work`
   point at `docs/subagents.md`.

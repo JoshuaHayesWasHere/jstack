@@ -29,7 +29,7 @@ Each value is `<provider>/<model> <effort>`.
 | `swarm workers` | `antigravity/gemini-4-neon medium` | `swarm`, verification, trivial edits |
 | `interrogate reviewers` | Sonnet 5.5 high, Gemini 4 Carbon medium, Gemini 4 Neon medium | `interrogate` |
 | `council` | Gemini 4 Neon high, GPT-6.2 Sol high, Gemini 4 Carbon medium | `council` |
-| `neon-loop reviewer` | `antigravity/gemini-4-neon high` | `neon-loop` |
+| `review-loop reviewer` | `antigravity/gemini-4-neon high` | `review-loop` |
 
 The arena judge never comes from the same vendor as the chat that started it. Fable counts as Claude for that rule.
 
