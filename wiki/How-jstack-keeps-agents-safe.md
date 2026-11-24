@@ -12,23 +12,16 @@ A mode often starts subagents to do parts of the work. Every subagent reads `doc
 
 When `full-send` runs several PRs, each PR gets an owner subagent. The owner builds the change, opens the PR, and stops when the code is ready. The parent agent takes over from there. It holds the only watcher on the PR. It sends a separate set of agents, which did not write the code, to verify it. Only then does it merge. This split exists because the agent that wrote the code wants it to pass.
 
-This sequence diagram shows one PR in a several-PR `full-send` run.
+This flowchart shows one PR in a several-PR `full-send` run.
 
 ```mermaid
-sequenceDiagram
-    participant P as Parent agent
-    participant O as Owner subagent
-    participant G as GitHub PR
-    participant V as Verifiers
-    P->>O: Brief with push and PR rights for this PR, never merge
-    O->>G: Build the change and open the PR with file-pr
-    O-->>P: Code-ready, owner stops
-    P->>G: Hold the only watcher with babysit-pr
-    P->>V: Verify with swarm
-    Note over V: Did not write the code
-    V->>G: Rerun the gates, prove the behavior live, audit the diff
-    V-->>P: Verdict
-    P->>G: Merge, only after verification
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart TD
+    brief("Parent briefs an owner: push and PR rights for one PR, never merge") --> build("Owner builds the change and opens the PR")
+    build --> ready("Owner stops at code-ready")
+    ready --> watch("Parent holds the only watcher on the PR")
+    watch --> verify("Verifiers that did not write the code check it")
+    verify --> merge("Parent merges")
 ```
 
 ## Questions go where you see them

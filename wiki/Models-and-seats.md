@@ -15,23 +15,16 @@ Each value is `<provider>/<model> <effort>`.
 3. Outside T3 Code, the seat runs on the current model, and the skill says so.
 4. If a model is rejected, the skill uses the nearest model of the same family or drops the seat. A panel keeps at least two seats.
 
-This flowchart follows the same rules as the list above.
+This flowchart shows steps 1 to 3 of the list above. The Antigravity exception and the fallback for a rejected model are in the list only.
 
 ```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
 flowchart TD
-    seat["A skill fills a seat"] --> match{"Does the seat's provider match the tool you are in?"}
-    match -->|No| t3{"Are you in T3 Code?"}
-    match -->|Yes| ag{"Are you in Antigravity?"}
-    ag -->|No| native["Start a native subagent"]
-    ag -->|Yes| own{"Is the seat on the session's own model and effort?"}
-    own -->|Yes| native
-    own -->|No| t3
-    t3 -->|Yes| delegate["Start the seat with delegate_task"]
-    t3 -->|No| current["Run on the current model and say so"]
-    native --> rejected{"Is the model or effort rejected?"}
-    delegate --> rejected
-    rejected -->|No| run["Run the seat"]
-    rejected -->|Yes| fallback["Use the nearest valid one of the same family, or drop the seat, and say so. A panel keeps at least two seats."]
+    seat("A skill fills a seat") --> match{"Seat provider matches your tool?"}
+    match -->|Yes| native("Start a native subagent")
+    match -->|No| t3{"In T3 Code?"}
+    t3 -->|Yes| delegate("Start the seat with delegate_task")
+    t3 -->|No| current("Run on the current model and say so")
 ```
 
 ## Roles

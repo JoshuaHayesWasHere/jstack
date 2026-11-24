@@ -7,37 +7,26 @@ jstack has three layers:
 This diagram shows how the three layers connect.
 
 ```mermaid
-flowchart LR
-    you["You"] -->|"say a phrase"| modes["Modes: prototype, full-stop, full-send"]
-    subgraph library["Library"]
-        playbooks["Playbooks"]
-        principles["Principles"]
-    end
-    modes -->|read| playbooks
-    modes -->|read| principles
-    modes -->|call| skills["Skills"]
-    you -->|"ask by name"| playbooks
-    you -->|"start on your own"| skills
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart TD
+    you("You") -->|say a phrase| modes("Modes: prototype, full-stop, full-send")
+    modes -->|read| library("Library: playbooks and principles")
+    modes -->|call| skills("Skills")
 ```
 
 The groups follow the work, in order. A bug starts at [Understand](#understand) and [Triage](#triage). A feature starts at [Understand](#understand) and goes to [Design](#design). The `prototype` mode works like [Hypothesize](#hypothesize) on a larger scale. `full-stop` and `full-send` run [Prove](#prove), [Review](#review), and [Ship](#ship). [Write](#write) and [Learn](#learn) apply at any point.
 
-This flowchart shows the skill groups in work order.
+This flowchart shows the skill groups that a bug or a feature passes through, in order. Hypothesize, Write, and Learn sit outside it. The `prototype` mode works like Hypothesize, and Write and Learn apply at any point.
 
 ```mermaid
-flowchart LR
-    understand["Understand"] -->|"a bug"| triage["Triage"]
-    understand -->|"a feature"| design["Design"]
-    proto["prototype mode"] -.->|"works like, on a larger scale"| hyp["Hypothesize"]
-    triage --> prove
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart TD
+    understand("Understand") -->|a bug| triage("Triage")
+    understand -->|a feature| design("Design")
+    triage --> prove("Prove")
     design --> prove
-    subgraph build["full-stop and full-send run"]
-        prove["Prove"] --> review["Review"] --> ship["Ship"]
-    end
-    subgraph any["At any point"]
-        write["Write"]
-        learn["Learn"]
-    end
+    prove --> review("Review")
+    review --> ship("Ship")
 ```
 
 In the **Starts** column:

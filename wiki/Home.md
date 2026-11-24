@@ -1,20 +1,5 @@
 jstack is one repository that decides how every coding agent on this machine works. Claude Code, Codex, Cursor, and Antigravity all read the same skills, rules, and playbooks from it.
 
-This diagram shows how the parts of the repository reach each agent. `install` links skills into each agent's folders, links agents for Claude Code and Cursor, and writes hook entries for every agent. The three modes read `docs/rules.md` and the playbooks from the checkout.
-
-```mermaid
-flowchart LR
-    skills["skills/"] --> install["./install"]
-    agents["agents/"] -->|"Claude Code and Cursor only"| install
-    hooks["hooks/"] -->|"hook entries"| install
-    install --> claude["Claude Code"]
-    install --> codex["Codex"]
-    install --> cursor["Cursor"]
-    install --> ag["Antigravity"]
-    rules["docs/rules.md"] -->|"read from ~/repos/jstack by the modes"| modes["prototype, full-stop, full-send"]
-    playbooks["playbooks/"] -->|"read from ~/repos/jstack by the modes"| modes
-```
-
 You pick how far an agent goes by the phrase you use:
 
 | You say | The agent | It stops at |
@@ -28,12 +13,13 @@ Every other skill supports those three modes. You can also run any skill on its 
 This decision tree shows which phrase to use for a task.
 
 ```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
 flowchart TD
-    q1{"Do you know what to build?"}
-    q1 -->|No| proto["Say prototype"]
-    q1 -->|Yes| q2{"Do you want to review and merge the PR yourself?"}
-    q2 -->|Yes| stop["Say full stop"]
-    q2 -->|No| send["Say full send"]
+    q1{"Know what to build?"}
+    q1 -->|No| proto("Say prototype")
+    q1 -->|Yes| q2{"Merge it yourself?"}
+    q2 -->|Yes| stop("Say full stop")
+    q2 -->|No| send("Say full send")
 ```
 
 ## Start here
