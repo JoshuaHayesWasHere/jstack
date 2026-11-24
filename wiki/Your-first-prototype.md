@@ -43,6 +43,15 @@ git branch --list 'proto/*'
 
 You see one branch per route, such as `proto/spoken-time/word-table` and `proto/spoken-time/library`. Each route runs in its own worktree. `git worktree list` shows them.
 
+This diagram shows the two route branches cut from `main`.
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart LR
+    main("main") --> a("proto/spoken-time/word-table")
+    main --> b("proto/spoken-time/library")
+```
+
 ## 5. Read the report
 
 When the routes finish, the agent posts a report. It has a table with one row per route: the branch, the approach, what the agent saw when it ran the route, and a verdict. A recommendation comes last.

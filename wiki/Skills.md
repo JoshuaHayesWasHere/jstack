@@ -4,7 +4,30 @@ jstack has three layers:
 2. **Library.** [[Playbooks]] and [[Principles]] are what the modes read. You can also ask for a playbook by name.
 3. **Skills.** The skills on this page. A mode calls them as it works, and you can start any of them on your own.
 
+This diagram shows how the three layers connect.
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart TD
+    you("You") -->|say a phrase| modes("Modes: prototype, full-stop, full-send")
+    modes -->|read| library("Library: playbooks and principles")
+    modes -->|call| skills("Skills")
+```
+
 The groups follow the work, in order. A bug starts at [Understand](#understand) and [Triage](#triage). A feature starts at [Understand](#understand) and goes to [Design](#design). The `prototype` mode works like [Hypothesize](#hypothesize) on a larger scale. `full-stop` and `full-send` run [Prove](#prove), [Review](#review), and [Ship](#ship). [Write](#write) and [Learn](#learn) apply at any point.
+
+This flowchart shows the skill groups that a bug or a feature passes through, in order. Hypothesize, Write, and Learn sit outside it. The `prototype` mode works like Hypothesize, and Write and Learn apply at any point.
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart TD
+    understand("Understand") -->|a bug| triage("Triage")
+    understand -->|a feature| design("Design")
+    triage --> prove("Prove")
+    design --> prove
+    prove --> review("Review")
+    review --> ship("Ship")
+```
 
 In the **Starts** column:
 

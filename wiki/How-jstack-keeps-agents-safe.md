@@ -12,6 +12,18 @@ A mode often starts subagents to do parts of the work. Every subagent reads `doc
 
 When `full-send` runs several PRs, each PR gets an owner subagent. The owner builds the change, opens the PR, and stops when the code is ready. The parent agent takes over from there. It holds the only watcher on the PR. It sends a separate set of agents, which did not write the code, to verify it. Only then does it merge. This split exists because the agent that wrote the code wants it to pass.
 
+This flowchart shows one PR in a several-PR `full-send` run.
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart TD
+    brief("Parent briefs an owner: push and PR rights for one PR, never merge") --> build("Owner builds the change and opens the PR")
+    build --> ready("Owner stops at code-ready")
+    ready --> watch("Parent holds the only watcher on the PR")
+    watch --> verify("Verifiers that did not write the code check it")
+    verify --> merge("Parent merges")
+```
+
 ## Questions go where you see them
 
 A plain message at the end of an unattended run looks like a finished thread. jstack modes ask through the harness's question tool instead, so the thread shows that it waits for you. If no question tool exists, `full-send` leaves the PR open and starts its final message with the question.

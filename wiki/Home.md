@@ -10,6 +10,18 @@ You pick how far an agent goes by the phrase you use:
 
 Every other skill supports those three modes. You can also run any skill on its own.
 
+This decision tree shows which phrase to use for a task.
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart TD
+    q1{"Know what to build?"}
+    q1 -->|No| proto("Say prototype")
+    q1 -->|Yes| q2{"Merge it yourself?"}
+    q2 -->|Yes| stop("Say full stop")
+    q2 -->|No| send("Say full send")
+```
+
 ## Start here
 
 - New to jstack: follow [[Your first prototype]].

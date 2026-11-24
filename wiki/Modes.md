@@ -11,6 +11,17 @@ jstack has three modes. Each one is a skill that starts on its phrase. Each read
 | Ends with | A route report, then a question: throw away, harvest, or promote | PR link, head, proof, review outcome | PR link, merge commit, proof, decisions |
 | Source | [`skills/prototype/SKILL.md`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/prototype/SKILL.md) | [`skills/full-stop/SKILL.md`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-stop/SKILL.md) | [`skills/full-send/SKILL.md`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-send/SKILL.md) |
 
+This flowchart shows a `prototype` run and the three answers you can give for each route.
+
+```mermaid
+flowchart TD
+    req("Vague or open request") --> routes("Two or more routes, each on its own proto/ branch")
+    routes --> report("Route report with a recommendation")
+    report --> throw("Throw away: delete the branch")
+    report --> harvest("Harvest: keep it for parts")
+    report --> promote("Promote: continue with full-stop or full-send")
+```
+
 The [session-pickup](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/session-pickup.md) and [pause-safely](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/pause-safely.md) playbooks run in any mode. The [worktree-cleanup](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/worktree-cleanup.md) playbook runs only when you ask for it by name.
 
 ## Rights each mode has
@@ -36,6 +47,23 @@ The [session-pickup](https://github.com/JoshuaHayesWasHere/jstack/blob/main/play
 6. Babysit the PR with [`babysit-pr`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/babysit-pr/SKILL.md).
 7. Merge, in `full-send` only.
 8. Report.
+
+This flowchart shows the shared steps and where the two modes part after the merge gate.
+
+```mermaid
+%%{init: {"flowchart": {"wrappingWidth": 400}}}%%
+flowchart TD
+    s1("1. Pick the playbook") --> s2("2. Finish the change, run no-comments")
+    s2 --> s3("3. Prove every change")
+    s3 --> s4("4. Review with review-loop")
+    s4 --> s5("5. File the PR with file-pr")
+    s5 --> s6("6. Babysit the PR with babysit-pr")
+    s6 --> gate{"Merge gate passes"}
+    gate -->|full-stop| ready("PR ready for you, not merged")
+    gate -->|full-send| merge("7. Merge")
+    ready --> s8("8. Report")
+    merge --> s8
+```
 
 ## Merge gate
 
