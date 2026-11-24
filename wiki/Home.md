@@ -4,11 +4,11 @@ You pick how far an agent goes by the phrase you use:
 
 | You say | The agent | It stops at |
 | --- | --- | --- |
-| "prototype" | Tries several approaches on throwaway branches. | A report, then asks you what to keep. |
-| "full stop" | Builds one change, proves it, and opens a PR. | A PR ready for you to merge. |
-| "full send" | Does the same, unattended. | A merged PR. |
+| ["prototype"](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/prototype/SKILL.md) | Tries several approaches on throwaway branches. | A report, then asks you what to keep. |
+| ["full stop"](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-stop/SKILL.md) | Builds one change, proves it, and opens a PR. | A PR ready for you to merge. |
+| ["full send"](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-send/SKILL.md) | Does the same, unattended. | A merged PR. |
 
-Each mode is a skill: [`prototype`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/prototype/SKILL.md), [`full-stop`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-stop/SKILL.md), and [`full-send`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-send/SKILL.md). Every other skill supports those three modes. You can also run any skill on its own.
+Every other skill supports those three modes. You can also run any skill on its own.
 
 ## Start here
 
