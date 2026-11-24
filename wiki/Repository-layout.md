@@ -4,7 +4,7 @@
 | --- | --- |
 | `skills/<name>/` | One folder per skill, all at one level. Skills open each other by relative path. |
 | `playbooks/<title>.md` | The playbooks. See [[Playbooks]]. |
-| `agents/comment-sicko.md` | The comment reviewer that `no-comments` starts. |
+| `agents/comment-sicko.md` | The comment reviewer that [`no-comments`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/no-comments/SKILL.md) starts. |
 | `hooks/<script>`, `hooks/hooks.json` | Hook scripts, and the event and matcher each runs on per harness. |
 | `docs/rules.md` | Shared rules that the three modes read first. |
 | `docs/subagents.md` | Rules for starting subagents, and the rules every subagent reads. |

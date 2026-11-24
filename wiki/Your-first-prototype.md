@@ -1,4 +1,4 @@
-In this tutorial, you ask an agent to explore a small idea with the `prototype` mode. You end with two or more throwaway branches, a report that compares them, and a choice about what to keep.
+In this tutorial, you ask an agent to explore a small idea with the [`prototype`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/prototype/SKILL.md) mode. You end with two or more throwaway branches, a report that compares them, and a choice about what to keep.
 
 You need jstack installed. If `ls ~/.claude/skills/prototype` prints `SKILL.md`, it is. If not, do [[Install jstack]] first.
 
@@ -53,7 +53,7 @@ The agent asks you about each route with three options:
 
 - **Throw away** deletes the branch and its worktree.
 - **Harvest** keeps the branch so you can copy parts of it later.
-- **Promote** continues that route with `full stop` or `full send`.
+- **Promote** continues that route with [`full stop`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-stop/SKILL.md) or [`full send`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-send/SKILL.md).
 
 Pick **Throw away** for every route. Run `git branch --list 'proto/*'` again. The list is empty.
 
