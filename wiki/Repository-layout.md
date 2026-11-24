@@ -37,13 +37,14 @@ This flowchart shows the same links. Hook entries are written into each file, no
 
 ```mermaid
 flowchart LR
-    settings["settings.json"] --> csettings["~/.claude/settings.json"]
     skills["skills/"] --> cskills["~/.claude/skills/"]
     skills --> askills["~/.agents/skills/"]
     skills --> gskills["~/.gemini/config/skills/"]
     agents["agents/"] --> cagents["~/.claude/agents/"]
     agents --> curagents["~/.cursor/agents/"]
-    hooks["hooks/hooks.json"] -->|writes entries| hookfiles["~/.claude/settings.json, ~/.codex/hooks.json, ~/.cursor/hooks.json, ~/.gemini/config/hooks.json"]
+    hooks["hooks/hooks.json"] -->|writes entries| hookfiles["~/.codex/hooks.json, ~/.cursor/hooks.json, ~/.gemini/config/hooks.json"]
+    hooks -->|writes entries| csettings["~/.claude/settings.json"]
+    settings["settings.json"] --> csettings
     csettings --> prime["~/.claude_prime"]
     cskills --> prime
     cagents --> prime

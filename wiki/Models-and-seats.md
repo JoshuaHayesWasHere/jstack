@@ -28,9 +28,10 @@ flowchart TD
     own -->|No| t3
     t3 -->|Yes| delegate["Start the seat with delegate_task"]
     t3 -->|No| current["Run on the current model and say so"]
-    native --> rejected{"Is the model rejected?"}
+    native --> rejected{"Is the model or effort rejected?"}
     delegate --> rejected
-    rejected -->|Yes| fallback["Use the nearest model of the same family, or drop the seat. A panel keeps at least two seats."]
+    rejected -->|No| run["Run the seat"]
+    rejected -->|Yes| fallback["Use the nearest valid one of the same family, or drop the seat, and say so. A panel keeps at least two seats."]
 ```
 
 ## Roles

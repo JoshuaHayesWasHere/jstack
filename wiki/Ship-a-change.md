@@ -27,7 +27,7 @@ sequenceDiagram
     participant G as GitHub
     Y->>A: The change, then "full stop"
     A->>A: Pick a playbook, finish the change, prove it
-    loop review-loop, up to 3 rounds
+    loop review-loop, up to 3 rounds by default
         A->>R: Ask for review
         R-->>A: Findings
     end

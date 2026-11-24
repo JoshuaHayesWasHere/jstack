@@ -1,11 +1,11 @@
 jstack is one repository that decides how every coding agent on this machine works. Claude Code, Codex, Cursor, and Antigravity all read the same skills, rules, and playbooks from it.
 
-This diagram shows how the parts of the repository reach each agent. `install` links skills and agents into each agent's folders and writes its hook entries. The three modes read `docs/rules.md` and the playbooks from the checkout.
+This diagram shows how the parts of the repository reach each agent. `install` links skills into each agent's folders, links agents for Claude Code and Cursor, and writes hook entries for every agent. The three modes read `docs/rules.md` and the playbooks from the checkout.
 
 ```mermaid
 flowchart LR
     skills["skills/"] --> install["./install"]
-    agents["agents/"] --> install
+    agents["agents/"] -->|"Claude Code and Cursor only"| install
     hooks["hooks/"] -->|"hook entries"| install
     install --> claude["Claude Code"]
     install --> codex["Codex"]

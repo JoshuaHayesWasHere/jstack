@@ -11,6 +11,20 @@ jstack has three modes. Each one is a skill that starts on its phrase. Each read
 | Ends with | A route report, then a question: throw away, harvest, or promote | PR link, head, proof, review outcome | PR link, merge commit, proof, decisions |
 | Source | [`skills/prototype/SKILL.md`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/prototype/SKILL.md) | [`skills/full-stop/SKILL.md`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-stop/SKILL.md) | [`skills/full-send/SKILL.md`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-send/SKILL.md) |
 
+This flowchart shows a `prototype` run and the three answers you can give for each route.
+
+```mermaid
+flowchart LR
+    req["Vague or open request"] --> routes["Two or more routes, each on a proto/slug/route branch"]
+    routes --> report["Route report with a recommendation"]
+    report --> ask{"Your answer for each route"}
+    ask --> throw["Throw away: delete the branch and worktree"]
+    ask --> harvest["Harvest: keep the branch for parts"]
+    ask --> promote["Promote: continue the route"]
+    promote --> stop["full-stop"]
+    promote --> send["full-send"]
+```
+
 The [session-pickup](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/session-pickup.md) and [pause-safely](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/pause-safely.md) playbooks run in any mode. The [worktree-cleanup](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/worktree-cleanup.md) playbook runs only when you ask for it by name.
 
 ## Rights each mode has
@@ -46,25 +60,12 @@ flowchart TD
     s3 --> s4["4. Review with review-loop"]
     s4 --> s5["5. File the PR with file-pr"]
     s5 --> s6["6. Babysit the PR with babysit-pr"]
-    s6 --> gate{"Merge gate passes on the latest commit"}
-    gate -->|full-stop| ready["PR ready for you, open and not merged"]
-    gate -->|full-send| s7["7. Merge"]
+    s6 --> gate["Merge gate passes on the latest commit"]
+    gate --> mode{"Which mode?"}
+    mode -->|full-stop| ready["PR ready for you, open and not merged"]
+    mode -->|full-send| s7["7. Merge"]
     ready --> s8["8. Report"]
     s7 --> s8
-```
-
-This flowchart shows a `prototype` run and the three answers you can give for each route.
-
-```mermaid
-flowchart LR
-    req["Vague or open request"] --> routes["Two or more routes, each on a proto/slug/route branch"]
-    routes --> report["Route report with a recommendation"]
-    report --> ask{"Your answer for each route"}
-    ask --> throw["Throw away: delete the branch and worktree"]
-    ask --> harvest["Harvest: keep the branch for parts"]
-    ask --> promote["Promote: continue the route"]
-    promote --> stop["full-stop"]
-    promote --> send["full-send"]
 ```
 
 ## Merge gate

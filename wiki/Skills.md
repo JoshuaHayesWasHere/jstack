@@ -9,8 +9,12 @@ This diagram shows how the three layers connect.
 ```mermaid
 flowchart LR
     you["You"] -->|"say a phrase"| modes["Modes: prototype, full-stop, full-send"]
-    modes -->|read| playbooks["Playbooks"]
-    modes -->|read| principles["Principles"]
+    subgraph library["Library"]
+        playbooks["Playbooks"]
+        principles["Principles"]
+    end
+    modes -->|read| playbooks
+    modes -->|read| principles
     modes -->|call| skills["Skills"]
     you -->|"ask by name"| playbooks
     you -->|"start on your own"| skills
