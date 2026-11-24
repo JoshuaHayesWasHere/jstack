@@ -1,4 +1,4 @@
-Every pull request an agent opens follows the shape that [`file-pr`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/file-pr/SKILL.md) sets, in every repository. The `full stop` and `full send` modes file their PRs with it. This page describes that shape. The skill is the source, so when the two disagree, the skill wins.
+Every pull request an agent opens follows the shape that [`file-pr`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/file-pr/SKILL.md) sets, in every repository. The [`full-stop`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-stop/SKILL.md) and [`full-send`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-send/SKILL.md) modes file their PRs with it. This page describes that shape. The skill is the source, so when the two disagree, the skill wins.
 
 A description shows what changed for the user and proves that it works. It does not list the code that changed.
 
@@ -37,12 +37,12 @@ The description scales with the change.
 The full form has these parts, in this order.
 
 1. **Hero image.** A UI change opens with a screenshot of the result. The alt text says what the image shows.
-2. **Problem.** One paragraph that tells a concrete situation from the user's original request: who hit it, what happened, and the real numbers. It does not open with a list of deleted functions or entry points.
+2. **Problem.** One paragraph that tells a concrete situation from the user's original request: who hit it, what happened, and the real numbers. It does not open with an implementation inventory, such as a list of changed or deleted functions and entry points.
 3. **Solution.** One paragraph on what is different now, from the user's side.
 4. **`## What changed`.** One bullet for each part of the product, led by its name in bold, such as **Server.**, **Web and desktop.**, **Agents.**, **Contracts.**, or **Docs.** A setting is named by its path in the UI, such as **Settings › General › Working tab group**. The section also says what happens in the parts that the change leaves alone, for example "Mobile does not use themes."
 5. **Evidence.** See [Evidence](#evidence). In the small form it sits inline.
-6. **`## Verification`.** Bullets for what the agent ran and what it saw. Each review finding that the agent fixed is listed with its commit SHA and the test that covers it. The section ends with the repository's check on changed files. "Tests pass" alone is not evidence. In `full stop` and `full send`, the section also names the playbook the agent followed.
-7. **`## Notes`.** Calls that the reviewer has to make, such as a default, a budget that grows, or a performance cost. Stacking and merge order. Known limits. The section is left out when it has nothing to say.
+6. **`## Verification`.** Bullets for what the agent ran and what it saw. Each review finding that the agent fixed is listed with its commit SHA and the test that covers it. The section ends with the repository's check on changed files. "Tests pass" alone is not evidence. In `full-stop` and `full-send`, the section also names the playbook the agent followed.
+7. **`## Notes`.** Calls that the reviewer has to make, such as a default, a budget that grows, or a performance cost. It also gives the stacking and merge order and the known limits. The section is left out when it has nothing to say.
 8. **`## Not verified`.** The platforms, parts of the product, and cases that the agent did not check. The section is left out only when the agent checked everything the change touches.
 9. **Footer.** See [Footer](#footer).
 
@@ -73,7 +73,8 @@ The footer has these lines, in this order.
 
 ## Before the agent submits
 
-- The agent checks the title, the body, quotes, and every screenshot for secrets, private email addresses, machine hostnames, window titles, terminal prompts, and file paths.
+- The agent checks the title, the body, quotes, and attachments for secrets and private details, such as a private email address or a machine hostname.
+- The agent also looks at every screenshot for those details, including window titles, terminal prompts, and file paths.
 - The agent writes the body to a file and passes it with `--body-file`.
 - The agent opens a real PR, not a draft, so that review bots run. When the GraphQL rate limit is used up, the agent opens it through the REST API.
 - The agent posts a follow-up comment only when the request needs one, and formats it with [`leaving-pr-comments`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/leaving-pr-comments/SKILL.md).
