@@ -32,7 +32,7 @@ The [session-pickup](https://github.com/JoshuaHayesWasHere/jstack/blob/main/play
 2. Finish the change with the playbook's steps. Run [`no-comments`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/no-comments/SKILL.md) on the diff.
 3. Prove every change.
 4. Get review from [`review-loop`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/review-loop/SKILL.md). Add [`interrogate`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/interrogate/SKILL.md) for a contested design.
-5. File the PR with [`file-pr`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/file-pr/SKILL.md).
+5. File the PR with [`file-pr`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/file-pr/SKILL.md). See [[PR descriptions]] for the shape.
 6. Babysit the PR with [`babysit-pr`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/babysit-pr/SKILL.md).
 7. Merge, in `full-send` only.
 8. Report.
