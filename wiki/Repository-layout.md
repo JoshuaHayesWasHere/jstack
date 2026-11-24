@@ -33,6 +33,22 @@ To count the skills, run `ls ~/repos/jstack/skills | wc -l`. The count at this c
 | `agents/<name>.md` | `~/.claude/agents/<name>.md` and `~/.cursor/agents/<name>.md` |
 | `hooks/hooks.json` | Hook entries in `~/.claude/settings.json`, `~/.codex/hooks.json`, `~/.cursor/hooks.json`, and `~/.gemini/config/hooks.json` |
 
+This flowchart shows the same links. Hook entries are written into each file, not linked.
+
+```mermaid
+flowchart LR
+    settings["settings.json"] --> csettings["~/.claude/settings.json"]
+    skills["skills/"] --> cskills["~/.claude/skills/"]
+    skills --> askills["~/.agents/skills/"]
+    skills --> gskills["~/.gemini/config/skills/"]
+    agents["agents/"] --> cagents["~/.claude/agents/"]
+    agents --> curagents["~/.cursor/agents/"]
+    hooks["hooks/hooks.json"] -->|writes entries| hookfiles["~/.claude/settings.json, ~/.codex/hooks.json, ~/.cursor/hooks.json, ~/.gemini/config/hooks.json"]
+    csettings --> prime["~/.claude_prime"]
+    cskills --> prime
+    cagents --> prime
+```
+
 Cursor reads both `~/.claude/skills` and `~/.agents/skills`.
 
 ## Installer behavior

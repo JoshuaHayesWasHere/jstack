@@ -17,6 +17,27 @@ Use this guide to take a change to a pull request with the [`full stop`](https:/
 
 3. Leave the agent to work. It does not need you unless it asks a question.
 
+This sequence diagram shows a `full stop` run from your message to your merge.
+
+```mermaid
+sequenceDiagram
+    participant Y as You
+    participant A as Agent
+    participant R as Reviewer model
+    participant G as GitHub
+    Y->>A: The change, then "full stop"
+    A->>A: Pick a playbook, finish the change, prove it
+    loop review-loop, up to 3 rounds
+        A->>R: Ask for review
+        R-->>A: Findings
+    end
+    A->>G: File the PR with file-pr
+    A->>G: Babysit CI and review bots, fix real findings
+    A->>A: Check the merge gate, then stop
+    A-->>Y: PR link, head commit, proof, review outcome
+    Y->>G: Merge when you agree
+```
+
 The agent picks a playbook, such as [Bug fix](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/bug-fix.md) or [Feature](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/feature.md), and copies its steps into a todo list. You see the list in its first reply.
 
 ## Answer questions

@@ -15,6 +15,24 @@ Each value is `<provider>/<model> <effort>`.
 3. Outside T3 Code, the seat runs on the current model, and the skill says so.
 4. If a model is rejected, the skill uses the nearest model of the same family or drops the seat. A panel keeps at least two seats.
 
+This flowchart follows the same rules as the list above.
+
+```mermaid
+flowchart TD
+    seat["A skill fills a seat"] --> match{"Does the seat's provider match the tool you are in?"}
+    match -->|No| t3{"Are you in T3 Code?"}
+    match -->|Yes| ag{"Are you in Antigravity?"}
+    ag -->|No| native["Start a native subagent"]
+    ag -->|Yes| own{"Is the seat on the session's own model and effort?"}
+    own -->|Yes| native
+    own -->|No| t3
+    t3 -->|Yes| delegate["Start the seat with delegate_task"]
+    t3 -->|No| current["Run on the current model and say so"]
+    native --> rejected{"Is the model rejected?"}
+    delegate --> rejected
+    rejected -->|Yes| fallback["Use the nearest model of the same family, or drop the seat. A panel keeps at least two seats."]
+```
+
 ## Roles
 
 | Role | Default | Used by |

@@ -37,6 +37,36 @@ The [session-pickup](https://github.com/JoshuaHayesWasHere/jstack/blob/main/play
 7. Merge, in `full-send` only.
 8. Report.
 
+This flowchart shows the shared steps and where the two modes part after the merge gate.
+
+```mermaid
+flowchart TD
+    s1["1. Pick the playbook"] --> s2["2. Finish the change, run no-comments"]
+    s2 --> s3["3. Prove every change"]
+    s3 --> s4["4. Review with review-loop"]
+    s4 --> s5["5. File the PR with file-pr"]
+    s5 --> s6["6. Babysit the PR with babysit-pr"]
+    s6 --> gate{"Merge gate passes on the latest commit"}
+    gate -->|full-stop| ready["PR ready for you, open and not merged"]
+    gate -->|full-send| s7["7. Merge"]
+    ready --> s8["8. Report"]
+    s7 --> s8
+```
+
+This flowchart shows a `prototype` run and the three answers you can give for each route.
+
+```mermaid
+flowchart LR
+    req["Vague or open request"] --> routes["Two or more routes, each on a proto/slug/route branch"]
+    routes --> report["Route report with a recommendation"]
+    report --> ask{"Your answer for each route"}
+    ask --> throw["Throw away: delete the branch and worktree"]
+    ask --> harvest["Harvest: keep the branch for parts"]
+    ask --> promote["Promote: continue the route"]
+    promote --> stop["full-stop"]
+    promote --> send["full-send"]
+```
+
 ## Merge gate
 
 `full-send` merges only when all of these are true on the latest commit:
