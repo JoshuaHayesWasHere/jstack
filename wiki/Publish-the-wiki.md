@@ -17,4 +17,4 @@ The pages live in the repository so that changes to them go through the same com
 - The file name is the page title, with hyphens for spaces. `Ship-a-change.md` is the page "Ship a change".
 - Link to another page with `[[Page title]]`, or `[[link text|Page title]]`.
 - `_Sidebar.md` and `_Footer.md` appear on every page.
-- Write pages to the `technical-writing` skill. Each page has one job: a tutorial, a how-to guide, reference, or explanation.
+- Write pages to the [`technical-writing`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/technical-writing/SKILL.md) skill. Each page has one job: a tutorial, a how-to guide, reference, or explanation.

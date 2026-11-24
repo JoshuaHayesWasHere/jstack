@@ -2,10 +2,10 @@ A model that reviews its own work tends to agree with itself. It shares the same
 
 jstack's review skills mix vendors on purpose:
 
-- `council` asks three models across providers.
-- `review-loop` defaults to Gemini 4 Neon, from Google, to review work that a Claude model usually wrote (or whichever model you name in `<model> loop`).
-- `arena` picks its judge from a vendor other than the one running the chat.
-- `interrogate` gives the same diff to models from different vendors and keeps only the findings that a run proves.
+- [`council`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/council/SKILL.md) asks three models across providers.
+- [`review-loop`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/review-loop/SKILL.md) defaults to Gemini 4 Neon, from Google, to review work that a Claude model usually wrote (or whichever model you name in `<model> loop`).
+- [`arena`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/arena/SKILL.md) picks its judge from a vendor other than the one running the chat.
+- [`interrogate`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/interrogate/SKILL.md) gives the same diff to models from different vendors and keeps only the findings that a run proves.
 
 ## What it found in practice
 

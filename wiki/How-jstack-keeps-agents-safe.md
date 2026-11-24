@@ -2,7 +2,7 @@ An agent that works unattended needs clear limits. A question it asks while you 
 
 ## Each mode grants only what it names
 
-A mode lists what the agent may do without asking. Anything outside that list needs your answer first. `full-send` may merge this task's PRs. `full-stop` may open a PR but never merge. `prototype` may never open a PR. Some actions always need your answer, whatever the mode: deploys, deleted data, a force-push to a shared branch, and messages to people outside the run.
+A mode lists what the agent may do without asking. Anything outside that list needs your answer first. [`full-send`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-send/SKILL.md) may merge this task's PRs. [`full-stop`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-stop/SKILL.md) may open a PR but never merge. [`prototype`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/prototype/SKILL.md) may never open a PR. Some actions always need your answer, whatever the mode: deploys, deleted data, a force-push to a shared branch, and messages to people outside the run.
 
 One rule has no exception. No agent may disable, skip, or soft-fail a check to get a green result. A disabled check stops guarding every case, not only the one it blocked.
 
@@ -18,7 +18,7 @@ A plain message at the end of an unattended run looks like a finished thread. js
 
 ## Deletion needs proof
 
-The `worktree-cleanup` playbook deletes worktrees and caches. No mode's grant covers it, so it runs only when you ask for it by name.
+The [`worktree-cleanup`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/worktree-cleanup.md) playbook deletes worktrees and caches. No mode's grant covers it, so it runs only when you ask for it by name.
 
 Its audit script is careful about what it calls safe. A branch whose head is reachable from the base looks merged, but so does a branch that never had a commit of its own. The script reads the branch's reflog and calls the branch merged only when it finds a real commit. Untracked files, a detached head, or a missing reflog all put the worktree in a bucket that needs your review.
 

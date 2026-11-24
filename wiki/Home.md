@@ -8,7 +8,7 @@ You pick how far an agent goes by the phrase you use:
 | "full stop" | Builds one change, proves it, and opens a PR. | A PR ready for you to merge. |
 | "full send" | Does the same, unattended. | A merged PR. |
 
-Every other skill supports those three modes. You can also run any skill on its own.
+Each mode is a skill: [`prototype`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/prototype/SKILL.md), [`full-stop`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-stop/SKILL.md), and [`full-send`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-send/SKILL.md). Every other skill supports those three modes. You can also run any skill on its own.
 
 ## Start here
 

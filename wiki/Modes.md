@@ -1,17 +1,17 @@
 jstack has three modes. Each one is a skill that starts on its phrase. Each reads `docs/rules.md` before its first step.
 
-| | `prototype` | `full-stop` | `full-send` |
+| | [`prototype`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/prototype/SKILL.md) | [`full-stop`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-stop/SKILL.md) | [`full-send`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-send/SKILL.md) |
 | --- | --- | --- | --- |
 | Phrase | "prototype" or `/prototype` | "full stop" | "full send" |
 | Purpose | Explore a vague or open request | Build one change to a ready PR | Build one change to a merged PR |
 | Branches | `proto/<slug>/<route>`, one per route, cut from your current branch | One feature branch | One feature branch |
 | Opens a PR | Never | Yes | Yes |
 | Merges | Never | Never | Yes, when the merge gate passes |
-| Playbooks | investigation, prototype, runtime-forensics, trace-forensics, eval, multi-phase-plan | bug-fix, feature, refactoring, perf-issue, hillclimb, visual-parity, authoring-a-skill | Same as `full-stop` |
+| Playbooks | [investigation](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/investigation.md), [prototype](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/prototype.md), [runtime-forensics](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/runtime-forensics.md), [trace-forensics](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/trace-forensics.md), [eval](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/eval.md), [multi-phase-plan](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/multi-phase-plan.md) | [bug-fix](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/bug-fix.md), [feature](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/feature.md), [refactoring](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/refactoring.md), [perf-issue](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/perf-issue.md), [hillclimb](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/hillclimb.md), [visual-parity](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/visual-parity.md), [authoring-a-skill](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/authoring-a-skill.md) | Same as `full-stop` |
 | Ends with | A route report, then a question: throw away, harvest, or promote | PR link, head, proof, review outcome | PR link, merge commit, proof, decisions |
-| Source | `skills/prototype/SKILL.md` | `skills/full-stop/SKILL.md` | `skills/full-send/SKILL.md` |
+| Source | [`skills/prototype/SKILL.md`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/prototype/SKILL.md) | [`skills/full-stop/SKILL.md`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-stop/SKILL.md) | [`skills/full-send/SKILL.md`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-send/SKILL.md) |
 
-The session-pickup and pause-safely playbooks run in any mode. The worktree-cleanup playbook runs only when you ask for it by name.
+The [session-pickup](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/session-pickup.md) and [pause-safely](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/pause-safely.md) playbooks run in any mode. The [worktree-cleanup](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/worktree-cleanup.md) playbook runs only when you ask for it by name.
 
 ## Rights each mode has
 
@@ -29,11 +29,11 @@ The session-pickup and pause-safely playbooks run in any mode. The worktree-clea
 ## Shared steps in `full-stop` and `full-send`
 
 1. Pick the playbook.
-2. Finish the change with the playbook's steps. Run `no-comments` on the diff.
+2. Finish the change with the playbook's steps. Run [`no-comments`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/no-comments/SKILL.md) on the diff.
 3. Prove every change.
-4. Get review from `review-loop`. Add `interrogate` for a contested design.
-5. File the PR with `file-pr`.
-6. Babysit the PR with `babysit-pr`.
+4. Get review from [`review-loop`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/review-loop/SKILL.md). Add [`interrogate`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/interrogate/SKILL.md) for a contested design.
+5. File the PR with [`file-pr`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/file-pr/SKILL.md).
+6. Babysit the PR with [`babysit-pr`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/babysit-pr/SKILL.md).
 7. Merge, in `full-send` only.
 8. Report.
 

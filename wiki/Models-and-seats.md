@@ -19,17 +19,17 @@ Each value is `<provider>/<model> <effort>`.
 
 | Role | Default | Used by |
 | --- | --- | --- |
-| `feature, refactoring` | `claude/claude-opus-5-5 medium` | Feature and Refactoring playbooks |
-| `bug-fix` | `claude/claude-opus-5-5 medium` | Bug fix playbook |
-| `perf-issue` | `claude/claude-opus-5-5 high` | Perf issue playbook |
-| `hillclimb` | `claude/claude-opus-5-5 high` | Hillclimb playbook |
+| `feature, refactoring` | `claude/claude-opus-5-5 medium` | [Feature](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/feature.md) and [Refactoring](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/refactoring.md) playbooks |
+| `bug-fix` | `claude/claude-opus-5-5 medium` | [Bug fix](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/bug-fix.md) playbook |
+| `perf-issue` | `claude/claude-opus-5-5 high` | [Perf issue](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/perf-issue.md) playbook |
+| `hillclimb` | `claude/claude-opus-5-5 high` | [Hillclimb](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/hillclimb.md) playbook |
 | `judgment and prose` | `antigravity/gemini-4-neon medium` | Writing and judgment calls |
-| `arena runners` | Opus 5.5 high, GPT-6.2 Sol medium, Gemini 4 Carbon medium | `arena`, `eval` |
-| `arena cross-judge pool` | Gemini 4 Neon medium, GPT-6.2 Sol medium, Opus 5.5 medium | `arena` judge |
-| `swarm workers` | `antigravity/gemini-4-neon medium` | `swarm`, verification, trivial edits |
-| `interrogate reviewers` | Sonnet 5.5 high, Gemini 4 Carbon medium, Gemini 4 Neon medium | `interrogate` |
-| `council` | Gemini 4 Neon high, GPT-6.2 Sol high, Gemini 4 Carbon medium | `council` |
-| `review-loop reviewer` | `antigravity/gemini-4-neon high` | `review-loop` |
+| `arena runners` | Opus 5.5 high, GPT-6.2 Sol medium, Gemini 4 Carbon medium | [`arena`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/arena/SKILL.md), [`eval`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/eval.md) |
+| `arena cross-judge pool` | Gemini 4 Neon medium, GPT-6.2 Sol medium, Opus 5.5 medium | [`arena`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/arena/SKILL.md) judge |
+| `swarm workers` | `antigravity/gemini-4-neon medium` | [`swarm`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/swarm/SKILL.md), verification, trivial edits |
+| `interrogate reviewers` | Sonnet 5.5 high, Gemini 4 Carbon medium, Gemini 4 Neon medium | [`interrogate`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/interrogate/SKILL.md) |
+| `council` | Gemini 4 Neon high, GPT-6.2 Sol high, Gemini 4 Carbon medium | [`council`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/council/SKILL.md) |
+| `review-loop reviewer` | `antigravity/gemini-4-neon high` | [`review-loop`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/review-loop/SKILL.md) |
 
 The arena judge never comes from the same vendor as the chat that started it. Fable counts as Claude for that rule.
 

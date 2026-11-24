@@ -1,4 +1,4 @@
-Use this guide to take a change to a pull request with the `full stop` or `full send` mode.
+Use this guide to take a change to a pull request with the [`full stop`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-stop/SKILL.md) or [`full send`](https://github.com/JoshuaHayesWasHere/jstack/blob/main/skills/full-send/SKILL.md) mode.
 
 ## Pick the mode
 
@@ -17,7 +17,7 @@ Use this guide to take a change to a pull request with the `full stop` or `full 
 
 3. Leave the agent to work. It does not need you unless it asks a question.
 
-The agent picks a playbook, such as Bug fix or Feature, and copies its steps into a todo list. You see the list in its first reply.
+The agent picks a playbook, such as [Bug fix](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/bug-fix.md) or [Feature](https://github.com/JoshuaHayesWasHere/jstack/blob/main/playbooks/feature.md), and copies its steps into a todo list. You see the list in its first reply.
 
 ## Answer questions
 
