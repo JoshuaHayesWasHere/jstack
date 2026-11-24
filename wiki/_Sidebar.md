@@ -28,6 +28,7 @@
   - [Write](Skills#write)
   - [Learn](Skills#learn)
 - [[Playbooks]]
+- [[PR descriptions]]
 - [[Principles]]
 - [[Models and seats]]
 - [[Repository layout]]

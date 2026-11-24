@@ -32,4 +32,4 @@ The agent asks only when it cannot continue alone. It uses the harness's questio
 - After "full stop", the final message has the PR link, the head commit, the proof, and the review outcome. The PR is open and not merged. Merge it when you agree.
 - After "full send", the final message has the PR link, the merge commit, the proof, and each decision the agent made for you.
 
-For the rights each mode has, see [[Modes]]. For the steps a playbook runs, see [[Playbooks]].
+Both modes write the PR description in the shape on [[PR descriptions]]. For the rights each mode has, see [[Modes]]. For the steps a playbook runs, see [[Playbooks]].
